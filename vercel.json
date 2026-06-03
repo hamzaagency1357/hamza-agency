@@ -50,5 +50,7 @@
 
   "env": {
   "NEXT_PUBLIC_APP_URL": "https://hamza-agency.vercel.app"
-  }
+}
+}
+  
 
