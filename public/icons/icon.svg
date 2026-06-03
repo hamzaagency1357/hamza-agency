@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#0A0A0A"/>
+  <!-- Outer gold ring -->
+  <circle cx="256" cy="256" r="220" fill="none" stroke="#C9A84C" stroke-width="6"/>
+  <!-- Inner purple circle -->
+  <circle cx="256" cy="256" r="180" fill="#1A0533" opacity="0.8"/>
+  <!-- Gold gradient overlay -->
+  <defs>
+    <radialGradient id="goldGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F0D060" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#8B6914" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="letterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F0D060"/>
+      <stop offset="50%" stop-color="#C9A84C"/>
+      <stop offset="100%" stop-color="#8B6914"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="256" r="180" fill="url(#goldGlow)"/>
+  <!-- H letter mark -->
+  <text
+    x="256"
+    y="310"
+    text-anchor="middle"
+    font-family="Georgia, serif"
+    font-size="200"
+    font-weight="700"
+    fill="url(#letterGrad)"
+    letter-spacing="-4"
+  >H</text>
+  <!-- Decorative corner dots -->
+  <circle cx="256" cy="76" r="6" fill="#C9A84C"/>
+  <circle cx="256" cy="436" r="6" fill="#C9A84C"/>
+  <circle cx="76" cy="256" r="6" fill="#C9A84C"/>
+  <circle cx="436" cy="256" r="6" fill="#C9A84C"/>
+</svg>
