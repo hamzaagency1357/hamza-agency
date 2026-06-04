@@ -19,7 +19,23 @@ const statusLabel: Record<string, string> = {
   accepted: "مقبول",
   rejected: "مرفوض",
 };
+async function updateStatus(id: number, status: string) {
+  const { error } = await supabase
+    .from("agency_applications")
+    .update({ status })
+    .eq("id", id);
 
+  if (error) {
+    alert("فشل تحديث الطلب");
+    return;
+  }
+
+  setApplications((current) =>
+    current.map((app) =>
+      app.id === id ? { ...app, status } : app
+    )
+  );
+}
 export default function AdminPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [search, setSearch] = useState("");
