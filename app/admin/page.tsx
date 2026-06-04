@@ -19,23 +19,7 @@ const statusLabel: Record<string, string> = {
   accepted: "مقبول",
   rejected: "مرفوض",
 };
-async function updateStatus(id: number, status: string) {
-  const { error } = await supabase
-    .from("agency_applications")
-    .update({ status })
-    .eq("id", id);
 
-  if (error) {
-    alert("فشل تحديث الطلب");
-    return;
-  }
-
-  setApplications((current) =>
-    current.map((app) =>
-      app.id === id ? { ...app, status } : app
-    )
-  );
-}
 export default function AdminPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [search, setSearch] = useState("");
@@ -76,6 +60,29 @@ export default function AdminPage() {
   const acceptedCount = applications.filter((a) => a.status === "accepted").length;
   const rejectedCount = applications.filter((a) => a.status === "rejected").length;
 
+  async function updateStatus(id: number, status: string) {
+    if (!supabase) {
+      alert("Supabase غير متصل");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("agency_applications")
+      .update({ status })
+      .eq("id", id);
+
+    if (error) {
+      alert("فشل تحديث الطلب");
+      return;
+    }
+
+    setApplications((current) =>
+      current.map((app) =>
+        app.id === id ? { ...app, status } : app
+      )
+    );
+  }
+
   return (
     <main dir="rtl" className="min-h-screen bg-[#070009] text-white p-6">
       <div className="max-w-7xl mx-auto">
@@ -111,7 +118,7 @@ export default function AdminPage() {
           )}
 
           <div className="overflow-auto">
-            <table className="w-full min-w-[700px]">
+            <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="border-b border-purple-500/20 text-zinc-400">
                   <th className="text-right p-3">الاسم</th>
@@ -120,13 +127,14 @@ export default function AdminPage() {
                   <th className="text-right p-3">البرنامج</th>
                   <th className="text-right p-3">الحالة</th>
                   <th className="text-right p-3">تاريخ الطلب</th>
+                  <th className="text-right p-3">الإجراءات</th>
                 </tr>
               </thead>
 
               <tbody>
                 {filteredApplications.length === 0 ? (
                   <tr>
-                    <td className="p-3" colSpan={6}>
+                    <td className="p-3" colSpan={7}>
                       لا توجد طلبات حالياً
                     </td>
                   </tr>
@@ -142,6 +150,30 @@ export default function AdminPage() {
                       </td>
                       <td className="p-3">
                         {new Date(app.created_at).toLocaleDateString("ar")}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => updateStatus(app.id, "under_review")}
+                            className="rounded-lg border border-yellow-500/30 px-3 py-1 text-yellow-300"
+                          >
+                            مراجعة
+                          </button>
+
+                          <button
+                            onClick={() => updateStatus(app.id, "accepted")}
+                            className="rounded-lg border border-green-500/30 px-3 py-1 text-green-300"
+                          >
+                            قبول
+                          </button>
+
+                          <button
+                            onClick={() => updateStatus(app.id, "rejected")}
+                            className="rounded-lg border border-red-500/30 px-3 py-1 text-red-300"
+                          >
+                            رفض
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
