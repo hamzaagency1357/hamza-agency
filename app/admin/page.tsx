@@ -50,13 +50,16 @@ export default function AdminPage() {
 
   const filteredApplications = useMemo(() => {
     return applications.filter((app) => {
-      const text = `${app.full_name} ${app.country} ${app.whatsapp} ${app.platform}`.toLowerCase();
+      const text =
+        `${app.full_name} ${app.country} ${app.whatsapp} ${app.platform}`.toLowerCase();
+
       return text.includes(search.toLowerCase());
     });
   }, [applications, search]);
 
   const total = applications.length;
   const newCount = applications.filter((a) => a.status === "new").length;
+  const reviewCount = applications.filter((a) => a.status === "under_review").length;
   const acceptedCount = applications.filter((a) => a.status === "accepted").length;
   const rejectedCount = applications.filter((a) => a.status === "rejected").length;
 
@@ -92,9 +95,10 @@ export default function AdminPage() {
           إدارة طلبات الانضمام والبرامج والمحتوى
         </p>
 
-        <div className="grid md:grid-cols-4 gap-4 mb-8">
+        <div className="grid md:grid-cols-5 gap-4 mb-8">
           <StatCard title="إجمالي الطلبات" value={total} />
           <StatCard title="طلبات جديدة" value={newCount} />
+          <StatCard title="طلبات قيد المراجعة" value={reviewCount} />
           <StatCard title="طلبات مقبولة" value={acceptedCount} />
           <StatCard title="طلبات مرفوضة" value={rejectedCount} />
         </div>
