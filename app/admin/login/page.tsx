@@ -1,9 +1,6 @@
 export default function AdminLoginPage() {
   return (
-    <main
-      dir="rtl"
-      className="min-h-screen bg-[#070009] text-white flex items-center justify-center p-6"
-    >
+    <main dir="rtl" className="min-h-screen bg-[#070009] text-white flex items-center justify-center p-6">
       <div className="w-full max-w-md rounded-3xl border border-purple-500/20 bg-black/30 p-8">
         <h1 className="text-4xl font-bold text-center mb-3">
           تسجيل دخول الإدارة
@@ -28,15 +25,11 @@ export default function AdminLoginPage() {
 
           <button
             type="submit"
-            className="w-full rounded-xl bg-purple-600 hover:bg-purple-500 p-3 font-bold"
+            className="w-full rounded-xl bg-purple-600 p-3 font-bold"
           >
             تسجيل الدخول
           </button>
         </form>
-
-        <p className="text-center text-zinc-500 text-sm mt-6">
-          Super Admin / Deputy Admin / Program Admin
-        </p>
       </div>
     </main>
   );
