@@ -58,7 +58,7 @@ export default function HomePage() {
       platform: form.platform,
       previous_experience: form.previousExperience.trim(),
       notes: form.notes.trim(),
-      status: "pending",
+      status: "new",
     });
 
     setIsSubmitting(false);
@@ -79,6 +79,11 @@ export default function HomePage() {
       previousExperience: "",
       notes: "",
     });
+
+    setTimeout(() => {
+      setMessage("");
+      setShowJoinForm(false);
+    }, 3000);
   };
 
   if (showSplash) {
@@ -207,7 +212,7 @@ export default function HomePage() {
           <div className="mx-auto my-8 max-w-3xl rounded-[2rem] border border-purple-400/25 bg-[#100014] p-6 shadow-[0_0_80px_rgba(168,85,247,0.25)]">
             <div className="mb-6 flex items-center justify-between">
               <button
-                onClick={() => setShowJoinForm(false)}
+                onClick={() => { setMessage(""); setShowJoinForm(false); }}
                 className="rounded-full border border-white/15 px-5 py-2 text-white/70"
               >
                 إغلاق
