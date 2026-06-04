@@ -1,9 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 const programs = ["TikTok", "BIGO LIVE", "Yaahlan", "Xena", "Catchii"];
+
+const programSlugs: Record<string, string> = {
+  TikTok: "tiktok",
+  "BIGO LIVE": "bigo-live",
+  Yaahlan: "yaahlan",
+  Xena: "xena",
+  Catchii: "catchii",
+};
 
 export default function HomePage() {
   const [showSplash, setShowSplash] = useState(true);
@@ -173,16 +182,28 @@ export default function HomePage() {
 
       <section className="mx-auto max-w-7xl px-5 pb-24">
         <h2 className="text-center text-4xl font-black">البرامج المتاحة حالياً</h2>
+
+        <p className="mx-auto mt-4 max-w-2xl text-center text-white/60">
+          اختر البرنامج المناسب لك لعرض التفاصيل الكاملة، الشروط، نظام العمل، وما تقدمه وكالة حمزة.
+        </p>
+
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
           {programs.map((program) => (
-            <button
+            <Link
               key={program}
-              onClick={() => setShowJoinForm(true)}
+              href={`/programs/${programSlugs[program]}`}
               className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-center transition hover:border-purple-400/60 hover:bg-purple-500/10"
             >
+              <div className="mb-3 inline-flex rounded-full border border-green-400/30 bg-green-500/10 px-3 py-1 text-xs font-bold text-green-200">
+                متاح الآن
+              </div>
+
               <div className="text-2xl font-black">{program}</div>
-              <div className="mt-3 text-sm text-white/60">اضغط لطلب الانضمام</div>
-            </button>
+
+              <div className="mt-3 text-sm text-white/60">
+                عرض تفاصيل البرنامج
+              </div>
+            </Link>
           ))}
         </div>
       </section>
