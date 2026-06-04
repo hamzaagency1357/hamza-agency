@@ -1,89 +1,149 @@
-export default function AdminPage() {
-  return (
-    <main
-      dir="rtl"
-      className="min-h-screen bg-[#070009] text-white p-6"
-    >
-      <div className="max-w-7xl mx-auto">
+"use client";
 
-        <h1 className="text-4xl font-bold mb-2">
-          لوحة إدارة وكالة حمزة
-        </h1>
+import { useEffect, useMemo, useState } from "react";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+
+type Application = {
+  id: number;
+  full_name: string;
+  country: string;
+  whatsapp: string;
+  platform: string;
+  status: string;
+  created_at: string;
+};
+
+const statusLabel: Record<string, string> = {
+  new: "جديد",
+  under_review: "قيد المراجعة",
+  accepted: "مقبول",
+  rejected: "مرفوض",
+};
+
+export default function AdminPage() {
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [search, setSearch] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadApplications() {
+      if (!isSupabaseConfigured || !supabase) {
+        setError("Supabase غير متصل.");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("agency_applications")
+        .select("id, full_name, country, whatsapp, platform, status, created_at")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        setError("لا يمكن قراءة الطلبات حالياً. سنراجع صلاحيات RLS.");
+        return;
+      }
+
+      setApplications(data || []);
+    }
+
+    loadApplications();
+  }, []);
+
+  const filteredApplications = useMemo(() => {
+    return applications.filter((app) => {
+      const text = `${app.full_name} ${app.country} ${app.whatsapp} ${app.platform}`.toLowerCase();
+      return text.includes(search.toLowerCase());
+    });
+  }, [applications, search]);
+
+  const total = applications.length;
+  const newCount = applications.filter((a) => a.status === "new").length;
+  const acceptedCount = applications.filter((a) => a.status === "accepted").length;
+  const rejectedCount = applications.filter((a) => a.status === "rejected").length;
+
+  return (
+    <main dir="rtl" className="min-h-screen bg-[#070009] text-white p-6">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-4xl font-bold mb-2">لوحة إدارة وكالة حمزة</h1>
 
         <p className="text-zinc-400 mb-10">
           إدارة طلبات الانضمام والبرامج والمحتوى
         </p>
 
         <div className="grid md:grid-cols-4 gap-4 mb-8">
-
-          <div className="rounded-3xl border border-purple-500/20 bg-black/30 p-5">
-            <div className="text-zinc-400">إجمالي الطلبات</div>
-            <div className="text-4xl font-bold mt-2">0</div>
-          </div>
-
-          <div className="rounded-3xl border border-purple-500/20 bg-black/30 p-5">
-            <div className="text-zinc-400">طلبات جديدة</div>
-            <div className="text-4xl font-bold mt-2">0</div>
-          </div>
-
-          <div className="rounded-3xl border border-purple-500/20 bg-black/30 p-5">
-            <div className="text-zinc-400">طلبات مقبولة</div>
-            <div className="text-4xl font-bold mt-2">0</div>
-          </div>
-
-          <div className="rounded-3xl border border-purple-500/20 bg-black/30 p-5">
-            <div className="text-zinc-400">طلبات مرفوضة</div>
-            <div className="text-4xl font-bold mt-2">0</div>
-          </div>
-
+          <StatCard title="إجمالي الطلبات" value={total} />
+          <StatCard title="طلبات جديدة" value={newCount} />
+          <StatCard title="طلبات مقبولة" value={acceptedCount} />
+          <StatCard title="طلبات مرفوضة" value={rejectedCount} />
         </div>
 
         <div className="rounded-3xl border border-purple-500/20 bg-black/30 p-6">
-
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">
-              طلبات الانضمام
-            </h2>
+          <div className="flex flex-col md:flex-row justify-between gap-4 md:items-center mb-6">
+            <h2 className="text-2xl font-bold">طلبات الانضمام</h2>
 
             <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="بحث..."
               className="bg-black/40 border border-purple-500/20 rounded-xl px-4 py-2"
             />
           </div>
 
+          {error && (
+            <div className="mb-4 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-yellow-200">
+              {error}
+            </div>
+          )}
+
           <div className="overflow-auto">
-
-            <table className="w-full">
-
+            <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="border-b border-purple-500/20 text-zinc-400">
                   <th className="text-right p-3">الاسم</th>
                   <th className="text-right p-3">الدولة</th>
+                  <th className="text-right p-3">واتساب</th>
                   <th className="text-right p-3">البرنامج</th>
                   <th className="text-right p-3">الحالة</th>
-                  <th className="text-right p-3">الإجراءات</th>
+                  <th className="text-right p-3">تاريخ الطلب</th>
                 </tr>
               </thead>
 
               <tbody>
-
-                <tr>
-                  <td className="p-3">لا توجد طلبات حالياً</td>
-                  <td className="p-3">-</td>
-                  <td className="p-3">-</td>
-                  <td className="p-3">-</td>
-                  <td className="p-3">-</td>
-                </tr>
-
+                {filteredApplications.length === 0 ? (
+                  <tr>
+                    <td className="p-3" colSpan={6}>
+                      لا توجد طلبات حالياً
+                    </td>
+                  </tr>
+                ) : (
+                  filteredApplications.map((app) => (
+                    <tr key={app.id} className="border-b border-white/5">
+                      <td className="p-3">{app.full_name}</td>
+                      <td className="p-3">{app.country}</td>
+                      <td className="p-3">{app.whatsapp}</td>
+                      <td className="p-3">{app.platform}</td>
+                      <td className="p-3">
+                        {statusLabel[app.status] || app.status}
+                      </td>
+                      <td className="p-3">
+                        {new Date(app.created_at).toLocaleDateString("ar")}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
-
             </table>
-
           </div>
-
         </div>
-
       </div>
     </main>
+  );
+}
+
+function StatCard({ title, value }: { title: string; value: number }) {
+  return (
+    <div className="rounded-3xl border border-purple-500/20 bg-black/30 p-5">
+      <div className="text-zinc-400">{title}</div>
+      <div className="text-4xl font-bold mt-2">{value}</div>
+    </div>
   );
 }
