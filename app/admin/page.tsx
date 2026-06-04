@@ -11,71 +11,76 @@ export default function AdminPage() {
         </h1>
 
         <p className="text-zinc-400 mb-10">
-          مركز إدارة الوكالة والبرامج وطلبات الانضمام
+          إدارة طلبات الانضمام والبرامج والمحتوى
         </p>
 
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="grid md:grid-cols-4 gap-4 mb-8">
 
           <div className="rounded-3xl border border-purple-500/20 bg-black/30 p-5">
-            <div className="text-zinc-400">
-              إجمالي الطلبات
-            </div>
-            <div className="text-3xl font-bold mt-2">
-              --
-            </div>
+            <div className="text-zinc-400">إجمالي الطلبات</div>
+            <div className="text-4xl font-bold mt-2">0</div>
           </div>
 
           <div className="rounded-3xl border border-purple-500/20 bg-black/30 p-5">
-            <div className="text-zinc-400">
-              طلبات جديدة
-            </div>
-            <div className="text-3xl font-bold mt-2">
-              --
-            </div>
+            <div className="text-zinc-400">طلبات جديدة</div>
+            <div className="text-4xl font-bold mt-2">0</div>
           </div>
 
-        </div>
+          <div className="rounded-3xl border border-purple-500/20 bg-black/30 p-5">
+            <div className="text-zinc-400">طلبات مقبولة</div>
+            <div className="text-4xl font-bold mt-2">0</div>
+          </div>
 
-        <div className="rounded-3xl border border-purple-500/20 bg-black/30 p-6 mb-6">
-          <h2 className="text-2xl font-bold mb-4">
-            طلبات الانضمام
-          </h2>
+          <div className="rounded-3xl border border-purple-500/20 bg-black/30 p-5">
+            <div className="text-zinc-400">طلبات مرفوضة</div>
+            <div className="text-4xl font-bold mt-2">0</div>
+          </div>
 
-          <p className="text-zinc-400">
-            سيتم عرض الطلبات الحقيقية هنا بعد ربط نظام تسجيل الدخول والصلاحيات.
-          </p>
         </div>
 
         <div className="rounded-3xl border border-purple-500/20 bg-black/30 p-6">
-          <h2 className="text-2xl font-bold mb-4">
-            حالة النظام
-          </h2>
 
-          <div className="space-y-3">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">
+              طلبات الانضمام
+            </h2>
 
-            <div className="flex justify-between">
-              <span>واجهة الموقع</span>
-              <span className="text-green-400">✓ تعمل</span>
-            </div>
+            <input
+              placeholder="بحث..."
+              className="bg-black/40 border border-purple-500/20 rounded-xl px-4 py-2"
+            />
+          </div>
 
-            <div className="flex justify-between">
-              <span>نموذج الانضمام</span>
-              <span className="text-green-400">✓ يعمل</span>
-            </div>
+          <div className="overflow-auto">
 
-            <div className="flex justify-between">
-              <span>Supabase</span>
-              <span className="text-green-400">✓ متصل</span>
-            </div>
+            <table className="w-full">
 
-            <div className="flex justify-between">
-              <span>نظام الإدارة</span>
-              <span className="text-yellow-400">
-                قيد الإنشاء
-              </span>
-            </div>
+              <thead>
+                <tr className="border-b border-purple-500/20 text-zinc-400">
+                  <th className="text-right p-3">الاسم</th>
+                  <th className="text-right p-3">الدولة</th>
+                  <th className="text-right p-3">البرنامج</th>
+                  <th className="text-right p-3">الحالة</th>
+                  <th className="text-right p-3">الإجراءات</th>
+                </tr>
+              </thead>
+
+              <tbody>
+
+                <tr>
+                  <td className="p-3">لا توجد طلبات حالياً</td>
+                  <td className="p-3">-</td>
+                  <td className="p-3">-</td>
+                  <td className="p-3">-</td>
+                  <td className="p-3">-</td>
+                </tr>
+
+              </tbody>
+
+            </table>
 
           </div>
+
         </div>
 
       </div>
