@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
@@ -108,7 +109,8 @@ const coreModules = [
   {
     title: "Programs",
     subtitle: "إدارة البرامج",
-    description: "إضافة وتعديل وإظهار وإخفاء برامج الوكالة وربطها بالصفحات العامة.",
+    description:
+      "إضافة وتعديل وإظهار وإخفاء برامج الوكالة وربطها بالصفحات العامة.",
     href: "/admin/programs",
     status: "مكتمل",
     tone: "purple" as Tone,
@@ -116,7 +118,8 @@ const coreModules = [
   {
     title: "Pages CMS",
     subtitle: "إدارة الصفحات",
-    description: "إنشاء وتعديل صفحات الموقع وربطها بالمحتوى و SEO وحالة النشر.",
+    description:
+      "إنشاء وتعديل صفحات الموقع وربطها بالمحتوى و SEO وحالة النشر.",
     href: "/admin/pages",
     status: "مكتمل",
     tone: "cyan" as Tone,
@@ -124,7 +127,8 @@ const coreModules = [
   {
     title: "Settings CMS",
     subtitle: "إعدادات الموقع",
-    description: "إدارة اسم الوكالة، الألوان، الواتساب، البريد، SEO، اللغات، والصيانة.",
+    description:
+      "إدارة اسم الوكالة، الألوان، الواتساب، البريد، SEO، اللغات، والصيانة.",
     href: "/admin/settings",
     status: "مكتمل",
     tone: "green" as Tone,
@@ -132,7 +136,8 @@ const coreModules = [
   {
     title: "Media Library",
     subtitle: "مكتبة الوسائط",
-    description: "إدارة الصور، الفيديوهات، الشعارات، الخلفيات، والوسائط البرمجية.",
+    description:
+      "إدارة الصور، الفيديوهات، الشعارات، الخلفيات، والوسائط البرمجية.",
     href: "/admin/media",
     status: "مكتمل",
     tone: "pink" as Tone,
@@ -140,7 +145,8 @@ const coreModules = [
   {
     title: "Announcements",
     subtitle: "الإعلانات",
-    description: "إدارة الشريط الإعلاني والتنبيهات العامة وجدولة الظهور والإخفاء.",
+    description:
+      "إدارة الشريط الإعلاني والتنبيهات العامة وجدولة الظهور والإخفاء.",
     href: "/admin/announcements",
     status: "مكتمل",
     tone: "amber" as Tone,
@@ -411,30 +417,37 @@ export default function AdminPage() {
     return (
       <main
         dir="rtl"
-        className="flex min-h-screen items-center justify-center bg-[#070009] text-white"
+        className="flex min-h-screen items-center justify-center overflow-x-hidden bg-[#070009] text-white"
       >
         <div className="rounded-3xl border border-purple-500/25 bg-black/40 p-8 text-center shadow-[0_0_80px_rgba(124,58,237,0.25)]">
           <div className="mb-3 text-sm text-purple-200">HAMZA AGENCY</div>
-          <div className="text-2xl font-black">جاري التحقق من صلاحية الدخول...</div>
+          <div className="text-2xl font-black">
+            جاري التحقق من صلاحية الدخول...
+          </div>
         </div>
       </main>
     );
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#070009] text-white">
+    <main
+      dir="rtl"
+      className="min-h-screen w-full overflow-x-hidden bg-[#070009] text-white"
+    >
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#4c0a77_0%,#09000d_42%,#000_100%)]" />
       <div className="fixed inset-0 -z-10 opacity-25 [background-image:linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:44px_44px]" />
 
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-6 p-4 lg:flex-row lg:p-6">
-        <aside className="rounded-[2rem] border border-purple-500/20 bg-black/45 p-4 shadow-[0_0_80px_rgba(124,58,237,0.12)] backdrop-blur lg:sticky lg:top-6 lg:h-[calc(100vh-48px)] lg:w-80">
+      <div className="mx-auto grid w-full max-w-[1500px] grid-cols-1 gap-6 p-4 xl:grid-cols-[300px_minmax(0,1fr)] xl:p-6">
+        <aside className="w-full max-w-full overflow-hidden rounded-[2rem] border border-purple-500/20 bg-black/45 p-4 shadow-[0_0_80px_rgba(124,58,237,0.12)] backdrop-blur xl:sticky xl:top-6 xl:h-[calc(100vh-48px)]">
           <div className="mb-5 overflow-hidden rounded-3xl border border-yellow-400/25 bg-gradient-to-br from-yellow-400/10 via-purple-500/10 to-black p-5">
             <div className="text-xs font-bold uppercase tracking-[0.3em] text-yellow-200">
               HAMZA AGENCY
             </div>
+
             <h2 className="mt-3 text-3xl font-black text-white">
               لوحة التحكم
             </h2>
+
             <p className="mt-2 break-all text-xs leading-6 text-white/50">
               {adminEmail}
             </p>
@@ -447,23 +460,26 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <nav className="space-y-2">
+          <nav className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`group flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition ${toneSoftClasses(
+                className={`group flex min-w-0 items-center justify-between rounded-2xl border px-4 py-3 text-sm transition ${toneSoftClasses(
                   item.tone
                 )}`}
               >
-                <div>
-                  <div className="font-bold text-white">{item.title}</div>
-                  <div className="mt-1 text-xs text-white/45">
+                <div className="min-w-0">
+                  <div className="truncate font-bold text-white">
+                    {item.title}
+                  </div>
+                  <div className="mt-1 truncate text-xs text-white/45">
                     {item.description}
                   </div>
                 </div>
+
                 <span
-                  className={`flex h-9 w-9 items-center justify-center rounded-xl border text-lg ${toneIconClasses(
+                  className={`mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-lg ${toneIconClasses(
                     item.tone
                   )}`}
                 >
@@ -481,10 +497,10 @@ export default function AdminPage() {
           </button>
         </aside>
 
-        <section className="min-w-0 flex-1">
+        <section className="w-full min-w-0 overflow-hidden">
           <div className="mb-6 overflow-hidden rounded-[2rem] border border-yellow-400/25 bg-black/45 p-6 shadow-[0_0_100px_rgba(212,175,55,0.08)]">
-            <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-              <div>
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-center">
+              <div className="min-w-0">
                 <div className="mb-4 flex flex-wrap gap-2">
                   <Badge tone="gold">Core CMS Foundation</Badge>
                   <Badge tone="green">Production System</Badge>
@@ -495,7 +511,7 @@ export default function AdminPage() {
                   مركز الإدارة الرئيسي
                 </p>
 
-                <h1 className="max-w-4xl text-4xl font-black leading-tight md:text-6xl">
+                <h1 className="max-w-4xl break-words text-4xl font-black leading-tight md:text-5xl 2xl:text-6xl">
                   لوحة إدارة{" "}
                   <span className="bg-gradient-to-l from-yellow-200 via-white to-purple-200 bg-clip-text text-transparent">
                     وكالة حمزة
@@ -509,7 +525,7 @@ export default function AdminPage() {
                 </p>
               </div>
 
-              <div className="grid min-w-[240px] gap-3">
+              <div className="grid min-w-0 gap-3">
                 <SystemCard
                   title="مرحلة التنفيذ"
                   value="المرحلة 1"
@@ -531,7 +547,7 @@ export default function AdminPage() {
             tone="gold"
           />
 
-          <div className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+          <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
             <StatCard title="الطلبات" value={counts.applications} tone="blue" />
             <StatCard title="البرامج" value={counts.programs} tone="purple" />
             <StatCard title="الصفحات" value={counts.pages} tone="cyan" />
@@ -555,7 +571,7 @@ export default function AdminPage() {
             tone="blue"
           />
 
-          <div className="mb-8 grid gap-4 md:grid-cols-4">
+          <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard title="طلبات جديدة" value={newCount} tone="blue" />
             <StatCard
               title="قيد المراجعة"
@@ -566,8 +582,8 @@ export default function AdminPage() {
             <StatCard title="مرفوضة" value={rejectedCount} tone="red" />
           </div>
 
-          <div className="mb-8 rounded-[2rem] border border-purple-500/20 bg-black/45 p-6">
-            <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+          <div className="mb-8 overflow-hidden rounded-[2rem] border border-purple-500/20 bg-black/45 p-6">
+            <div className="mb-6 grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
               <SectionTitle
                 eyebrow="وحدات الإدارة المكتملة"
                 title="Core CMS Foundation"
@@ -583,7 +599,7 @@ export default function AdminPage() {
               </Link>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
               {coreModules.map((module) => (
                 <ModuleCard
                   key={module.title}
@@ -598,7 +614,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div className="mb-8 rounded-[2rem] border border-yellow-400/20 bg-black/45 p-6">
+          <div className="mb-8 overflow-hidden rounded-[2rem] border border-yellow-400/20 bg-black/45 p-6">
             <SectionTitle
               eyebrow="المراحل القادمة"
               title="وحدات سيتم بناؤها لاحقاً"
@@ -606,16 +622,18 @@ export default function AdminPage() {
               tone="gold"
             />
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
               {upcomingModules.map((module) => (
                 <div
                   key={module.title}
-                  className={`rounded-3xl border p-5 ${toneSoftClasses(
+                  className={`min-w-0 rounded-3xl border p-5 ${toneSoftClasses(
                     module.tone
                   )}`}
                 >
                   <Badge tone={module.tone}>قادم لاحقاً</Badge>
-                  <h3 className="mt-4 text-2xl font-black">{module.title}</h3>
+                  <h3 className="mt-4 break-words text-2xl font-black">
+                    {module.title}
+                  </h3>
                   <p className="mt-3 leading-7 text-white/55">
                     {module.description}
                   </p>
@@ -626,9 +644,9 @@ export default function AdminPage() {
 
           <div
             id="applications"
-            className="rounded-[2rem] border border-blue-500/20 bg-black/45 p-6"
+            className="overflow-hidden rounded-[2rem] border border-blue-500/20 bg-black/45 p-6"
           >
-            <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+            <div className="mb-6 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(260px,360px)] md:items-center">
               <SectionTitle
                 eyebrow="إدارة المتقدمين"
                 title="طلبات الانضمام"
@@ -640,7 +658,7 @@ export default function AdminPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="بحث بالاسم، الدولة، الواتساب، البرنامج..."
-                className="rounded-2xl border border-blue-500/25 bg-black/50 px-4 py-3 outline-none transition focus:border-blue-400 focus:shadow-[0_0_35px_rgba(59,130,246,0.18)]"
+                className="w-full rounded-2xl border border-blue-500/25 bg-black/50 px-4 py-3 outline-none transition focus:border-blue-400 focus:shadow-[0_0_35px_rgba(59,130,246,0.18)]"
               />
             </div>
 
@@ -650,7 +668,7 @@ export default function AdminPage() {
               </div>
             )}
 
-            <div className="overflow-auto rounded-3xl border border-white/10">
+            <div className="max-w-full overflow-x-auto rounded-3xl border border-white/10">
               <table className="w-full min-w-[900px]">
                 <thead className="bg-blue-500/10">
                   <tr className="border-b border-blue-500/20 text-blue-100">
@@ -726,19 +744,19 @@ export default function AdminPage() {
           </div>
 
           {selectedApplication && (
-            <div className="fixed inset-0 z-50 overflow-auto bg-black/85 p-4 backdrop-blur">
+            <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden bg-black/85 p-4 backdrop-blur">
               <div className="mx-auto max-w-3xl rounded-[2rem] border border-purple-500/30 bg-[#09000d] p-6 shadow-[0_0_100px_rgba(124,58,237,0.25)]">
-                <div className="mb-6 flex items-center justify-between">
-                  <div>
+                <div className="mb-6 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
                     <Badge tone="purple">تفاصيل الطلب</Badge>
-                    <h3 className="mt-3 text-3xl font-black">
+                    <h3 className="mt-3 break-words text-3xl font-black">
                       {selectedApplication.full_name}
                     </h3>
                   </div>
 
                   <button
                     onClick={() => setSelectedApplication(null)}
-                    className="rounded-xl border border-white/20 px-4 py-2 text-white/70"
+                    className="shrink-0 rounded-xl border border-white/20 px-4 py-2 text-white/70"
                   >
                     إغلاق
                   </button>
@@ -780,7 +798,7 @@ export default function AdminPage() {
                     <div className="mb-2 text-sm text-green-200">
                       رقم الواتساب
                     </div>
-                    <div className="mb-3 text-xl font-black">
+                    <div className="mb-3 break-all text-xl font-black">
                       {selectedApplication.whatsapp}
                     </div>
                     <button
@@ -879,7 +897,7 @@ function SectionHeader({
   tone: Tone;
 }) {
   return (
-    <div className="mb-4 rounded-[1.5rem] border border-white/10 bg-black/30 p-5">
+    <div className="mb-4 overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/30 p-5">
       <SectionTitle
         eyebrow={eyebrow}
         title={title}
@@ -902,11 +920,11 @@ function SectionTitle({
   tone: Tone;
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <div className={`mb-2 text-sm font-bold ${toneTextClasses(tone)}`}>
         {eyebrow}
       </div>
-      <h2 className="text-3xl font-black text-white">{title}</h2>
+      <h2 className="break-words text-3xl font-black text-white">{title}</h2>
       <p className="mt-2 max-w-3xl leading-7 text-white/55">{description}</p>
     </div>
   );
@@ -923,12 +941,16 @@ function StatCard({
 }) {
   return (
     <div
-      className={`rounded-3xl border p-5 shadow-[0_0_35px_rgba(255,255,255,0.03)] ${toneSoftClasses(
+      className={`min-w-0 rounded-3xl border p-5 shadow-[0_0_35px_rgba(255,255,255,0.03)] ${toneSoftClasses(
         tone
       )}`}
     >
-      <div className={`text-sm font-bold ${toneTextClasses(tone)}`}>{title}</div>
-      <div className="mt-3 text-4xl font-black text-white">{value}</div>
+      <div className={`text-sm font-bold ${toneTextClasses(tone)}`}>
+        {title}
+      </div>
+      <div className="mt-3 break-words text-4xl font-black text-white">
+        {value}
+      </div>
     </div>
   );
 }
@@ -943,9 +965,9 @@ function SystemCard({
   tone: Tone;
 }) {
   return (
-    <div className={`rounded-3xl border p-4 ${toneSoftClasses(tone)}`}>
+    <div className={`min-w-0 rounded-3xl border p-4 ${toneSoftClasses(tone)}`}>
       <div className={`text-xs ${toneTextClasses(tone)}`}>{title}</div>
-      <div className="mt-2 text-xl font-black">{value}</div>
+      <div className="mt-2 break-words text-xl font-black">{value}</div>
     </div>
   );
 }
@@ -968,32 +990,32 @@ function ModuleCard({
   return (
     <Link
       href={href}
-      className={`group rounded-3xl border p-5 transition hover:scale-[1.02] ${toneSoftClasses(
+      className={`group min-w-0 rounded-3xl border p-5 transition hover:scale-[1.02] ${toneSoftClasses(
         tone
       )}`}
     >
       <div className="mb-4 flex items-center justify-between gap-3">
         <Badge tone={tone}>{status}</Badge>
-        <span className={`text-2xl ${toneTextClasses(tone)}`}>↗</span>
+        <span className={`shrink-0 text-2xl ${toneTextClasses(tone)}`}>↗</span>
       </div>
 
       <div className={`mb-2 text-sm font-bold ${toneTextClasses(tone)}`}>
         {subtitle}
       </div>
-      <h3 className="text-2xl font-black text-white">{title}</h3>
+      <h3 className="break-words text-2xl font-black text-white">{title}</h3>
       <p className="mt-3 leading-7 text-white/55">{description}</p>
     </Link>
   );
 }
 
-function Badge({ tone, children }: { tone: Tone; children: React.ReactNode }) {
+function Badge({ tone, children }: { tone: Tone; children: ReactNode }) {
   return (
     <span
-      className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${toneBadgeClasses(
+      className={`inline-flex max-w-full rounded-full border px-3 py-1 text-xs font-bold ${toneBadgeClasses(
         tone
       )}`}
     >
-      {children}
+      <span className="truncate">{children}</span>
     </span>
   );
 }
@@ -1008,9 +1030,9 @@ function InfoCard({
   tone: Tone;
 }) {
   return (
-    <div className={`mt-4 rounded-2xl border p-4 ${toneSoftClasses(tone)}`}>
+    <div className={`mt-4 min-w-0 rounded-2xl border p-4 ${toneSoftClasses(tone)}`}>
       <div className={`mb-2 text-sm ${toneTextClasses(tone)}`}>{title}</div>
-      <div className="whitespace-pre-wrap text-xl font-bold text-white">
+      <div className="whitespace-pre-wrap break-words text-xl font-bold text-white">
         {value}
       </div>
     </div>
