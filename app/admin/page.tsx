@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type Application = {
@@ -24,14 +25,55 @@ const statusLabel: Record<string, string> = {
 };
 
 export default function AdminPage() {
+  const router = useRouter();
+
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+
   const [applications, setApplications] = useState<Application[]>([]);
   const [selectedApplication, setSelectedApplication] =
     useState<Application | null>(null);
-  const [internalNotes, setInternalNotes] = useState("");
+
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
+  const [internalNotes, setInternalNotes] = useState("");
 
   useEffect(() => {
+    async function checkAdminAccess() {
+      if (!isSupabaseConfigured || !supabase) {
+        router.replace("/admin/login");
+        return;
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        router.replace("/admin/login");
+        return;
+      }
+
+      const { data: isAdmin, error: adminError } = await supabase.rpc(
+        "current_user_is_admin"
+      );
+
+      if (adminError || !isAdmin) {
+        await supabase.auth.signOut();
+        router.replace("/admin/login");
+        return;
+      }
+
+      setIsAuthorized(true);
+      setIsCheckingAuth(false);
+    }
+
+    checkAdminAccess();
+  }, [router]);
+
+  useEffect(() => {
+    if (!isAuthorized) return;
+
     async function loadApplications() {
       if (!isSupabaseConfigured || !supabase) {
         setError("Supabase غير متصل.");
@@ -54,20 +96,18 @@ export default function AdminPage() {
     }
 
     loadApplications();
-  }, []);
+  }, [isAuthorized]);
 
   const filteredApplications = useMemo(() => {
     return applications.filter((app) => {
-      const text =
-        `${app.full_name} ${app.country} ${app.whatsapp} ${app.platform} ${app.status}`.toLowerCase();
-
+      const text = `${app.full_name} ${app.country} ${app.whatsapp} ${app.platform}`.toLowerCase();
       return text.includes(search.toLowerCase());
     });
   }, [applications, search]);
 
   const total = applications.length;
   const newCount = applications.filter((a) => a.status === "new").length;
-  const reviewCount = applications.filter(
+  const underReviewCount = applications.filter(
     (a) => a.status === "under_review"
   ).length;
   const acceptedCount = applications.filter(
@@ -77,21 +117,8 @@ export default function AdminPage() {
     (a) => a.status === "rejected"
   ).length;
 
-  function openDetails(app: Application) {
-    setSelectedApplication(app);
-    setInternalNotes(app.internal_notes || "");
-  }
-
-  function closeDetails() {
-    setSelectedApplication(null);
-    setInternalNotes("");
-  }
-
   async function updateStatus(id: number, status: string) {
-    if (!supabase) {
-      alert("Supabase غير متصل");
-      return;
-    }
+    if (!supabase) return;
 
     const { error } = await supabase
       .from("agency_applications")
@@ -99,14 +126,12 @@ export default function AdminPage() {
       .eq("id", id);
 
     if (error) {
-      alert("فشل تحديث الطلب");
+      alert("فشل تحديث حالة الطلب");
       return;
     }
 
     setApplications((current) =>
-      current.map((app) =>
-        app.id === id ? { ...app, status } : app
-      )
+      current.map((app) => (app.id === id ? { ...app, status } : app))
     );
 
     setSelectedApplication((current) =>
@@ -115,10 +140,7 @@ export default function AdminPage() {
   }
 
   async function saveInternalNotes() {
-    if (!selectedApplication || !supabase) {
-      alert("لا يوجد طلب محدد");
-      return;
-    }
+    if (!supabase || !selectedApplication) return;
 
     const { error } = await supabase
       .from("agency_applications")
@@ -146,56 +168,75 @@ export default function AdminPage() {
     alert("تم حفظ ملاحظات الأدمن بنجاح");
   }
 
-  async function copyText(text: string, successMessage: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      alert(successMessage);
-    } catch {
-      alert("لم يتم النسخ. حاول مرة أخرى.");
-    }
+  function openDetails(app: Application) {
+    setSelectedApplication(app);
+    setInternalNotes(app.internal_notes || "");
   }
 
-  function copyWhatsapp(app: Application) {
-    copyText(app.whatsapp || "", "تم نسخ رقم الواتساب");
+  function copyWhatsAppNumber(number: string) {
+    navigator.clipboard.writeText(number);
+    alert("تم نسخ رقم الواتساب");
   }
 
-  function copyAllApplicationInfo(app: Application) {
+  function copyApplicationInfo(app: Application) {
     const info = `
-طلب انضمام جديد - وكالة حمزة
+الاسم الكامل: ${app.full_name}
+الدولة: ${app.country}
+رقم الواتساب: ${app.whatsapp}
+البرنامج: ${app.platform}
+الحالة: ${statusLabel[app.status] || app.status}
+تاريخ الطلب: ${new Date(app.created_at).toLocaleDateString("ar")}
+الخبرات السابقة: ${app.previous_experience || "لا يوجد"}
+الملاحظات الإضافية: ${app.notes || "لا يوجد"}
+ملاحظات الأدمن: ${app.internal_notes || "لا يوجد"}
+    `.trim();
 
-الاسم: ${app.full_name || "-"}
-الدولة: ${app.country || "-"}
-رقم الواتساب: ${app.whatsapp || "-"}
-البرنامج: ${app.platform || "-"}
-الحالة: ${statusLabel[app.status] || app.status || "-"}
-تاريخ الطلب: ${formatDate(app.created_at)}
+    navigator.clipboard.writeText(info);
+    alert("تم نسخ جميع معلومات الطلب");
+  }
 
-الخبرات السابقة:
-${app.previous_experience || "-"}
+  async function logout() {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    router.replace("/admin/login");
+  }
 
-الملاحظات الإضافية:
-${app.notes || "-"}
-
-ملاحظات الأدمن:
-${app.internal_notes || "-"}
-`.trim();
-
-    copyText(info, "تم نسخ جميع معلومات الطلب");
+  if (isCheckingAuth) {
+    return (
+      <main
+        dir="rtl"
+        className="min-h-screen bg-[#070009] text-white flex items-center justify-center"
+      >
+        جاري التحقق من صلاحية الدخول...
+      </main>
+    );
   }
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#070009] text-white p-6">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold mb-2">لوحة إدارة وكالة حمزة</h1>
+        <div className="flex items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">
+              لوحة إدارة وكالة حمزة
+            </h1>
+            <p className="text-zinc-400">
+              إدارة طلبات الانضمام والبرامج والمحتوى
+            </p>
+          </div>
 
-        <p className="text-zinc-400 mb-10">
-          إدارة طلبات الانضمام والبرامج والمحتوى
-        </p>
+          <button
+            onClick={logout}
+            className="rounded-xl border border-red-500/30 px-4 py-2 text-red-200"
+          >
+            تسجيل الخروج
+          </button>
+        </div>
 
         <div className="grid md:grid-cols-5 gap-4 mb-8">
           <StatCard title="إجمالي الطلبات" value={total} />
           <StatCard title="طلبات جديدة" value={newCount} />
-          <StatCard title="طلبات قيد المراجعة" value={reviewCount} />
+          <StatCard title="طلبات قيد المراجعة" value={underReviewCount} />
           <StatCard title="طلبات مقبولة" value={acceptedCount} />
           <StatCard title="طلبات مرفوضة" value={rejectedCount} />
         </div>
@@ -208,7 +249,7 @@ ${app.internal_notes || "-"}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="بحث بالاسم، الدولة، الواتساب، البرنامج..."
-              className="bg-black/40 border border-purple-500/20 rounded-xl px-4 py-2 w-full md:w-96"
+              className="bg-black/40 border border-purple-500/20 rounded-xl px-4 py-2"
             />
           </div>
 
@@ -247,35 +288,34 @@ ${app.internal_notes || "-"}
                       <td className="p-3">
                         {statusLabel[app.status] || app.status}
                       </td>
-                      <td className="p-3">{formatDate(app.created_at)}</td>
+                      <td className="p-3">
+                        {new Date(app.created_at).toLocaleDateString("ar")}
+                      </td>
                       <td className="p-3">
                         <div className="flex flex-wrap gap-2">
                           <button
                             onClick={() => openDetails(app)}
-                            className="rounded-lg border border-purple-500/30 px-3 py-1 text-purple-200"
+                            className="rounded-lg border border-purple-500/30 px-3 py-1"
                           >
                             عرض التفاصيل
                           </button>
-
                           <button
                             onClick={() =>
                               updateStatus(app.id, "under_review")
                             }
-                            className="rounded-lg border border-yellow-500/30 px-3 py-1 text-yellow-300"
+                            className="rounded-lg border border-yellow-500/30 px-3 py-1 text-yellow-200"
                           >
                             مراجعة
                           </button>
-
                           <button
                             onClick={() => updateStatus(app.id, "accepted")}
-                            className="rounded-lg border border-green-500/30 px-3 py-1 text-green-300"
+                            className="rounded-lg border border-green-500/30 px-3 py-1 text-green-200"
                           >
                             قبول
                           </button>
-
                           <button
                             onClick={() => updateStatus(app.id, "rejected")}
-                            className="rounded-lg border border-red-500/30 px-3 py-1 text-red-300"
+                            className="rounded-lg border border-red-500/30 px-3 py-1 text-red-200"
                           >
                             رفض
                           </button>
@@ -288,128 +328,120 @@ ${app.internal_notes || "-"}
             </table>
           </div>
         </div>
-      </div>
 
-      {selectedApplication && (
-        <div className="fixed inset-0 z-50 bg-black/80 p-4 flex items-center justify-center">
-          <div className="w-full max-w-3xl max-h-[90vh] overflow-auto rounded-3xl border border-purple-500/30 bg-[#0b0010] p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-3xl font-bold mb-2">تفاصيل الطلب</h2>
-                <p className="text-zinc-400">
-                  عرض كامل معلومات مقدم الطلب وإدارة حالته.
-                </p>
+        {selectedApplication && (
+          <div className="fixed inset-0 z-50 bg-black/80 p-4 overflow-auto">
+            <div className="max-w-3xl mx-auto rounded-3xl border border-purple-500/30 bg-[#09000d] p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-3xl font-bold">تفاصيل الطلب</h3>
+                <button
+                  onClick={() => setSelectedApplication(null)}
+                  className="rounded-lg border border-white/20 px-4 py-2"
+                >
+                  إغلاق
+                </button>
               </div>
 
-              <button
-                onClick={closeDetails}
-                className="rounded-xl border border-white/10 px-4 py-2 text-zinc-300"
-              >
-                إغلاق
-              </button>
-            </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <InfoCard title="الاسم الكامل" value={selectedApplication.full_name} />
+                <InfoCard title="الدولة" value={selectedApplication.country} />
+                <InfoCard title="البرنامج" value={selectedApplication.platform} />
+                <InfoCard
+                  title="الحالة"
+                  value={
+                    statusLabel[selectedApplication.status] ||
+                    selectedApplication.status
+                  }
+                />
+                <InfoCard
+                  title="تاريخ الطلب"
+                  value={new Date(
+                    selectedApplication.created_at
+                  ).toLocaleDateString("ar")}
+                />
 
-            <div className="grid md:grid-cols-2 gap-4 mb-6">
-              <DetailCard label="الاسم الكامل" value={selectedApplication.full_name} />
-              <DetailCard label="الدولة" value={selectedApplication.country} />
-              <DetailCard label="البرنامج" value={selectedApplication.platform} />
-              <DetailCard
-                label="الحالة"
-                value={
-                  statusLabel[selectedApplication.status] ||
-                  selectedApplication.status
-                }
-              />
-              <DetailCard
-                label="تاريخ الطلب"
-                value={formatDate(selectedApplication.created_at)}
-              />
-
-              <div className="rounded-2xl border border-purple-500/20 bg-black/30 p-4">
-                <div className="text-zinc-400 mb-2">رقم الواتساب</div>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="font-bold break-all">
-                    {selectedApplication.whatsapp || "-"}
+                <div className="rounded-2xl border border-purple-500/20 p-4">
+                  <div className="text-zinc-400 mb-2">رقم الواتساب</div>
+                  <div className="text-xl mb-3">
+                    {selectedApplication.whatsapp}
                   </div>
-
                   <button
-                    onClick={() => copyWhatsapp(selectedApplication)}
-                    className="shrink-0 rounded-lg border border-green-500/30 px-3 py-1 text-green-300"
+                    onClick={() =>
+                      copyWhatsAppNumber(selectedApplication.whatsapp)
+                    }
+                    className="rounded-lg border border-green-500/30 px-4 py-2 text-green-200"
                   >
                     نسخ الرقم
                   </button>
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-4 mb-6">
-              <LongDetail
-                label="الخبرات السابقة"
-                value={selectedApplication.previous_experience}
+              <InfoCard
+                title="الخبرات السابقة"
+                value={selectedApplication.previous_experience || "لا يوجد"}
               />
 
-              <LongDetail
-                label="الملاحظات الإضافية"
-                value={selectedApplication.notes}
-              />
-            </div>
-
-            <div className="rounded-2xl border border-purple-500/20 bg-black/30 p-4 mb-6">
-              <div className="text-zinc-400 mb-3">ملاحظات الأدمن الداخلية</div>
-
-              <textarea
-                value={internalNotes}
-                onChange={(e) => setInternalNotes(e.target.value)}
-                placeholder="اكتب ملاحظات داخلية لا تظهر للمتقدم..."
-                className="w-full min-h-32 rounded-xl border border-purple-500/20 bg-black/40 p-4 text-white outline-none"
+              <InfoCard
+                title="الملاحظات الإضافية"
+                value={selectedApplication.notes || "لا يوجد"}
               />
 
-              <button
-                onClick={saveInternalNotes}
-                className="mt-3 rounded-xl bg-purple-600 px-5 py-2 font-bold"
-              >
-                حفظ ملاحظات الأدمن
-              </button>
-            </div>
+              <div className="rounded-2xl border border-purple-500/20 p-4 mt-4">
+                <div className="text-zinc-400 mb-2">
+                  ملاحظات الأدمن الداخلية
+                </div>
+                <textarea
+                  value={internalNotes}
+                  onChange={(e) => setInternalNotes(e.target.value)}
+                  className="w-full min-h-[140px] rounded-xl border border-purple-500/20 bg-black/40 p-4"
+                />
+                <button
+                  onClick={saveInternalNotes}
+                  className="mt-4 rounded-xl bg-purple-600 px-6 py-3 font-bold"
+                >
+                  حفظ ملاحظات الأدمن
+                </button>
+              </div>
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => copyAllApplicationInfo(selectedApplication)}
-                className="rounded-xl border border-purple-500/30 px-4 py-2 text-purple-200"
-              >
-                نسخ جميع معلومات الطلب
-              </button>
+              <div className="flex flex-wrap gap-3 mt-6">
+                <button
+                  onClick={() => copyApplicationInfo(selectedApplication)}
+                  className="rounded-xl border border-purple-500/30 px-4 py-2"
+                >
+                  نسخ جميع معلومات الطلب
+                </button>
 
-              <button
-                onClick={() =>
-                  updateStatus(selectedApplication.id, "under_review")
-                }
-                className="rounded-xl border border-yellow-500/30 px-4 py-2 text-yellow-300"
-              >
-                وضع قيد المراجعة
-              </button>
+                <button
+                  onClick={() =>
+                    updateStatus(selectedApplication.id, "under_review")
+                  }
+                  className="rounded-xl border border-yellow-500/30 px-4 py-2 text-yellow-200"
+                >
+                  وضع قيد المراجعة
+                </button>
 
-              <button
-                onClick={() =>
-                  updateStatus(selectedApplication.id, "accepted")
-                }
-                className="rounded-xl border border-green-500/30 px-4 py-2 text-green-300"
-              >
-                قبول الطلب
-              </button>
+                <button
+                  onClick={() =>
+                    updateStatus(selectedApplication.id, "accepted")
+                  }
+                  className="rounded-xl border border-green-500/30 px-4 py-2 text-green-200"
+                >
+                  قبول الطلب
+                </button>
 
-              <button
-                onClick={() =>
-                  updateStatus(selectedApplication.id, "rejected")
-                }
-                className="rounded-xl border border-red-500/30 px-4 py-2 text-red-300"
-              >
-                رفض الطلب
-              </button>
+                <button
+                  onClick={() =>
+                    updateStatus(selectedApplication.id, "rejected")
+                  }
+                  className="rounded-xl border border-red-500/30 px-4 py-2 text-red-200"
+                >
+                  رفض الطلب
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </main>
   );
 }
@@ -423,30 +455,11 @@ function StatCard({ title, value }: { title: string; value: number }) {
   );
 }
 
-function DetailCard({ label, value }: { label: string; value?: string | null }) {
+function InfoCard({ title, value }: { title: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-purple-500/20 bg-black/30 p-4">
-      <div className="text-zinc-400 mb-2">{label}</div>
-      <div className="font-bold break-words">{value || "-"}</div>
+    <div className="rounded-2xl border border-purple-500/20 p-4 mt-4">
+      <div className="text-zinc-400 mb-2">{title}</div>
+      <div className="text-xl whitespace-pre-wrap">{value}</div>
     </div>
   );
-}
-
-function LongDetail({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string | null;
-}) {
-  return (
-    <div className="rounded-2xl border border-purple-500/20 bg-black/30 p-4">
-      <div className="text-zinc-400 mb-2">{label}</div>
-      <div className="whitespace-pre-wrap leading-8">{value || "-"}</div>
-    </div>
-  );
-}
-
-function formatDate(date: string) {
-  return new Date(date).toLocaleDateString("ar");
 }
