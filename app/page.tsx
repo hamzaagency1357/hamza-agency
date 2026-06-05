@@ -311,9 +311,7 @@ export default function HomePage() {
 
   function getUsableImageUrl(media: MediaItem | undefined, fallback: string) {
     const url = media?.file_url || "";
-
     if (url.startsWith("http") || url.startsWith("/")) return url;
-
     return fallback;
   }
 
@@ -603,13 +601,6 @@ export default function HomePage() {
             </Link>
           ))}
         </div>
-
-        <Link
-          href="/admin"
-          className="hidden rounded-full border border-yellow-400/25 bg-yellow-500/10 px-4 py-2 text-sm font-black text-yellow-100 backdrop-blur transition hover:bg-yellow-500/20 md:inline-flex"
-        >
-          الإدارة
-        </Link>
       </nav>
 
       <div className="relative z-20 mx-auto mb-4 max-w-7xl px-5 lg:hidden">
@@ -960,13 +951,6 @@ export default function HomePage() {
             >
               فتح واتساب
             </a>
-
-            <Link
-              href="/admin"
-              className="mt-4 inline-flex rounded-full border border-yellow-400/25 bg-yellow-500/10 px-6 py-3 font-black text-yellow-100"
-            >
-              لوحة الإدارة
-            </Link>
           </div>
         </div>
 
@@ -1041,15 +1025,15 @@ function PublicBackground({ media }: { media: MediaItem | undefined }) {
     return (
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <video
-          className="h-full w-full object-cover opacity-38"
+          className="h-full w-full object-cover opacity-42"
           src={url}
           autoPlay
           loop
           muted
           playsInline
         />
-        <div className="absolute inset-0 bg-[#070009]/72" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.28),transparent_45%)]" />
+        <div className="absolute inset-0 bg-[#070009]/68" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.32),transparent_48%)]" />
       </div>
     );
   }
@@ -1058,11 +1042,11 @@ function PublicBackground({ media }: { media: MediaItem | undefined }) {
     return (
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <div
-          className="absolute inset-0 bg-cover bg-center opacity-35"
+          className="absolute inset-0 bg-cover bg-center opacity-38"
           style={{ backgroundImage: `url("${url}")` }}
         />
-        <div className="absolute inset-0 bg-[#070009]/75" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.28),transparent_45%)]" />
+        <div className="absolute inset-0 bg-[#070009]/72" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.32),transparent_48%)]" />
       </div>
     );
   }
@@ -1075,19 +1059,30 @@ function GeneratedBackground({ variant }: { variant: string }) {
 
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-      <div className="absolute inset-0 bg-[#070009]" />
+      <div className="absolute inset-0 bg-[#050008]" />
 
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,58,237,0.38)_0%,rgba(76,29,149,0.16)_30%,rgba(7,0,9,0.96)_72%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,58,237,0.54)_0%,rgba(76,29,149,0.24)_28%,rgba(5,0,8,0.98)_72%)]" />
 
-      <div className="hamza-aurora-one absolute -left-24 top-10 h-80 w-80 rounded-full bg-purple-600/22 blur-3xl md:h-[460px] md:w-[460px]" />
-      <div className="hamza-aurora-two hidden absolute -right-32 top-40 h-[480px] w-[480px] rounded-full bg-fuchsia-500/16 blur-3xl md:block" />
+      <div className="hamza-luxury-glow-one absolute -left-28 top-8 h-[420px] w-[420px] rounded-full bg-purple-600/28 blur-[70px]" />
+      <div className="hamza-luxury-glow-two absolute -right-36 top-36 hidden h-[520px] w-[520px] rounded-full bg-fuchsia-500/18 blur-[90px] md:block" />
+      <div className="hamza-luxury-gold absolute bottom-0 left-1/3 h-[420px] w-[420px] rounded-full bg-yellow-400/10 blur-[85px]" />
 
-      <div className="hidden md:block absolute inset-0 opacity-12 [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.4)_1px,transparent_0)] [background-size:42px_42px]" />
+      <div className="absolute inset-0 opacity-[0.14] [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.48)_1px,transparent_0)] [background-size:36px_36px]" />
+
+      <div className="hamza-light-ring absolute left-1/2 top-[16%] hidden h-[480px] w-[480px] -translate-x-1/2 rounded-full border border-purple-300/18 md:block" />
+      <div className="hamza-light-ring-two absolute left-1/2 top-[20%] hidden h-[340px] w-[340px] -translate-x-1/2 rounded-full border border-yellow-200/12 md:block" />
+
+      <div className="hamza-luxury-line absolute left-[8%] top-[30%] hidden h-px w-44 bg-gradient-to-r from-transparent via-purple-300/35 to-transparent md:block" />
+      <div className="hamza-luxury-line-two absolute right-[10%] top-[48%] hidden h-px w-52 bg-gradient-to-r from-transparent via-yellow-200/28 to-transparent md:block" />
+
+      <div className="hamza-soft-particle hamza-soft-particle-one absolute h-2 w-2 rounded-full bg-purple-200/70 shadow-[0_0_22px_rgba(216,180,254,0.8)]" />
+      <div className="hamza-soft-particle hamza-soft-particle-two absolute h-2 w-2 rounded-full bg-yellow-100/70 shadow-[0_0_22px_rgba(254,240,138,0.7)]" />
+      <div className="hamza-soft-particle hamza-soft-particle-three absolute hidden h-2 w-2 rounded-full bg-cyan-100/55 shadow-[0_0_22px_rgba(165,243,252,0.65)] md:block" />
 
       {normalized.includes("programs") && (
         <>
-          <div className="hidden md:block absolute left-[10%] top-[28%] h-24 w-24 rounded-3xl border border-purple-400/20 bg-purple-500/8 backdrop-blur" />
-          <div className="hidden md:block absolute right-[12%] top-[42%] h-28 w-28 rounded-full border border-yellow-300/18 bg-yellow-400/8 backdrop-blur" />
+          <div className="hidden md:block absolute left-[10%] top-[28%] h-24 w-24 rounded-3xl border border-purple-400/20 bg-purple-500/10 backdrop-blur" />
+          <div className="hidden md:block absolute right-[12%] top-[42%] h-28 w-28 rounded-full border border-yellow-300/18 bg-yellow-400/10 backdrop-blur" />
         </>
       )}
     </div>
@@ -1096,10 +1091,11 @@ function GeneratedBackground({ variant }: { variant: string }) {
 
 function HeroVideoVisual() {
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-0 mx-auto hidden h-[520px] max-w-6xl overflow-hidden opacity-70 md:block">
-      <div className="hamza-hero-orbit absolute left-1/2 top-10 h-[360px] w-[360px] -translate-x-1/2 rounded-full border border-purple-400/15" />
-      <div className="absolute left-1/2 top-28 h-56 w-56 -translate-x-1/2 rounded-full bg-purple-600/14 blur-3xl" />
-      <div className="hamza-hero-beam absolute left-1/2 top-0 h-[520px] w-24 -translate-x-1/2 bg-gradient-to-b from-purple-400/0 via-purple-400/14 to-transparent blur-2xl" />
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-0 mx-auto h-[520px] max-w-6xl overflow-hidden opacity-80">
+      <div className="hamza-hero-orbit absolute left-1/2 top-10 hidden h-[390px] w-[390px] -translate-x-1/2 rounded-full border border-purple-300/18 md:block" />
+      <div className="hamza-hero-orbit-two absolute left-1/2 top-24 hidden h-[260px] w-[260px] -translate-x-1/2 rounded-full border border-yellow-200/12 md:block" />
+      <div className="absolute left-1/2 top-24 h-64 w-64 -translate-x-1/2 rounded-full bg-purple-600/18 blur-3xl" />
+      <div className="hamza-hero-beam absolute left-1/2 top-0 hidden h-[520px] w-24 -translate-x-1/2 bg-gradient-to-b from-purple-400/0 via-purple-400/16 to-transparent blur-2xl md:block" />
     </div>
   );
 }
@@ -1116,45 +1112,140 @@ function SiteAnimationStyles() {
         animation: hamzaMarquee var(--marquee-duration, 22s) linear infinite;
       }
 
-      @keyframes hamzaAuroraOne {
-        0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.6; }
-        50% { transform: translate3d(28px, 22px, 0) scale(1.05); opacity: 0.85; }
+      @keyframes hamzaLuxuryGlowOne {
+        0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.75; }
+        50% { transform: translate3d(34px, 24px, 0) scale(1.08); opacity: 1; }
       }
 
-      @keyframes hamzaAuroraTwo {
+      @keyframes hamzaLuxuryGlowTwo {
+        0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.45; }
+        50% { transform: translate3d(-36px, 26px, 0) scale(1.06); opacity: 0.75; }
+      }
+
+      @keyframes hamzaLuxuryGold {
         0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.35; }
-        50% { transform: translate3d(-28px, 18px, 0) scale(1.04); opacity: 0.65; }
+        50% { transform: translate3d(22px, -34px, 0) scale(1.08); opacity: 0.62; }
       }
 
-      @keyframes hamzaHeroOrbit {
+      @keyframes hamzaRingBreath {
         0%, 100% { transform: translateX(-50%) scale(0.98); opacity: 0.2; }
         50% { transform: translateX(-50%) scale(1.04); opacity: 0.42; }
       }
 
-      @keyframes hamzaHeroBeam {
-        0%, 100% { opacity: 0.16; transform: translateX(-50%) scaleY(0.95); }
-        50% { opacity: 0.45; transform: translateX(-50%) scaleY(1.05); }
+      @keyframes hamzaLineDrift {
+        0%, 100% { opacity: 0.12; transform: translateX(0); }
+        50% { opacity: 0.42; transform: translateX(26px); }
       }
 
-      .hamza-aurora-one { animation: hamzaAuroraOne 18s ease-in-out infinite; }
-      .hamza-aurora-two { animation: hamzaAuroraTwo 22s ease-in-out infinite; }
-      .hamza-hero-orbit { animation: hamzaHeroOrbit 18s ease-in-out infinite; }
-      .hamza-hero-beam { animation: hamzaHeroBeam 10s ease-in-out infinite; }
+      @keyframes hamzaParticleFloat {
+        0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.25; }
+        50% { transform: translate3d(var(--x), var(--y), 0); opacity: 0.85; }
+      }
+
+      @keyframes hamzaHeroOrbit {
+        0%, 100% { transform: translateX(-50%) scale(0.98); opacity: 0.2; }
+        50% { transform: translateX(-50%) scale(1.05); opacity: 0.45; }
+      }
+
+      @keyframes hamzaHeroBeam {
+        0%, 100% { opacity: 0.14; transform: translateX(-50%) scaleY(0.95); }
+        50% { opacity: 0.46; transform: translateX(-50%) scaleY(1.06); }
+      }
+
+      .hamza-luxury-glow-one {
+        animation: hamzaLuxuryGlowOne 18s ease-in-out infinite;
+        will-change: transform, opacity;
+      }
+
+      .hamza-luxury-glow-two {
+        animation: hamzaLuxuryGlowTwo 24s ease-in-out infinite;
+        will-change: transform, opacity;
+      }
+
+      .hamza-luxury-gold {
+        animation: hamzaLuxuryGold 26s ease-in-out infinite;
+        will-change: transform, opacity;
+      }
+
+      .hamza-light-ring {
+        animation: hamzaRingBreath 18s ease-in-out infinite;
+      }
+
+      .hamza-light-ring-two {
+        animation: hamzaRingBreath 24s ease-in-out infinite reverse;
+      }
+
+      .hamza-luxury-line {
+        animation: hamzaLineDrift 14s ease-in-out infinite;
+      }
+
+      .hamza-luxury-line-two {
+        animation: hamzaLineDrift 18s ease-in-out infinite reverse;
+      }
+
+      .hamza-soft-particle {
+        animation: hamzaParticleFloat 14s ease-in-out infinite;
+        will-change: transform, opacity;
+      }
+
+      .hamza-soft-particle-one {
+        left: 18%;
+        top: 24%;
+        --x: 70px;
+        --y: 45px;
+      }
+
+      .hamza-soft-particle-two {
+        right: 18%;
+        top: 34%;
+        --x: -75px;
+        --y: 55px;
+        animation-delay: -5s;
+      }
+
+      .hamza-soft-particle-three {
+        left: 42%;
+        bottom: 24%;
+        --x: 60px;
+        --y: -80px;
+        animation-delay: -8s;
+      }
+
+      .hamza-hero-orbit {
+        animation: hamzaHeroOrbit 18s ease-in-out infinite;
+      }
+
+      .hamza-hero-orbit-two {
+        animation: hamzaHeroOrbit 24s ease-in-out infinite reverse;
+      }
+
+      .hamza-hero-beam {
+        animation: hamzaHeroBeam 10s ease-in-out infinite;
+      }
 
       @media (max-width: 768px) {
-        .hamza-aurora-one,
-        .hamza-aurora-two,
-        .hamza-hero-orbit,
-        .hamza-hero-beam {
+        .hamza-luxury-glow-one {
+          animation-duration: 28s;
+        }
+
+        .hamza-luxury-gold,
+        .hamza-soft-particle {
           animation: none !important;
         }
       }
 
       @media (prefers-reduced-motion: reduce) {
         .hamza-marquee-track,
-        .hamza-aurora-one,
-        .hamza-aurora-two,
+        .hamza-luxury-glow-one,
+        .hamza-luxury-glow-two,
+        .hamza-luxury-gold,
+        .hamza-light-ring,
+        .hamza-light-ring-two,
+        .hamza-luxury-line,
+        .hamza-luxury-line-two,
+        .hamza-soft-particle,
         .hamza-hero-orbit,
+        .hamza-hero-orbit-two,
         .hamza-hero-beam {
           animation: none !important;
         }
