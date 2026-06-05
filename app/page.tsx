@@ -56,6 +56,23 @@ type PageContent = {
 type AnnouncementPosition = "top" | "under_nav" | "inside_hero" | "hidden";
 type AnnouncementAnimation = "fixed" | "marquee";
 
+const mainNavigationLinks = [
+  { label: "الرئيسية", href: "/" },
+  { label: "البرامج", href: "/programs" },
+  { label: "من نحن", href: "/about" },
+  { label: "الخدمات", href: "/services" },
+  { label: "الخدمات الرقمية", href: "/digital-services" },
+  { label: "مركز المعرفة", href: "/knowledge-center" },
+  { label: "FAQ", href: "/faq" },
+  { label: "اتصل بنا", href: "/contact" },
+];
+
+const footerLegalLinks = [
+  { label: "سياسة الخصوصية", href: "/privacy-policy" },
+  { label: "الشروط والأحكام", href: "/terms-and-conditions" },
+  { label: "AI Policy", href: "/ai-policy" },
+];
+
 const fallbackPrograms: Program[] = [
   {
     id: 1,
@@ -559,8 +576,8 @@ export default function HomePage() {
         />
       )}
 
-      <nav className="relative z-20 mx-auto flex max-w-7xl items-center justify-between px-5 py-6">
-        <div className="flex items-center gap-3">
+      <nav className="relative z-20 mx-auto flex max-w-7xl items-center justify-between gap-5 px-5 py-6">
+        <Link href="/" className="flex items-center gap-3">
           <img
             src={logoUrl}
             alt={publicSettings.englishName}
@@ -573,8 +590,41 @@ export default function HomePage() {
               {publicSettings.agencyName}
             </div>
           </div>
+        </Link>
+
+        <div className="hidden items-center gap-2 lg:flex">
+          {mainNavigationLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white/70 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-white"
+            >
+              {link.label}
+            </Link>
+          ))}
         </div>
+
+        <Link
+          href="/admin"
+          className="hidden rounded-full border border-yellow-400/25 bg-yellow-500/10 px-4 py-2 text-sm font-black text-yellow-100 backdrop-blur transition hover:bg-yellow-500/20 md:inline-flex"
+        >
+          الإدارة
+        </Link>
       </nav>
+
+      <div className="relative z-20 mx-auto mb-4 max-w-7xl px-5 lg:hidden">
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {mainNavigationLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white/75 backdrop-blur"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      </div>
 
       {publicSettings.announcementPosition === "under_nav" &&
         activeAnnouncement && (
@@ -632,6 +682,13 @@ export default function HomePage() {
             >
               انضم الآن
             </button>
+
+            <Link
+              href="/programs"
+              className="rounded-full border border-white/15 bg-white/[0.05] px-9 py-4 text-lg font-bold text-white/80 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10"
+            >
+              عرض البرامج
+            </Link>
           </div>
         </div>
       </section>
@@ -683,6 +740,15 @@ export default function HomePage() {
             </Link>
           ))}
         </div>
+
+        <div className="mt-10 text-center">
+          <Link
+            href="/programs"
+            className="inline-flex rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 font-black shadow-[0_0_35px_rgba(168,85,247,0.22)]"
+          >
+            عرض كل البرامج
+          </Link>
+        </div>
       </section>
 
       <section className="relative z-20 mx-auto max-w-6xl px-5 pb-24">
@@ -698,6 +764,29 @@ export default function HomePage() {
                 {item}
               </div>
             ))}
+          </div>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <Link
+              href="/about"
+              className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center font-bold text-white/75 transition hover:border-purple-400/50"
+            >
+              تعرف علينا
+            </Link>
+
+            <Link
+              href="/services"
+              className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center font-bold text-white/75 transition hover:border-purple-400/50"
+            >
+              خدمات الوكالة
+            </Link>
+
+            <Link
+              href="/contact"
+              className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center font-bold text-white/75 transition hover:border-purple-400/50"
+            >
+              تواصل معنا
+            </Link>
           </div>
         </div>
       </section>
@@ -803,8 +892,87 @@ export default function HomePage() {
         واتساب
       </a>
 
-      <footer className="relative z-20 border-t border-white/10 px-5 py-8 text-center text-white/50">
-        {publicSettings.footerText}
+      <footer className="relative z-20 border-t border-white/10 bg-black/25 px-5 py-10 backdrop-blur">
+        <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <img
+                src={logoUrl}
+                alt={publicSettings.englishName}
+                className="h-12 w-12 rounded-xl object-cover"
+              />
+
+              <div>
+                <div className="font-black">{publicSettings.englishName}</div>
+                <div className="text-sm text-yellow-200/75">
+                  {publicSettings.agencyName}
+                </div>
+              </div>
+            </div>
+
+            <p className="mt-5 leading-8 text-white/55">
+              منصة وكالة احترافية لإدارة وتوظيف ودعم صناع المحتوى على منصات
+              البث المباشر والتواصل الاجتماعي.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-black text-white">روابط الموقع</h3>
+
+            <div className="mt-4 grid gap-3 text-white/60">
+              {mainNavigationLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="transition hover:text-purple-200"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-black text-white">الصفحات القانونية</h3>
+
+            <div className="mt-4 grid gap-3 text-white/60">
+              {footerLegalLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="transition hover:text-yellow-200"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-black text-white">التواصل</h3>
+
+            <p className="mt-4 text-white/60">{publicSettings.whatsapp}</p>
+
+            <a
+              href={`https://wa.me/${publicSettings.cleanWhatsapp}`}
+              target="_blank"
+              className="mt-5 inline-flex rounded-full bg-green-500 px-6 py-3 font-black text-white"
+            >
+              فتح واتساب
+            </a>
+
+            <Link
+              href="/admin"
+              className="mt-4 inline-flex rounded-full border border-yellow-400/25 bg-yellow-500/10 px-6 py-3 font-black text-yellow-100"
+            >
+              لوحة الإدارة
+            </Link>
+          </div>
+        </div>
+
+        <div className="mx-auto mt-10 max-w-7xl border-t border-white/10 pt-6 text-center text-sm text-white/45">
+          {publicSettings.footerText}
+        </div>
       </footer>
     </main>
   );
@@ -873,15 +1041,15 @@ function PublicBackground({ media }: { media: MediaItem | undefined }) {
     return (
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <video
-          className="h-full w-full object-cover opacity-50"
+          className="h-full w-full object-cover opacity-38"
           src={url}
           autoPlay
           loop
           muted
           playsInline
         />
-        <div className="absolute inset-0 bg-[#070009]/65" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.35),transparent_45%)]" />
+        <div className="absolute inset-0 bg-[#070009]/72" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.28),transparent_45%)]" />
       </div>
     );
   }
@@ -890,11 +1058,11 @@ function PublicBackground({ media }: { media: MediaItem | undefined }) {
     return (
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <div
-          className="absolute inset-0 bg-cover bg-center opacity-45"
+          className="absolute inset-0 bg-cover bg-center opacity-35"
           style={{ backgroundImage: `url("${url}")` }}
         />
-        <div className="absolute inset-0 bg-[#070009]/70" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.35),transparent_45%)]" />
+        <div className="absolute inset-0 bg-[#070009]/75" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.28),transparent_45%)]" />
       </div>
     );
   }
@@ -909,28 +1077,17 @@ function GeneratedBackground({ variant }: { variant: string }) {
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       <div className="absolute inset-0 bg-[#070009]" />
 
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,58,237,0.45)_0%,rgba(76,29,149,0.2)_28%,rgba(7,0,9,0.95)_72%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,58,237,0.38)_0%,rgba(76,29,149,0.16)_30%,rgba(7,0,9,0.96)_72%)]" />
 
-      <div className="hamza-aurora-one absolute -left-32 top-10 h-[520px] w-[520px] rounded-full bg-purple-600/35 blur-[90px]" />
-      <div className="hamza-aurora-two absolute -right-40 top-40 h-[560px] w-[560px] rounded-full bg-fuchsia-500/25 blur-[100px]" />
-      <div className="hamza-aurora-three absolute bottom-0 left-1/3 h-[520px] w-[520px] rounded-full bg-yellow-400/14 blur-[110px]" />
+      <div className="hamza-aurora-one absolute -left-24 top-10 h-80 w-80 rounded-full bg-purple-600/22 blur-3xl md:h-[460px] md:w-[460px]" />
+      <div className="hamza-aurora-two hidden absolute -right-32 top-40 h-[480px] w-[480px] rounded-full bg-fuchsia-500/16 blur-3xl md:block" />
 
-      <div className="hamza-wave absolute left-1/2 top-[18%] h-[520px] w-[900px] -translate-x-1/2 rounded-full border border-purple-400/25" />
-      <div className="hamza-wave-two absolute left-1/2 top-[22%] h-[420px] w-[720px] -translate-x-1/2 rounded-full border border-yellow-300/15" />
-
-      <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.45)_1px,transparent_0)] [background-size:38px_38px]" />
-
-      <div className="hamza-scan absolute inset-0 opacity-20 [background:linear-gradient(180deg,transparent,rgba(168,85,247,0.18),transparent)]" />
-
-      <div className="hamza-particle hamza-particle-one absolute h-3 w-3 rounded-full bg-purple-300/80 shadow-[0_0_25px_rgba(216,180,254,0.9)]" />
-      <div className="hamza-particle hamza-particle-two absolute h-2 w-2 rounded-full bg-yellow-200/80 shadow-[0_0_25px_rgba(254,240,138,0.9)]" />
-      <div className="hamza-particle hamza-particle-three absolute h-3 w-3 rounded-full bg-fuchsia-300/75 shadow-[0_0_25px_rgba(240,171,252,0.9)]" />
-      <div className="hamza-particle hamza-particle-four absolute h-2 w-2 rounded-full bg-cyan-200/65 shadow-[0_0_25px_rgba(165,243,252,0.75)]" />
+      <div className="hidden md:block absolute inset-0 opacity-12 [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.4)_1px,transparent_0)] [background-size:42px_42px]" />
 
       {normalized.includes("programs") && (
         <>
-          <div className="hamza-floating-card absolute left-[10%] top-[28%] h-24 w-24 rounded-3xl border border-purple-400/30 bg-purple-500/10 backdrop-blur" />
-          <div className="hamza-floating-card-two absolute right-[12%] top-[42%] h-28 w-28 rounded-full border border-yellow-300/25 bg-yellow-400/10 backdrop-blur" />
+          <div className="hidden md:block absolute left-[10%] top-[28%] h-24 w-24 rounded-3xl border border-purple-400/20 bg-purple-500/8 backdrop-blur" />
+          <div className="hidden md:block absolute right-[12%] top-[42%] h-28 w-28 rounded-full border border-yellow-300/18 bg-yellow-400/8 backdrop-blur" />
         </>
       )}
     </div>
@@ -939,11 +1096,10 @@ function GeneratedBackground({ variant }: { variant: string }) {
 
 function HeroVideoVisual() {
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-0 mx-auto h-[520px] max-w-6xl overflow-hidden opacity-90">
-      <div className="hamza-hero-orbit absolute left-1/2 top-10 h-[420px] w-[420px] -translate-x-1/2 rounded-full border border-purple-400/20" />
-      <div className="hamza-hero-orbit-two absolute left-1/2 top-20 h-[300px] w-[300px] -translate-x-1/2 rounded-full border border-yellow-300/15" />
-      <div className="absolute left-1/2 top-28 h-56 w-56 -translate-x-1/2 rounded-full bg-purple-600/20 blur-3xl" />
-      <div className="hamza-hero-beam absolute left-1/2 top-0 h-[520px] w-24 -translate-x-1/2 bg-gradient-to-b from-purple-400/0 via-purple-400/20 to-transparent blur-2xl" />
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-0 mx-auto hidden h-[520px] max-w-6xl overflow-hidden opacity-70 md:block">
+      <div className="hamza-hero-orbit absolute left-1/2 top-10 h-[360px] w-[360px] -translate-x-1/2 rounded-full border border-purple-400/15" />
+      <div className="absolute left-1/2 top-28 h-56 w-56 -translate-x-1/2 rounded-full bg-purple-600/14 blur-3xl" />
+      <div className="hamza-hero-beam absolute left-1/2 top-0 h-[520px] w-24 -translate-x-1/2 bg-gradient-to-b from-purple-400/0 via-purple-400/14 to-transparent blur-2xl" />
     </div>
   );
 }
@@ -961,74 +1117,48 @@ function SiteAnimationStyles() {
       }
 
       @keyframes hamzaAuroraOne {
-        0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.55; }
-        50% { transform: translate(95px, 65px) scale(1.22); opacity: 0.9; }
+        0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.6; }
+        50% { transform: translate3d(28px, 22px, 0) scale(1.05); opacity: 0.85; }
       }
 
       @keyframes hamzaAuroraTwo {
-        0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.5; }
-        50% { transform: translate(-105px, 45px) scale(1.18); opacity: 0.85; }
-      }
-
-      @keyframes hamzaAuroraThree {
-        0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.35; }
-        50% { transform: translate(40px, -90px) scale(1.2); opacity: 0.7; }
-      }
-
-      @keyframes hamzaWave {
-        0% { transform: translateX(-50%) rotate(0deg) scale(0.95); opacity: 0.15; }
-        50% { transform: translateX(-50%) rotate(180deg) scale(1.12); opacity: 0.45; }
-        100% { transform: translateX(-50%) rotate(360deg) scale(0.95); opacity: 0.15; }
-      }
-
-      @keyframes hamzaScan {
-        0% { transform: translateY(-100%); }
-        100% { transform: translateY(100%); }
-      }
-
-      @keyframes hamzaParticle {
-        0% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.25; }
-        35% { opacity: 1; }
-        100% { transform: translate3d(var(--x), var(--y), 0) scale(0.7); opacity: 0.15; }
-      }
-
-      @keyframes hamzaFloatCard {
-        0%, 100% { transform: translateY(0) rotate(0deg); }
-        50% { transform: translateY(-35px) rotate(8deg); }
+        0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.35; }
+        50% { transform: translate3d(-28px, 18px, 0) scale(1.04); opacity: 0.65; }
       }
 
       @keyframes hamzaHeroOrbit {
-        0% { transform: translateX(-50%) rotate(0deg) scale(1); opacity: 0.25; }
-        50% { transform: translateX(-50%) rotate(180deg) scale(1.06); opacity: 0.55; }
-        100% { transform: translateX(-50%) rotate(360deg) scale(1); opacity: 0.25; }
+        0%, 100% { transform: translateX(-50%) scale(0.98); opacity: 0.2; }
+        50% { transform: translateX(-50%) scale(1.04); opacity: 0.42; }
       }
 
       @keyframes hamzaHeroBeam {
-        0%, 100% { opacity: 0.2; transform: translateX(-50%) scaleY(0.9); }
-        50% { opacity: 0.7; transform: translateX(-50%) scaleY(1.12); }
+        0%, 100% { opacity: 0.16; transform: translateX(-50%) scaleY(0.95); }
+        50% { opacity: 0.45; transform: translateX(-50%) scaleY(1.05); }
       }
 
-      .hamza-aurora-one { animation: hamzaAuroraOne 10s ease-in-out infinite; }
-      .hamza-aurora-two { animation: hamzaAuroraTwo 13s ease-in-out infinite; }
-      .hamza-aurora-three { animation: hamzaAuroraThree 16s ease-in-out infinite; }
+      .hamza-aurora-one { animation: hamzaAuroraOne 18s ease-in-out infinite; }
+      .hamza-aurora-two { animation: hamzaAuroraTwo 22s ease-in-out infinite; }
+      .hamza-hero-orbit { animation: hamzaHeroOrbit 18s ease-in-out infinite; }
+      .hamza-hero-beam { animation: hamzaHeroBeam 10s ease-in-out infinite; }
 
-      .hamza-wave { animation: hamzaWave 22s linear infinite; }
-      .hamza-wave-two { animation: hamzaWave 28s linear infinite reverse; }
+      @media (max-width: 768px) {
+        .hamza-aurora-one,
+        .hamza-aurora-two,
+        .hamza-hero-orbit,
+        .hamza-hero-beam {
+          animation: none !important;
+        }
+      }
 
-      .hamza-scan { animation: hamzaScan 9s linear infinite; }
-
-      .hamza-particle { animation: hamzaParticle 9s ease-in-out infinite; }
-      .hamza-particle-one { left: 18%; top: 22%; --x: 260px; --y: 180px; }
-      .hamza-particle-two { right: 16%; top: 32%; --x: -280px; --y: 220px; animation-delay: -2s; }
-      .hamza-particle-three { left: 40%; bottom: 18%; --x: 180px; --y: -260px; animation-delay: -4s; }
-      .hamza-particle-four { right: 38%; bottom: 24%; --x: -220px; --y: -200px; animation-delay: -6s; }
-
-      .hamza-floating-card { animation: hamzaFloatCard 10s ease-in-out infinite; }
-      .hamza-floating-card-two { animation: hamzaFloatCard 13s ease-in-out infinite reverse; }
-
-      .hamza-hero-orbit { animation: hamzaHeroOrbit 18s linear infinite; }
-      .hamza-hero-orbit-two { animation: hamzaHeroOrbit 24s linear infinite reverse; }
-      .hamza-hero-beam { animation: hamzaHeroBeam 6s ease-in-out infinite; }
+      @media (prefers-reduced-motion: reduce) {
+        .hamza-marquee-track,
+        .hamza-aurora-one,
+        .hamza-aurora-two,
+        .hamza-hero-orbit,
+        .hamza-hero-beam {
+          animation: none !important;
+        }
+      }
     `}</style>
   );
 }
