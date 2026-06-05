@@ -256,6 +256,13 @@ export default function ProgramDetailsPage() {
       return;
     }
 
+    const duplicateKey = `hamza-agency-${form.whatsapp}-${program.name}`;
+
+    if (localStorage.getItem(duplicateKey)) {
+      setMessage("تم إرسال طلب سابق بنفس رقم الواتساب وهذا البرنامج.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     const { error } = await supabase.from("agency_applications").insert({
@@ -275,6 +282,8 @@ export default function ProgramDetailsPage() {
       setMessage("حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.");
       return;
     }
+
+    localStorage.setItem(duplicateKey, "true");
 
     setMessage(
       "تم استلام طلبك بنجاح. سيقوم فريق الوكالة بمراجعة الطلب وقد يتم التواصل معك عبر واتساب."
@@ -348,34 +357,25 @@ export default function ProgramDetailsPage() {
           ← العودة إلى البرامج
         </Link>
 
-        <div className="relative overflow-hidden rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_80px_rgba(168,85,247,0.18)] backdrop-blur">
-          <div className="absolute inset-0 -z-10 bg-gradient-to-br from-white/[0.06] via-transparent to-purple-500/10" />
+        <div className="relative overflow-hidden rounded-[2rem] border border-purple-400/20 bg-black/40 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur">
+          <div className="absolute inset-0 -z-10 bg-gradient-to-br from-white/[0.04] via-transparent to-purple-500/5" />
 
           <div className="mb-6 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-bold text-white/75">
             {visual.badge}
           </div>
 
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <span className="rounded-full border border-green-400/30 bg-green-500/10 px-4 py-2 text-sm font-bold text-green-200">
-                {program.status || "active"}
-              </span>
+          <div>
+            <span className="rounded-full border border-green-400/30 bg-green-500/10 px-4 py-2 text-sm font-bold text-green-200">
+              {program.status || "active"}
+            </span>
 
-              <p className="mt-7 text-sm font-bold uppercase tracking-[0.28em] text-purple-200">
-                {visual.label}
-              </p>
+            <p className="mt-7 text-sm font-bold uppercase tracking-[0.28em] text-purple-200">
+              {visual.label}
+            </p>
 
-              <h1 className="mt-4 text-5xl font-black md:text-7xl">
-                {program.name}
-              </h1>
-            </div>
-
-            <div className="rounded-3xl border border-white/10 bg-black/25 p-5 text-sm leading-7 text-white/60">
-              خلفية هذه الصفحة مرتبطة ببرنامج{" "}
-              <span className="font-bold text-white">{program.name}</span>
-              <br />
-              ويمكن استبدالها لاحقاً من Media Library.
-            </div>
+            <h1 className="mt-4 text-5xl font-black md:text-7xl">
+              {program.name}
+            </h1>
           </div>
 
           <p className="mt-8 max-w-4xl text-xl leading-10 text-white/78">
@@ -386,7 +386,7 @@ export default function ProgramDetailsPage() {
 
           <button
             onClick={() => setShowForm(true)}
-            className="mt-8 w-full rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-5 text-2xl font-black shadow-[0_0_45px_rgba(168,85,247,0.32)] transition hover:scale-[1.01]"
+            className="mt-8 w-full rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-5 text-2xl font-black shadow-[0_0_30px_rgba(168,85,247,0.26)] transition hover:scale-[1.01]"
           >
             انضم الآن
           </button>
@@ -560,26 +560,23 @@ function findProgramBackground(
     const name = (item.name || "").toLowerCase();
     const category = item.category || "";
 
-    return category === "background" && (name.includes(slug) || name.includes(normalizedName));
+    return (
+      category === "background" &&
+      (name.includes(slug) || name.includes(normalizedName))
+    );
   });
 
   if (nameMatch) return nameMatch;
 
-  const programsBackground = mediaItems.find((item) => {
-    return item.page_slug === "programs" && item.category === "background";
-  });
-
-  return (
-    programsBackground || {
-      name: `${slug} generated background`,
-      file_url: `generated://program-${slug}`,
-      file_type: "generated_background",
-      category: "background",
-      alt_text: `${slug} animated background`,
-      page_slug: slug,
-      is_active: true,
-    }
-  );
+  return {
+    name: `${slug} generated background`,
+    file_url: `generated://program-${slug}`,
+    file_type: "generated_background",
+    category: "background",
+    alt_text: `${slug} animated background`,
+    page_slug: slug,
+    is_active: true,
+  };
 }
 
 function ProgramBackground({
@@ -605,18 +602,18 @@ function ProgramBackground({
     return (
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <video
-          className="h-full w-full object-cover opacity-45"
+          className="h-full w-full object-cover opacity-35"
           src={url}
           autoPlay
           loop
           muted
           playsInline
         />
-        <div className="absolute inset-0 bg-[#070009]/70" />
+        <div className="absolute inset-0 bg-[#070009]/78" />
         <div
           className="absolute inset-0"
           style={{
-            background: `radial-gradient(circle at top, ${visual.accent}55, transparent 48%)`,
+            background: `radial-gradient(circle at top, ${visual.accent}42, transparent 50%)`,
           }}
         />
       </div>
@@ -627,14 +624,14 @@ function ProgramBackground({
     return (
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <div
-          className="absolute inset-0 bg-cover bg-center opacity-45"
+          className="absolute inset-0 bg-cover bg-center opacity-32"
           style={{ backgroundImage: `url("${url}")` }}
         />
-        <div className="absolute inset-0 bg-[#070009]/72" />
+        <div className="absolute inset-0 bg-[#070009]/80" />
         <div
           className="absolute inset-0"
           style={{
-            background: `radial-gradient(circle at top, ${visual.accent}55, transparent 48%)`,
+            background: `radial-gradient(circle at top, ${visual.accent}42, transparent 50%)`,
           }}
         />
       </div>
@@ -652,28 +649,21 @@ function GeneratedProgramBackground({ visual }: { visual: ProgramVisual }) {
       <div
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(circle at 50% 0%, ${visual.accent}55 0%, rgba(7,0,9,0.98) 68%)`,
+          background: `radial-gradient(circle at 50% 0%, ${visual.accent}44 0%, rgba(7,0,9,0.98) 70%)`,
         }}
       />
 
       <div
-        className="program-aurora-one absolute -left-36 top-8 h-[540px] w-[540px] rounded-full blur-[95px]"
-        style={{ backgroundColor: `${visual.accent}45` }}
+        className="program-soft-glow absolute -left-24 top-10 h-80 w-80 rounded-full blur-3xl md:h-[460px] md:w-[460px]"
+        style={{ backgroundColor: `${visual.accent}26` }}
       />
 
       <div
-        className="program-aurora-two absolute -right-40 top-32 h-[560px] w-[560px] rounded-full blur-[100px]"
-        style={{ backgroundColor: `${visual.secondary}35` }}
+        className="hidden md:block program-soft-glow-two absolute -right-28 top-40 h-[430px] w-[430px] rounded-full blur-3xl"
+        style={{ backgroundColor: `${visual.secondary}20` }}
       />
 
-      <div
-        className="program-aurora-three absolute bottom-0 left-1/3 h-[520px] w-[520px] rounded-full blur-[115px]"
-        style={{ backgroundColor: `${visual.accent}22` }}
-      />
-
-      <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.42)_1px,transparent_0)] [background-size:38px_38px]" />
-
-      <div className="program-scan absolute inset-0 opacity-25 [background:linear-gradient(180deg,transparent,rgba(168,85,247,0.18),transparent)]" />
+      <div className="absolute inset-0 opacity-12 [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.35)_1px,transparent_0)] [background-size:42px_42px]" />
 
       <ProgramSpecificVisual variant={visual.variant} />
     </div>
@@ -683,64 +673,53 @@ function GeneratedProgramBackground({ visual }: { visual: ProgramVisual }) {
 function ProgramSpecificVisual({ variant }: { variant: string }) {
   if (variant === "tiktok") {
     return (
-      <>
-        <div className="program-phone-frame absolute left-[12%] top-[22%] h-56 w-32 rounded-[2rem] border border-pink-300/30 bg-black/25 backdrop-blur" />
-        <div className="program-phone-frame-two absolute right-[14%] top-[36%] h-52 w-32 rounded-[2rem] border border-cyan-300/25 bg-black/25 backdrop-blur" />
-        <div className="program-play absolute left-[20%] top-[34%] h-12 w-12 rounded-full border border-white/20 bg-pink-500/20" />
-        <div className="program-play-two absolute right-[22%] top-[48%] h-10 w-10 rounded-full border border-white/20 bg-cyan-400/20" />
-      </>
+      <div className="hidden md:block">
+        <div className="program-float absolute left-[12%] top-[28%] h-48 w-28 rounded-[2rem] border border-pink-300/20 bg-pink-500/8 backdrop-blur" />
+        <div className="program-float-reverse absolute right-[14%] top-[40%] h-44 w-28 rounded-[2rem] border border-cyan-300/18 bg-cyan-400/8 backdrop-blur" />
+      </div>
     );
   }
 
   if (variant === "bigo") {
     return (
-      <>
-        <div className="program-live-ring absolute left-1/2 top-[24%] h-[420px] w-[420px] -translate-x-1/2 rounded-full border border-sky-300/25" />
-        <div className="program-live-ring-two absolute left-1/2 top-[29%] h-[290px] w-[290px] -translate-x-1/2 rounded-full border border-purple-300/20" />
-        <div className="program-live-dot absolute left-[22%] top-[30%] h-4 w-4 rounded-full bg-sky-300 shadow-[0_0_35px_rgba(125,211,252,0.9)]" />
-        <div className="program-live-dot-two absolute right-[24%] top-[42%] h-3 w-3 rounded-full bg-purple-300 shadow-[0_0_35px_rgba(216,180,254,0.9)]" />
-      </>
+      <div className="hidden md:block">
+        <div className="program-ring absolute left-1/2 top-[26%] h-[340px] w-[340px] -translate-x-1/2 rounded-full border border-sky-300/18" />
+        <div className="program-dot absolute left-[22%] top-[34%] h-3 w-3 rounded-full bg-sky-300/70 shadow-[0_0_24px_rgba(125,211,252,0.7)]" />
+      </div>
     );
   }
 
   if (variant === "yaahlan") {
     return (
-      <>
-        <div className="program-chat absolute left-[10%] top-[25%] h-20 w-40 rounded-3xl border border-amber-300/25 bg-amber-400/10 backdrop-blur" />
-        <div className="program-chat-two absolute right-[12%] top-[38%] h-20 w-44 rounded-3xl border border-purple-300/25 bg-purple-400/10 backdrop-blur" />
-        <div className="program-chat-three absolute left-[35%] bottom-[22%] h-16 w-36 rounded-3xl border border-white/15 bg-white/5 backdrop-blur" />
-      </>
+      <div className="hidden md:block">
+        <div className="program-float absolute left-[10%] top-[30%] h-16 w-36 rounded-3xl border border-amber-300/18 bg-amber-400/8 backdrop-blur" />
+        <div className="program-float-reverse absolute right-[12%] top-[42%] h-16 w-40 rounded-3xl border border-purple-300/18 bg-purple-400/8 backdrop-blur" />
+      </div>
     );
   }
 
   if (variant === "xena") {
     return (
-      <>
-        <div className="program-core absolute left-1/2 top-[26%] h-64 w-64 -translate-x-1/2 rounded-full border border-purple-300/25 bg-purple-500/10" />
-        <div className="program-core-two absolute left-1/2 top-[30%] h-40 w-40 -translate-x-1/2 rounded-full border border-cyan-300/25 bg-cyan-500/10" />
-        <div className="program-diamond absolute left-[18%] top-[38%] h-20 w-20 rotate-45 border border-purple-300/25 bg-purple-500/10" />
-        <div className="program-diamond-two absolute right-[18%] top-[44%] h-16 w-16 rotate-45 border border-cyan-300/25 bg-cyan-500/10" />
-      </>
+      <div className="hidden md:block">
+        <div className="program-ring absolute left-1/2 top-[28%] h-60 w-60 -translate-x-1/2 rounded-full border border-purple-300/18 bg-purple-500/5" />
+        <div className="program-float absolute left-[18%] top-[42%] h-16 w-16 rotate-45 border border-cyan-300/16 bg-cyan-500/8" />
+      </div>
     );
   }
 
   if (variant === "catchii") {
     return (
-      <>
-        <div className="program-social-card absolute left-[12%] top-[26%] h-28 w-44 rounded-[2rem] border border-pink-300/25 bg-pink-500/10 backdrop-blur" />
-        <div className="program-social-card-two absolute right-[12%] top-[39%] h-28 w-44 rounded-[2rem] border border-yellow-300/25 bg-yellow-500/10 backdrop-blur" />
-        <div className="program-heart absolute left-[42%] top-[32%] h-10 w-10 rounded-full border border-pink-300/25 bg-pink-500/20" />
-        <div className="program-heart-two absolute right-[36%] bottom-[26%] h-8 w-8 rounded-full border border-yellow-300/25 bg-yellow-500/20" />
-      </>
+      <div className="hidden md:block">
+        <div className="program-float absolute left-[12%] top-[30%] h-24 w-40 rounded-[2rem] border border-pink-300/18 bg-pink-500/8 backdrop-blur" />
+        <div className="program-float-reverse absolute right-[12%] top-[42%] h-24 w-40 rounded-[2rem] border border-yellow-300/18 bg-yellow-500/8 backdrop-blur" />
+      </div>
     );
   }
 
   return (
-    <>
-      <div className="program-live-ring absolute left-1/2 top-[24%] h-[420px] w-[420px] -translate-x-1/2 rounded-full border border-purple-300/25" />
-      <div className="program-diamond absolute left-[18%] top-[38%] h-20 w-20 rotate-45 border border-yellow-300/25 bg-yellow-500/10" />
-      <div className="program-diamond-two absolute right-[18%] top-[44%] h-16 w-16 rotate-45 border border-purple-300/25 bg-purple-500/10" />
-    </>
+    <div className="hidden md:block">
+      <div className="program-ring absolute left-1/2 top-[28%] h-72 w-72 -translate-x-1/2 rounded-full border border-purple-300/18" />
+    </div>
   );
 }
 
@@ -775,85 +754,75 @@ function InfoCard({
 function ProgramAnimationStyles() {
   return (
     <style>{`
-      @keyframes programAuroraOne {
-        0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.55; }
-        50% { transform: translate(100px, 65px) scale(1.2); opacity: 0.9; }
+      @keyframes programSoftGlow {
+        0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.65; }
+        50% { transform: translate3d(28px, 22px, 0) scale(1.05); opacity: 0.9; }
       }
 
-      @keyframes programAuroraTwo {
-        0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.45; }
-        50% { transform: translate(-110px, 50px) scale(1.16); opacity: 0.85; }
+      @keyframes programSoftGlowTwo {
+        0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.45; }
+        50% { transform: translate3d(-26px, 18px, 0) scale(1.04); opacity: 0.72; }
       }
 
-      @keyframes programAuroraThree {
-        0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.35; }
-        50% { transform: translate(40px, -90px) scale(1.2); opacity: 0.7; }
+      @keyframes programFloatLight {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-14px); }
       }
 
-      @keyframes programScan {
-        0% { transform: translateY(-100%); }
-        100% { transform: translateY(100%); }
+      @keyframes programFloatLightReverse {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(12px); }
       }
 
-      @keyframes programFloat {
-        0%, 100% { transform: translateY(0) rotate(0deg); }
-        50% { transform: translateY(-34px) rotate(6deg); }
+      @keyframes programRingLight {
+        0%, 100% { opacity: 0.16; transform: translateX(-50%) scale(0.98); }
+        50% { opacity: 0.32; transform: translateX(-50%) scale(1.03); }
       }
 
-      @keyframes programFloatReverse {
-        0%, 100% { transform: translateY(0) rotate(0deg); }
-        50% { transform: translateY(30px) rotate(-6deg); }
+      .program-soft-glow {
+        animation: programSoftGlow 18s ease-in-out infinite;
       }
 
-      @keyframes programPulseRing {
-        0%, 100% { transform: translateX(-50%) scale(0.96); opacity: 0.22; }
-        50% { transform: translateX(-50%) scale(1.08); opacity: 0.58; }
+      .program-soft-glow-two {
+        animation: programSoftGlowTwo 22s ease-in-out infinite;
       }
 
-      @keyframes programRotateCore {
-        0% { transform: translateX(-50%) rotate(0deg) scale(1); opacity: 0.25; }
-        50% { transform: translateX(-50%) rotate(180deg) scale(1.08); opacity: 0.55; }
-        100% { transform: translateX(-50%) rotate(360deg) scale(1); opacity: 0.25; }
+      .program-float {
+        animation: programFloatLight 16s ease-in-out infinite;
       }
 
-      .program-aurora-one { animation: programAuroraOne 10s ease-in-out infinite; }
-      .program-aurora-two { animation: programAuroraTwo 13s ease-in-out infinite; }
-      .program-aurora-three { animation: programAuroraThree 16s ease-in-out infinite; }
-
-      .program-scan { animation: programScan 9s linear infinite; }
-
-      .program-phone-frame,
-      .program-chat,
-      .program-social-card,
-      .program-diamond,
-      .program-play,
-      .program-heart {
-        animation: programFloat 9s ease-in-out infinite;
+      .program-float-reverse {
+        animation: programFloatLightReverse 18s ease-in-out infinite;
       }
 
-      .program-phone-frame-two,
-      .program-chat-two,
-      .program-chat-three,
-      .program-social-card-two,
-      .program-diamond-two,
-      .program-play-two,
-      .program-heart-two {
-        animation: programFloatReverse 11s ease-in-out infinite;
+      .program-ring {
+        animation: programRingLight 14s ease-in-out infinite;
       }
 
-      .program-live-ring,
-      .program-live-ring-two {
-        animation: programPulseRing 7s ease-in-out infinite;
+      .program-dot {
+        animation: programFloatLight 12s ease-in-out infinite;
       }
 
-      .program-live-dot,
-      .program-live-dot-two {
-        animation: programFloat 8s ease-in-out infinite;
+      @media (max-width: 768px) {
+        .program-soft-glow,
+        .program-soft-glow-two,
+        .program-float,
+        .program-float-reverse,
+        .program-ring,
+        .program-dot {
+          animation: none !important;
+        }
       }
 
-      .program-core,
-      .program-core-two {
-        animation: programRotateCore 18s linear infinite;
+      @media (prefers-reduced-motion: reduce) {
+        .program-soft-glow,
+        .program-soft-glow-two,
+        .program-float,
+        .program-float-reverse,
+        .program-ring,
+        .program-dot {
+          animation: none !important;
+        }
       }
     `}</style>
   );
