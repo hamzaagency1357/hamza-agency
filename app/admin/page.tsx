@@ -432,14 +432,14 @@ export default function AdminPage() {
   return (
     <main
       dir="rtl"
-      className="min-h-screen w-full overflow-x-hidden bg-[#070009] text-white"
+      className="min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#070009] text-white"
     >
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#4c0a77_0%,#09000d_42%,#000_100%)]" />
       <div className="fixed inset-0 -z-10 opacity-25 [background-image:linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:44px_44px]" />
 
-      <div className="mx-auto grid w-full max-w-[1500px] grid-cols-1 gap-6 p-4 xl:grid-cols-[300px_minmax(0,1fr)] xl:p-6">
-        <aside className="w-full max-w-full overflow-hidden rounded-[2rem] border border-purple-500/20 bg-black/45 p-4 shadow-[0_0_80px_rgba(124,58,237,0.12)] backdrop-blur xl:sticky xl:top-6 xl:h-[calc(100vh-48px)]">
-          <div className="mb-5 overflow-hidden rounded-3xl border border-yellow-400/25 bg-gradient-to-br from-yellow-400/10 via-purple-500/10 to-black p-5">
+      <div className="mx-auto grid w-full max-w-[1500px] grid-cols-1 gap-6 p-4 xl:grid-cols-[320px_minmax(0,1fr)] xl:p-6">
+        <aside className="flex w-full max-w-full flex-col overflow-hidden rounded-[2rem] border border-purple-500/20 bg-black/45 p-4 shadow-[0_0_80px_rgba(124,58,237,0.12)] backdrop-blur xl:sticky xl:top-6 xl:h-[calc(100vh-48px)]">
+          <div className="shrink-0 overflow-hidden rounded-3xl border border-yellow-400/25 bg-gradient-to-br from-yellow-400/10 via-purple-500/10 to-black p-5">
             <div className="text-xs font-bold uppercase tracking-[0.3em] text-yellow-200">
               HAMZA AGENCY
             </div>
@@ -460,38 +460,40 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <nav className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`group flex min-w-0 items-center justify-between rounded-2xl border px-4 py-3 text-sm transition ${toneSoftClasses(
-                  item.tone
-                )}`}
-              >
-                <div className="min-w-0">
-                  <div className="truncate font-bold text-white">
-                    {item.title}
-                  </div>
-                  <div className="mt-1 truncate text-xs text-white/45">
-                    {item.description}
-                  </div>
-                </div>
-
-                <span
-                  className={`mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-lg ${toneIconClasses(
+          <div className="mt-4 min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-3xl border border-white/10 bg-black/20 p-2 [scrollbar-color:rgba(168,85,247,0.55)_transparent] [scrollbar-width:thin]">
+            <nav className="grid grid-cols-1 gap-2">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`group flex min-w-0 items-center justify-between rounded-2xl border px-4 py-3 text-sm transition ${toneSoftClasses(
                     item.tone
                   )}`}
                 >
-                  {item.icon}
-                </span>
-              </Link>
-            ))}
-          </nav>
+                  <div className="min-w-0">
+                    <div className="truncate font-bold text-white">
+                      {item.title}
+                    </div>
+                    <div className="mt-1 truncate text-xs text-white/45">
+                      {item.description}
+                    </div>
+                  </div>
+
+                  <span
+                    className={`mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-lg ${toneIconClasses(
+                      item.tone
+                    )}`}
+                  >
+                    {item.icon}
+                  </span>
+                </Link>
+              ))}
+            </nav>
+          </div>
 
           <button
             onClick={logout}
-            className="mt-6 w-full rounded-2xl border border-red-500/35 bg-red-500/10 px-4 py-3 font-bold text-red-200 transition hover:bg-red-500/20"
+            className="mt-4 shrink-0 w-full rounded-2xl border border-red-500/35 bg-red-500/10 px-4 py-3 font-bold text-red-200 transition hover:bg-red-500/20"
           >
             تسجيل الخروج
           </button>
@@ -1030,7 +1032,9 @@ function InfoCard({
   tone: Tone;
 }) {
   return (
-    <div className={`mt-4 min-w-0 rounded-2xl border p-4 ${toneSoftClasses(tone)}`}>
+    <div
+      className={`mt-4 min-w-0 rounded-2xl border p-4 ${toneSoftClasses(tone)}`}
+    >
       <div className={`mb-2 text-sm ${toneTextClasses(tone)}`}>{title}</div>
       <div className="whitespace-pre-wrap break-words text-xl font-bold text-white">
         {value}
