@@ -576,4 +576,81 @@ export default function AdminPage() {
                   value={selectedApplication.notes || "لا يوجد"}
                 />
 
-                    
+                <div className="mt-4 rounded-2xl border border-purple-500/20 p-4">
+                  <div className="mb-2 text-white/45">
+                    ملاحظات الأدمن الداخلية
+                  </div>
+                  <textarea
+                    value={internalNotes}
+                    onChange={(e) => setInternalNotes(e.target.value)}
+                    className="min-h-[140px] w-full rounded-xl border border-purple-500/20 bg-black/40 p-4 outline-none"
+                  />
+                  <button
+                    onClick={saveInternalNotes}
+                    className="mt-4 rounded-xl bg-purple-600 px-6 py-3 font-bold"
+                  >
+                    حفظ ملاحظات الأدمن
+                  </button>
+                </div>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <button
+                    onClick={() => copyApplicationInfo(selectedApplication)}
+                    className="rounded-xl border border-purple-500/30 px-4 py-2"
+                  >
+                    نسخ جميع معلومات الطلب
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      updateStatus(selectedApplication.id, "under_review")
+                    }
+                    className="rounded-xl border border-yellow-500/30 px-4 py-2 text-yellow-200"
+                  >
+                    وضع قيد المراجعة
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      updateStatus(selectedApplication.id, "accepted")
+                    }
+                    className="rounded-xl border border-green-500/30 px-4 py-2 text-green-200"
+                  >
+                    قبول الطلب
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      updateStatus(selectedApplication.id, "rejected")
+                    }
+                    className="rounded-xl border border-red-500/30 px-4 py-2 text-red-200"
+                  >
+                    رفض الطلب
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
+
+function StatCard({ title, value }: { title: string; value: number }) {
+  return (
+    <div className="rounded-3xl border border-purple-500/20 bg-black/35 p-5">
+      <div className="text-sm text-white/45">{title}</div>
+      <div className="mt-2 text-4xl font-black">{value}</div>
+    </div>
+  );
+}
+
+function InfoCard({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="mt-4 rounded-2xl border border-purple-500/20 p-4">
+      <div className="mb-2 text-white/45">{title}</div>
+      <div className="whitespace-pre-wrap text-xl">{value}</div>
+    </div>
+  );
+}
