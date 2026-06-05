@@ -328,7 +328,11 @@ export default function HomePage() {
       return "inside_hero";
     }
 
-    if (normalized === "hidden" || normalized === "off" || normalized === "none") {
+    if (
+      normalized === "hidden" ||
+      normalized === "off" ||
+      normalized === "none"
+    ) {
       return "hidden";
     }
 
@@ -391,7 +395,7 @@ export default function HomePage() {
       ),
       heroBadge: getSetting(
         ["home_hero_badge", "hero_badge"],
-        "وكالة رقمية لإدارة صناع المحتوى"
+        "وكالة عالمية محترفة لإدارة صناع المحتوى"
       ),
 
       announcementPosition: normalizeAnnouncementPosition(
@@ -407,7 +411,7 @@ export default function HomePage() {
         )
       ),
       announcementSpeed: Number(
-        getSetting(["announcement_bar_speed", "announcement_speed"], "24")
+        getSetting(["announcement_bar_speed", "announcement_speed"], "22")
       ),
 
       footerText: getSetting(
@@ -449,7 +453,6 @@ export default function HomePage() {
   );
 
   const activePrograms = programs.length ? programs : fallbackPrograms;
-
   const activeAnnouncement = announcements[0] || null;
 
   const updateField = (key: keyof typeof form, value: string) => {
@@ -536,7 +539,7 @@ export default function HomePage() {
   return (
     <main
       dir="rtl"
-      className="min-h-screen overflow-hidden bg-[#070009] text-white"
+      className="relative min-h-screen overflow-hidden bg-[#070009] text-white"
       style={
         {
           "--primary": publicSettings.primaryColor,
@@ -556,7 +559,7 @@ export default function HomePage() {
         />
       )}
 
-      <nav className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-5 py-6">
+      <nav className="relative z-20 mx-auto flex max-w-7xl items-center justify-between px-5 py-6">
         <div className="flex items-center gap-3">
           <img
             src={logoUrl}
@@ -575,7 +578,7 @@ export default function HomePage() {
 
       {publicSettings.announcementPosition === "under_nav" &&
         activeAnnouncement && (
-          <div className="relative z-10 mx-auto max-w-7xl px-5">
+          <div className="relative z-20 mx-auto max-w-7xl px-5">
             <AnnouncementBar
               announcement={activeAnnouncement}
               animation={publicSettings.announcementAnimation}
@@ -585,10 +588,12 @@ export default function HomePage() {
           </div>
         )}
 
-      <section className="relative z-10 mx-auto max-w-7xl px-5 pb-20 pt-10 text-center">
+      <section className="relative z-20 mx-auto max-w-7xl px-5 pb-20 pt-10 text-center">
+        <HeroVideoVisual />
+
         {publicSettings.announcementPosition === "inside_hero" &&
           activeAnnouncement && (
-            <div className="mx-auto mb-8 max-w-4xl">
+            <div className="relative z-20 mx-auto mb-8 max-w-4xl">
               <AnnouncementBar
                 announcement={activeAnnouncement}
                 animation={publicSettings.announcementAnimation}
@@ -598,38 +603,40 @@ export default function HomePage() {
             </div>
           )}
 
-        <img
-          src={logoUrl}
-          alt={`${publicSettings.englishName} Logo`}
-          className="mx-auto mb-8 h-44 w-44 rounded-[2rem] object-cover shadow-[0_0_80px_rgba(168,85,247,0.45)]"
-        />
+        <div className="relative z-20">
+          <img
+            src={logoUrl}
+            alt={`${publicSettings.englishName} Logo`}
+            className="mx-auto mb-8 h-44 w-44 rounded-[2rem] object-cover shadow-[0_0_95px_rgba(168,85,247,0.65)]"
+          />
 
-        <div className="mx-auto mb-6 inline-flex rounded-full border border-purple-400/30 bg-purple-500/10 px-5 py-2 text-sm text-purple-100">
-          {publicSettings.heroBadge}
-        </div>
+          <div className="mx-auto mb-6 inline-flex rounded-full border border-purple-400/30 bg-purple-500/10 px-5 py-2 text-sm text-purple-100 backdrop-blur">
+            {publicSettings.heroBadge}
+          </div>
 
-        <h1 className="text-5xl font-black leading-tight md:text-7xl">
-          {homepageContent?.title || publicSettings.heroTitle}
-          <span className="block bg-gradient-to-r from-purple-300 via-white to-yellow-300 bg-clip-text text-transparent">
-            {publicSettings.heroHighlight}
-          </span>
-        </h1>
+          <h1 className="text-5xl font-black leading-tight md:text-7xl">
+            {homepageContent?.title || publicSettings.heroTitle}
+            <span className="block bg-gradient-to-r from-purple-300 via-white to-yellow-300 bg-clip-text text-transparent">
+              {publicSettings.heroHighlight}
+            </span>
+          </h1>
 
-        <p className="mx-auto mt-6 max-w-3xl text-lg leading-9 text-white/80 md:text-2xl">
-          {homepageContent?.content || publicSettings.heroDescription}
-        </p>
+          <p className="mx-auto mt-6 max-w-3xl text-lg leading-9 text-white/80 md:text-2xl">
+            {homepageContent?.content || publicSettings.heroDescription}
+          </p>
 
-        <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <button
-            onClick={() => setShowJoinForm(true)}
-            className="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-9 py-4 text-lg font-bold shadow-[0_0_40px_rgba(168,85,247,0.45)] transition hover:scale-[1.03]"
-          >
-            انضم الآن
-          </button>
+          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <button
+              onClick={() => setShowJoinForm(true)}
+              className="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-9 py-4 text-lg font-bold shadow-[0_0_40px_rgba(168,85,247,0.45)] transition hover:scale-[1.03]"
+            >
+              انضم الآن
+            </button>
+          </div>
         </div>
       </section>
 
-      <section className="relative z-10 mx-auto grid max-w-6xl grid-cols-2 gap-5 px-5 pb-20 lg:grid-cols-4">
+      <section className="relative z-20 mx-auto grid max-w-6xl grid-cols-2 gap-5 px-5 pb-20 lg:grid-cols-4">
         {fallbackStats.map(([number, label]) => (
           <div
             key={label}
@@ -643,7 +650,7 @@ export default function HomePage() {
         ))}
       </section>
 
-      <section className="relative z-10 mx-auto max-w-7xl px-5 pb-24">
+      <section className="relative z-20 mx-auto max-w-7xl px-5 pb-24">
         <h2 className="text-center text-4xl font-black">
           البرامج المتاحة حالياً
         </h2>
@@ -658,7 +665,7 @@ export default function HomePage() {
             <Link
               key={program.id}
               href={program.slug ? `/programs/${program.slug}` : "/programs"}
-              className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-center transition hover:border-purple-400/60 hover:bg-purple-500/10"
+              className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-center backdrop-blur transition hover:border-purple-400/60 hover:bg-purple-500/10"
             >
               <div className="mb-3 inline-flex rounded-full border border-green-400/30 bg-green-500/10 px-3 py-1 text-xs font-bold text-green-200">
                 {program.status === "limited"
@@ -678,7 +685,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="relative z-10 mx-auto max-w-6xl px-5 pb-24">
+      <section className="relative z-20 mx-auto max-w-6xl px-5 pb-24">
         <div className="rounded-[2rem] border border-purple-400/20 bg-white/[0.04] p-8 backdrop-blur">
           <h2 className="text-3xl font-black">لماذا وكالة حمزة؟</h2>
 
@@ -796,7 +803,7 @@ export default function HomePage() {
         واتساب
       </a>
 
-      <footer className="relative z-10 border-t border-white/10 px-5 py-8 text-center text-white/50">
+      <footer className="relative z-20 border-t border-white/10 px-5 py-8 text-center text-white/50">
         {publicSettings.footerText}
       </footer>
     </main>
@@ -827,7 +834,11 @@ function AnnouncementBar({
       {animation === "marquee" ? (
         <div
           className="hamza-marquee-track flex w-max whitespace-nowrap py-3 text-sm font-bold md:text-base"
-          style={{ ["--marquee-duration" as string]: `${speed || 24}s` }}
+          style={
+            {
+              "--marquee-duration": `${speed || 22}s`,
+            } as CSSProperties
+          }
         >
           <span className="mx-8">{text}</span>
           <span className="mx-8">{text}</span>
@@ -849,7 +860,6 @@ function PublicBackground({ media }: { media: MediaItem | undefined }) {
   const url = media?.file_url || "";
   const fileType = media?.file_type || "";
   const isUsableUrl = url.startsWith("http") || url.startsWith("/");
-  const isGenerated = url.startsWith("generated://") || !isUsableUrl;
 
   const isVideo =
     fileType === "video" ||
@@ -857,65 +867,84 @@ function PublicBackground({ media }: { media: MediaItem | undefined }) {
     /\.(mp4|webm|ogg)$/i.test(url);
 
   const isImage =
-    fileType === "image" ||
-    /\.(jpg|jpeg|png|webp|gif)$/i.test(url);
+    fileType === "image" || /\.(jpg|jpeg|png|webp|gif)$/i.test(url);
 
   if (isUsableUrl && isVideo) {
     return (
-      <>
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <video
-          className="fixed inset-0 -z-20 h-full w-full object-cover opacity-35"
+          className="h-full w-full object-cover opacity-50"
           src={url}
           autoPlay
           loop
           muted
           playsInline
         />
-
-        <div className="fixed inset-0 -z-10 bg-[#070009]/75" />
-      </>
+        <div className="absolute inset-0 bg-[#070009]/65" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.35),transparent_45%)]" />
+      </div>
     );
   }
 
   if (isUsableUrl && isImage) {
     return (
-      <>
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <div
-          className="fixed inset-0 -z-20 bg-cover bg-center opacity-35"
+          className="absolute inset-0 bg-cover bg-center opacity-45"
           style={{ backgroundImage: `url("${url}")` }}
         />
-        <div className="fixed inset-0 -z-10 bg-[#070009]/75" />
-      </>
+        <div className="absolute inset-0 bg-[#070009]/70" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.35),transparent_45%)]" />
+      </div>
     );
   }
 
-  return <GeneratedBackground variant={isGenerated ? url : ""} />;
+  return <GeneratedBackground variant={url || "generated://luxury-purple-neon"} />;
 }
 
 function GeneratedBackground({ variant }: { variant: string }) {
   const normalized = variant.replace("generated://", "");
 
   return (
-    <>
-      <div className="fixed inset-0 -z-30 bg-[radial-gradient(circle_at_top,#4c0a77_0%,#09000d_45%,#000_100%)]" />
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      <div className="absolute inset-0 bg-[#070009]" />
 
-      <div className="hamza-orb hamza-orb-one fixed -z-20 h-80 w-80 rounded-full bg-purple-700/25 blur-3xl" />
-      <div className="hamza-orb hamza-orb-two fixed -z-20 h-96 w-96 rounded-full bg-yellow-500/10 blur-3xl" />
-      <div className="hamza-orb hamza-orb-three fixed -z-20 h-72 w-72 rounded-full bg-fuchsia-500/15 blur-3xl" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,58,237,0.45)_0%,rgba(76,29,149,0.2)_28%,rgba(7,0,9,0.95)_72%)]" />
 
-      <div className="fixed inset-0 -z-20 opacity-20 [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.25)_1px,transparent_0)] [background-size:42px_42px]" />
+      <div className="hamza-aurora-one absolute -left-32 top-10 h-[520px] w-[520px] rounded-full bg-purple-600/35 blur-[90px]" />
+      <div className="hamza-aurora-two absolute -right-40 top-40 h-[560px] w-[560px] rounded-full bg-fuchsia-500/25 blur-[100px]" />
+      <div className="hamza-aurora-three absolute bottom-0 left-1/3 h-[520px] w-[520px] rounded-full bg-yellow-400/14 blur-[110px]" />
 
-      <div className="fixed inset-0 -z-20 opacity-20">
-        <div className="hamza-light-ring absolute left-1/2 top-1/3 h-[520px] w-[520px] -translate-x-1/2 rounded-full border border-purple-400/20" />
-      </div>
+      <div className="hamza-wave absolute left-1/2 top-[18%] h-[520px] w-[900px] -translate-x-1/2 rounded-full border border-purple-400/25" />
+      <div className="hamza-wave-two absolute left-1/2 top-[22%] h-[420px] w-[720px] -translate-x-1/2 rounded-full border border-yellow-300/15" />
+
+      <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.45)_1px,transparent_0)] [background-size:38px_38px]" />
+
+      <div className="hamza-scan absolute inset-0 opacity-20 [background:linear-gradient(180deg,transparent,rgba(168,85,247,0.18),transparent)]" />
+
+      <div className="hamza-particle hamza-particle-one absolute h-3 w-3 rounded-full bg-purple-300/80 shadow-[0_0_25px_rgba(216,180,254,0.9)]" />
+      <div className="hamza-particle hamza-particle-two absolute h-2 w-2 rounded-full bg-yellow-200/80 shadow-[0_0_25px_rgba(254,240,138,0.9)]" />
+      <div className="hamza-particle hamza-particle-three absolute h-3 w-3 rounded-full bg-fuchsia-300/75 shadow-[0_0_25px_rgba(240,171,252,0.9)]" />
+      <div className="hamza-particle hamza-particle-four absolute h-2 w-2 rounded-full bg-cyan-200/65 shadow-[0_0_25px_rgba(165,243,252,0.75)]" />
 
       {normalized.includes("programs") && (
-        <div className="fixed inset-0 -z-20 opacity-25">
-          <div className="hamza-floating-card absolute left-[12%] top-[25%] h-20 w-20 rounded-3xl border border-purple-400/30 bg-purple-500/10" />
-          <div className="hamza-floating-card-two absolute right-[14%] top-[40%] h-24 w-24 rounded-full border border-yellow-300/25 bg-yellow-400/10" />
-        </div>
+        <>
+          <div className="hamza-floating-card absolute left-[10%] top-[28%] h-24 w-24 rounded-3xl border border-purple-400/30 bg-purple-500/10 backdrop-blur" />
+          <div className="hamza-floating-card-two absolute right-[12%] top-[42%] h-28 w-28 rounded-full border border-yellow-300/25 bg-yellow-400/10 backdrop-blur" />
+        </>
       )}
-    </>
+    </div>
+  );
+}
+
+function HeroVideoVisual() {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-0 mx-auto h-[520px] max-w-6xl overflow-hidden opacity-90">
+      <div className="hamza-hero-orbit absolute left-1/2 top-10 h-[420px] w-[420px] -translate-x-1/2 rounded-full border border-purple-400/20" />
+      <div className="hamza-hero-orbit-two absolute left-1/2 top-20 h-[300px] w-[300px] -translate-x-1/2 rounded-full border border-yellow-300/15" />
+      <div className="absolute left-1/2 top-28 h-56 w-56 -translate-x-1/2 rounded-full bg-purple-600/20 blur-3xl" />
+      <div className="hamza-hero-beam absolute left-1/2 top-0 h-[520px] w-24 -translate-x-1/2 bg-gradient-to-b from-purple-400/0 via-purple-400/20 to-transparent blur-2xl" />
+    </div>
   );
 }
 
@@ -928,28 +957,39 @@ function SiteAnimationStyles() {
       }
 
       .hamza-marquee-track {
-        animation: hamzaMarquee var(--marquee-duration, 24s) linear infinite;
+        animation: hamzaMarquee var(--marquee-duration, 22s) linear infinite;
       }
 
-      @keyframes hamzaOrbOne {
-        0%, 100% { transform: translate(0, 0) scale(1); }
-        50% { transform: translate(70px, 50px) scale(1.15); }
+      @keyframes hamzaAuroraOne {
+        0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.55; }
+        50% { transform: translate(95px, 65px) scale(1.22); opacity: 0.9; }
       }
 
-      @keyframes hamzaOrbTwo {
-        0%, 100% { transform: translate(0, 0) scale(1); }
-        50% { transform: translate(-80px, -45px) scale(1.12); }
+      @keyframes hamzaAuroraTwo {
+        0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.5; }
+        50% { transform: translate(-105px, 45px) scale(1.18); opacity: 0.85; }
       }
 
-      @keyframes hamzaOrbThree {
-        0%, 100% { transform: translate(0, 0) scale(1); }
-        50% { transform: translate(45px, -75px) scale(1.1); }
+      @keyframes hamzaAuroraThree {
+        0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.35; }
+        50% { transform: translate(40px, -90px) scale(1.2); opacity: 0.7; }
       }
 
-      @keyframes hamzaRing {
-        0% { transform: translateX(-50%) rotate(0deg) scale(1); opacity: 0.15; }
-        50% { transform: translateX(-50%) rotate(180deg) scale(1.08); opacity: 0.35; }
-        100% { transform: translateX(-50%) rotate(360deg) scale(1); opacity: 0.15; }
+      @keyframes hamzaWave {
+        0% { transform: translateX(-50%) rotate(0deg) scale(0.95); opacity: 0.15; }
+        50% { transform: translateX(-50%) rotate(180deg) scale(1.12); opacity: 0.45; }
+        100% { transform: translateX(-50%) rotate(360deg) scale(0.95); opacity: 0.15; }
+      }
+
+      @keyframes hamzaScan {
+        0% { transform: translateY(-100%); }
+        100% { transform: translateY(100%); }
+      }
+
+      @keyframes hamzaParticle {
+        0% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.25; }
+        35% { opacity: 1; }
+        100% { transform: translate3d(var(--x), var(--y), 0) scale(0.7); opacity: 0.15; }
       }
 
       @keyframes hamzaFloatCard {
@@ -957,35 +997,38 @@ function SiteAnimationStyles() {
         50% { transform: translateY(-35px) rotate(8deg); }
       }
 
-      .hamza-orb-one {
-        left: 5%;
-        top: 10%;
-        animation: hamzaOrbOne 12s ease-in-out infinite;
+      @keyframes hamzaHeroOrbit {
+        0% { transform: translateX(-50%) rotate(0deg) scale(1); opacity: 0.25; }
+        50% { transform: translateX(-50%) rotate(180deg) scale(1.06); opacity: 0.55; }
+        100% { transform: translateX(-50%) rotate(360deg) scale(1); opacity: 0.25; }
       }
 
-      .hamza-orb-two {
-        right: 6%;
-        bottom: 8%;
-        animation: hamzaOrbTwo 15s ease-in-out infinite;
+      @keyframes hamzaHeroBeam {
+        0%, 100% { opacity: 0.2; transform: translateX(-50%) scaleY(0.9); }
+        50% { opacity: 0.7; transform: translateX(-50%) scaleY(1.12); }
       }
 
-      .hamza-orb-three {
-        left: 35%;
-        bottom: 20%;
-        animation: hamzaOrbThree 18s ease-in-out infinite;
-      }
+      .hamza-aurora-one { animation: hamzaAuroraOne 10s ease-in-out infinite; }
+      .hamza-aurora-two { animation: hamzaAuroraTwo 13s ease-in-out infinite; }
+      .hamza-aurora-three { animation: hamzaAuroraThree 16s ease-in-out infinite; }
 
-      .hamza-light-ring {
-        animation: hamzaRing 24s linear infinite;
-      }
+      .hamza-wave { animation: hamzaWave 22s linear infinite; }
+      .hamza-wave-two { animation: hamzaWave 28s linear infinite reverse; }
 
-      .hamza-floating-card {
-        animation: hamzaFloatCard 10s ease-in-out infinite;
-      }
+      .hamza-scan { animation: hamzaScan 9s linear infinite; }
 
-      .hamza-floating-card-two {
-        animation: hamzaFloatCard 13s ease-in-out infinite reverse;
-      }
+      .hamza-particle { animation: hamzaParticle 9s ease-in-out infinite; }
+      .hamza-particle-one { left: 18%; top: 22%; --x: 260px; --y: 180px; }
+      .hamza-particle-two { right: 16%; top: 32%; --x: -280px; --y: 220px; animation-delay: -2s; }
+      .hamza-particle-three { left: 40%; bottom: 18%; --x: 180px; --y: -260px; animation-delay: -4s; }
+      .hamza-particle-four { right: 38%; bottom: 24%; --x: -220px; --y: -200px; animation-delay: -6s; }
+
+      .hamza-floating-card { animation: hamzaFloatCard 10s ease-in-out infinite; }
+      .hamza-floating-card-two { animation: hamzaFloatCard 13s ease-in-out infinite reverse; }
+
+      .hamza-hero-orbit { animation: hamzaHeroOrbit 18s linear infinite; }
+      .hamza-hero-orbit-two { animation: hamzaHeroOrbit 24s linear infinite reverse; }
+      .hamza-hero-beam { animation: hamzaHeroBeam 6s ease-in-out infinite; }
     `}</style>
   );
 }
