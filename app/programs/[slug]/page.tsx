@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type Program = {
@@ -18,11 +19,143 @@ type Program = {
   updates: string | null;
 };
 
+type MediaItem = {
+  name: string | null;
+  file_url: string | null;
+  file_type: string | null;
+  category: string | null;
+  alt_text: string | null;
+  page_slug: string | null;
+  is_active: boolean | null;
+};
+
+type Setting = {
+  setting_key: string | null;
+  setting_value: string | null;
+  setting_group: string | null;
+  is_public: boolean | null;
+};
+
+type ProgramVisual = {
+  variant: string;
+  label: string;
+  accent: string;
+  secondary: string;
+  badge: string;
+  fallbackDescription: string;
+  fallbackRequirements: string;
+  fallbackBenefits: string;
+  fallbackUpdates: string;
+  fallbackFaq: string;
+};
+
+const programVisuals: Record<string, ProgramVisual> = {
+  tiktok: {
+    variant: "tiktok",
+    label: "Short Video Creator Program",
+    accent: "#ff2f8b",
+    secondary: "#22d3ee",
+    badge: "فيديوهات قصيرة • صناع محتوى • نمو سريع",
+    fallbackDescription:
+      "برنامج TikTok مخصص لصناع المحتوى الذين يريدون تطوير ظهورهم، تحسين جودة المحتوى، وفهم طريقة العمل داخل الوكالة بشكل احترافي.",
+    fallbackRequirements:
+      "العمر 18 سنة أو أكثر\nحساب TikTok نشط\nالالتزام بسياسات المنصة\nالقدرة على إنشاء محتوى أو بث بشكل منتظم",
+    fallbackBenefits:
+      "دعم فني ومتابعة\nتطوير الحساب وتحسين الأداء\nإرشاد حول المحتوى المناسب\nمساعدة في حل المشاكل التقنية",
+    fallbackUpdates: "تم فتح باب الانضمام لبرنامج TikTok عبر وكالة حمزة.",
+    fallbackFaq:
+      "هل القبول مضمون؟\nيتم مراجعة كل طلب حسب معلومات الحساب ونشاط المتقدم.\n\nهل أحتاج عدد متابعين محدد؟\nلا نعتمد على رقم ثابت فقط، بل ننظر إلى الجدية ونوع المحتوى.",
+  },
+  "bigo-live": {
+    variant: "bigo",
+    label: "Live Streaming Creator Program",
+    accent: "#38bdf8",
+    secondary: "#a855f7",
+    badge: "بث مباشر • لايف • دعم يومي",
+    fallbackDescription:
+      "برنامج BIGO LIVE مناسب لصناع المحتوى المهتمين بالبث المباشر، بناء جمهور نشط، وتحسين طريقة الظهور والتفاعل داخل اللايف.",
+    fallbackRequirements:
+      "العمر 18 سنة أو أكثر\nالقدرة على الظهور أو إدارة بث مباشر\nالتزام واحترام قوانين البرنامج\nرقم واتساب للتواصل والمتابعة",
+    fallbackBenefits:
+      "متابعة أداء البث\nإرشاد حول أسلوب اللايف\nدعم في مشاكل الحساب\nتوجيه لتحسين التفاعل مع الجمهور",
+    fallbackUpdates: "برنامج BIGO LIVE متاح حالياً للتقديم من خلال وكالة حمزة.",
+    fallbackFaq:
+      "هل أحتاج خبرة بث؟\nالخبرة تساعد، لكن يمكن قبول المبتدئين الجادين.\n\nهل يوجد تدريب؟\nنعم، يتم توجيه المقبولين حسب وضع حسابهم.",
+  },
+  yaahlan: {
+    variant: "yaahlan",
+    label: "Community Live Program",
+    accent: "#f59e0b",
+    secondary: "#8b5cf6",
+    badge: "مجتمع • تواصل • بث مباشر",
+    fallbackDescription:
+      "برنامج Yaahlan يركز على بناء حضور اجتماعي وتفاعل مباشر مع الجمهور، مع دعم وكالة حمزة في المتابعة والتوجيه.",
+    fallbackRequirements:
+      "حساب نشط أو رغبة جدية بالبدء\nالتزام بالتواصل والمتابعة\nاحترام سياسات المنصة\nتوفر رقم واتساب صحيح",
+    fallbackBenefits:
+      "تعريف بطريقة العمل\nمتابعة الطلبات والمشاكل\nمساعدة في تحسين الحساب\nدعم في خطوات الانضمام",
+    fallbackUpdates: "التقديم على Yaahlan متاح حالياً عبر وكالة حمزة.",
+    fallbackFaq:
+      "هل البرنامج مناسب للمبتدئين؟\nنعم، إذا كان المتقدم جاداً وقادراً على الالتزام.\n\nكيف تتم المتابعة؟\nغالباً عبر واتساب بعد مراجعة الطلب.",
+  },
+  xena: {
+    variant: "xena",
+    label: "Future Creator Program",
+    accent: "#a855f7",
+    secondary: "#06b6d4",
+    badge: "Creator Program • مستقبل المحتوى • وكالة",
+    fallbackDescription:
+      "برنامج Xena مناسب لصناع المحتوى الراغبين بالانضمام إلى برنامج منظم مع متابعة إدارية ودعم لتطوير الحساب.",
+    fallbackRequirements:
+      "العمر المناسب حسب شروط البرنامج\nحساب نشط أو قابل للتطوير\nالالتزام بالتعليمات\nتقديم معلومات صحيحة",
+    fallbackBenefits:
+      "دعم فني وإداري\nمتابعة حالة الحساب\nتوجيه لصانع المحتوى\nمساعدة في فهم نظام البرنامج",
+    fallbackUpdates: "برنامج Xena متاح حالياً ضمن برامج وكالة حمزة.",
+    fallbackFaq:
+      "هل يتم التواصل بعد التقديم؟\nبعد مراجعة الطلب، قد يتواصل فريق الوكالة عبر واتساب.\n\nهل أستطيع التقديم بدون خبرة؟\nنعم، لكن الخبرة السابقة تساعد في التقييم.",
+  },
+  catchii: {
+    variant: "catchii",
+    label: "Social Creator Program",
+    accent: "#ec4899",
+    secondary: "#facc15",
+    badge: "Social • Entertainment • Creator Growth",
+    fallbackDescription:
+      "برنامج Catchii مناسب لصناع المحتوى المهتمين بالتواصل والترفيه وبناء حضور اجتماعي ضمن بيئة وكالة احترافية.",
+    fallbackRequirements:
+      "حساب أو رغبة جدية بالعمل\nالتزام بسياسات البرنامج\nقدرة على التواصل والمتابعة\nمعلومات تواصل صحيحة",
+    fallbackBenefits:
+      "مساعدة في خطوات البداية\nدعم في المشاكل التقنية\nمتابعة وتوجيه\nإرشاد لتحسين جودة الحساب",
+    fallbackUpdates: "برنامج Catchii متاح حالياً للتقديم عبر وكالة حمزة.",
+    fallbackFaq:
+      "هل يمكنني التقديم من أي دولة؟\nيمكنك التقديم، وتتم المراجعة حسب شروط البرنامج.\n\nهل التواصل يكون واتساب؟\nنعم، بعد المراجعة قد يتم التواصل عبر واتساب.",
+  },
+};
+
+const defaultVisual: ProgramVisual = {
+  variant: "programs",
+  label: "Creator Agency Program",
+  accent: "#7c3aed",
+  secondary: "#d4af37",
+  badge: "برنامج صناع محتوى • وكالة حمزة",
+  fallbackDescription:
+    "هذا البرنامج جزء من منظومة وكالة حمزة لدعم صناع المحتوى ومساعدتهم على الانضمام للبرامج المناسبة وتطوير حضورهم.",
+  fallbackRequirements:
+    "تقديم معلومات صحيحة\nرقم واتساب فعال\nالالتزام بشروط المنصة\nالجدية في العمل والمتابعة",
+  fallbackBenefits:
+    "دعم إداري وفني\nمتابعة الطلب\nإرشاد لصانع المحتوى\nمساعدة في حل المشاكل التقنية",
+  fallbackUpdates: "هذا البرنامج متاح للتقديم حالياً عبر وكالة حمزة.",
+  fallbackFaq:
+    "هل القبول مضمون؟\nكل طلب يخضع للمراجعة.\n\nكيف أعرف حالة طلبي؟\nسيتم لاحقاً إضافة صفحة تتبع الطلبات.",
+};
+
 export default function ProgramDetailsPage() {
   const params = useParams();
   const slug = String(params.slug || "");
 
   const [program, setProgram] = useState<Program | null>(null);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [settings, setSettings] = useState<Setting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [showForm, setShowForm] = useState(false);
@@ -38,30 +171,70 @@ export default function ProgramDetailsPage() {
   });
 
   useEffect(() => {
-    async function loadProgram() {
+    async function loadProgramPageData() {
       if (!supabase || !slug) {
         setIsLoading(false);
         return;
       }
 
-      const { data, error } = await supabase
-        .from("programs")
-        .select(
-          "id, name, slug, description, short_description, status, requirements, benefits, faq, updates"
-        )
-        .eq("slug", slug)
-        .single();
+      const [programResult, mediaResult, settingsResult] = await Promise.all([
+        supabase
+          .from("programs")
+          .select(
+            "id, name, slug, description, short_description, status, requirements, benefits, faq, updates"
+          )
+          .eq("slug", slug)
+          .single(),
 
-      if (error) {
-        console.error("Program load error:", error);
+        supabase
+          .from("media")
+          .select(
+            "name, file_url, file_type, category, alt_text, page_slug, is_active"
+          )
+          .eq("is_active", true),
+
+        supabase
+          .from("settings")
+          .select("setting_key, setting_value, setting_group, is_public")
+          .eq("is_public", true),
+      ]);
+
+      if (programResult.error) {
+        console.error("Program load error:", programResult.error);
       }
 
-      setProgram(data || null);
+      if (!mediaResult.error && mediaResult.data) {
+        setMediaItems(mediaResult.data);
+      }
+
+      if (!settingsResult.error && settingsResult.data) {
+        setSettings(settingsResult.data);
+      }
+
+      setProgram(programResult.data || null);
       setIsLoading(false);
     }
 
-    loadProgram();
+    loadProgramPageData();
   }, [slug]);
+
+  const visual = useMemo(() => {
+    return programVisuals[slug] || defaultVisual;
+  }, [slug]);
+
+  const publicSettings = useMemo(() => {
+    return {
+      primaryWhatsapp: getSetting(
+        settings,
+        ["primary_whatsapp", "whatsapp", "support_whatsapp"],
+        "+905011730377"
+      ),
+    };
+  }, [settings]);
+
+  const backgroundMedia = useMemo(() => {
+    return findProgramBackground(mediaItems, slug, program?.name || "");
+  }, [mediaItems, slug, program?.name]);
 
   const updateField = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -103,7 +276,9 @@ export default function ProgramDetailsPage() {
       return;
     }
 
-    setMessage("تم استلام طلبك بنجاح. سيتم التواصل معك عبر واتساب بعد المراجعة.");
+    setMessage(
+      "تم استلام طلبك بنجاح. سيقوم فريق الوكالة بمراجعة الطلب وقد يتم التواصل معك عبر واتساب."
+    );
 
     setForm({
       fullName: "",
@@ -121,84 +296,193 @@ export default function ProgramDetailsPage() {
 
   if (isLoading) {
     return (
-      <main dir="rtl" className="min-h-screen bg-[#070009] text-white flex items-center justify-center">
-        جاري تحميل البرنامج...
+      <main
+        dir="rtl"
+        className="flex min-h-screen items-center justify-center bg-[#070009] text-white"
+      >
+        <ProgramAnimationStyles />
+        <ProgramBackground media={undefined} visual={defaultVisual} />
+        <div className="relative z-20 rounded-3xl border border-purple-500/25 bg-black/40 p-8 text-center text-xl font-black backdrop-blur">
+          جاري تحميل البرنامج...
+        </div>
       </main>
     );
   }
 
   if (!program) {
     return (
-      <main dir="rtl" className="min-h-screen bg-[#070009] px-5 py-20 text-white">
-        <h1 className="text-4xl font-black">البرنامج غير موجود</h1>
-        <Link href="/programs" className="mt-8 inline-block text-purple-300">
-          العودة إلى البرامج
-        </Link>
+      <main
+        dir="rtl"
+        className="relative min-h-screen overflow-hidden bg-[#070009] px-5 py-20 text-white"
+      >
+        <ProgramAnimationStyles />
+        <ProgramBackground media={undefined} visual={defaultVisual} />
+
+        <section className="relative z-20 mx-auto max-w-5xl">
+          <h1 className="text-4xl font-black">البرنامج غير موجود</h1>
+
+          <Link href="/programs" className="mt-8 inline-block text-purple-300">
+            العودة إلى البرامج
+          </Link>
+        </section>
       </main>
     );
   }
 
   return (
-    <main dir="rtl" className="min-h-screen overflow-hidden bg-[#070009] text-white">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#4c0a77_0%,#09000d_45%,#000_100%)]" />
+    <main
+      dir="rtl"
+      className="relative min-h-screen overflow-hidden bg-[#070009] text-white"
+      style={
+        {
+          "--program-accent": visual.accent,
+          "--program-secondary": visual.secondary,
+        } as CSSProperties
+      }
+    >
+      <ProgramAnimationStyles />
+      <ProgramBackground media={backgroundMedia} visual={visual} />
 
-      <section className="mx-auto max-w-6xl px-5 py-14">
+      <section className="relative z-20 mx-auto max-w-6xl px-5 py-14">
         <Link href="/programs" className="mb-8 inline-block text-purple-200">
           ← العودة إلى البرامج
         </Link>
 
-        <div className="rounded-[2rem] border border-purple-400/20 bg-white/[0.04] p-7 shadow-[0_0_60px_rgba(168,85,247,0.18)]">
-          <span className="rounded-full border border-green-400/30 bg-green-500/10 px-4 py-2 text-sm font-bold text-green-200">
-            {program.status || "active"}
-          </span>
+        <div className="relative overflow-hidden rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_80px_rgba(168,85,247,0.18)] backdrop-blur">
+          <div className="absolute inset-0 -z-10 bg-gradient-to-br from-white/[0.06] via-transparent to-purple-500/10" />
 
-          <h1 className="mt-6 text-5xl font-black">{program.name}</h1>
+          <div className="mb-6 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-bold text-white/75">
+            {visual.badge}
+          </div>
 
-          <p className="mt-6 text-xl leading-10 text-white/75">
-            {program.description || program.short_description || "تفاصيل البرنامج ستتم إضافتها من لوحة التحكم."}
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <span className="rounded-full border border-green-400/30 bg-green-500/10 px-4 py-2 text-sm font-bold text-green-200">
+                {program.status || "active"}
+              </span>
+
+              <p className="mt-7 text-sm font-bold uppercase tracking-[0.28em] text-purple-200">
+                {visual.label}
+              </p>
+
+              <h1 className="mt-4 text-5xl font-black md:text-7xl">
+                {program.name}
+              </h1>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-black/25 p-5 text-sm leading-7 text-white/60">
+              خلفية هذه الصفحة مرتبطة ببرنامج{" "}
+              <span className="font-bold text-white">{program.name}</span>
+              <br />
+              ويمكن استبدالها لاحقاً من Media Library.
+            </div>
+          </div>
+
+          <p className="mt-8 max-w-4xl text-xl leading-10 text-white/78">
+            {program.description ||
+              program.short_description ||
+              visual.fallbackDescription}
           </p>
 
           <button
             onClick={() => setShowForm(true)}
-            className="mt-8 w-full rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-5 text-2xl font-black"
+            className="mt-8 w-full rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-5 text-2xl font-black shadow-[0_0_45px_rgba(168,85,247,0.32)] transition hover:scale-[1.01]"
           >
             انضم الآن
           </button>
         </div>
 
         <div className="mt-8 grid gap-6 md:grid-cols-2">
-          <InfoCard title="شروط القبول" content={program.requirements || "سيتم إضافة الشروط من لوحة التحكم."} />
-          <InfoCard title="ماذا تقدم وكالة حمزة؟" content={program.benefits || "سيتم إضافة المميزات من لوحة التحكم."} />
+          <InfoCard
+            title="شروط القبول"
+            content={program.requirements || visual.fallbackRequirements}
+            tone="gold"
+          />
+
+          <InfoCard
+            title="ماذا تقدم وكالة حمزة؟"
+            content={program.benefits || visual.fallbackBenefits}
+            tone="purple"
+          />
         </div>
 
-        <InfoCard title="آخر التحديثات" content={program.updates || "لا توجد تحديثات حالياً."} />
-        <InfoCard title="الأسئلة الشائعة" content={program.faq || "سيتم إضافة الأسئلة الشائعة لاحقاً."} />
+        <InfoCard
+          title="آخر التحديثات"
+          content={program.updates || visual.fallbackUpdates}
+          tone="cyan"
+        />
+
+        <InfoCard
+          title="الأسئلة الشائعة"
+          content={program.faq || visual.fallbackFaq}
+          tone="pink"
+        />
       </section>
 
       {showForm && (
         <div className="fixed inset-0 z-40 overflow-y-auto bg-black/80 p-4 backdrop-blur">
-          <div className="mx-auto my-8 max-w-3xl rounded-[2rem] border border-purple-400/25 bg-[#100014] p-6">
-            <div className="mb-6 flex items-center justify-between">
-              <button onClick={() => setShowForm(false)} className="rounded-full border border-white/15 px-5 py-2 text-white/70">
+          <div className="mx-auto my-8 max-w-3xl rounded-[2rem] border border-purple-400/25 bg-[#100014] p-6 shadow-[0_0_80px_rgba(168,85,247,0.25)]">
+            <div className="mb-6 flex items-center justify-between gap-4">
+              <button
+                onClick={() => {
+                  setMessage("");
+                  setShowForm(false);
+                }}
+                className="rounded-full border border-white/15 px-5 py-2 text-white/70"
+              >
                 إغلاق
               </button>
-              <h2 className="text-3xl font-black">طلب الانضمام إلى {program.name}</h2>
+
+              <h2 className="text-3xl font-black">
+                طلب الانضمام إلى {program.name}
+              </h2>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              <input value={form.fullName} onChange={(e) => updateField("fullName", e.target.value)} placeholder="الاسم الثلاثي" className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none" />
-              <input value={form.country} onChange={(e) => updateField("country", e.target.value)} placeholder="الدولة" className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none" />
-              <input value={form.whatsapp} onChange={(e) => updateField("whatsapp", e.target.value)} placeholder="رقم واتساب" className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none" />
+              <input
+                value={form.fullName}
+                onChange={(e) => updateField("fullName", e.target.value)}
+                placeholder="الاسم الثلاثي"
+                className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400"
+              />
+
+              <input
+                value={form.country}
+                onChange={(e) => updateField("country", e.target.value)}
+                placeholder="الدولة"
+                className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400"
+              />
+
+              <input
+                value={form.whatsapp}
+                onChange={(e) => updateField("whatsapp", e.target.value)}
+                placeholder="رقم واتساب"
+                className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400"
+              />
 
               <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
                 <h3 className="mb-3 text-2xl font-black">خبرات سابقة</h3>
+
                 <p className="mb-4 text-lg text-purple-200">
                   هل عملت على برامج أو وكالات أخرى سابقاً؟
                 </p>
-                <textarea value={form.previousExperience} onChange={(e) => updateField("previousExperience", e.target.value)} placeholder="اكتب خبراتك السابقة إن وجدت" className="min-h-40 w-full resize-none bg-transparent text-xl outline-none" />
+
+                <textarea
+                  value={form.previousExperience}
+                  onChange={(e) =>
+                    updateField("previousExperience", e.target.value)
+                  }
+                  placeholder="اكتب خبراتك السابقة إن وجدت"
+                  className="min-h-40 w-full resize-none bg-transparent text-xl outline-none"
+                />
               </div>
 
-              <textarea value={form.notes} onChange={(e) => updateField("notes", e.target.value)} placeholder="ملاحظات إضافية" className="min-h-36 w-full resize-none rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none" />
+              <textarea
+                value={form.notes}
+                onChange={(e) => updateField("notes", e.target.value)}
+                placeholder="ملاحظات إضافية"
+                className="min-h-36 w-full resize-none rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400"
+              />
 
               {message && (
                 <div className="rounded-3xl border border-yellow-500/40 bg-yellow-500/10 p-5 text-center text-xl font-bold text-yellow-100">
@@ -206,22 +490,371 @@ export default function ProgramDetailsPage() {
                 </div>
               )}
 
-              <button type="submit" disabled={isSubmitting} className="w-full rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-5 text-2xl font-black disabled:opacity-60">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-5 text-2xl font-black disabled:opacity-60"
+              >
                 {isSubmitting ? "جارٍ الإرسال..." : "إرسال الطلب"}
               </button>
             </form>
           </div>
         </div>
       )}
+
+      <a
+        href={`https://wa.me/${publicSettings.primaryWhatsapp.replace(/[^\d]/g, "")}`}
+        target="_blank"
+        className="fixed bottom-5 left-5 z-30 rounded-full bg-green-500 px-5 py-4 text-sm font-black text-white shadow-2xl"
+      >
+        واتساب
+      </a>
     </main>
   );
 }
 
-function InfoCard({ title, content }: { title: string; content: string }) {
+function getSetting(settings: Setting[], keys: string[], fallback: string) {
+  for (const key of keys) {
+    const value = settings.find((item) => item.setting_key === key)
+      ?.setting_value;
+
+    if (value && value.trim()) return value.trim();
+  }
+
+  return fallback;
+}
+
+function findProgramBackground(
+  mediaItems: MediaItem[],
+  slug: string,
+  programName: string
+) {
+  const normalizedName = programName.toLowerCase().replace(/\s+/g, "-");
+
+  const acceptablePageSlugs = [
+    slug,
+    `program-${slug}`,
+    `programs-${slug}`,
+    `programs/${slug}`,
+    `/programs/${slug}`,
+    normalizedName,
+  ];
+
+  const directMatch = mediaItems.find((item) => {
+    const pageSlug = item.page_slug || "";
+    const category = item.category || "";
+    const fileType = item.file_type || "";
+
+    return (
+      acceptablePageSlugs.includes(pageSlug) &&
+      category === "background" &&
+      ["background_video", "video", "image", "generated_background"].includes(
+        fileType
+      )
+    );
+  });
+
+  if (directMatch) return directMatch;
+
+  const nameMatch = mediaItems.find((item) => {
+    const name = (item.name || "").toLowerCase();
+    const category = item.category || "";
+
+    return category === "background" && (name.includes(slug) || name.includes(normalizedName));
+  });
+
+  if (nameMatch) return nameMatch;
+
+  const programsBackground = mediaItems.find((item) => {
+    return item.page_slug === "programs" && item.category === "background";
+  });
+
   return (
-    <div className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-      <h2 className="text-3xl font-black">{title}</h2>
-      <p className="mt-4 whitespace-pre-wrap leading-9 text-white/70">{content}</p>
+    programsBackground || {
+      name: `${slug} generated background`,
+      file_url: `generated://program-${slug}`,
+      file_type: "generated_background",
+      category: "background",
+      alt_text: `${slug} animated background`,
+      page_slug: slug,
+      is_active: true,
+    }
+  );
+}
+
+function ProgramBackground({
+  media,
+  visual,
+}: {
+  media: MediaItem | undefined;
+  visual: ProgramVisual;
+}) {
+  const url = media?.file_url || "";
+  const fileType = media?.file_type || "";
+  const isUsableUrl = url.startsWith("http") || url.startsWith("/");
+
+  const isVideo =
+    fileType === "video" ||
+    fileType === "background_video" ||
+    /\.(mp4|webm|ogg)$/i.test(url);
+
+  const isImage =
+    fileType === "image" || /\.(jpg|jpeg|png|webp|gif)$/i.test(url);
+
+  if (isUsableUrl && isVideo) {
+    return (
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <video
+          className="h-full w-full object-cover opacity-45"
+          src={url}
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
+        <div className="absolute inset-0 bg-[#070009]/70" />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `radial-gradient(circle at top, ${visual.accent}55, transparent 48%)`,
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (isUsableUrl && isImage) {
+    return (
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-45"
+          style={{ backgroundImage: `url("${url}")` }}
+        />
+        <div className="absolute inset-0 bg-[#070009]/72" />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `radial-gradient(circle at top, ${visual.accent}55, transparent 48%)`,
+          }}
+        />
+      </div>
+    );
+  }
+
+  return <GeneratedProgramBackground visual={visual} />;
+}
+
+function GeneratedProgramBackground({ visual }: { visual: ProgramVisual }) {
+  return (
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      <div className="absolute inset-0 bg-[#070009]" />
+
+      <div
+        className="absolute inset-0"
+        style={{
+          background: `radial-gradient(circle at 50% 0%, ${visual.accent}55 0%, rgba(7,0,9,0.98) 68%)`,
+        }}
+      />
+
+      <div
+        className="program-aurora-one absolute -left-36 top-8 h-[540px] w-[540px] rounded-full blur-[95px]"
+        style={{ backgroundColor: `${visual.accent}45` }}
+      />
+
+      <div
+        className="program-aurora-two absolute -right-40 top-32 h-[560px] w-[560px] rounded-full blur-[100px]"
+        style={{ backgroundColor: `${visual.secondary}35` }}
+      />
+
+      <div
+        className="program-aurora-three absolute bottom-0 left-1/3 h-[520px] w-[520px] rounded-full blur-[115px]"
+        style={{ backgroundColor: `${visual.accent}22` }}
+      />
+
+      <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.42)_1px,transparent_0)] [background-size:38px_38px]" />
+
+      <div className="program-scan absolute inset-0 opacity-25 [background:linear-gradient(180deg,transparent,rgba(168,85,247,0.18),transparent)]" />
+
+      <ProgramSpecificVisual variant={visual.variant} />
     </div>
+  );
+}
+
+function ProgramSpecificVisual({ variant }: { variant: string }) {
+  if (variant === "tiktok") {
+    return (
+      <>
+        <div className="program-phone-frame absolute left-[12%] top-[22%] h-56 w-32 rounded-[2rem] border border-pink-300/30 bg-black/25 backdrop-blur" />
+        <div className="program-phone-frame-two absolute right-[14%] top-[36%] h-52 w-32 rounded-[2rem] border border-cyan-300/25 bg-black/25 backdrop-blur" />
+        <div className="program-play absolute left-[20%] top-[34%] h-12 w-12 rounded-full border border-white/20 bg-pink-500/20" />
+        <div className="program-play-two absolute right-[22%] top-[48%] h-10 w-10 rounded-full border border-white/20 bg-cyan-400/20" />
+      </>
+    );
+  }
+
+  if (variant === "bigo") {
+    return (
+      <>
+        <div className="program-live-ring absolute left-1/2 top-[24%] h-[420px] w-[420px] -translate-x-1/2 rounded-full border border-sky-300/25" />
+        <div className="program-live-ring-two absolute left-1/2 top-[29%] h-[290px] w-[290px] -translate-x-1/2 rounded-full border border-purple-300/20" />
+        <div className="program-live-dot absolute left-[22%] top-[30%] h-4 w-4 rounded-full bg-sky-300 shadow-[0_0_35px_rgba(125,211,252,0.9)]" />
+        <div className="program-live-dot-two absolute right-[24%] top-[42%] h-3 w-3 rounded-full bg-purple-300 shadow-[0_0_35px_rgba(216,180,254,0.9)]" />
+      </>
+    );
+  }
+
+  if (variant === "yaahlan") {
+    return (
+      <>
+        <div className="program-chat absolute left-[10%] top-[25%] h-20 w-40 rounded-3xl border border-amber-300/25 bg-amber-400/10 backdrop-blur" />
+        <div className="program-chat-two absolute right-[12%] top-[38%] h-20 w-44 rounded-3xl border border-purple-300/25 bg-purple-400/10 backdrop-blur" />
+        <div className="program-chat-three absolute left-[35%] bottom-[22%] h-16 w-36 rounded-3xl border border-white/15 bg-white/5 backdrop-blur" />
+      </>
+    );
+  }
+
+  if (variant === "xena") {
+    return (
+      <>
+        <div className="program-core absolute left-1/2 top-[26%] h-64 w-64 -translate-x-1/2 rounded-full border border-purple-300/25 bg-purple-500/10" />
+        <div className="program-core-two absolute left-1/2 top-[30%] h-40 w-40 -translate-x-1/2 rounded-full border border-cyan-300/25 bg-cyan-500/10" />
+        <div className="program-diamond absolute left-[18%] top-[38%] h-20 w-20 rotate-45 border border-purple-300/25 bg-purple-500/10" />
+        <div className="program-diamond-two absolute right-[18%] top-[44%] h-16 w-16 rotate-45 border border-cyan-300/25 bg-cyan-500/10" />
+      </>
+    );
+  }
+
+  if (variant === "catchii") {
+    return (
+      <>
+        <div className="program-social-card absolute left-[12%] top-[26%] h-28 w-44 rounded-[2rem] border border-pink-300/25 bg-pink-500/10 backdrop-blur" />
+        <div className="program-social-card-two absolute right-[12%] top-[39%] h-28 w-44 rounded-[2rem] border border-yellow-300/25 bg-yellow-500/10 backdrop-blur" />
+        <div className="program-heart absolute left-[42%] top-[32%] h-10 w-10 rounded-full border border-pink-300/25 bg-pink-500/20" />
+        <div className="program-heart-two absolute right-[36%] bottom-[26%] h-8 w-8 rounded-full border border-yellow-300/25 bg-yellow-500/20" />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="program-live-ring absolute left-1/2 top-[24%] h-[420px] w-[420px] -translate-x-1/2 rounded-full border border-purple-300/25" />
+      <div className="program-diamond absolute left-[18%] top-[38%] h-20 w-20 rotate-45 border border-yellow-300/25 bg-yellow-500/10" />
+      <div className="program-diamond-two absolute right-[18%] top-[44%] h-16 w-16 rotate-45 border border-purple-300/25 bg-purple-500/10" />
+    </>
+  );
+}
+
+function InfoCard({
+  title,
+  content,
+  tone,
+}: {
+  title: string;
+  content: string;
+  tone: "purple" | "gold" | "cyan" | "pink";
+}) {
+  const toneClasses = {
+    purple: "border-purple-400/20 bg-purple-500/10",
+    gold: "border-yellow-400/20 bg-yellow-500/10",
+    cyan: "border-cyan-400/20 bg-cyan-500/10",
+    pink: "border-pink-400/20 bg-pink-500/10",
+  };
+
+  return (
+    <div
+      className={`mt-8 rounded-[2rem] border p-6 backdrop-blur ${toneClasses[tone]}`}
+    >
+      <h2 className="text-3xl font-black">{title}</h2>
+      <p className="mt-4 whitespace-pre-wrap leading-9 text-white/72">
+        {content}
+      </p>
+    </div>
+  );
+}
+
+function ProgramAnimationStyles() {
+  return (
+    <style>{`
+      @keyframes programAuroraOne {
+        0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.55; }
+        50% { transform: translate(100px, 65px) scale(1.2); opacity: 0.9; }
+      }
+
+      @keyframes programAuroraTwo {
+        0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.45; }
+        50% { transform: translate(-110px, 50px) scale(1.16); opacity: 0.85; }
+      }
+
+      @keyframes programAuroraThree {
+        0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.35; }
+        50% { transform: translate(40px, -90px) scale(1.2); opacity: 0.7; }
+      }
+
+      @keyframes programScan {
+        0% { transform: translateY(-100%); }
+        100% { transform: translateY(100%); }
+      }
+
+      @keyframes programFloat {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        50% { transform: translateY(-34px) rotate(6deg); }
+      }
+
+      @keyframes programFloatReverse {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        50% { transform: translateY(30px) rotate(-6deg); }
+      }
+
+      @keyframes programPulseRing {
+        0%, 100% { transform: translateX(-50%) scale(0.96); opacity: 0.22; }
+        50% { transform: translateX(-50%) scale(1.08); opacity: 0.58; }
+      }
+
+      @keyframes programRotateCore {
+        0% { transform: translateX(-50%) rotate(0deg) scale(1); opacity: 0.25; }
+        50% { transform: translateX(-50%) rotate(180deg) scale(1.08); opacity: 0.55; }
+        100% { transform: translateX(-50%) rotate(360deg) scale(1); opacity: 0.25; }
+      }
+
+      .program-aurora-one { animation: programAuroraOne 10s ease-in-out infinite; }
+      .program-aurora-two { animation: programAuroraTwo 13s ease-in-out infinite; }
+      .program-aurora-three { animation: programAuroraThree 16s ease-in-out infinite; }
+
+      .program-scan { animation: programScan 9s linear infinite; }
+
+      .program-phone-frame,
+      .program-chat,
+      .program-social-card,
+      .program-diamond,
+      .program-play,
+      .program-heart {
+        animation: programFloat 9s ease-in-out infinite;
+      }
+
+      .program-phone-frame-two,
+      .program-chat-two,
+      .program-chat-three,
+      .program-social-card-two,
+      .program-diamond-two,
+      .program-play-two,
+      .program-heart-two {
+        animation: programFloatReverse 11s ease-in-out infinite;
+      }
+
+      .program-live-ring,
+      .program-live-ring-two {
+        animation: programPulseRing 7s ease-in-out infinite;
+      }
+
+      .program-live-dot,
+      .program-live-dot-two {
+        animation: programFloat 8s ease-in-out infinite;
+      }
+
+      .program-core,
+      .program-core-two {
+        animation: programRotateCore 18s linear infinite;
+      }
+    `}</style>
   );
 }
