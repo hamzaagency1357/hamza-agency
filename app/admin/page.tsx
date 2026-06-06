@@ -21,6 +21,7 @@ type Application = {
 
 type DashboardCounts = {
   applications: number;
+  serviceRequests: number;
   programs: number;
   pages: number;
   media: number;
@@ -69,6 +70,13 @@ const navItems = [
     description: "المتقدمون",
   },
   {
+    title: "طلبات الخدمات",
+    href: "/admin/service-requests",
+    icon: "◉",
+    tone: "green" as Tone,
+    description: "الخدمات الرقمية",
+  },
+  {
     title: "إدارة البرامج",
     href: "/admin/programs",
     icon: "▣",
@@ -106,6 +114,15 @@ const navItems = [
 ];
 
 const coreModules = [
+  {
+    title: "Service Requests",
+    subtitle: "طلبات الخدمات الرقمية",
+    description:
+      "عرض طلبات الخدمات الرقمية وتغيير الحالة وحفظ الملاحظات وفتح واتساب للعميل.",
+    href: "/admin/service-requests",
+    status: "مكتمل",
+    tone: "green" as Tone,
+  },
   {
     title: "Programs",
     subtitle: "إدارة البرامج",
@@ -155,11 +172,6 @@ const coreModules = [
 
 const upcomingModules = [
   {
-    title: "الخدمات",
-    description: "إدارة خدمات الوكالة والخدمات الرقمية ونماذج الطلب.",
-    tone: "purple" as Tone,
-  },
-  {
     title: "الوظائف",
     description: "إدارة الوظائف والأسئلة المخصصة وطلبات التقديم.",
     tone: "blue" as Tone,
@@ -199,6 +211,7 @@ export default function AdminPage() {
 
   const [counts, setCounts] = useState<DashboardCounts>({
     applications: 0,
+    serviceRequests: 0,
     programs: 0,
     pages: 0,
     media: 0,
@@ -268,6 +281,7 @@ export default function AdminPage() {
 
       const [
         applicationsCount,
+        serviceRequestsCount,
         programsCount,
         pagesCount,
         mediaCount,
@@ -275,6 +289,7 @@ export default function AdminPage() {
         notificationsCount,
       ] = await Promise.all([
         getCount("agency_applications"),
+        getCount("service_requests"),
         getCount("programs"),
         getCount("pages"),
         getCount("media"),
@@ -284,6 +299,7 @@ export default function AdminPage() {
 
       setCounts({
         applications: applicationsCount,
+        serviceRequests: serviceRequestsCount,
         programs: programsCount,
         pages: pagesCount,
         media: mediaCount,
@@ -493,7 +509,7 @@ export default function AdminPage() {
 
           <button
             onClick={logout}
-            className="mt-4 shrink-0 w-full rounded-2xl border border-red-500/35 bg-red-500/10 px-4 py-3 font-bold text-red-200 transition hover:bg-red-500/20"
+            className="mt-4 w-full shrink-0 rounded-2xl border border-red-500/35 bg-red-500/10 px-4 py-3 font-bold text-red-200 transition hover:bg-red-500/20"
           >
             تسجيل الخروج
           </button>
@@ -549,21 +565,32 @@ export default function AdminPage() {
             tone="gold"
           />
 
-          <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
-            <StatCard title="الطلبات" value={counts.applications} tone="blue" />
+          <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-7">
+            <StatCard title="طلبات الانضمام" value={counts.applications} tone="blue" />
+            <StatCard title="طلبات الخدمات" value={counts.serviceRequests} tone="green" />
             <StatCard title="البرامج" value={counts.programs} tone="purple" />
             <StatCard title="الصفحات" value={counts.pages} tone="cyan" />
             <StatCard title="الوسائط" value={counts.media} tone="pink" />
-            <StatCard
-              title="الإعلانات"
-              value={counts.announcements}
-              tone="amber"
-            />
-            <StatCard
-              title="التنبيهات"
-              value={counts.notifications}
-              tone="green"
-            />
+            <StatCard title="الإعلانات" value={counts.announcements} tone="amber" />
+            <StatCard title="التنبيهات" value={counts.notifications} tone="green" />
+          </div>
+
+          <div className="mb-8 overflow-hidden rounded-[2rem] border border-green-400/20 bg-green-500/10 p-6">
+            <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+              <SectionTitle
+                eyebrow="الخدمات الرقمية"
+                title="طلبات الخدمات"
+                description="إدارة طلبات الشحن والسحب والخدمات الرقمية التي تصل من صفحة /service-request."
+                tone="green"
+              />
+
+              <Link
+                href="/admin/service-requests"
+                className="rounded-2xl bg-gradient-to-r from-green-600 to-emerald-500 px-5 py-3 text-center font-black text-white shadow-[0_0_35px_rgba(34,197,94,0.2)] transition hover:scale-[1.02]"
+              >
+                فتح إدارة طلبات الخدمات
+              </Link>
+            </div>
           </div>
 
           <SectionHeader
@@ -575,11 +602,7 @@ export default function AdminPage() {
 
           <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard title="طلبات جديدة" value={newCount} tone="blue" />
-            <StatCard
-              title="قيد المراجعة"
-              value={underReviewCount}
-              tone="amber"
-            />
+            <StatCard title="قيد المراجعة" value={underReviewCount} tone="amber" />
             <StatCard title="مقبولة" value={acceptedCount} tone="green" />
             <StatCard title="مرفوضة" value={rejectedCount} tone="red" />
           </div>
@@ -589,7 +612,7 @@ export default function AdminPage() {
               <SectionTitle
                 eyebrow="وحدات الإدارة المكتملة"
                 title="Core CMS Foundation"
-                description="هذه الوحدات تم بناؤها وربطها مع Supabase ضمن المرحلة الأولى."
+                description="هذه الوحدات تم بناؤها وربطها مع Supabase ضمن المرحلة الأولى وما بعدها."
                 tone="purple"
               />
 
@@ -652,238 +675,272 @@ export default function AdminPage() {
               <SectionTitle
                 eyebrow="إدارة المتقدمين"
                 title="طلبات الانضمام"
-                description="إدارة الطلبات، تغيير الحالة، نسخ الواتساب، وإضافة ملاحظات داخلية."
+                description="عرض مختصر للطلبات مع زر تفاصيل لكل طلب لتجنب ازدحام الجدول."
                 tone="blue"
               />
 
               <input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(event) => setSearch(event.target.value)}
                 placeholder="بحث بالاسم، الدولة، الواتساب، البرنامج..."
-                className="w-full rounded-2xl border border-blue-500/25 bg-black/50 px-4 py-3 outline-none transition focus:border-blue-400 focus:shadow-[0_0_35px_rgba(59,130,246,0.18)]"
+                className="w-full rounded-2xl border border-blue-400/20 bg-blue-500/10 px-5 py-4 text-white outline-none placeholder:text-white/35 focus:border-blue-300/60"
               />
             </div>
 
             {error && (
-              <div className="mb-4 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-yellow-200">
+              <div className="mb-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-100">
                 {error}
               </div>
             )}
 
-            <div className="max-w-full overflow-x-auto rounded-3xl border border-white/10">
-              <table className="w-full min-w-[900px]">
-                <thead className="bg-blue-500/10">
-                  <tr className="border-b border-blue-500/20 text-blue-100">
-                    <th className="p-4 text-right">الاسم</th>
-                    <th className="p-4 text-right">الدولة</th>
-                    <th className="p-4 text-right">البرنامج</th>
-                    <th className="p-4 text-right">الحالة</th>
-                    <th className="p-4 text-right">تاريخ الطلب</th>
-                    <th className="p-4 text-right">الإجراءات</th>
-                  </tr>
-                </thead>
+            {filteredApplications.length === 0 ? (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center text-white/55">
+                لا توجد طلبات مطابقة حالياً.
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-3xl border border-white/10">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[760px] text-sm">
+                    <thead className="bg-white/[0.06] text-white/70">
+                      <tr>
+                        <th className="px-4 py-4 text-right">الاسم</th>
+                        <th className="px-4 py-4 text-right">الدولة</th>
+                        <th className="px-4 py-4 text-right">البرنامج</th>
+                        <th className="px-4 py-4 text-right">الحالة</th>
+                        <th className="px-4 py-4 text-right">التاريخ</th>
+                        <th className="px-4 py-4 text-right">إجراء</th>
+                      </tr>
+                    </thead>
 
-                <tbody>
-                  {filteredApplications.length === 0 ? (
-                    <tr>
-                      <td className="p-5 text-white/50" colSpan={6}>
-                        لا توجد طلبات حالياً
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredApplications.map((app) => (
-                      <tr
-                        key={app.id}
-                        className="border-b border-white/5 transition hover:bg-white/[0.03]"
-                      >
-                        <td className="p-4 font-bold">{app.full_name}</td>
-                        <td className="p-4 text-white/70">{app.country}</td>
-                        <td className="p-4 text-white/70">{app.platform}</td>
-                        <td className="p-4">
-                          <Badge tone={statusTone[app.status] || "slate"}>
-                            {statusLabel[app.status] || app.status}
-                          </Badge>
-                        </td>
-                        <td className="p-4 text-white/55">
-                          {new Date(app.created_at).toLocaleDateString("ar")}
-                        </td>
-                        <td className="p-4">
-                          <div className="flex flex-wrap gap-2">
+                    <tbody>
+                      {filteredApplications.map((app) => (
+                        <tr
+                          key={app.id}
+                          className="border-t border-white/10 bg-black/20"
+                        >
+                          <td className="px-4 py-4 font-bold">{app.full_name}</td>
+                          <td className="px-4 py-4 text-white/65">{app.country}</td>
+                          <td className="px-4 py-4 text-white/65">{app.platform}</td>
+                          <td className="px-4 py-4">
+                            <Badge tone={statusTone[app.status] || "slate"}>
+                              {statusLabel[app.status] || app.status}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-4 text-white/50">
+                            {new Date(app.created_at).toLocaleDateString("ar")}
+                          </td>
+                          <td className="px-4 py-4">
                             <button
                               onClick={() => openDetails(app)}
-                              className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-sm text-purple-100"
+                              className="rounded-xl border border-purple-400/25 bg-purple-500/10 px-4 py-2 font-bold text-purple-100 hover:bg-purple-500/20"
                             >
                               عرض التفاصيل
                             </button>
-                            <button
-                              onClick={() =>
-                                updateStatus(app.id, "under_review")
-                              }
-                              className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-100"
-                            >
-                              مراجعة
-                            </button>
-                            <button
-                              onClick={() => updateStatus(app.id, "accepted")}
-                              className="rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-100"
-                            >
-                              قبول
-                            </button>
-                            <button
-                              onClick={() => updateStatus(app.id, "rejected")}
-                              className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-100"
-                            >
-                              رفض
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {selectedApplication && (
-            <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden bg-black/85 p-4 backdrop-blur">
-              <div className="mx-auto max-w-3xl rounded-[2rem] border border-purple-500/30 bg-[#09000d] p-6 shadow-[0_0_100px_rgba(124,58,237,0.25)]">
-                <div className="mb-6 flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <Badge tone="purple">تفاصيل الطلب</Badge>
-                    <h3 className="mt-3 break-words text-3xl font-black">
-                      {selectedApplication.full_name}
-                    </h3>
-                  </div>
-
-                  <button
-                    onClick={() => setSelectedApplication(null)}
-                    className="shrink-0 rounded-xl border border-white/20 px-4 py-2 text-white/70"
-                  >
-                    إغلاق
-                  </button>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <InfoCard
-                    title="الاسم الكامل"
-                    value={selectedApplication.full_name}
-                    tone="blue"
-                  />
-                  <InfoCard
-                    title="الدولة"
-                    value={selectedApplication.country}
-                    tone="gold"
-                  />
-                  <InfoCard
-                    title="البرنامج"
-                    value={selectedApplication.platform}
-                    tone="purple"
-                  />
-                  <InfoCard
-                    title="الحالة"
-                    value={
-                      statusLabel[selectedApplication.status] ||
-                      selectedApplication.status
-                    }
-                    tone={statusTone[selectedApplication.status] || "slate"}
-                  />
-                  <InfoCard
-                    title="تاريخ الطلب"
-                    value={new Date(
-                      selectedApplication.created_at
-                    ).toLocaleDateString("ar")}
-                    tone="cyan"
-                  />
-
-                  <div className="rounded-2xl border border-green-500/25 bg-green-500/10 p-4">
-                    <div className="mb-2 text-sm text-green-200">
-                      رقم الواتساب
-                    </div>
-                    <div className="mb-3 break-all text-xl font-black">
-                      {selectedApplication.whatsapp}
-                    </div>
-                    <button
-                      onClick={() =>
-                        copyWhatsAppNumber(selectedApplication.whatsapp)
-                      }
-                      className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-2 text-green-100"
-                    >
-                      نسخ الرقم
-                    </button>
-                  </div>
-                </div>
-
-                <InfoCard
-                  title="الخبرات السابقة"
-                  value={selectedApplication.previous_experience || "لا يوجد"}
-                  tone="amber"
-                />
-
-                <InfoCard
-                  title="الملاحظات الإضافية"
-                  value={selectedApplication.notes || "لا يوجد"}
-                  tone="purple"
-                />
-
-                <div className="mt-4 rounded-2xl border border-pink-500/25 bg-pink-500/10 p-4">
-                  <div className="mb-2 text-sm text-pink-200">
-                    ملاحظات الأدمن الداخلية
-                  </div>
-                  <textarea
-                    value={internalNotes}
-                    onChange={(e) => setInternalNotes(e.target.value)}
-                    className="min-h-[140px] w-full rounded-xl border border-pink-500/20 bg-black/40 p-4 outline-none focus:border-pink-400"
-                  />
-                  <button
-                    onClick={saveInternalNotes}
-                    className="mt-4 rounded-xl bg-pink-600 px-6 py-3 font-bold"
-                  >
-                    حفظ ملاحظات الأدمن
-                  </button>
-                </div>
-
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <button
-                    onClick={() => copyApplicationInfo(selectedApplication)}
-                    className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-4 py-2 text-purple-100"
-                  >
-                    نسخ جميع معلومات الطلب
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      updateStatus(selectedApplication.id, "under_review")
-                    }
-                    className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-yellow-100"
-                  >
-                    وضع قيد المراجعة
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      updateStatus(selectedApplication.id, "accepted")
-                    }
-                    className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-2 text-green-100"
-                  >
-                    قبول الطلب
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      updateStatus(selectedApplication.id, "rejected")
-                    }
-                    className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-red-100"
-                  >
-                    رفض الطلب
-                  </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </section>
       </div>
+
+      {selectedApplication && (
+        <ApplicationDetailsModal
+          application={selectedApplication}
+          internalNotes={internalNotes}
+          setInternalNotes={setInternalNotes}
+          onClose={() => setSelectedApplication(null)}
+          onUpdateStatus={updateStatus}
+          onSaveNotes={saveInternalNotes}
+          onCopyWhatsApp={copyWhatsAppNumber}
+          onCopyInfo={copyApplicationInfo}
+        />
+      )}
     </main>
+  );
+}
+
+function ApplicationDetailsModal({
+  application,
+  internalNotes,
+  setInternalNotes,
+  onClose,
+  onUpdateStatus,
+  onSaveNotes,
+  onCopyWhatsApp,
+  onCopyInfo,
+}: {
+  application: Application;
+  internalNotes: string;
+  setInternalNotes: (value: string) => void;
+  onClose: () => void;
+  onUpdateStatus: (id: number, status: string) => void;
+  onSaveNotes: () => void;
+  onCopyWhatsApp: (number: string) => void;
+  onCopyInfo: (application: Application) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 p-4 backdrop-blur">
+      <div className="mx-auto my-8 max-w-4xl rounded-[2rem] border border-purple-400/25 bg-[#0d0014] p-6 shadow-[0_0_90px_rgba(168,85,247,0.25)]">
+        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <Badge tone={statusTone[application.status] || "slate"}>
+              {statusLabel[application.status] || application.status}
+            </Badge>
+            <h2 className="mt-3 text-3xl font-black">
+              {application.full_name}
+            </h2>
+            <p className="mt-2 text-white/50">
+              {new Date(application.created_at).toLocaleString("ar")}
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 font-bold text-white/75 hover:bg-white/[0.08]"
+          >
+            إغلاق
+          </button>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <DetailBox label="الدولة" value={application.country} />
+          <DetailBox label="رقم واتساب" value={application.whatsapp} />
+          <DetailBox label="البرنامج" value={application.platform} />
+          <DetailBox
+            label="الحالة"
+            value={statusLabel[application.status] || application.status}
+          />
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <TextAreaBox
+            label="الخبرات السابقة"
+            value={application.previous_experience || "لا يوجد"}
+          />
+          <TextAreaBox
+            label="ملاحظات المتقدم"
+            value={application.notes || "لا يوجد"}
+          />
+        </div>
+
+        <div className="mt-5 rounded-3xl border border-white/10 bg-black/25 p-5">
+          <label className="mb-3 block font-black text-white/75">
+            تغيير حالة الطلب
+          </label>
+
+          <select
+            value={application.status}
+            onChange={(event) =>
+              onUpdateStatus(application.id, event.target.value)
+            }
+            className="w-full rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-white outline-none"
+          >
+            <option value="new">جديد</option>
+            <option value="under_review">قيد المراجعة</option>
+            <option value="accepted">مقبول</option>
+            <option value="rejected">مرفوض</option>
+          </select>
+        </div>
+
+        <div className="mt-5 rounded-3xl border border-white/10 bg-black/25 p-5">
+          <label className="mb-3 block font-black text-white/75">
+            ملاحظات داخلية
+          </label>
+
+          <textarea
+            value={internalNotes}
+            onChange={(event) => setInternalNotes(event.target.value)}
+            className="min-h-32 w-full resize-none rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none"
+            placeholder="اكتب ملاحظات داخلية لا تظهر للمتقدم..."
+          />
+
+          <button
+            onClick={onSaveNotes}
+            className="mt-4 w-full rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-5 py-3 font-black"
+          >
+            حفظ الملاحظات
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <button
+            onClick={() => onCopyWhatsApp(application.whatsapp)}
+            className="rounded-2xl border border-green-400/25 bg-green-500/10 px-5 py-3 font-black text-green-100"
+          >
+            نسخ رقم واتساب
+          </button>
+
+          <button
+            onClick={() => onCopyInfo(application)}
+            className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 px-5 py-3 font-black text-yellow-100"
+          >
+            نسخ كل المعلومات
+          </button>
+
+          <a
+            href={`https://wa.me/${application.whatsapp.replace(/[^\d]/g, "")}`}
+            target="_blank"
+            className="rounded-2xl bg-green-500 px-5 py-3 text-center font-black text-white"
+          >
+            فتح واتساب
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+      <div className="text-xs font-black text-white/45">{label}</div>
+      <div className="mt-2 break-words font-bold text-white">{value}</div>
+    </div>
+  );
+}
+
+function TextAreaBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+      <div className="mb-3 text-xs font-black text-white/45">{label}</div>
+      <div className="min-h-24 whitespace-pre-wrap leading-7 text-white/75">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function Badge({ children, tone }: { children: ReactNode; tone: Tone }) {
+  return (
+    <span
+      className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${badgeClasses(
+        tone
+      )}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SystemCard({
+  title,
+  value,
+  tone,
+}: {
+  title: string;
+  value: string;
+  tone: Tone;
+}) {
+  return (
+    <div className={`rounded-2xl border p-4 ${toneSoftClasses(tone)}`}>
+      <div className="text-xs text-white/50">{title}</div>
+      <div className="mt-2 text-xl font-black">{value}</div>
+    </div>
   );
 }
 
@@ -899,13 +956,10 @@ function SectionHeader({
   tone: Tone;
 }) {
   return (
-    <div className="mb-4 overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/30 p-5">
-      <SectionTitle
-        eyebrow={eyebrow}
-        title={title}
-        description={description}
-        tone={tone}
-      />
+    <div className="mb-5">
+      <Badge tone={tone}>{eyebrow}</Badge>
+      <h2 className="mt-3 text-3xl font-black">{title}</h2>
+      <p className="mt-2 leading-7 text-white/55">{description}</p>
     </div>
   );
 }
@@ -922,12 +976,10 @@ function SectionTitle({
   tone: Tone;
 }) {
   return (
-    <div className="min-w-0">
-      <div className={`mb-2 text-sm font-bold ${toneTextClasses(tone)}`}>
-        {eyebrow}
-      </div>
-      <h2 className="break-words text-3xl font-black text-white">{title}</h2>
-      <p className="mt-2 max-w-3xl leading-7 text-white/55">{description}</p>
+    <div>
+      <Badge tone={tone}>{eyebrow}</Badge>
+      <h2 className="mt-3 text-3xl font-black">{title}</h2>
+      <p className="mt-2 leading-7 text-white/55">{description}</p>
     </div>
   );
 }
@@ -942,34 +994,9 @@ function StatCard({
   tone: Tone;
 }) {
   return (
-    <div
-      className={`min-w-0 rounded-3xl border p-5 shadow-[0_0_35px_rgba(255,255,255,0.03)] ${toneSoftClasses(
-        tone
-      )}`}
-    >
-      <div className={`text-sm font-bold ${toneTextClasses(tone)}`}>
-        {title}
-      </div>
-      <div className="mt-3 break-words text-4xl font-black text-white">
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function SystemCard({
-  title,
-  value,
-  tone,
-}: {
-  title: string;
-  value: string;
-  tone: Tone;
-}) {
-  return (
-    <div className={`min-w-0 rounded-3xl border p-4 ${toneSoftClasses(tone)}`}>
-      <div className={`text-xs ${toneTextClasses(tone)}`}>{title}</div>
-      <div className="mt-2 break-words text-xl font-black">{value}</div>
+    <div className={`rounded-3xl border p-5 text-center ${toneSoftClasses(tone)}`}>
+      <div className="text-4xl font-black text-white">{value}</div>
+      <div className="mt-2 text-sm font-bold text-white/55">{title}</div>
     </div>
   );
 }
@@ -992,93 +1019,35 @@ function ModuleCard({
   return (
     <Link
       href={href}
-      className={`group min-w-0 rounded-3xl border p-5 transition hover:scale-[1.02] ${toneSoftClasses(
+      className={`block min-w-0 rounded-3xl border p-5 transition hover:scale-[1.01] ${toneSoftClasses(
         tone
       )}`}
     >
       <div className="mb-4 flex items-center justify-between gap-3">
         <Badge tone={tone}>{status}</Badge>
-        <span className={`shrink-0 text-2xl ${toneTextClasses(tone)}`}>↗</span>
+        <span className={`text-xs font-bold ${toneTextClasses(tone)}`}>
+          فتح
+        </span>
       </div>
 
-      <div className={`mb-2 text-sm font-bold ${toneTextClasses(tone)}`}>
-        {subtitle}
-      </div>
-      <h3 className="break-words text-2xl font-black text-white">{title}</h3>
+      <div className="text-sm font-black text-white/50">{title}</div>
+      <h3 className="mt-2 break-words text-2xl font-black">{subtitle}</h3>
       <p className="mt-3 leading-7 text-white/55">{description}</p>
     </Link>
   );
 }
 
-function Badge({ tone, children }: { tone: Tone; children: ReactNode }) {
-  return (
-    <span
-      className={`inline-flex max-w-full rounded-full border px-3 py-1 text-xs font-bold ${toneBadgeClasses(
-        tone
-      )}`}
-    >
-      <span className="truncate">{children}</span>
-    </span>
-  );
-}
-
-function InfoCard({
-  title,
-  value,
-  tone,
-}: {
-  title: string;
-  value: string;
-  tone: Tone;
-}) {
-  return (
-    <div
-      className={`mt-4 min-w-0 rounded-2xl border p-4 ${toneSoftClasses(tone)}`}
-    >
-      <div className={`mb-2 text-sm ${toneTextClasses(tone)}`}>{title}</div>
-      <div className="whitespace-pre-wrap break-words text-xl font-bold text-white">
-        {value}
-      </div>
-    </div>
-  );
-}
-
 function toneSoftClasses(tone: Tone) {
   const classes: Record<Tone, string> = {
-    purple:
-      "border-purple-500/25 bg-purple-500/10 hover:border-purple-400/45 hover:bg-purple-500/15",
-    gold:
-      "border-yellow-400/25 bg-yellow-400/10 hover:border-yellow-300/45 hover:bg-yellow-400/15",
-    green:
-      "border-green-500/25 bg-green-500/10 hover:border-green-400/45 hover:bg-green-500/15",
-    blue:
-      "border-blue-500/25 bg-blue-500/10 hover:border-blue-400/45 hover:bg-blue-500/15",
-    cyan:
-      "border-cyan-500/25 bg-cyan-500/10 hover:border-cyan-400/45 hover:bg-cyan-500/15",
-    pink:
-      "border-pink-500/25 bg-pink-500/10 hover:border-pink-400/45 hover:bg-pink-500/15",
-    amber:
-      "border-amber-500/25 bg-amber-500/10 hover:border-amber-400/45 hover:bg-amber-500/15",
-    red:
-      "border-red-500/25 bg-red-500/10 hover:border-red-400/45 hover:bg-red-500/15",
-    slate:
-      "border-white/15 bg-white/[0.04] hover:border-white/25 hover:bg-white/[0.07]",
-  };
-
-  return classes[tone];
-}
-
-function toneBadgeClasses(tone: Tone) {
-  const classes: Record<Tone, string> = {
-    purple: "border-purple-400/30 bg-purple-500/15 text-purple-100",
-    gold: "border-yellow-300/30 bg-yellow-400/15 text-yellow-100",
-    green: "border-green-400/30 bg-green-500/15 text-green-100",
-    blue: "border-blue-400/30 bg-blue-500/15 text-blue-100",
-    cyan: "border-cyan-400/30 bg-cyan-500/15 text-cyan-100",
-    pink: "border-pink-400/30 bg-pink-500/15 text-pink-100",
-    amber: "border-amber-400/30 bg-amber-500/15 text-amber-100",
-    red: "border-red-400/30 bg-red-500/15 text-red-100",
-    slate: "border-white/15 bg-white/[0.06] text-white/70",
+    purple: "border-purple-400/20 bg-purple-500/10 hover:bg-purple-500/15",
+    gold: "border-yellow-400/20 bg-yellow-500/10 hover:bg-yellow-500/15",
+    green: "border-green-400/20 bg-green-500/10 hover:bg-green-500/15",
+    blue: "border-blue-400/20 bg-blue-500/10 hover:bg-blue-500/15",
+    cyan: "border-cyan-400/20 bg-cyan-500/10 hover:bg-cyan-500/15",
+    pink: "border-pink-400/20 bg-pink-500/10 hover:bg-pink-500/15",
+    amber: "border-amber-400/20 bg-amber-500/10 hover:bg-amber-500/15",
+    red: "border-red-400/20 bg-red-500/10 hover:bg-red-500/15",
+    slate: "border-slate-400/20 bg-slate-500/10 hover:bg-slate-500/15",
   };
 
   return classes[tone];
@@ -1086,15 +1055,15 @@ function toneBadgeClasses(tone: Tone) {
 
 function toneIconClasses(tone: Tone) {
   const classes: Record<Tone, string> = {
-    purple: "border-purple-400/25 bg-purple-500/15 text-purple-100",
-    gold: "border-yellow-300/25 bg-yellow-400/15 text-yellow-100",
-    green: "border-green-400/25 bg-green-500/15 text-green-100",
-    blue: "border-blue-400/25 bg-blue-500/15 text-blue-100",
-    cyan: "border-cyan-400/25 bg-cyan-500/15 text-cyan-100",
-    pink: "border-pink-400/25 bg-pink-500/15 text-pink-100",
-    amber: "border-amber-400/25 bg-amber-500/15 text-amber-100",
-    red: "border-red-400/25 bg-red-500/15 text-red-100",
-    slate: "border-white/15 bg-white/[0.06] text-white/70",
+    purple: "border-purple-300/20 bg-purple-500/15 text-purple-100",
+    gold: "border-yellow-300/20 bg-yellow-500/15 text-yellow-100",
+    green: "border-green-300/20 bg-green-500/15 text-green-100",
+    blue: "border-blue-300/20 bg-blue-500/15 text-blue-100",
+    cyan: "border-cyan-300/20 bg-cyan-500/15 text-cyan-100",
+    pink: "border-pink-300/20 bg-pink-500/15 text-pink-100",
+    amber: "border-amber-300/20 bg-amber-500/15 text-amber-100",
+    red: "border-red-300/20 bg-red-500/15 text-red-100",
+    slate: "border-slate-300/20 bg-slate-500/15 text-slate-100",
   };
 
   return classes[tone];
@@ -1110,7 +1079,23 @@ function toneTextClasses(tone: Tone) {
     pink: "text-pink-200",
     amber: "text-amber-200",
     red: "text-red-200",
-    slate: "text-white/60",
+    slate: "text-slate-200",
+  };
+
+  return classes[tone];
+}
+
+function badgeClasses(tone: Tone) {
+  const classes: Record<Tone, string> = {
+    purple: "border-purple-300/25 bg-purple-500/15 text-purple-100",
+    gold: "border-yellow-300/25 bg-yellow-500/15 text-yellow-100",
+    green: "border-green-300/25 bg-green-500/15 text-green-100",
+    blue: "border-blue-300/25 bg-blue-500/15 text-blue-100",
+    cyan: "border-cyan-300/25 bg-cyan-500/15 text-cyan-100",
+    pink: "border-pink-300/25 bg-pink-500/15 text-pink-100",
+    amber: "border-amber-300/25 bg-amber-500/15 text-amber-100",
+    red: "border-red-300/25 bg-red-500/15 text-red-100",
+    slate: "border-slate-300/25 bg-slate-500/15 text-slate-100",
   };
 
   return classes[tone];
