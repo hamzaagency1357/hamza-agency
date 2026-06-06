@@ -652,4 +652,238 @@ export default function AdminPartnersPage() {
                   <input
                     type="checkbox"
                     checked={form.is_visible}
-                    onChange={(event) => upd
+                    onChange={(event) => updateForm("is_visible", event.target.checked)}
+                    className="h-5 w-5"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between gap-4">
+                  <span className="font-black text-white/75">برنامج مميز</span>
+                  <input
+                    type="checkbox"
+                    checked={form.is_featured}
+                    onChange={(event) => updateForm("is_featured", event.target.checked)}
+                    className="h-5 w-5"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <Field label="الوصف الاحترافي">
+              <textarea
+                value={form.description}
+                onChange={(event) => updateForm("description", event.target.value)}
+                className={`${inputClassName} min-h-32 resize-y leading-8`}
+                placeholder="اكتب وصفاً واضحاً ومناسباً للظهور على الموقع العام."
+              />
+            </Field>
+
+            <div className="flex flex-col gap-3 md:flex-row">
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-full bg-purple-600 px-8 py-4 font-black text-white shadow-2xl disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving
+                  ? "جاري الحفظ..."
+                  : editingPartner
+                    ? "حفظ التعديلات"
+                    : "إضافة الشريك أو البرنامج"}
+              </button>
+
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-full border border-white/10 bg-white/[0.05] px-8 py-4 font-black text-white/75"
+              >
+                تفريغ النموذج
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur">
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h2 className="text-2xl font-black">قائمة الشركاء والبرامج</h2>
+              <p className="mt-2 text-sm leading-7 text-white/55">
+                يمكنك البحث والتصفية ثم تعديل أي عنصر من القائمة.
+              </p>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className={inputClassName}
+                placeholder="بحث بالاسم أو التصنيف"
+              />
+
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                className={inputClassName}
+              >
+                <option value="all" className="bg-black">
+                  كل الحالات
+                </option>
+                {statusOptions.map((option) => (
+                  <option key={option.value} value={option.value} className="bg-black">
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="rounded-3xl border border-white/10 bg-black/25 p-8 text-center text-white/60">
+              جاري تحميل البيانات...
+            </div>
+          ) : filteredPartners.length === 0 ? (
+            <div className="rounded-3xl border border-white/10 bg-black/25 p-8 text-center">
+              <h3 className="text-xl font-black">لا توجد نتائج مطابقة</h3>
+              <p className="mt-3 text-white/55">
+                جرّب تغيير كلمات البحث أو حالة التصفية.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-5">
+              {filteredPartners.map((partner) => (
+                <article
+                  key={partner.id}
+                  className="rounded-[2rem] border border-white/10 bg-black/25 p-5"
+                >
+                  <div className="grid gap-5 lg:grid-cols-[1fr_260px]">
+                    <div>
+                      <div className="mb-4 flex flex-wrap items-center gap-2">
+                        <Badge>{getStatusLabel(partner.status)}</Badge>
+                        <Badge>{getPublicState(partner)}</Badge>
+                        {partner.is_featured && <Badge>مميز</Badge>}
+                        <Badge>ترتيب {partner.sort_order ?? 0}</Badge>
+                      </div>
+
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-purple-400/20 bg-purple-500/10">
+                          {partner.logo_url ? (
+                            <img
+                              src={partner.logo_url}
+                              alt={partner.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-xl font-black text-yellow-100">
+                              {partner.name.slice(0, 1)}
+                            </span>
+                          )}
+                        </div>
+
+                        <div>
+                          <h3 className="text-2xl font-black">{partner.name}</h3>
+                          <p className="mt-1 text-sm font-bold text-yellow-100/80">
+                            {partner.category || "برنامج وشريك تعاون"}
+                          </p>
+                          <p className="mt-4 leading-8 text-white/65">
+                            {partner.description}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3">
+                      <Link
+                        href={getPartnerLink(partner)}
+                        className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-center text-sm font-black text-white/75"
+                      >
+                        فتح الصفحة العامة
+                      </Link>
+
+                      <button
+                        onClick={() => startEdit(partner)}
+                        className="rounded-2xl border border-purple-400/20 bg-purple-500/10 px-4 py-3 text-sm font-black text-purple-100"
+                      >
+                        تعديل
+                      </button>
+
+                      <button
+                        onClick={() => toggleFeatured(partner)}
+                        className="rounded-2xl border border-yellow-400/20 bg-yellow-500/10 px-4 py-3 text-sm font-black text-yellow-100"
+                      >
+                        {partner.is_featured ? "إلغاء التمييز" : "تمييز"}
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          updatePartnerVisibility(partner, partner.is_visible === false || partner.status === "hidden")
+                        }
+                        className="rounded-2xl border border-blue-400/20 bg-blue-500/10 px-4 py-3 text-sm font-black text-blue-100"
+                      >
+                        {partner.is_visible === false || partner.status === "hidden"
+                          ? "إظهار"
+                          : "إخفاء"}
+                      </button>
+
+                      <button
+                        onClick={() => deletePartner(partner)}
+                        className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-black text-red-100"
+                      >
+                        حذف
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      </section>
+    </main>
+  );
+}
+
+const inputClassName =
+  "w-full rounded-3xl border border-white/10 bg-black/30 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-purple-300/50";
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-3 block text-sm font-black text-white/70">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-5 text-center backdrop-blur">
+      <div className="text-4xl font-black text-yellow-100">{value}</div>
+      <div className="mt-2 text-sm font-bold text-white/55">{label}</div>
+    </div>
+  );
+}
+
+function Badge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-black text-white/70">
+      {children}
+    </span>
+  );
+}
+
+function AdminBackground() {
+  return (
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      <div className="absolute inset-0 bg-[#070009]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(212,175,55,0.11)_0%,rgba(124,58,237,0.2)_32%,rgba(7,0,9,0.98)_72%)]" />
+      <div className="absolute -left-24 top-20 h-80 w-80 rounded-full bg-purple-600/12 blur-3xl" />
+      <div className="absolute -right-24 top-52 h-96 w-96 rounded-full bg-yellow-400/8 blur-3xl" />
+      <div className="absolute inset-0 opacity-[0.045] [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.5)_1px,transparent_0)] [background-size:48px_48px]" />
+    </div>
+  );
+}
