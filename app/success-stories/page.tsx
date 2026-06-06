@@ -21,9 +21,80 @@ type SuccessStory = {
   created_at: string | null;
 };
 
+const professionalDefaultStories: SuccessStory[] = [
+  {
+    id: 1,
+    title: "مسار انطلاق صانع محتوى جديد",
+    person_name: "مسار صناع المحتوى",
+    country: "عدة دول",
+    platform: "TikTok",
+    result_summary:
+      "تحويل خطوة التقديم من تواصل عشوائي إلى مسار واضح يبدأ بالمعلومات الصحيحة وينتهي بمتابعة منظمة.",
+    story:
+      "تساعد وكالة حمزة صناع المحتوى الجدد على فهم البرامج المتاحة، شروط الانضمام، وطريقة المتابعة قبل إرسال الطلب. هذا المسار يمنح المتقدم صورة أوضح عن الخطوات المطلوبة ويقلل الأخطاء التي قد تؤخر القبول أو التواصل.",
+    image_url: null,
+    is_featured: true,
+    sort_order: 1,
+    status: "published",
+    is_visible: true,
+    created_at: null,
+  },
+  {
+    id: 2,
+    title: "مسار تنظيم طلبات البث المباشر",
+    person_name: "إدارة برامج البث",
+    country: "عدة دول",
+    platform: "BIGO LIVE",
+    result_summary:
+      "جمع بيانات المتقدمين بطريقة مرتبة تساعد فريق الوكالة على مراجعة الطلبات ومتابعتها باحتراف.",
+    story:
+      "بدلاً من استقبال معلومات ناقصة عبر المحادثات فقط، تعتمد الوكالة نموذجاً منظماً يجمع الاسم، الدولة، رقم واتساب، المنصة، والخبرة السابقة. هذا يساعد الإدارة على مراجعة الطلبات بسرعة أكبر والتواصل مع الحالات المناسبة بوضوح.",
+    image_url: null,
+    is_featured: true,
+    sort_order: 2,
+    status: "published",
+    is_visible: true,
+    created_at: null,
+  },
+  {
+    id: 3,
+    title: "مسار اختيار البرنامج الأنسب",
+    person_name: "توجيه المتقدمين",
+    country: "عدة دول",
+    platform: "Yaahlan",
+    result_summary:
+      "مساعدة المتقدم على فهم الفرق بين البرامج قبل اختيار المسار الأقرب لهدفه وتجربته.",
+    story:
+      "تختلف برامج البث من حيث طبيعة العمل، شروط القبول، ونظام المتابعة. لذلك تهتم وكالة حمزة بتوضيح الفروقات الأساسية للمتقدمين حتى يكون اختيار البرنامج مبنياً على فهم واضح وليس على تجربة عشوائية.",
+    image_url: null,
+    is_featured: false,
+    sort_order: 3,
+    status: "published",
+    is_visible: true,
+    created_at: null,
+  },
+  {
+    id: 4,
+    title: "مسار متابعة الخدمات الرقمية",
+    person_name: "فريق الخدمات الرقمية",
+    country: "تركيا وخارجها",
+    platform: "Digital Services",
+    result_summary:
+      "تنظيم طلبات الخدمات الرقمية مثل الشحن والسحب عبر نموذج واضح وتأكيد مباشر عبر واتساب.",
+    story:
+      "تتعامل الوكالة مع طلبات الخدمات الرقمية بطريقة منظمة تبدأ بجمع معلومات الطلب الأساسية، ثم مراجعتها قبل التواصل مع العميل عبر واتساب. هذا الأسلوب يقلل الالتباس ويحافظ على وضوح الطلب قبل التنفيذ.",
+    image_url: null,
+    is_featured: false,
+    sort_order: 4,
+    status: "published",
+    is_visible: true,
+    created_at: null,
+  },
+];
+
 async function getSuccessStories() {
   if (!supabase) {
-    return [];
+    return professionalDefaultStories;
   }
 
   const { data, error } = await supabase
@@ -37,8 +108,8 @@ async function getSuccessStories() {
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false });
 
-  if (error || !data) {
-    return [];
+  if (error || !data || data.length === 0) {
+    return professionalDefaultStories;
   }
 
   return data as SuccessStory[];
@@ -48,7 +119,6 @@ export default async function SuccessStoriesPage() {
   const stories = await getSuccessStories();
   const featuredStories = stories.filter((story) => story.is_featured);
   const regularStories = stories.filter((story) => !story.is_featured);
-  const hasStories = stories.length > 0;
 
   return (
     <main
@@ -70,131 +140,96 @@ export default async function SuccessStoriesPage() {
           <h1 className="text-5xl font-black leading-tight md:text-7xl">
             قصص نجاح وكالة حمزة
             <span className="block bg-gradient-to-r from-yellow-300 via-white to-purple-300 bg-clip-text text-transparent">
-              تجارب موثوقة ومسارات واضحة
+              مسارات عمل واضحة ونتائج منظمة
             </span>
           </h1>
 
           <p className="mx-auto mt-6 max-w-4xl text-lg leading-9 text-white/72 md:text-xl">
-            نعرض هنا قصصاً موثقة من تجارب صناع المحتوى والعملاء مع وكالة حمزة،
-            مع التركيز على التنظيم، المتابعة، وضوح الخطوات، وجودة التواصل.
+            نعرض هنا نماذج من مسارات العمل التي تعتمدها وكالة حمزة لدعم صناع
+            المحتوى والعملاء، من التقديم الأول إلى المتابعة والتنظيم واختيار
+            البرنامج المناسب.
           </p>
         </header>
 
         <div className="mt-10 grid gap-5 md:grid-cols-3">
-          <StatCard title="قصص موثقة" value={hasStories ? `${stories.length}+` : "0"} />
-          <StatCard title="برامج متعددة" value="5+" />
+          <StatCard title="نماذج نجاح" value={`${stories.length}+`} />
+          <StatCard title="برامج وخدمات" value="5+" />
           <StatCard title="متابعة مباشرة" value="واتساب" />
         </div>
 
-        {!hasStories ? (
-          <section className="mt-14 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-8 text-center backdrop-blur">
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-yellow-300/25 bg-yellow-500/10 text-2xl font-black text-yellow-100">
-              ★
+        {featuredStories.length > 0 && (
+          <section className="mt-14">
+            <div className="mb-6">
+              <div className="mb-3 inline-flex rounded-full border border-yellow-400/20 bg-yellow-500/10 px-4 py-2 text-sm font-black text-yellow-100">
+                قصص مميزة
+              </div>
+
+              <h2 className="text-4xl font-black">نماذج بارزة</h2>
+
+              <p className="mt-3 max-w-3xl leading-8 text-white/60">
+                مسارات مختارة توضّح كيف تساعد وكالة حمزة في جعل التقديم
+                والمتابعة أكثر وضوحاً واحترافية.
+              </p>
             </div>
 
-            <h2 className="text-3xl font-black text-white">
-              لا توجد قصص نجاح منشورة حالياً
-            </h2>
-
-            <p className="mx-auto mt-4 max-w-3xl leading-8 text-white/70">
-              تعرض وكالة حمزة القصص الموثقة فقط حفاظاً على المصداقية. يمكنك
-              تصفح البرامج المتاحة أو التواصل معنا لمعرفة المسار المناسب لك.
-            </p>
-
-            <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
-              <Link
-                href="/programs"
-                className="rounded-full bg-purple-600 px-8 py-4 font-black text-white shadow-2xl"
-              >
-                تصفح البرامج
-              </Link>
-
-              <a
-                href="https://wa.me/905011730377"
-                target="_blank"
-                className="rounded-full bg-green-500 px-8 py-4 font-black text-white shadow-2xl"
-              >
-                التواصل عبر واتساب
-              </a>
+            <div className="grid gap-6 lg:grid-cols-2">
+              {featuredStories.map((story) => (
+                <StoryCard key={story.id} story={story} featured />
+              ))}
             </div>
           </section>
-        ) : (
-          <>
-            {featuredStories.length > 0 && (
-              <section className="mt-14">
-                <div className="mb-6">
-                  <div className="mb-3 inline-flex rounded-full border border-yellow-400/20 bg-yellow-500/10 px-4 py-2 text-sm font-black text-yellow-100">
-                    قصص مميزة
-                  </div>
-
-                  <h2 className="text-4xl font-black">نماذج بارزة</h2>
-
-                  <p className="mt-3 max-w-3xl leading-8 text-white/60">
-                    قصص مختارة توضح أثر التنظيم والمتابعة الواضحة في تجربة
-                    صناع المحتوى والعملاء.
-                  </p>
-                </div>
-
-                <div className="grid gap-6 lg:grid-cols-2">
-                  {featuredStories.map((story) => (
-                    <StoryCard key={story.id} story={story} featured />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {regularStories.length > 0 && (
-              <section className="mt-14">
-                <div className="mb-6">
-                  <div className="mb-3 inline-flex rounded-full border border-purple-400/20 bg-purple-500/10 px-4 py-2 text-sm font-black text-purple-100">
-                    قصص إضافية
-                  </div>
-
-                  <h2 className="text-4xl font-black">تجارب أخرى</h2>
-
-                  <p className="mt-3 max-w-3xl leading-8 text-white/60">
-                    نماذج أخرى من تجارب المتقدمين والعملاء مع خدمات وبرامج
-                    وكالة حمزة.
-                  </p>
-                </div>
-
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {regularStories.map((story) => (
-                    <StoryCard key={story.id} story={story} />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            <section className="mt-14 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
-              <h2 className="text-3xl font-black text-green-100">
-                هل تريد أن تبدأ قصتك مع وكالة حمزة؟
-              </h2>
-
-              <p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">
-                يمكنك تصفح البرامج المتاحة أو التواصل مع فريق الوكالة عبر
-                واتساب للحصول على توجيه مناسب قبل التقديم.
-              </p>
-
-              <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
-                <Link
-                  href="/programs"
-                  className="rounded-full bg-purple-600 px-8 py-4 font-black text-white shadow-2xl"
-                >
-                  تصفح البرامج
-                </Link>
-
-                <a
-                  href="https://wa.me/905011730377"
-                  target="_blank"
-                  className="rounded-full bg-green-500 px-8 py-4 font-black text-white shadow-2xl"
-                >
-                  التواصل عبر واتساب
-                </a>
-              </div>
-            </section>
-          </>
         )}
+
+        {regularStories.length > 0 && (
+          <section className="mt-14">
+            <div className="mb-6">
+              <div className="mb-3 inline-flex rounded-full border border-purple-400/20 bg-purple-500/10 px-4 py-2 text-sm font-black text-purple-100">
+                قصص إضافية
+              </div>
+
+              <h2 className="text-4xl font-black">تجارب ومسارات أخرى</h2>
+
+              <p className="mt-3 max-w-3xl leading-8 text-white/60">
+                نماذج إضافية من طريقة تنظيم الوكالة للتواصل، الطلبات، البرامج،
+                والخدمات الرقمية.
+              </p>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {regularStories.map((story) => (
+                <StoryCard key={story.id} story={story} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="mt-14 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
+          <h2 className="text-3xl font-black text-green-100">
+            هل تريد أن تبدأ مسارك مع وكالة حمزة؟
+          </h2>
+
+          <p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">
+            يمكنك تصفح البرامج المتاحة أو التواصل مع فريق الوكالة عبر واتساب
+            للحصول على توجيه مناسب قبل التقديم.
+          </p>
+
+          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+            <Link
+              href="/programs"
+              className="rounded-full bg-purple-600 px-8 py-4 font-black text-white shadow-2xl"
+            >
+              تصفح البرامج
+            </Link>
+
+            <a
+              href="https://wa.me/905011730377"
+              target="_blank"
+              className="rounded-full bg-green-500 px-8 py-4 font-black text-white shadow-2xl"
+            >
+              التواصل عبر واتساب
+            </a>
+          </div>
+        </section>
       </section>
     </main>
   );
@@ -248,7 +283,7 @@ function StoryCard({
         </h3>
 
         <p className="mt-3 text-sm font-bold text-white/50">
-          {story.person_name || "أحد عملاء وكالة حمزة"}
+          {story.person_name || "وكالة حمزة"}
         </p>
 
         {story.result_summary && (
@@ -260,7 +295,7 @@ function StoryCard({
 
         <p className="mt-5 leading-8 text-white/72">
           {story.story ||
-            "تجربة موثقة توضح أثر المتابعة والتنظيم في الوصول إلى خطوات أوضح."}
+            "مسار عمل احترافي يوضح أثر التنظيم والمتابعة في تجربة أفضل."}
         </p>
       </div>
     </article>
