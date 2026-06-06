@@ -566,7 +566,7 @@ export default function AdminPartnersPage() {
             {editingPartner && (
               <button
                 type="button"
-                onClick={resetForm}
+                onClick={() => resetForm()}
                 className="rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 text-sm font-black text-white/75"
               >
                 إلغاء التعديل
@@ -714,7 +714,7 @@ export default function AdminPartnersPage() {
 
               <button
                 type="button"
-                onClick={resetForm}
+                onClick={() => resetForm()}
                 className="rounded-full border border-white/10 bg-white/[0.05] px-8 py-4 font-black text-white/75"
               >
                 تفريغ النموذج
