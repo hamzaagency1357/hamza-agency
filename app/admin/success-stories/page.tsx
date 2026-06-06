@@ -90,28 +90,6 @@ export default function AdminSuccessStoriesPage() {
     setMessageType("info");
   }
 
-  function getErrorText(error: unknown) {
-    if (!error || typeof error !== "object") {
-      return "خطأ غير معروف.";
-    }
-
-    const supabaseError = error as {
-      message?: string;
-      details?: string;
-      hint?: string;
-      code?: string;
-    };
-
-    return [
-      supabaseError.message ? `message: ${supabaseError.message}` : "",
-      supabaseError.details ? `details: ${supabaseError.details}` : "",
-      supabaseError.hint ? `hint: ${supabaseError.hint}` : "",
-      supabaseError.code ? `code: ${supabaseError.code}` : "",
-    ]
-      .filter(Boolean)
-      .join(" | ");
-  }
-
   async function checkAccessAndLoad() {
     setIsLoading(true);
 
@@ -159,7 +137,7 @@ export default function AdminSuccessStoriesPage() {
 
     if (error) {
       showMessage(
-        `تعذر تحميل قصص النجاح: ${getErrorText(error)}`,
+        "تعذر تحميل قصص النجاح. يرجى تحديث الصفحة والمحاولة مرة أخرى.",
         "error"
       );
       return;
@@ -253,17 +231,16 @@ export default function AdminSuccessStoriesPage() {
     setIsSaving(true);
 
     const result = editingId
-      ? await supabase.from("success_stories").update(payload).eq("id", editingId)
+      ? await supabase
+          .from("success_stories")
+          .update(payload)
+          .eq("id", editingId)
       : await supabase.from("success_stories").insert(payload);
 
     setIsSaving(false);
 
     if (result.error) {
-      console.error("Success story save error:", result.error);
-      showMessage(
-        `تعذر حفظ قصة النجاح: ${getErrorText(result.error)}`,
-        "error"
-      );
+      showMessage("تعذر حفظ قصة النجاح. يرجى المحاولة مرة أخرى.", "error");
       return;
     }
 
@@ -296,7 +273,7 @@ export default function AdminSuccessStoriesPage() {
       .eq("id", storyId);
 
     if (error) {
-      showMessage(`تعذر تنفيذ الإجراء: ${getErrorText(error)}`, "error");
+      showMessage("تعذر تنفيذ الإجراء. يرجى المحاولة مرة أخرى.", "error");
       return;
     }
 
@@ -321,7 +298,7 @@ export default function AdminSuccessStoriesPage() {
       .eq("id", storyId);
 
     if (error) {
-      showMessage(`تعذر حذف قصة النجاح: ${getErrorText(error)}`, "error");
+      showMessage("تعذر حذف قصة النجاح. يرجى المحاولة مرة أخرى.", "error");
       return;
     }
 
@@ -763,7 +740,7 @@ function StoryAdminCard({
 
           {story.image_url && (
             <p className="mt-3 break-all text-xs text-purple-200/70">
-              Image: {story.image_url}
+              رابط الصورة: {story.image_url}
             </p>
           )}
         </div>
