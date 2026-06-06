@@ -32,7 +32,6 @@ type JobApplication = {
   whatsapp: string | null;
   email: string | null;
   experience: string | null;
-  answers: Record<string, unknown> | null;
   notes: string | null;
   status: string | null;
   internal_notes: string | null;
@@ -108,14 +107,12 @@ export default function AdminJobsPage() {
 
   const [draftNotes, setDraftNotes] = useState<Record<number, string>>({});
   const [search, setSearch] = useState("");
-  const [applicationStatusFilter, setApplicationStatusFilter] = useState("all");
-  const [jobStatusFilter, setJobStatusFilter] = useState("all");
+  const [jobFilter, setJobFilter] = useState("all");
+  const [applicationFilter, setApplicationFilter] = useState("all");
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingJob, setIsSavingJob] = useState(false);
-  const [updatingApplicationId, setUpdatingApplicationId] = useState<number | null>(
-    null
-  );
+  const [updatingApplicationId, setUpdatingApplicationId] = useState<number | null>(null);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -123,12 +120,9 @@ export default function AdminJobsPage() {
   }, []);
 
   async function initializeAdminPage() {
-    setMessage("");
-
     if (!isSupabaseConfigured || !supabase) {
       setAdminStatus("unauthorized");
       setIsLoading(false);
-      setMessage("الاتصال بقاعدة البيانات غير مفعل.");
       return;
     }
 
@@ -141,14 +135,14 @@ export default function AdminJobsPage() {
       return;
     }
 
-    const { data: adminData, error: adminError } = await supabase
+    const { data: adminData, error } = await supabase
       .from("admin_users")
       .select("email, role, is_active")
       .eq("email", email)
       .eq("is_active", true)
       .maybeSingle();
 
-    if (adminError || !adminData) {
+    if (error || !adminData) {
       setAdminStatus("unauthorized");
       setIsLoading(false);
       return;
@@ -177,7 +171,7 @@ export default function AdminJobsPage() {
       supabase
         .from("job_applications")
         .select(
-          "id, job_id, full_name, country, whatsapp, email, experience, answers, notes, status, internal_notes, created_at, updated_at"
+          "id, job_id, full_name, country, whatsapp, email, experience, notes, status, internal_notes, created_at, updated_at"
         )
         .order("created_at", { ascending: false }),
     ]);
@@ -197,8 +191,8 @@ export default function AdminJobsPage() {
       setApplications(rows);
 
       const notes: Record<number, string> = {};
-      rows.forEach((application) => {
-        notes[application.id] = application.internal_notes || "";
+      rows.forEach((item) => {
+        notes[item.id] = item.internal_notes || "";
       });
       setDraftNotes(notes);
     }
@@ -209,19 +203,18 @@ export default function AdminJobsPage() {
       jobs: jobs.length,
       openJobs: jobs.filter((job) => job.status === "open").length,
       applications: applications.length,
-      newApplications: applications.filter((item) => item.status === "new")
-        .length,
+      newApplications: applications.filter((item) => item.status === "new").length,
       accepted: applications.filter((item) => item.status === "accepted").length,
       rejected: applications.filter((item) => item.status === "rejected").length,
     };
   }, [jobs, applications]);
 
   const filteredJobs = useMemo(() => {
-    return jobs.filter((job) => {
-      const statusMatch =
-        jobStatusFilter === "all" || job.status === jobStatusFilter;
+    const query = search.trim().toLowerCase();
 
-      const query = search.trim().toLowerCase();
+    return jobs.filter((job) => {
+      const statusMatch = jobFilter === "all" || job.status === jobFilter;
+
       const searchText = [
         job.title,
         job.slug,
@@ -229,25 +222,23 @@ export default function AdminJobsPage() {
         job.location,
         job.job_type,
         job.short_description,
-        job.description,
-        job.requirements,
       ]
         .join(" ")
         .toLowerCase();
 
       return statusMatch && (!query || searchText.includes(query));
     });
-  }, [jobs, jobStatusFilter, search]);
+  }, [jobs, jobFilter, search]);
 
   const filteredApplications = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
     return applications.filter((application) => {
       const statusMatch =
-        applicationStatusFilter === "all" ||
-        application.status === applicationStatusFilter;
+        applicationFilter === "all" || application.status === applicationFilter;
 
       const job = jobs.find((item) => item.id === application.job_id);
 
-      const query = search.trim().toLowerCase();
       const searchText = [
         application.full_name,
         application.country,
@@ -256,14 +247,13 @@ export default function AdminJobsPage() {
         application.experience,
         application.notes,
         job?.title,
-        job?.department,
       ]
         .join(" ")
         .toLowerCase();
 
       return statusMatch && (!query || searchText.includes(query));
     });
-  }, [applications, jobs, applicationStatusFilter, search]);
+  }, [applications, jobs, applicationFilter, search]);
 
   function updateJobForm(key: keyof JobForm, value: string | boolean) {
     setJobForm((current) => ({
@@ -284,7 +274,6 @@ export default function AdminJobsPage() {
   function resetJobForm() {
     setJobForm(emptyJobForm);
     setEditingJobId(null);
-    setMessage("");
   }
 
   function editJob(job: Job) {
@@ -320,11 +309,6 @@ export default function AdminJobsPage() {
 
     const safeSlug = jobForm.slug.trim() || generateSlug(jobForm.title);
 
-    if (!safeSlug) {
-      setMessage("يرجى كتابة رابط مختصر للوظيفة.");
-      return;
-    }
-
     const payload = {
       title: jobForm.title.trim(),
       slug: safeSlug,
@@ -356,10 +340,8 @@ export default function AdminJobsPage() {
         return;
       }
 
-      const updatedJob = data as Job;
-
       setJobs((current) =>
-        current.map((job) => (job.id === editingJobId ? updatedJob : job))
+        current.map((job) => (job.id === editingJobId ? (data as Job) : job))
       );
 
       setMessage("تم تحديث الوظيفة بنجاح.");
@@ -402,10 +384,8 @@ export default function AdminJobsPage() {
       return;
     }
 
-    const updatedJob = data as Job;
-
     setJobs((current) =>
-      current.map((item) => (item.id === job.id ? updatedJob : item))
+      current.map((item) => (item.id === job.id ? (data as Job) : item))
     );
 
     setMessage("تم تحديث الوظيفة بنجاح.");
@@ -434,31 +414,27 @@ export default function AdminJobsPage() {
       return;
     }
 
-    const updatedApplication = data as JobApplication;
+    const updated = data as JobApplication;
 
     setApplications((current) =>
-      current.map((item) =>
-        item.id === application.id ? updatedApplication : item
-      )
+      current.map((item) => (item.id === application.id ? updated : item))
     );
 
     setDraftNotes((current) => ({
       ...current,
-      [application.id]: updatedApplication.internal_notes || "",
+      [application.id]: updated.internal_notes || "",
     }));
 
     setMessage("تم تحديث طلب الوظيفة بنجاح.");
   }
 
-  function cleanWhatsapp(value: string | null) {
-    return (value || "").replace(/[^\d]/g, "");
-  }
-
   function getJobTitle(jobId: number | null) {
-    if (!jobId) return "وظيفة غير محددة";
-
     const job = jobs.find((item) => item.id === jobId);
     return job?.title || "وظيفة غير محددة";
+  }
+
+  function cleanWhatsapp(value: string | null) {
+    return (value || "").replace(/[^\d]/g, "");
   }
 
   function formatDate(value: string | null) {
@@ -480,7 +456,11 @@ export default function AdminJobsPage() {
       `الدولة: ${application.country || "-"}`,
       `واتساب: ${application.whatsapp || "-"}`,
       `البريد: ${application.email || "-"}`,
-      `الحالة: ${applicationStatusLabels[application.status || ""] || application.status || "-"}`,
+      `الحالة: ${
+        applicationStatusLabels[application.status || ""] ||
+        application.status ||
+        "-"
+      }`,
       `الخبرات: ${application.experience || "-"}`,
       `ملاحظات المتقدم: ${application.notes || "-"}`,
       `ملاحظات داخلية: ${application.internal_notes || "-"}`,
@@ -504,8 +484,9 @@ export default function AdminJobsPage() {
         className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white"
       >
         <div className="rounded-3xl border border-purple-400/20 bg-white/[0.04] p-8 text-center backdrop-blur">
-          <div className="text-2xl font-black">جاري التحقق من صلاحية الدخول...</div>
-          <p className="mt-3 text-white/60">يرجى الانتظار قليلاً.</p>
+          <div className="text-2xl font-black">
+            جاري التحقق من صلاحية الدخول...
+          </div>
         </div>
       </main>
     );
@@ -560,14 +541,14 @@ export default function AdminJobsPage() {
           <div className="flex flex-wrap gap-3">
             <button
               onClick={loadData}
-              className="rounded-full border border-purple-400/25 bg-purple-500/10 px-5 py-3 font-bold text-purple-100 transition hover:bg-purple-500/20"
+              className="rounded-full border border-purple-400/25 bg-purple-500/10 px-5 py-3 font-bold text-purple-100"
             >
               تحديث البيانات
             </button>
 
             <Link
               href="/admin"
-              className="rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 font-bold text-white/75 transition hover:text-white"
+              className="rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 font-bold text-white/75"
             >
               العودة للوحة التحكم
             </Link>
@@ -662,7 +643,9 @@ export default function AdminJobsPage() {
               <Field label="حالة الوظيفة">
                 <select
                   value={jobForm.status}
-                  onChange={(event) => updateJobForm("status", event.target.value)}
+                  onChange={(event) =>
+                    updateJobForm("status", event.target.value)
+                  }
                   className={inputClassName}
                 >
                   {jobStatusOptions.map((status) => (
@@ -677,4 +660,23 @@ export default function AdminJobsPage() {
                 <span className="font-black text-white/75">
                   إظهار الوظيفة للعامة
                 </span>
-              
+
+                <input
+                  type="checkbox"
+                  checked={jobForm.isVisible}
+                  onChange={(event) =>
+                    updateJobForm("isVisible", event.target.checked)
+                  }
+                  className="h-5 w-5"
+                />
+              </label>
+            </div>
+
+            <Field label="وصف مختصر">
+              <textarea
+                value={jobForm.shortDescription}
+                onChange={(event) =>
+                  updateJobForm("shortDescription", event.target.value)
+                }
+                placeholder="وصف قصير يظهر في بطاقة الوظيفة"
+                
