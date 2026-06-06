@@ -679,4 +679,433 @@ export default function AdminJobsPage() {
                   updateJobForm("shortDescription", event.target.value)
                 }
                 placeholder="وصف قصير يظهر في بطاقة الوظيفة"
-                
+                className={`${inputClassName} min-h-24 resize-none`}
+              />
+            </Field>
+
+            <Field label="وصف كامل">
+              <textarea
+                value={jobForm.description}
+                onChange={(event) =>
+                  updateJobForm("description", event.target.value)
+                }
+                placeholder="اشرح طبيعة الوظيفة"
+                className={`${inputClassName} min-h-28 resize-none`}
+              />
+            </Field>
+
+            <Field label="المتطلبات">
+              <textarea
+                value={jobForm.requirements}
+                onChange={(event) =>
+                  updateJobForm("requirements", event.target.value)
+                }
+                placeholder="اكتب متطلبات الوظيفة"
+                className={`${inputClassName} min-h-28 resize-none`}
+              />
+            </Field>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                type="submit"
+                disabled={isSavingJob}
+                className="flex-1 rounded-full bg-gradient-to-r from-green-600 to-emerald-500 px-7 py-4 font-black text-white disabled:opacity-60"
+              >
+                {isSavingJob
+                  ? "جارٍ الحفظ..."
+                  : editingJobId
+                  ? "حفظ تعديل الوظيفة"
+                  : "إضافة الوظيفة"}
+              </button>
+
+              {editingJobId && (
+                <button
+                  type="button"
+                  onClick={resetJobForm}
+                  className="rounded-full border border-white/10 bg-white/[0.04] px-7 py-4 font-black text-white/75"
+                >
+                  إلغاء التعديل
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+
+        <div className="mb-6 grid gap-4 rounded-[2rem] border border-white/10 bg-black/25 p-5 backdrop-blur md:grid-cols-[1fr_220px_220px]">
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="بحث بالوظيفة، الاسم، الواتساب، الدولة..."
+            className={inputClassName}
+          />
+
+          <select
+            value={jobFilter}
+            onChange={(event) => setJobFilter(event.target.value)}
+            className={inputClassName}
+          >
+            <option value="all">كل الوظائف</option>
+            {jobStatusOptions.map((status) => (
+              <option key={status.value} value={status.value}>
+                {status.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={applicationFilter}
+            onChange={(event) => setApplicationFilter(event.target.value)}
+            className={inputClassName}
+          >
+            <option value="all">كل طلبات التقديم</option>
+            {applicationStatusOptions.map((status) => (
+              <option key={status.value} value={status.value}>
+                {status.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {message && (
+          <div className="mb-6 rounded-3xl border border-yellow-400/25 bg-yellow-500/10 p-5 text-center font-bold text-yellow-100">
+            {message}
+          </div>
+        )}
+
+        {isLoading ? (
+          <EmptyBox text="جاري تحميل البيانات..." />
+        ) : (
+          <>
+            <section className="mb-8">
+              <SectionTitle title="إدارة الوظائف" label="الوظائف" />
+
+              {filteredJobs.length === 0 ? (
+                <EmptyBox text="لا توجد وظائف مطابقة حالياً." />
+              ) : (
+                <div className="grid gap-5 lg:grid-cols-2">
+                  {filteredJobs.map((job) => (
+                    <div
+                      key={job.id}
+                      className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur"
+                    >
+                      <div className="mb-4 flex flex-wrap items-center gap-2">
+                        <Badge>
+                          {jobStatusLabels[job.status || ""] || job.status}
+                        </Badge>
+                        <Badge>{job.is_visible ? "ظاهرة" : "مخفية"}</Badge>
+                        <Badge>{job.department || "بدون قسم"}</Badge>
+                      </div>
+
+                      <h3 className="text-2xl font-black">{job.title}</h3>
+
+                      <p className="mt-3 leading-7 text-white/60">
+                        {job.short_description || "لا يوجد وصف مختصر"}
+                      </p>
+
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <InfoBox label="الموقع" value={job.location || "-"} />
+                        <InfoBox label="النوع" value={job.job_type || "-"} />
+                        <InfoBox label="الرابط" value={job.slug || "-"} />
+                        <InfoBox
+                          label="الترتيب"
+                          value={String(job.sort_order || 0)}
+                        />
+                      </div>
+
+                      <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                        <button
+                          onClick={() => editJob(job)}
+                          className="flex-1 rounded-2xl border border-purple-400/25 bg-purple-500/10 px-5 py-3 font-black text-purple-100"
+                        >
+                          تعديل
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            quickUpdateJob(job, {
+                              is_visible: !job.is_visible,
+                            })
+                          }
+                          className="flex-1 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 px-5 py-3 font-black text-yellow-100"
+                        >
+                          {job.is_visible ? "إخفاء" : "إظهار"}
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            quickUpdateJob(job, {
+                              status: job.status === "open" ? "paused" : "open",
+                            })
+                          }
+                          className="flex-1 rounded-2xl border border-green-400/25 bg-green-500/10 px-5 py-3 font-black text-green-100"
+                        >
+                          {job.status === "open" ? "إيقاف" : "فتح"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section>
+              <SectionTitle title="مراجعة طلبات الوظائف" label="طلبات التقديم" />
+
+              {filteredApplications.length === 0 ? (
+                <EmptyBox text="لا توجد طلبات وظائف مطابقة حالياً." />
+              ) : (
+                <div className="space-y-5">
+                  {filteredApplications.map((application) => {
+                    const whatsapp = cleanWhatsapp(application.whatsapp);
+                    const isUpdating = updatingApplicationId === application.id;
+
+                    return (
+                      <div
+                        key={application.id}
+                        className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur"
+                      >
+                        <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
+                          <div>
+                            <div className="mb-5 flex flex-wrap items-center gap-3">
+                              <Badge>
+                                {applicationStatusLabels[
+                                  application.status || ""
+                                ] ||
+                                  application.status ||
+                                  "جديد"}
+                              </Badge>
+
+                              <Badge>{getJobTitle(application.job_id)}</Badge>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                              <InfoBox
+                                label="الاسم"
+                                value={application.full_name || "-"}
+                              />
+                              <InfoBox
+                                label="الدولة"
+                                value={application.country || "-"}
+                              />
+                              <InfoBox
+                                label="واتساب"
+                                value={application.whatsapp || "-"}
+                              />
+                              <InfoBox
+                                label="البريد"
+                                value={application.email || "-"}
+                              />
+                              <InfoBox
+                                label="تاريخ الطلب"
+                                value={formatDate(application.created_at)}
+                              />
+                              <InfoBox
+                                label="آخر تحديث"
+                                value={formatDate(application.updated_at)}
+                              />
+                            </div>
+
+                            <div className="mt-5 grid gap-4 md:grid-cols-2">
+                              <TextBox
+                                label="خبرات المتقدم"
+                                value={
+                                  application.experience ||
+                                  "لا توجد خبرات مكتوبة"
+                                }
+                              />
+
+                              <TextBox
+                                label="ملاحظات المتقدم"
+                                value={application.notes || "لا توجد ملاحظات"}
+                              />
+                            </div>
+
+                            <div className="mt-5">
+                              <div className="mb-2 text-sm font-black text-white/60">
+                                ملاحظات داخلية
+                              </div>
+
+                              <textarea
+                                value={draftNotes[application.id] || ""}
+                                onChange={(event) =>
+                                  setDraftNotes((current) => ({
+                                    ...current,
+                                    [application.id]: event.target.value,
+                                  }))
+                                }
+                                placeholder="اكتب ملاحظات داخلية لطلب الوظيفة..."
+                                className={`${inputClassName} min-h-32 resize-none`}
+                              />
+
+                              <button
+                                disabled={isUpdating}
+                                onClick={() =>
+                                  updateApplication(application, {
+                                    internal_notes:
+                                      draftNotes[application.id] || "",
+                                  })
+                                }
+                                className="mt-3 w-full rounded-2xl border border-purple-400/25 bg-purple-500/10 px-5 py-3 font-black text-purple-100 disabled:opacity-60"
+                              >
+                                حفظ الملاحظات
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3 rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
+                            <div>
+                              <div className="mb-2 text-sm font-black text-white/60">
+                                تغيير حالة الطلب
+                              </div>
+
+                              <select
+                                value={application.status || "new"}
+                                disabled={isUpdating}
+                                onChange={(event) =>
+                                  updateApplication(application, {
+                                    status: event.target.value,
+                                  })
+                                }
+                                className={inputClassName}
+                              >
+                                {applicationStatusOptions.map((status) => (
+                                  <option
+                                    key={status.value}
+                                    value={status.value}
+                                  >
+                                    {status.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <button
+                              onClick={() =>
+                                copyText(
+                                  application.whatsapp || "",
+                                  "تم نسخ رقم الواتساب."
+                                )
+                              }
+                              className="w-full rounded-2xl border border-green-400/25 bg-green-500/10 px-5 py-3 font-black text-green-100"
+                            >
+                              نسخ رقم واتساب
+                            </button>
+
+                            <button
+                              onClick={() =>
+                                copyText(
+                                  buildApplicationInfo(application),
+                                  "تم نسخ كل معلومات طلب الوظيفة."
+                                )
+                              }
+                              className="w-full rounded-2xl border border-yellow-400/25 bg-yellow-500/10 px-5 py-3 font-black text-yellow-100"
+                            >
+                              نسخ معلومات الطلب
+                            </button>
+
+                            {whatsapp ? (
+                              <a
+                                href={`https://wa.me/${whatsapp}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex w-full justify-center rounded-2xl bg-green-500 px-5 py-3 font-black text-white"
+                              >
+                                فتح واتساب
+                              </a>
+                            ) : (
+                              <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-3 text-center text-white/45">
+                                لا يوجد رقم واتساب
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          </>
+        )}
+      </section>
+    </main>
+  );
+}
+
+const inputClassName =
+  "w-full rounded-3xl border border-white/10 bg-black/30 p-4 text-white outline-none transition placeholder:text-white/35 focus:border-purple-400/70 focus:ring-4 focus:ring-purple-500/10";
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-3 block text-sm font-black text-white/75">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-center backdrop-blur">
+      <div className="text-3xl font-black text-yellow-100">{value}</div>
+      <div className="mt-2 text-sm text-white/55">{label}</div>
+    </div>
+  );
+}
+
+function Badge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full border border-purple-300/20 bg-purple-500/10 px-3 py-1 text-xs font-black text-purple-100">
+      {children}
+    </span>
+  );
+}
+
+function InfoBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+      <div className="text-xs font-black text-white/45">{label}</div>
+      <div className="mt-2 break-words text-sm font-bold text-white/85">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function TextBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="mb-2 text-sm font-black text-white/60">{label}</div>
+      <div className="min-h-32 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-7 text-white/75">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function EmptyBox({ text }: { text: string }) {
+  return (
+    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 text-center text-white/60 backdrop-blur">
+      {text}
+    </div>
+  );
+}
+
+function SectionTitle({ title, label }: { title: string; label: string }) {
+  return (
+    <div className="mb-5">
+      <div className="inline-flex rounded-full border border-purple-400/25 bg-purple-500/10 px-4 py-2 text-sm font-black text-purple-100">
+        {label}
+      </div>
+      <h2 className="mt-3 text-3xl font-black">{title}</h2>
+    </div>
+  );
+}
