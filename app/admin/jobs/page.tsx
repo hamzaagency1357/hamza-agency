@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type AdminStatus = "checking" | "authorized" | "unauthorized";
@@ -32,7 +32,6 @@ type JobApplication = {
   whatsapp: string | null;
   email: string | null;
   experience: string | null;
-  answers: Record<string, unknown> | null;
   notes: string | null;
   status: string | null;
   internal_notes: string | null;
@@ -54,7 +53,7 @@ type JobForm = {
   isVisible: boolean;
 };
 
-const emptyJobForm: JobForm = {
+const emptyForm: JobForm = {
   title: "",
   slug: "",
   department: "",
@@ -82,18 +81,18 @@ const applicationStatusOptions = [
   { value: "rejected", label: "مرفوض" },
 ];
 
+const jobStatusLabels: Record<string, string> = {
+  open: "مفتوحة",
+  paused: "متوقفة مؤقتاً",
+  closed: "مغلقة",
+};
+
 const applicationStatusLabels: Record<string, string> = {
   new: "جديد",
   under_review: "قيد المراجعة",
   contacted: "تم التواصل",
   accepted: "مقبول",
   rejected: "مرفوض",
-};
-
-const jobStatusLabels: Record<string, string> = {
-  open: "مفتوحة",
-  paused: "متوقفة مؤقتاً",
-  closed: "مغلقة",
 };
 
 export default function AdminJobsPage() {
@@ -103,58 +102,52 @@ export default function AdminJobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<JobApplication[]>([]);
 
-  const [jobForm, setJobForm] = useState<JobForm>(emptyJobForm);
-  const [editingJobId, setEditingJobId] = useState<number | null>(null);
+  const [form, setForm] = useState<JobForm>(emptyForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const [draftNotes, setDraftNotes] = useState<Record<number, string>>({});
   const [search, setSearch] = useState("");
-  const [applicationStatusFilter, setApplicationStatusFilter] = useState("all");
-  const [jobStatusFilter, setJobStatusFilter] = useState("all");
+  const [jobFilter, setJobFilter] = useState("all");
+  const [applicationFilter, setApplicationFilter] = useState("all");
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingJob, setIsSavingJob] = useState(false);
-  const [updatingApplicationId, setUpdatingApplicationId] = useState<number | null>(
-    null
-  );
+  const [updatingApplicationId, setUpdatingApplicationId] = useState<
+    number | null
+  >(null);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    initializeAdminPage();
+    checkAccessAndLoad();
   }, []);
 
-  async function initializeAdminPage() {
-    setMessage("");
-
+  async function checkAccessAndLoad() {
     if (!isSupabaseConfigured || !supabase) {
       setAdminStatus("unauthorized");
       setIsLoading(false);
-      setMessage("الاتصال بقاعدة البيانات غير مفعل.");
       return;
     }
 
-    const { data: userData } = await supabase.auth.getUser();
-    const email = userData.user?.email || "";
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (!email) {
+    if (!session) {
+      window.location.href = "/admin/login";
+      return;
+    }
+
+    const { data: isAdmin, error } = await supabase.rpc(
+      "current_user_is_admin"
+    );
+
+    if (error || !isAdmin) {
       setAdminStatus("unauthorized");
       setIsLoading(false);
       return;
     }
 
-    const { data: adminData, error: adminError } = await supabase
-      .from("admin_users")
-      .select("email, role, is_active")
-      .eq("email", email)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (adminError || !adminData) {
-      setAdminStatus("unauthorized");
-      setIsLoading(false);
-      return;
-    }
-
-    setAdminEmail(email);
+    setAdminEmail(session.user.email || "");
     setAdminStatus("authorized");
     await loadData();
   }
@@ -168,17 +161,13 @@ export default function AdminJobsPage() {
     const [jobsResult, applicationsResult] = await Promise.all([
       supabase
         .from("jobs")
-        .select(
-          "id, title, slug, department, location, job_type, short_description, description, requirements, status, sort_order, is_visible, created_at, updated_at"
-        )
+        .select("*")
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: false }),
 
       supabase
         .from("job_applications")
-        .select(
-          "id, job_id, full_name, country, whatsapp, email, experience, answers, notes, status, internal_notes, created_at, updated_at"
-        )
+        .select("*")
         .order("created_at", { ascending: false }),
     ]);
 
@@ -197,8 +186,8 @@ export default function AdminJobsPage() {
       setApplications(rows);
 
       const notes: Record<number, string> = {};
-      rows.forEach((application) => {
-        notes[application.id] = application.internal_notes || "";
+      rows.forEach((item) => {
+        notes[item.id] = item.internal_notes || "";
       });
       setDraftNotes(notes);
     }
@@ -211,18 +200,20 @@ export default function AdminJobsPage() {
       applications: applications.length,
       newApplications: applications.filter((item) => item.status === "new")
         .length,
-      accepted: applications.filter((item) => item.status === "accepted").length,
-      rejected: applications.filter((item) => item.status === "rejected").length,
+      accepted: applications.filter((item) => item.status === "accepted")
+        .length,
+      rejected: applications.filter((item) => item.status === "rejected")
+        .length,
     };
   }, [jobs, applications]);
 
   const filteredJobs = useMemo(() => {
-    return jobs.filter((job) => {
-      const statusMatch =
-        jobStatusFilter === "all" || job.status === jobStatusFilter;
+    const query = search.trim().toLowerCase();
 
-      const query = search.trim().toLowerCase();
-      const searchText = [
+    return jobs.filter((job) => {
+      const statusMatch = jobFilter === "all" || job.status === jobFilter;
+
+      const text = [
         job.title,
         job.slug,
         job.department,
@@ -235,38 +226,38 @@ export default function AdminJobsPage() {
         .join(" ")
         .toLowerCase();
 
-      return statusMatch && (!query || searchText.includes(query));
+      return statusMatch && (!query || text.includes(query));
     });
-  }, [jobs, jobStatusFilter, search]);
+  }, [jobs, jobFilter, search]);
 
   const filteredApplications = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
     return applications.filter((application) => {
       const statusMatch =
-        applicationStatusFilter === "all" ||
-        application.status === applicationStatusFilter;
+        applicationFilter === "all" ||
+        application.status === applicationFilter;
 
-      const job = jobs.find((item) => item.id === application.job_id);
+      const jobTitle = getJobTitle(application.job_id);
 
-      const query = search.trim().toLowerCase();
-      const searchText = [
+      const text = [
         application.full_name,
         application.country,
         application.whatsapp,
         application.email,
         application.experience,
         application.notes,
-        job?.title,
-        job?.department,
+        jobTitle,
       ]
         .join(" ")
         .toLowerCase();
 
-      return statusMatch && (!query || searchText.includes(query));
+      return statusMatch && (!query || text.includes(query));
     });
-  }, [applications, jobs, applicationStatusFilter, search]);
+  }, [applications, applicationFilter, jobs, search]);
 
-  function updateJobForm(key: keyof JobForm, value: string | boolean) {
-    setJobForm((current) => ({
+  function updateForm(key: keyof JobForm, value: string | boolean) {
+    setForm((current) => ({
       ...current,
       [key]: value,
     }));
@@ -281,15 +272,14 @@ export default function AdminJobsPage() {
       .slice(0, 80);
   }
 
-  function resetJobForm() {
-    setJobForm(emptyJobForm);
-    setEditingJobId(null);
-    setMessage("");
+  function resetForm() {
+    setForm(emptyForm);
+    setEditingId(null);
   }
 
   function editJob(job: Job) {
-    setEditingJobId(job.id);
-    setJobForm({
+    setEditingId(job.id);
+    setForm({
       title: job.title || "",
       slug: job.slug || "",
       department: job.department || "",
@@ -313,41 +303,34 @@ export default function AdminJobsPage() {
 
     setMessage("");
 
-    if (!jobForm.title.trim()) {
+    if (!form.title.trim()) {
       setMessage("يرجى كتابة عنوان الوظيفة.");
       return;
     }
 
-    const safeSlug = jobForm.slug.trim() || generateSlug(jobForm.title);
-
-    if (!safeSlug) {
-      setMessage("يرجى كتابة رابط مختصر للوظيفة.");
-      return;
-    }
+    const safeSlug = form.slug.trim() || generateSlug(form.title);
 
     const payload = {
-      title: jobForm.title.trim(),
+      title: form.title.trim(),
       slug: safeSlug,
-      department: jobForm.department.trim(),
-      location: jobForm.location.trim(),
-      job_type: jobForm.jobType.trim(),
-      short_description: jobForm.shortDescription.trim(),
-      description: jobForm.description.trim(),
-      requirements: jobForm.requirements.trim(),
-      status: jobForm.status,
-      sort_order: Number(jobForm.sortOrder) || 0,
-      is_visible: jobForm.isVisible,
+      department: form.department.trim(),
+      location: form.location.trim(),
+      job_type: form.jobType.trim(),
+      short_description: form.shortDescription.trim(),
+      description: form.description.trim(),
+      requirements: form.requirements.trim(),
+      status: form.status,
+      sort_order: Number(form.sortOrder) || 0,
+      is_visible: form.isVisible,
     };
 
     setIsSavingJob(true);
 
-    if (editingJobId) {
-      const { data, error } = await supabase
+    if (editingId) {
+      const { error } = await supabase
         .from("jobs")
         .update(payload)
-        .eq("id", editingJobId)
-        .select("*")
-        .single();
+        .eq("id", editingId);
 
       setIsSavingJob(false);
 
@@ -356,22 +339,13 @@ export default function AdminJobsPage() {
         return;
       }
 
-      const updatedJob = data as Job;
-
-      setJobs((current) =>
-        current.map((job) => (job.id === editingJobId ? updatedJob : job))
-      );
-
       setMessage("تم تحديث الوظيفة بنجاح.");
-      resetJobForm();
+      resetForm();
+      await loadData();
       return;
     }
 
-    const { data, error } = await supabase
-      .from("jobs")
-      .insert(payload)
-      .select("*")
-      .single();
+    const { error } = await supabase.from("jobs").insert(payload);
 
     setIsSavingJob(false);
 
@@ -380,35 +354,26 @@ export default function AdminJobsPage() {
       return;
     }
 
-    setJobs((current) => [data as Job, ...current]);
     setMessage("تمت إضافة الوظيفة بنجاح.");
-    resetJobForm();
+    resetForm();
+    await loadData();
   }
 
   async function quickUpdateJob(job: Job, changes: Partial<Job>) {
     if (!supabase) return;
 
-    setMessage("");
-
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("jobs")
       .update(changes)
-      .eq("id", job.id)
-      .select("*")
-      .single();
+      .eq("id", job.id);
 
     if (error) {
       setMessage(`تعذر تحديث الوظيفة: ${error.message}`);
       return;
     }
 
-    const updatedJob = data as Job;
-
-    setJobs((current) =>
-      current.map((item) => (item.id === job.id ? updatedJob : item))
-    );
-
     setMessage("تم تحديث الوظيفة بنجاح.");
+    await loadData();
   }
 
   async function updateApplication(
@@ -418,14 +383,11 @@ export default function AdminJobsPage() {
     if (!supabase) return;
 
     setUpdatingApplicationId(application.id);
-    setMessage("");
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("job_applications")
       .update(changes)
-      .eq("id", application.id)
-      .select("*")
-      .single();
+      .eq("id", application.id);
 
     setUpdatingApplicationId(null);
 
@@ -434,31 +396,17 @@ export default function AdminJobsPage() {
       return;
     }
 
-    const updatedApplication = data as JobApplication;
-
-    setApplications((current) =>
-      current.map((item) =>
-        item.id === application.id ? updatedApplication : item
-      )
-    );
-
-    setDraftNotes((current) => ({
-      ...current,
-      [application.id]: updatedApplication.internal_notes || "",
-    }));
-
     setMessage("تم تحديث طلب الوظيفة بنجاح.");
+    await loadData();
+  }
+
+  function getJobTitle(jobId: number | null) {
+    const job = jobs.find((item) => item.id === jobId);
+    return job?.title || "وظيفة غير محددة";
   }
 
   function cleanWhatsapp(value: string | null) {
     return (value || "").replace(/[^\d]/g, "");
-  }
-
-  function getJobTitle(jobId: number | null) {
-    if (!jobId) return "وظيفة غير محددة";
-
-    const job = jobs.find((item) => item.id === jobId);
-    return job?.title || "وظيفة غير محددة";
   }
 
   function formatDate(value: string | null) {
@@ -480,7 +428,11 @@ export default function AdminJobsPage() {
       `الدولة: ${application.country || "-"}`,
       `واتساب: ${application.whatsapp || "-"}`,
       `البريد: ${application.email || "-"}`,
-      `الحالة: ${applicationStatusLabels[application.status || ""] || application.status || "-"}`,
+      `الحالة: ${
+        applicationStatusLabels[application.status || ""] ||
+        application.status ||
+        "-"
+      }`,
       `الخبرات: ${application.experience || "-"}`,
       `ملاحظات المتقدم: ${application.notes || "-"}`,
       `ملاحظات داخلية: ${application.internal_notes || "-"}`,
@@ -504,8 +456,9 @@ export default function AdminJobsPage() {
         className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white"
       >
         <div className="rounded-3xl border border-purple-400/20 bg-white/[0.04] p-8 text-center backdrop-blur">
-          <div className="text-2xl font-black">جاري التحقق من صلاحية الدخول...</div>
-          <p className="mt-3 text-white/60">يرجى الانتظار قليلاً.</p>
+          <div className="text-2xl font-black">
+            جاري التحقق من صلاحية الدخول...
+          </div>
         </div>
       </main>
     );
@@ -542,32 +495,31 @@ export default function AdminJobsPage() {
       dir="rtl"
       className="min-h-screen bg-[#070009] px-5 py-8 text-white"
     >
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.28),transparent_44%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,8,60,0.32),rgba(7,0,9,0.96))]" />
-      </div>
+      <Background />
 
       <section className="relative z-10 mx-auto max-w-7xl">
         <nav className="mb-8 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-sm text-purple-200">HAMZA AGENCY Admin</div>
+
             <h1 className="mt-2 text-3xl font-black">
               إدارة الوظائف وطلبات التوظيف
             </h1>
+
             <p className="mt-2 text-sm text-white/50">{adminEmail}</p>
           </div>
 
           <div className="flex flex-wrap gap-3">
             <button
               onClick={loadData}
-              className="rounded-full border border-purple-400/25 bg-purple-500/10 px-5 py-3 font-bold text-purple-100 transition hover:bg-purple-500/20"
+              className="rounded-full border border-purple-400/25 bg-purple-500/10 px-5 py-3 font-bold text-purple-100"
             >
               تحديث البيانات
             </button>
 
             <Link
               href="/admin"
-              className="rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 font-bold text-white/75 transition hover:text-white"
+              className="rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 font-bold text-white/75"
             >
               العودة للوحة التحكم
             </Link>
@@ -585,20 +537,20 @@ export default function AdminJobsPage() {
 
         <div className="mb-6 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-6 backdrop-blur">
           <h2 className="text-2xl font-black">
-            {editingJobId ? "تعديل وظيفة" : "إضافة وظيفة جديدة"}
+            {editingId ? "تعديل وظيفة" : "إضافة وظيفة جديدة"}
           </h2>
 
           <form onSubmit={saveJob} className="mt-5 grid gap-5">
             <div className="grid gap-5 md:grid-cols-2">
               <Field label="عنوان الوظيفة">
                 <input
-                  value={jobForm.title}
+                  value={form.title}
                   onChange={(event) => {
                     const title = event.target.value;
-                    updateJobForm("title", title);
+                    updateForm("title", title);
 
-                    if (!editingJobId && !jobForm.slug.trim()) {
-                      updateJobForm("slug", generateSlug(title));
+                    if (!editingId && !form.slug.trim()) {
+                      updateForm("slug", generateSlug(title));
                     }
                   }}
                   placeholder="مثال: مسؤول متابعة صناع محتوى"
@@ -608,8 +560,8 @@ export default function AdminJobsPage() {
 
               <Field label="الرابط المختصر Slug">
                 <input
-                  value={jobForm.slug}
-                  onChange={(event) => updateJobForm("slug", event.target.value)}
+                  value={form.slug}
+                  onChange={(event) => updateForm("slug", event.target.value)}
                   placeholder="content-manager"
                   className={inputClassName}
                 />
@@ -617,9 +569,9 @@ export default function AdminJobsPage() {
 
               <Field label="القسم">
                 <input
-                  value={jobForm.department}
+                  value={form.department}
                   onChange={(event) =>
-                    updateJobForm("department", event.target.value)
+                    updateForm("department", event.target.value)
                   }
                   placeholder="مثال: إدارة الوكالة"
                   className={inputClassName}
@@ -628,9 +580,9 @@ export default function AdminJobsPage() {
 
               <Field label="الموقع">
                 <input
-                  value={jobForm.location}
+                  value={form.location}
                   onChange={(event) =>
-                    updateJobForm("location", event.target.value)
+                    updateForm("location", event.target.value)
                   }
                   placeholder="عن بعد"
                   className={inputClassName}
@@ -639,9 +591,9 @@ export default function AdminJobsPage() {
 
               <Field label="نوع الوظيفة">
                 <input
-                  value={jobForm.jobType}
+                  value={form.jobType}
                   onChange={(event) =>
-                    updateJobForm("jobType", event.target.value)
+                    updateForm("jobType", event.target.value)
                   }
                   placeholder="مرن / جزئي / حسب الطلب"
                   className={inputClassName}
@@ -650,9 +602,9 @@ export default function AdminJobsPage() {
 
               <Field label="ترتيب الظهور">
                 <input
-                  value={jobForm.sortOrder}
+                  value={form.sortOrder}
                   onChange={(event) =>
-                    updateJobForm("sortOrder", event.target.value)
+                    updateForm("sortOrder", event.target.value)
                   }
                   placeholder="0"
                   className={inputClassName}
@@ -661,8 +613,8 @@ export default function AdminJobsPage() {
 
               <Field label="حالة الوظيفة">
                 <select
-                  value={jobForm.status}
-                  onChange={(event) => updateJobForm("status", event.target.value)}
+                  value={form.status}
+                  onChange={(event) => updateForm("status", event.target.value)}
                   className={inputClassName}
                 >
                   {jobStatusOptions.map((status) => (
@@ -680,9 +632,9 @@ export default function AdminJobsPage() {
 
                 <input
                   type="checkbox"
-                  checked={jobForm.isVisible}
+                  checked={form.isVisible}
                   onChange={(event) =>
-                    updateJobForm("isVisible", event.target.checked)
+                    updateForm("isVisible", event.target.checked)
                   }
                   className="h-5 w-5"
                 />
@@ -691,9 +643,9 @@ export default function AdminJobsPage() {
 
             <Field label="وصف مختصر">
               <textarea
-                value={jobForm.shortDescription}
+                value={form.shortDescription}
                 onChange={(event) =>
-                  updateJobForm("shortDescription", event.target.value)
+                  updateForm("shortDescription", event.target.value)
                 }
                 placeholder="وصف قصير يظهر في بطاقة الوظيفة"
                 className={`${inputClassName} min-h-24 resize-none`}
@@ -702,9 +654,9 @@ export default function AdminJobsPage() {
 
             <Field label="وصف كامل">
               <textarea
-                value={jobForm.description}
+                value={form.description}
                 onChange={(event) =>
-                  updateJobForm("description", event.target.value)
+                  updateForm("description", event.target.value)
                 }
                 placeholder="اشرح طبيعة الوظيفة"
                 className={`${inputClassName} min-h-28 resize-none`}
@@ -713,9 +665,9 @@ export default function AdminJobsPage() {
 
             <Field label="المتطلبات">
               <textarea
-                value={jobForm.requirements}
+                value={form.requirements}
                 onChange={(event) =>
-                  updateJobForm("requirements", event.target.value)
+                  updateForm("requirements", event.target.value)
                 }
                 placeholder="اكتب متطلبات الوظيفة"
                 className={`${inputClassName} min-h-28 resize-none`}
@@ -726,19 +678,19 @@ export default function AdminJobsPage() {
               <button
                 type="submit"
                 disabled={isSavingJob}
-                className="flex-1 rounded-full bg-gradient-to-r from-green-600 to-emerald-500 px-7 py-4 font-black text-white transition hover:scale-[1.01] disabled:opacity-60"
+                className="flex-1 rounded-full bg-gradient-to-r from-green-600 to-emerald-500 px-7 py-4 font-black text-white disabled:opacity-60"
               >
                 {isSavingJob
                   ? "جارٍ الحفظ..."
-                  : editingJobId
+                  : editingId
                   ? "حفظ تعديل الوظيفة"
                   : "إضافة الوظيفة"}
               </button>
 
-              {editingJobId && (
+              {editingId && (
                 <button
                   type="button"
-                  onClick={resetJobForm}
+                  onClick={resetForm}
                   className="rounded-full border border-white/10 bg-white/[0.04] px-7 py-4 font-black text-white/75"
                 >
                   إلغاء التعديل
@@ -757,8 +709,8 @@ export default function AdminJobsPage() {
           />
 
           <select
-            value={jobStatusFilter}
-            onChange={(event) => setJobStatusFilter(event.target.value)}
+            value={jobFilter}
+            onChange={(event) => setJobFilter(event.target.value)}
             className={inputClassName}
           >
             <option value="all">كل الوظائف</option>
@@ -770,8 +722,8 @@ export default function AdminJobsPage() {
           </select>
 
           <select
-            value={applicationStatusFilter}
-            onChange={(event) => setApplicationStatusFilter(event.target.value)}
+            value={applicationFilter}
+            onChange={(event) => setApplicationFilter(event.target.value)}
             className={inputClassName}
           >
             <option value="all">كل طلبات التقديم</option>
@@ -790,18 +742,11 @@ export default function AdminJobsPage() {
         )}
 
         {isLoading ? (
-          <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 text-center backdrop-blur">
-            جاري تحميل البيانات...
-          </div>
+          <EmptyBox text="جاري تحميل البيانات..." />
         ) : (
           <>
             <section className="mb-8">
-              <div className="mb-5">
-                <div className="inline-flex rounded-full border border-purple-400/25 bg-purple-500/10 px-4 py-2 text-sm font-black text-purple-100">
-                  الوظائف
-                </div>
-                <h2 className="mt-3 text-3xl font-black">إدارة الوظائف</h2>
-              </div>
+              <SectionTitle title="إدارة الوظائف" label="الوظائف" />
 
               {filteredJobs.length === 0 ? (
                 <EmptyBox text="لا توجد وظائف مطابقة حالياً." />
@@ -813,9 +758,333 @@ export default function AdminJobsPage() {
                       className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur"
                     >
                       <div className="mb-4 flex flex-wrap items-center gap-2">
-                        <Badge>{jobStatusLabels[job.status || ""] || job.status}</Badge>
+                        <Badge>
+                          {jobStatusLabels[job.status || ""] || job.status}
+                        </Badge>
                         <Badge>{job.is_visible ? "ظاهرة" : "مخفية"}</Badge>
                         <Badge>{job.department || "بدون قسم"}</Badge>
                       </div>
 
-                      <h3 className="text-2xl font-black">{job.title}</
+                      <h3 className="text-2xl font-black">{job.title}</h3>
+
+                      <p className="mt-3 leading-7 text-white/60">
+                        {job.short_description || "لا يوجد وصف مختصر"}
+                      </p>
+
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <InfoBox label="الموقع" value={job.location || "-"} />
+                        <InfoBox label="النوع" value={job.job_type || "-"} />
+                        <InfoBox label="الرابط" value={job.slug || "-"} />
+                        <InfoBox
+                          label="الترتيب"
+                          value={String(job.sort_order || 0)}
+                        />
+                      </div>
+
+                      <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                        <button
+                          onClick={() => editJob(job)}
+                          className="flex-1 rounded-2xl border border-purple-400/25 bg-purple-500/10 px-5 py-3 font-black text-purple-100"
+                        >
+                          تعديل
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            quickUpdateJob(job, {
+                              is_visible: !job.is_visible,
+                            })
+                          }
+                          className="flex-1 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 px-5 py-3 font-black text-yellow-100"
+                        >
+                          {job.is_visible ? "إخفاء" : "إظهار"}
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            quickUpdateJob(job, {
+                              status: job.status === "open" ? "paused" : "open",
+                            })
+                          }
+                          className="flex-1 rounded-2xl border border-green-400/25 bg-green-500/10 px-5 py-3 font-black text-green-100"
+                        >
+                          {job.status === "open" ? "إيقاف" : "فتح"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section>
+              <SectionTitle title="مراجعة طلبات الوظائف" label="طلبات التقديم" />
+
+              {filteredApplications.length === 0 ? (
+                <EmptyBox text="لا توجد طلبات وظائف مطابقة حالياً." />
+              ) : (
+                <div className="space-y-5">
+                  {filteredApplications.map((application) => {
+                    const whatsapp = cleanWhatsapp(application.whatsapp);
+                    const isUpdating = updatingApplicationId === application.id;
+
+                    return (
+                      <div
+                        key={application.id}
+                        className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur"
+                      >
+                        <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
+                          <div>
+                            <div className="mb-5 flex flex-wrap items-center gap-3">
+                              <Badge>
+                                {applicationStatusLabels[
+                                  application.status || ""
+                                ] ||
+                                  application.status ||
+                                  "جديد"}
+                              </Badge>
+
+                              <Badge>{getJobTitle(application.job_id)}</Badge>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                              <InfoBox
+                                label="الاسم"
+                                value={application.full_name || "-"}
+                              />
+                              <InfoBox
+                                label="الدولة"
+                                value={application.country || "-"}
+                              />
+                              <InfoBox
+                                label="واتساب"
+                                value={application.whatsapp || "-"}
+                              />
+                              <InfoBox
+                                label="البريد"
+                                value={application.email || "-"}
+                              />
+                              <InfoBox
+                                label="تاريخ الطلب"
+                                value={formatDate(application.created_at)}
+                              />
+                              <InfoBox
+                                label="آخر تحديث"
+                                value={formatDate(application.updated_at)}
+                              />
+                            </div>
+
+                            <div className="mt-5 grid gap-4 md:grid-cols-2">
+                              <TextBox
+                                label="خبرات المتقدم"
+                                value={
+                                  application.experience ||
+                                  "لا توجد خبرات مكتوبة"
+                                }
+                              />
+
+                              <TextBox
+                                label="ملاحظات المتقدم"
+                                value={application.notes || "لا توجد ملاحظات"}
+                              />
+                            </div>
+
+                            <div className="mt-5">
+                              <div className="mb-2 text-sm font-black text-white/60">
+                                ملاحظات داخلية
+                              </div>
+
+                              <textarea
+                                value={draftNotes[application.id] || ""}
+                                onChange={(event) =>
+                                  setDraftNotes((current) => ({
+                                    ...current,
+                                    [application.id]: event.target.value,
+                                  }))
+                                }
+                                placeholder="اكتب ملاحظات داخلية لطلب الوظيفة..."
+                                className={`${inputClassName} min-h-32 resize-none`}
+                              />
+
+                              <button
+                                disabled={isUpdating}
+                                onClick={() =>
+                                  updateApplication(application, {
+                                    internal_notes:
+                                      draftNotes[application.id] || "",
+                                  })
+                                }
+                                className="mt-3 w-full rounded-2xl border border-purple-400/25 bg-purple-500/10 px-5 py-3 font-black text-purple-100 disabled:opacity-60"
+                              >
+                                حفظ الملاحظات
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3 rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
+                            <div>
+                              <div className="mb-2 text-sm font-black text-white/60">
+                                تغيير حالة الطلب
+                              </div>
+
+                              <select
+                                value={application.status || "new"}
+                                disabled={isUpdating}
+                                onChange={(event) =>
+                                  updateApplication(application, {
+                                    status: event.target.value,
+                                  })
+                                }
+                                className={inputClassName}
+                              >
+                                {applicationStatusOptions.map((status) => (
+                                  <option
+                                    key={status.value}
+                                    value={status.value}
+                                  >
+                                    {status.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <button
+                              onClick={() =>
+                                copyText(
+                                  application.whatsapp || "",
+                                  "تم نسخ رقم الواتساب."
+                                )
+                              }
+                              className="w-full rounded-2xl border border-green-400/25 bg-green-500/10 px-5 py-3 font-black text-green-100"
+                            >
+                              نسخ رقم واتساب
+                            </button>
+
+                            <button
+                              onClick={() =>
+                                copyText(
+                                  buildApplicationInfo(application),
+                                  "تم نسخ كل معلومات طلب الوظيفة."
+                                )
+                              }
+                              className="w-full rounded-2xl border border-yellow-400/25 bg-yellow-500/10 px-5 py-3 font-black text-yellow-100"
+                            >
+                              نسخ معلومات الطلب
+                            </button>
+
+                            {whatsapp ? (
+                              <a
+                                href={`https://wa.me/${whatsapp}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex w-full justify-center rounded-2xl bg-green-500 px-5 py-3 font-black text-white"
+                              >
+                                فتح واتساب
+                              </a>
+                            ) : (
+                              <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-3 text-center text-white/45">
+                                لا يوجد رقم واتساب
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          </>
+        )}
+      </section>
+    </main>
+  );
+}
+
+const inputClassName =
+  "w-full rounded-3xl border border-white/10 bg-black/30 p-4 text-white outline-none transition placeholder:text-white/35 focus:border-purple-400/70 focus:ring-4 focus:ring-purple-500/10";
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-3 block text-sm font-black text-white/75">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-center backdrop-blur">
+      <div className="text-3xl font-black text-yellow-100">{value}</div>
+      <div className="mt-2 text-sm text-white/55">{label}</div>
+    </div>
+  );
+}
+
+function Badge({ children }: { children: ReactNode }) {
+  return (
+    <span className="rounded-full border border-purple-300/20 bg-purple-500/10 px-3 py-1 text-xs font-black text-purple-100">
+      {children}
+    </span>
+  );
+}
+
+function InfoBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+      <div className="text-xs font-black text-white/45">{label}</div>
+      <div className="mt-2 break-words text-sm font-bold text-white/85">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function TextBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="mb-2 text-sm font-black text-white/60">{label}</div>
+      <div className="min-h-32 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-7 text-white/75">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function EmptyBox({ text }: { text: string }) {
+  return (
+    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 text-center text-white/60 backdrop-blur">
+      {text}
+    </div>
+  );
+}
+
+function SectionTitle({ title, label }: { title: string; label: string }) {
+  return (
+    <div className="mb-5">
+      <div className="inline-flex rounded-full border border-purple-400/25 bg-purple-500/10 px-4 py-2 text-sm font-black text-purple-100">
+        {label}
+      </div>
+      <h2 className="mt-3 text-3xl font-black">{title}</h2>
+    </div>
+  );
+}
+
+function Background() {
+  return (
+    <div className="pointer-events-none fixed inset-0 overflow-hidden">
+      <div className="absolute inset-0 bg-[#070009]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.28),transparent_44%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,8,60,0.32),rgba(7,0,9,0.96))]" />
+    </div>
+  );
+}
