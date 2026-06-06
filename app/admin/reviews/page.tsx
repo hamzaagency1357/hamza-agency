@@ -6,6 +6,7 @@ import type { FormEvent, ReactNode } from "react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type AdminStatus = "checking" | "authorized" | "unauthorized";
+type MessageType = "success" | "error" | "info";
 
 type Review = {
   id: number;
@@ -70,10 +71,21 @@ export default function AdminReviewsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState<MessageType>("info");
 
   useEffect(() => {
     checkAccessAndLoad();
   }, []);
+
+  function showMessage(text: string, type: MessageType = "info") {
+    setMessage(text);
+    setMessageType(type);
+  }
+
+  function clearMessage() {
+    setMessage("");
+    setMessageType("info");
+  }
 
   async function checkAccessAndLoad() {
     setIsLoading(true);
@@ -121,7 +133,7 @@ export default function AdminReviewsPage() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      setMessage(`تعذر تحميل التقييمات: ${error.message}`);
+      showMessage("تعذر تحميل التقييمات. يرجى تحديث الصفحة والمحاولة مرة أخرى.", "error");
       return;
     }
 
@@ -135,10 +147,13 @@ export default function AdminReviewsPage() {
     }));
   }
 
-  function resetForm() {
+  function resetForm(options?: { keepMessage?: boolean }) {
     setForm(emptyForm);
     setEditingId(null);
-    setMessage("");
+
+    if (!options?.keepMessage) {
+      clearMessage();
+    }
   }
 
   function editReview(review: Review) {
@@ -156,25 +171,26 @@ export default function AdminReviewsPage() {
       isVisible: review.is_visible !== false,
     });
 
+    showMessage("وضع التعديل مفعل الآن. عدّل البيانات ثم اضغط حفظ التعديلات.", "info");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function saveReview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage("");
+    clearMessage();
 
     if (!supabase) {
-      setMessage("الاتصال بقاعدة البيانات غير مفعل.");
+      showMessage("الاتصال بقاعدة البيانات غير مفعل.", "error");
       return;
     }
 
     if (!form.reviewerName.trim()) {
-      setMessage("يرجى كتابة اسم صاحب التقييم.");
+      showMessage("يرجى كتابة اسم صاحب التقييم.", "error");
       return;
     }
 
     if (!form.content.trim()) {
-      setMessage("يرجى كتابة نص التقييم.");
+      showMessage("يرجى كتابة نص التقييم.", "error");
       return;
     }
 
@@ -203,22 +219,27 @@ export default function AdminReviewsPage() {
     setIsSaving(false);
 
     if (result.error) {
-      setMessage(`تعذر حفظ التقييم: ${result.error.message}`);
+      showMessage("تعذر حفظ التقييم. يرجى المحاولة مرة أخرى.", "error");
       return;
     }
 
-    setMessage(editingId ? "تم تحديث التقييم بنجاح." : "تم إضافة التقييم بنجاح.");
-    resetForm();
+    const successText = editingId
+      ? "تم حفظ تعديلات التقييم بنجاح."
+      : "تم إضافة التقييم بنجاح.";
+
+    resetForm({ keepMessage: true });
     await loadReviews();
+    showMessage(successText, "success");
   }
 
   async function quickUpdateReview(
     reviewId: number,
-    changes: Partial<Pick<Review, "status" | "is_visible" | "is_featured">>
+    changes: Partial<Pick<Review, "status" | "is_visible" | "is_featured">>,
+    successMessage: string
   ) {
     if (!supabase) return;
 
-    setMessage("");
+    clearMessage();
 
     const { error } = await supabase
       .from("reviews")
@@ -229,11 +250,12 @@ export default function AdminReviewsPage() {
       .eq("id", reviewId);
 
     if (error) {
-      setMessage(`تعذر تحديث التقييم: ${error.message}`);
+      showMessage("تعذر تنفيذ الإجراء. يرجى المحاولة مرة أخرى.", "error");
       return;
     }
 
     await loadReviews();
+    showMessage(successMessage, "success");
   }
 
   async function deleteReview(reviewId: number) {
@@ -245,21 +267,21 @@ export default function AdminReviewsPage() {
 
     if (!confirmed) return;
 
-    setMessage("");
+    clearMessage();
 
     const { error } = await supabase.from("reviews").delete().eq("id", reviewId);
 
     if (error) {
-      setMessage(`تعذر حذف التقييم: ${error.message}`);
+      showMessage("تعذر حذف التقييم. يرجى المحاولة مرة أخرى.", "error");
       return;
     }
 
     if (editingId === reviewId) {
-      resetForm();
+      resetForm({ keepMessage: true });
     }
 
-    setMessage("تم حذف التقييم بنجاح.");
     await loadReviews();
+    showMessage("تم حذف التقييم بنجاح.", "success");
   }
 
   const filteredReviews = useMemo(() => {
@@ -347,7 +369,10 @@ export default function AdminReviewsPage() {
 
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={loadReviews}
+                onClick={async () => {
+                  await loadReviews();
+                  showMessage("تم تحديث بيانات التقييمات بنجاح.", "success");
+                }}
                 className="rounded-2xl border border-white/10 bg-white/[0.05] px-5 py-3 text-sm font-bold text-white/75"
               >
                 تحديث البيانات
@@ -370,11 +395,7 @@ export default function AdminReviewsPage() {
           <StatCard title="مخفية" value={stats.hidden} />
         </div>
 
-        {message && (
-          <div className="mb-6 rounded-3xl border border-yellow-400/25 bg-yellow-500/10 p-5 text-center font-bold leading-8 text-yellow-100">
-            {message}
-          </div>
-        )}
+        {message && <MessageBox type={messageType}>{message}</MessageBox>}
 
         <section className="mb-6 rounded-[2rem] border border-green-400/20 bg-[#07130f]/90 p-6">
           <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -384,7 +405,7 @@ export default function AdminReviewsPage() {
 
             {editingId && (
               <button
-                onClick={resetForm}
+                onClick={() => resetForm()}
                 className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white/70"
               >
                 إلغاء التعديل
@@ -579,26 +600,46 @@ export default function AdminReviewsPage() {
                   onEdit={() => editReview(review)}
                   onDelete={() => deleteReview(review.id)}
                   onToggleVisible={() =>
-                    quickUpdateReview(review.id, {
-                      is_visible: review.is_visible === false,
-                    })
+                    quickUpdateReview(
+                      review.id,
+                      {
+                        is_visible: review.is_visible === false,
+                      },
+                      review.is_visible === false
+                        ? "تم إظهار التقييم بنجاح."
+                        : "تم إخفاء التقييم من الظهور العام بنجاح."
+                    )
                   }
                   onToggleFeatured={() =>
-                    quickUpdateReview(review.id, {
-                      is_featured: review.is_featured !== true,
-                    })
+                    quickUpdateReview(
+                      review.id,
+                      {
+                        is_featured: review.is_featured !== true,
+                      },
+                      review.is_featured === true
+                        ? "تم إلغاء تمييز التقييم بنجاح."
+                        : "تم تمييز التقييم بنجاح."
+                    )
                   }
                   onPublish={() =>
-                    quickUpdateReview(review.id, {
-                      status: "published",
-                      is_visible: true,
-                    })
+                    quickUpdateReview(
+                      review.id,
+                      {
+                        status: "published",
+                        is_visible: true,
+                      },
+                      "تم نشر التقييم بنجاح."
+                    )
                   }
                   onHide={() =>
-                    quickUpdateReview(review.id, {
-                      status: "hidden",
-                      is_visible: false,
-                    })
+                    quickUpdateReview(
+                      review.id,
+                      {
+                        status: "hidden",
+                        is_visible: false,
+                      },
+                      "تم إخفاء التقييم بالكامل بنجاح."
+                    )
                   }
                 />
               ))}
@@ -696,6 +737,27 @@ function AdminShell({ children }: { children: ReactNode }) {
   );
 }
 
+function MessageBox({
+  children,
+  type,
+}: {
+  children: ReactNode;
+  type: MessageType;
+}) {
+  const className =
+    type === "success"
+      ? "border-green-400/30 bg-green-500/10 text-green-100"
+      : type === "error"
+        ? "border-red-400/30 bg-red-500/10 text-red-100"
+        : "border-yellow-400/25 bg-yellow-500/10 text-yellow-100";
+
+  return (
+    <div className={`mb-6 rounded-3xl border p-5 text-center font-black leading-8 ${className}`}>
+      {children}
+    </div>
+  );
+}
+
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
@@ -760,7 +822,9 @@ function Badge({
               : "border-white/10 bg-white/[0.05] text-white/60";
 
   return (
-    <span className={`rounded-full border px-3 py-1 text-xs font-black ${className}`}>
+    <span
+      className={`rounded-full border px-3 py-1 text-xs font-black ${className}`}
+    >
       {children}
     </span>
   );
