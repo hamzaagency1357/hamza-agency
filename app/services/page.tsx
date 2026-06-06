@@ -126,11 +126,11 @@ export default function ServiceRequestPage() {
 
     setIsSubmitting(false);
 
-    if (error) {
-      console.error("Service request insert error:", error);
-      setMessage("حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.");
-      return;
-    }
+   if (error) {
+  console.error("Service request insert error:", error);
+  setMessage(`حدث خطأ أثناء إرسال الطلب: ${error.message}`);
+  return;
+   } 
 
     setSuccessCode(requestCode);
     setMessage(
