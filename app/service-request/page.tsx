@@ -128,9 +128,7 @@ export default function ServiceRequestPage() {
 
     if (error) {
   console.error("Service request insert error:", error);
-  setMessage(`حدث خطأ أثناء إرسال الطلب: ${error.message}`);
-  return;
-    }
+  setMessage("حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى أو التواصل معنا عبر واتساب.");
 
     setSuccessCode(requestCode);
     setMessage(
