@@ -302,6 +302,8 @@ export default function AdminPartnersPage() {
     };
 
     try {
+      let successText = "";
+
       if (editingPartner) {
         const { error } = await supabase
           .from("partners")
@@ -314,8 +316,7 @@ export default function AdminPartnersPage() {
           return;
         }
 
-        setMessageType("success");
-        setMessage("تم حفظ تعديلات الشريك أو البرنامج بنجاح.");
+        successText = "تم حفظ تعديلات الشريك أو البرنامج بنجاح.";
       } else {
         const { error } = await supabase.from("partners").insert(payload);
 
@@ -325,12 +326,15 @@ export default function AdminPartnersPage() {
           return;
         }
 
-        setMessageType("success");
-        setMessage("تمت إضافة الشريك أو البرنامج بنجاح.");
+        successText = "تمت إضافة الشريك أو البرنامج بنجاح.";
       }
 
       resetForm(false);
       await loadPartners();
+
+      setMessageType("success");
+      setMessage(successText);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
       setMessageType("error");
       setMessage("حدث خطأ أثناء حفظ بيانات الشريك أو البرنامج.");
@@ -489,6 +493,20 @@ export default function AdminPartnersPage() {
       className="relative min-h-screen overflow-hidden bg-[#070009] px-4 py-8 text-white md:px-8"
     >
       <AdminBackground />
+
+      {message && (
+        <div
+          className={`fixed left-4 right-4 top-4 z-50 rounded-3xl border p-4 text-center text-sm font-black shadow-2xl backdrop-blur md:left-auto md:right-8 md:top-8 md:max-w-xl ${
+            messageType === "success"
+              ? "border-green-400/30 bg-green-500/15 text-green-100"
+              : messageType === "error"
+                ? "border-red-400/30 bg-red-500/15 text-red-100"
+                : "border-purple-400/30 bg-purple-500/15 text-purple-100"
+          }`}
+        >
+          {message}
+        </div>
+      )}
 
       <section className="relative z-10 mx-auto max-w-7xl">
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
