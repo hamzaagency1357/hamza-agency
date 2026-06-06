@@ -90,6 +90,28 @@ export default function AdminSuccessStoriesPage() {
     setMessageType("info");
   }
 
+  function getErrorText(error: unknown) {
+    if (!error || typeof error !== "object") {
+      return "خطأ غير معروف.";
+    }
+
+    const supabaseError = error as {
+      message?: string;
+      details?: string;
+      hint?: string;
+      code?: string;
+    };
+
+    return [
+      supabaseError.message ? `message: ${supabaseError.message}` : "",
+      supabaseError.details ? `details: ${supabaseError.details}` : "",
+      supabaseError.hint ? `hint: ${supabaseError.hint}` : "",
+      supabaseError.code ? `code: ${supabaseError.code}` : "",
+    ]
+      .filter(Boolean)
+      .join(" | ");
+  }
+
   async function checkAccessAndLoad() {
     setIsLoading(true);
 
@@ -135,11 +157,11 @@ export default function AdminSuccessStoriesPage() {
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false });
 
-    if (result.error) {
-  console.error("Success story save error:", result.error);
-  showMessage(`تعذر حفظ قصة النجاح: ${result.error.message}`, "error");
-  return;
-}
+    if (error) {
+      showMessage(
+        `تعذر تحميل قصص النجاح: ${getErrorText(error)}`,
+        "error"
+      );
       return;
     }
 
@@ -210,6 +232,8 @@ export default function AdminSuccessStoriesPage() {
       return;
     }
 
+    const now = new Date().toISOString();
+
     const payload = {
       title: form.title.trim(),
       person_name: form.personName.trim(),
@@ -222,7 +246,8 @@ export default function AdminSuccessStoriesPage() {
       sort_order: Number(form.sortOrder || 0),
       status: form.status,
       is_visible: form.isVisible,
-      updated_at: new Date().toISOString(),
+      updated_at: now,
+      ...(editingId ? {} : { created_at: now }),
     };
 
     setIsSaving(true);
@@ -234,7 +259,11 @@ export default function AdminSuccessStoriesPage() {
     setIsSaving(false);
 
     if (result.error) {
-      showMessage("تعذر حفظ قصة النجاح. يرجى المحاولة مرة أخرى.", "error");
+      console.error("Success story save error:", result.error);
+      showMessage(
+        `تعذر حفظ قصة النجاح: ${getErrorText(result.error)}`,
+        "error"
+      );
       return;
     }
 
@@ -267,7 +296,7 @@ export default function AdminSuccessStoriesPage() {
       .eq("id", storyId);
 
     if (error) {
-      showMessage("تعذر تنفيذ الإجراء. يرجى المحاولة مرة أخرى.", "error");
+      showMessage(`تعذر تنفيذ الإجراء: ${getErrorText(error)}`, "error");
       return;
     }
 
@@ -292,7 +321,7 @@ export default function AdminSuccessStoriesPage() {
       .eq("id", storyId);
 
     if (error) {
-      showMessage("تعذر حذف قصة النجاح. يرجى المحاولة مرة أخرى.", "error");
+      showMessage(`تعذر حذف قصة النجاح: ${getErrorText(error)}`, "error");
       return;
     }
 
