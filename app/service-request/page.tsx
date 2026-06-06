@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type ServiceType =
@@ -10,6 +11,17 @@ type ServiceType =
   | "digital_service"
   | "technical_support"
   | "other";
+
+type FormState = {
+  fullName: string;
+  country: string;
+  whatsapp: string;
+  serviceType: ServiceType;
+  platform: string;
+  accountIdentifier: string;
+  requestedAmount: string;
+  notes: string;
+};
 
 const serviceTypes: { value: ServiceType; label: string; hint: string }[] = [
   {
@@ -48,27 +60,28 @@ const platforms = [
   "منصة أخرى",
 ];
 
+const initialFormState: FormState = {
+  fullName: "",
+  country: "",
+  whatsapp: "",
+  serviceType: "platform_topup",
+  platform: "TikTok",
+  accountIdentifier: "",
+  requestedAmount: "",
+  notes: "",
+};
+
 export default function ServiceRequestPage() {
+  const [form, setForm] = useState<FormState>(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successCode, setSuccessCode] = useState("");
   const [message, setMessage] = useState("");
-
-  const [form, setForm] = useState({
-    fullName: "",
-    country: "",
-    whatsapp: "",
-    serviceType: "platform_topup" as ServiceType,
-    platform: "TikTok",
-    accountIdentifier: "",
-    requestedAmount: "",
-    notes: "",
-  });
 
   const selectedService = useMemo(() => {
     return serviceTypes.find((item) => item.value === form.serviceType);
   }, [form.serviceType]);
 
-  function updateField(key: keyof typeof form, value: string) {
+  function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({
       ...current,
       [key]: value,
@@ -82,8 +95,9 @@ export default function ServiceRequestPage() {
     return `SR-${year}-${timePart}${randomPart}`;
   }
 
-  async function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     setMessage("");
     setSuccessCode("");
 
@@ -127,31 +141,23 @@ export default function ServiceRequestPage() {
     setIsSubmitting(false);
 
     if (error) {
-  console.error("Service request insert error:", error);
-  setMessage("حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى أو التواصل معنا عبر واتساب.");
+      console.error("Service request insert error:", error);
+      setMessage(
+        "حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى أو التواصل معنا عبر واتساب."
+      );
+      return;
+    }
 
     setSuccessCode(requestCode);
     setMessage(
       "تم استلام طلبك بنجاح. سيقوم فريق وكالة حمزة بمراجعة الطلب والتواصل معك عبر واتساب."
     );
 
-    setForm({
-      fullName: "",
-      country: "",
-      whatsapp: "",
-      serviceType: "platform_topup",
-      platform: "TikTok",
-      accountIdentifier: "",
-      requestedAmount: "",
-      notes: "",
-    });
+    setForm(initialFormState);
   }
 
   return (
-    <main
-      dir="rtl"
-      className="min-h-screen bg-[#070009] px-5 py-8 text-white"
-    >
+    <main dir="rtl" className="min-h-screen bg-[#070009] px-5 py-8 text-white">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.32),transparent_45%)]" />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(40,10,70,0.35),rgba(7,0,9,0.95))]" />
@@ -203,7 +209,7 @@ export default function ServiceRequestPage() {
                     updateField("fullName", event.target.value)
                   }
                   placeholder="اكتب اسمك الكامل"
-                  className="field-input"
+                  className={inputClassName}
                 />
               </Field>
 
@@ -214,7 +220,7 @@ export default function ServiceRequestPage() {
                     updateField("country", event.target.value)
                   }
                   placeholder="مثال: تركيا"
-                  className="field-input"
+                  className={inputClassName}
                 />
               </Field>
 
@@ -225,7 +231,7 @@ export default function ServiceRequestPage() {
                     updateField("whatsapp", event.target.value)
                   }
                   placeholder="+905011730377"
-                  className="field-input"
+                  className={inputClassName}
                 />
               </Field>
 
@@ -233,9 +239,9 @@ export default function ServiceRequestPage() {
                 <select
                   value={form.serviceType}
                   onChange={(event) =>
-                    updateField("serviceType", event.target.value)
+                    updateField("serviceType", event.target.value as ServiceType)
                   }
-                  className="field-input"
+                  className={inputClassName}
                 >
                   {serviceTypes.map((type) => (
                     <option key={type.value} value={type.value}>
@@ -251,7 +257,7 @@ export default function ServiceRequestPage() {
                   onChange={(event) =>
                     updateField("platform", event.target.value)
                   }
-                  className="field-input"
+                  className={inputClassName}
                 >
                   {platforms.map((platform) => (
                     <option key={platform} value={platform}>
@@ -268,7 +274,7 @@ export default function ServiceRequestPage() {
                     updateField("accountIdentifier", event.target.value)
                   }
                   placeholder="اكتب ID الحساب أو اسم المستخدم"
-                  className="field-input"
+                  className={inputClassName}
                 />
               </Field>
 
@@ -279,7 +285,7 @@ export default function ServiceRequestPage() {
                     updateField("requestedAmount", event.target.value)
                   }
                   placeholder="مثال: 1000 ألماسة / 50$ / حسب الطلب"
-                  className="field-input"
+                  className={inputClassName}
                 />
               </Field>
             </div>
@@ -290,7 +296,7 @@ export default function ServiceRequestPage() {
                   value={form.notes}
                   onChange={(event) => updateField("notes", event.target.value)}
                   placeholder="اكتب أي تفاصيل تساعد فريق الوكالة على فهم الطلب"
-                  className="field-input min-h-36 resize-none"
+                  className={`${inputClassName} min-h-36 resize-none`}
                 />
               </Field>
             </div>
@@ -364,6 +370,7 @@ export default function ServiceRequestPage() {
               <a
                 href="https://wa.me/905011730377"
                 target="_blank"
+                rel="noreferrer"
                 className="mt-5 inline-flex w-full justify-center rounded-full bg-green-500 px-6 py-4 font-black text-white"
               >
                 فتح واتساب
@@ -372,42 +379,14 @@ export default function ServiceRequestPage() {
           </aside>
         </div>
       </section>
-
-      <style jsx>{`
-        .field-input {
-          width: 100%;
-          border-radius: 1.5rem;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          background: rgba(0, 0, 0, 0.32);
-          padding: 1rem 1.1rem;
-          color: white;
-          outline: none;
-        }
-
-        .field-input:focus {
-          border-color: rgba(192, 132, 252, 0.75);
-          box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.12);
-        }
-
-        .field-input::placeholder {
-          color: rgba(255, 255, 255, 0.35);
-        }
-
-        select.field-input option {
-          color: black;
-        }
-      `}</style>
     </main>
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+const inputClassName =
+  "w-full rounded-3xl border border-white/10 bg-black/30 p-4 text-white outline-none transition placeholder:text-white/35 focus:border-purple-400/70 focus:ring-4 focus:ring-purple-500/10";
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
       <span className="mb-3 block text-sm font-black text-white/75">
@@ -428,4 +407,4 @@ function Step({ number, text }: { number: string; text: string }) {
       <p className="leading-8">{text}</p>
     </div>
   );
-}
+        }
