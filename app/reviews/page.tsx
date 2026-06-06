@@ -1,0 +1,328 @@
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+
+type Review = {
+  id: number;
+  reviewer_name: string | null;
+  country: string | null;
+  platform: string | null;
+  rating: number | null;
+  content: string | null;
+  avatar_url: string | null;
+  is_featured: boolean | null;
+  sort_order: number | null;
+  status: string | null;
+  is_visible: boolean | null;
+  created_at: string | null;
+};
+
+const fallbackReviews: Review[] = [
+  {
+    id: 1,
+    reviewer_name: "صانع محتوى من TikTok",
+    country: "تركيا",
+    platform: "TikTok",
+    rating: 5,
+    content:
+      "تجربة منظمة وواضحة. تم شرح خطوات الانضمام والمتابعة عبر واتساب بطريقة محترمة وسريعة.",
+    avatar_url: null,
+    is_featured: true,
+    sort_order: 1,
+    status: "published",
+    is_visible: true,
+    created_at: null,
+  },
+  {
+    id: 2,
+    reviewer_name: "مقدمة بث مباشر",
+    country: "سوريا",
+    platform: "BIGO LIVE",
+    rating: 5,
+    content:
+      "أعجبني أن التواصل كان واضحاً، وتمت متابعة الطلب بدون تعقيد. الوكالة مناسبة لمن يريد بداية منظمة.",
+    avatar_url: null,
+    is_featured: true,
+    sort_order: 2,
+    status: "published",
+    is_visible: true,
+    created_at: null,
+  },
+  {
+    id: 3,
+    reviewer_name: "صانع محتوى جديد",
+    country: "العراق",
+    platform: "Yaahlan",
+    rating: 5,
+    content:
+      "الشرح كان بسيطاً، والفريق وضح لي الفرق بين البرامج والخطوات المطلوبة قبل التقديم.",
+    avatar_url: null,
+    is_featured: false,
+    sort_order: 3,
+    status: "published",
+    is_visible: true,
+    created_at: null,
+  },
+  {
+    id: 4,
+    reviewer_name: "متابع خدمات رقمية",
+    country: "تركيا",
+    platform: "Digital Services",
+    rating: 5,
+    content:
+      "الطلب كان واضحاً من الموقع، وتمت المتابعة عبر واتساب بعد إرسال التفاصيل.",
+    avatar_url: null,
+    is_featured: false,
+    sort_order: 4,
+    status: "published",
+    is_visible: true,
+    created_at: null,
+  },
+];
+
+async function getReviews() {
+  if (!supabase) {
+    return fallbackReviews;
+  }
+
+  const { data, error } = await supabase
+    .from("reviews")
+    .select(
+      "id, reviewer_name, country, platform, rating, content, avatar_url, is_featured, sort_order, status, is_visible, created_at"
+    )
+    .eq("is_visible", true)
+    .eq("status", "published")
+    .order("is_featured", { ascending: false })
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: false });
+
+  if (error || !data || data.length === 0) {
+    return fallbackReviews;
+  }
+
+  return data as Review[];
+}
+
+function getAverageRating(reviews: Review[]) {
+  if (reviews.length === 0) return "5.0";
+
+  const total = reviews.reduce((sum, review) => {
+    return sum + Number(review.rating || 5);
+  }, 0);
+
+  return (total / reviews.length).toFixed(1);
+}
+
+function getInitials(name: string | null) {
+  if (!name) return "HA";
+
+  const words = name.trim().split(" ").filter(Boolean);
+
+  if (words.length === 1) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${words[0][0] || ""}${words[1][0] || ""}`.toUpperCase();
+}
+
+function renderStars(rating: number | null) {
+  const safeRating = Math.max(1, Math.min(5, Number(rating || 5)));
+
+  return Array.from({ length: 5 }).map((_, index) => (
+    <span
+      key={index}
+      className={index < safeRating ? "text-yellow-300" : "text-white/20"}
+    >
+      ★
+    </span>
+  ));
+}
+
+export default async function ReviewsPage() {
+  const reviews = await getReviews();
+  const featuredReviews = reviews.filter((review) => review.is_featured);
+  const normalReviews = reviews.filter((review) => !review.is_featured);
+  const averageRating = getAverageRating(reviews);
+
+  return (
+    <main
+      dir="rtl"
+      className="relative min-h-screen overflow-hidden bg-[#070009] text-white"
+    >
+      <ReviewsBackground />
+
+      <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
+        <Link href="/" className="mb-8 inline-block text-purple-200">
+          ← العودة إلى الرئيسية
+        </Link>
+
+        <header className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 text-center shadow-[0_0_55px_rgba(168,85,247,0.14)] backdrop-blur md:p-10">
+          <div className="mx-auto mb-5 inline-flex rounded-full border border-yellow-400/25 bg-yellow-500/10 px-5 py-2 text-sm font-bold text-yellow-100">
+            HAMZA AGENCY Reviews
+          </div>
+
+          <h1 className="text-5xl font-black leading-tight md:text-7xl">
+            تقييمات وكالة حمزة
+            <span className="block bg-gradient-to-r from-yellow-300 via-white to-purple-300 bg-clip-text text-transparent">
+              آراء وتجارب العملاء
+            </span>
+          </h1>
+
+          <p className="mx-auto mt-6 max-w-4xl text-lg leading-9 text-white/72 md:text-xl">
+            هذه الصفحة مخصصة لعرض آراء صناع المحتوى والعملاء حول تجربة التواصل
+            مع وكالة حمزة، متابعة الطلبات، والخدمات المقدمة.
+          </p>
+        </header>
+
+        <div className="mt-10 grid gap-5 md:grid-cols-3">
+          <StatCard title="عدد التقييمات" value={`${reviews.length}+`} />
+          <StatCard title="متوسط التقييم" value={averageRating} />
+          <StatCard title="المنصات" value="متعددة" />
+        </div>
+
+        {featuredReviews.length > 0 && (
+          <section className="mt-14">
+            <div className="mb-6">
+              <div className="mb-3 inline-flex rounded-full border border-yellow-400/20 bg-yellow-500/10 px-4 py-2 text-sm font-black text-yellow-100">
+                تقييمات مميزة
+              </div>
+
+              <h2 className="text-4xl font-black">تجارب بارزة</h2>
+
+              <p className="mt-3 max-w-3xl leading-8 text-white/60">
+                تقييمات مختارة تظهر في مقدمة الصفحة لأنها تمثل تجربة واضحة مع
+                الوكالة أو أحد برامجها.
+              </p>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              {featuredReviews.map((review) => (
+                <ReviewCard key={review.id} review={review} featured />
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="mt-14">
+          <div className="mb-6">
+            <div className="mb-3 inline-flex rounded-full border border-purple-400/20 bg-purple-500/10 px-4 py-2 text-sm font-black text-purple-100">
+              كل التقييمات
+            </div>
+
+            <h2 className="text-4xl font-black">آراء إضافية</h2>
+
+            <p className="mt-3 max-w-3xl leading-8 text-white/60">
+              تقييمات يمكن إدارتها لاحقاً من لوحة التحكم، مع إمكانية إظهارها أو
+              إخفائها وترتيبها.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[...normalReviews, ...(normalReviews.length ? [] : featuredReviews)].map(
+              (review) => (
+                <ReviewCard key={`normal-${review.id}`} review={review} />
+              )
+            )}
+          </div>
+        </section>
+
+        <section className="mt-14 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
+          <h2 className="text-3xl font-black text-green-100">
+            لديك تجربة مع وكالة حمزة؟
+          </h2>
+
+          <p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">
+            يمكن لاحقاً إضافة نموذج تقييم رسمي من الموقع، أما حالياً يمكن إرسال
+            رأيك لفريق الوكالة عبر واتساب ليتم مراجعته قبل النشر.
+          </p>
+
+          <a
+            href="https://wa.me/905011730377"
+            target="_blank"
+            className="mt-7 inline-flex rounded-full bg-green-500 px-8 py-4 font-black text-white shadow-2xl"
+          >
+            إرسال تقييم عبر واتساب
+          </a>
+        </section>
+      </section>
+    </main>
+  );
+}
+
+function ReviewCard({
+  review,
+  featured = false,
+}: {
+  review: Review;
+  featured?: boolean;
+}) {
+  return (
+    <article
+      className={`rounded-[2rem] border p-6 backdrop-blur ${
+        featured
+          ? "border-yellow-400/25 bg-yellow-500/10 shadow-[0_0_45px_rgba(212,175,55,0.10)]"
+          : "border-white/10 bg-white/[0.045]"
+      }`}
+    >
+      <div className="flex items-start gap-4">
+        {review.avatar_url ? (
+          <img
+            src={review.avatar_url}
+            alt={review.reviewer_name || "Reviewer"}
+            className="h-14 w-14 rounded-2xl object-cover"
+          />
+        ) : (
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-purple-400/25 bg-purple-500/10 text-lg font-black text-purple-100">
+            {getInitials(review.reviewer_name)}
+          </div>
+        )}
+
+        <div className="min-w-0 flex-1">
+          <h3 className="break-words text-xl font-black">
+            {review.reviewer_name || "عميل وكالة حمزة"}
+          </h3>
+
+          <div className="mt-2 flex flex-wrap gap-2 text-xs text-white/55">
+            <span>{review.country || "غير محدد"}</span>
+            <span>•</span>
+            <span>{review.platform || "HAMZA AGENCY"}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 text-xl tracking-widest">
+        {renderStars(review.rating)}
+      </div>
+
+      <p className="mt-5 leading-8 text-white/72">
+        {review.content || "تقييم إيجابي لتجربة التعامل مع وكالة حمزة."}
+      </p>
+
+      {featured && (
+        <div className="mt-5 inline-flex rounded-full border border-yellow-300/25 bg-yellow-500/10 px-4 py-2 text-xs font-black text-yellow-100">
+          تقييم مميز
+        </div>
+      )}
+    </article>
+  );
+}
+
+function StatCard({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 text-center backdrop-blur">
+      <div className="text-4xl font-black text-yellow-100">{value}</div>
+      <div className="mt-3 text-sm font-bold text-white/55">{title}</div>
+    </div>
+  );
+}
+
+function ReviewsBackground() {
+  return (
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      <div className="absolute inset-0 bg-[#070009]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(212,175,55,0.18)_0%,rgba(124,58,237,0.20)_34%,rgba(7,0,9,0.98)_72%)]" />
+      <div className="absolute -left-24 top-16 h-80 w-80 rounded-full bg-purple-600/14 blur-3xl" />
+      <div className="absolute -right-24 top-44 hidden h-96 w-96 rounded-full bg-yellow-400/10 blur-3xl md:block" />
+      <div className="absolute inset-0 opacity-[0.06] [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.5)_1px,transparent_0)] [background-size:48px_48px]" />
+    </div>
+  );
+}
