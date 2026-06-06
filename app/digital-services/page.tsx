@@ -60,22 +60,22 @@ function getSetting(settings: Setting[], keys: string[], fallback: string) {
 const digitalServices = [
   {
     title: "شحن المنصات",
-    text: "خدمة شرح ومساعدة لطلبات شحن بعض المنصات حسب التوفر، مع التواصل والمتابعة عبر واتساب.",
+    text: "خدمة شرح ومساعدة لطلبات شحن بعض المنصات حسب التوفر، مع إرسال الطلب من الموقع والمتابعة عبر واتساب.",
     tag: "Top Up",
   },
   {
     title: "سحب الأرباح",
-    text: "مساعدة صناع المحتوى في فهم خطوات سحب الأرباح والتواصل مع الوكالة لمتابعة التفاصيل حسب البرنامج.",
+    text: "مساعدة صناع المحتوى في فهم خطوات سحب الأرباح وإرسال طلب متابعة للوكالة حسب البرنامج.",
     tag: "Withdrawals",
   },
   {
     title: "متابعة الطلبات الرقمية",
-    text: "تنظيم طلبات الخدمات الرقمية ومتابعتها بشكل واضح من خلال فريق الوكالة.",
+    text: "تنظيم طلبات الخدمات الرقمية ومتابعتها بشكل واضح من خلال فريق الوكالة ولوحة الإدارة.",
     tag: "Requests",
   },
   {
     title: "دعم واتساب مباشر",
-    text: "التواصل مع فريق الوكالة عبر واتساب لشرح الخدمة المطلوبة قبل تنفيذ أي خطوة.",
+    text: "التواصل مع فريق الوكالة عبر واتساب لشرح الخدمة المطلوبة أو متابعة الطلب عند الحاجة.",
     tag: "WhatsApp",
   },
 ];
@@ -83,16 +83,16 @@ const digitalServices = [
 const rules = [
   "لا يوجد حالياً نظام محفظة داخل الموقع",
   "لا يوجد دفع إلكتروني مباشر داخل الموقع حالياً",
-  "كل خدمة تتم بعد التواصل والتأكيد عبر واتساب",
+  "كل خدمة تتم بعد إرسال الطلب والتأكيد عبر واتساب",
   "الخدمات الرقمية منفصلة عن خدمات إدارة صناع المحتوى",
 ];
 
 const workflow = [
   "اختيار الخدمة المطلوبة",
-  "التواصل عبر واتساب",
+  "تعبئة نموذج طلب الخدمة",
   "إرسال تفاصيل الطلب",
   "مراجعة الطلب من فريق الوكالة",
-  "تأكيد الخطوات قبل التنفيذ",
+  "التواصل عبر واتساب للتأكيد",
 ];
 
 export default async function DigitalServicesPage() {
@@ -116,7 +116,7 @@ export default async function DigitalServicesPage() {
 
   const intro =
     page?.content ||
-    "توفر وكالة حمزة صفحة مخصصة لشرح الخدمات الرقمية مثل شحن المنصات وسحب الأرباح والخدمات المساعدة، مع اعتماد التواصل عبر واتساب لمراجعة الطلبات وتأكيد التفاصيل قبل أي إجراء.";
+    "توفر وكالة حمزة صفحة مخصصة لشرح الخدمات الرقمية مثل شحن المنصات وسحب الأرباح والخدمات المساعدة، مع إمكانية إرسال طلب خدمة من الموقع ومتابعته من فريق الوكالة عبر واتساب.";
 
   return (
     <main
@@ -145,6 +145,25 @@ export default async function DigitalServicesPage() {
           <p className="mt-8 max-w-5xl text-xl leading-10 text-white/75">
             {intro}
           </p>
+
+          <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+            <Link
+              href="/service-request"
+              className="inline-flex justify-center rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 font-black text-white shadow-[0_0_35px_rgba(168,85,247,0.28)] transition hover:scale-[1.02]"
+            >
+              تقديم طلب خدمة رقمية
+            </Link>
+
+            <a
+              href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent(
+                "مرحباً، أريد الاستفسار عن الخدمات الرقمية في وكالة حمزة."
+              )}`}
+              target="_blank"
+              className="inline-flex justify-center rounded-full border border-green-400/25 bg-green-500/10 px-8 py-4 font-black text-green-100 transition hover:bg-green-500/20"
+            >
+              تواصل واتساب
+            </a>
+          </div>
         </div>
 
         <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -204,19 +223,28 @@ export default async function DigitalServicesPage() {
           <h2 className="text-3xl font-black">لطلب خدمة رقمية</h2>
 
           <p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">
-            اضغط على زر واتساب وأرسل اسم الخدمة المطلوبة مع تفاصيل مختصرة، وسيتم
-            الرد عليك من فريق الوكالة.
+            يمكنك إرسال طلب خدمة رقمية من النموذج الرسمي، وسيقوم فريق وكالة
+            حمزة بمراجعة الطلب ثم التواصل معك عبر واتساب للتأكيد والمتابعة.
           </p>
 
-          <a
-            href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent(
-              "مرحباً، أريد الاستفسار عن الخدمات الرقمية في وكالة حمزة."
-            )}`}
-            target="_blank"
-            className="mt-7 inline-flex rounded-full bg-green-500 px-8 py-4 font-black text-white shadow-2xl"
-          >
-            تواصل واتساب
-          </a>
+          <div className="mt-7 flex flex-col justify-center gap-4 sm:flex-row">
+            <Link
+              href="/service-request"
+              className="inline-flex justify-center rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 font-black text-white shadow-2xl"
+            >
+              تقديم طلب خدمة رقمية
+            </Link>
+
+            <a
+              href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent(
+                "مرحباً، أريد الاستفسار عن الخدمات الرقمية في وكالة حمزة."
+              )}`}
+              target="_blank"
+              className="inline-flex justify-center rounded-full bg-green-500 px-8 py-4 font-black text-white shadow-2xl"
+            >
+              تواصل واتساب
+            </a>
+          </div>
         </div>
       </section>
     </main>
@@ -232,7 +260,7 @@ function DigitalServicesBackground() {
 
       <div className="absolute -left-24 top-16 h-80 w-80 rounded-full bg-purple-600/14 blur-3xl" />
 
-      <div className="hidden md:block absolute -right-24 top-44 h-96 w-96 rounded-full bg-yellow-400/12 blur-3xl" />
+      <div className="absolute -right-24 top-44 hidden h-96 w-96 rounded-full bg-yellow-400/12 blur-3xl md:block" />
 
       <div className="absolute inset-0 opacity-10 [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.35)_1px,transparent_0)] [background-size:42px_42px]" />
     </div>
