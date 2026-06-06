@@ -27,12 +27,12 @@ type GalleryItem = {
 const fallbackItems: GalleryItem[] = [
   {
     id: 1,
-    title: "Luxury Agency Waves",
+    title: "هوية وكالة حمزة",
     slug: "luxury-agency-waves",
     category: "هوية الوكالة",
     media_type: "effect",
     description:
-      "مشهد بصري فاخر بخلفية موف وذهبية يعكس هوية وكالة حمزة بطريقة خفيفة وسريعة التحميل.",
+      "مشهد فاخر يعكس الطابع الملكي لوكالة حمزة من خلال ألوان موف وذهبية وحركة بصرية هادئة.",
     media_url: null,
     thumbnail_url: null,
     effect_type: "luxury_waves",
@@ -47,12 +47,12 @@ const fallbackItems: GalleryItem[] = [
   },
   {
     id: 2,
-    title: "Creator Spotlight Motion",
+    title: "مسار صانع المحتوى",
     slug: "creator-spotlight-motion",
     category: "صناع المحتوى",
     media_type: "effect",
     description:
-      "مؤثر ضوئي مصمم لإبراز فكرة صانع المحتوى ومسار الانطلاق داخل الوكالة بدون تحميل فيديو ثقيل.",
+      "تصميم بصري يعبّر عن بداية صانع المحتوى داخل منظومة وكالة حمزة وخطواته نحو الظهور بشكل احترافي.",
     media_url: null,
     thumbnail_url: null,
     effect_type: "creator_spotlight",
@@ -67,12 +67,12 @@ const fallbackItems: GalleryItem[] = [
   },
   {
     id: 3,
-    title: "Live Streaming Pulse",
+    title: "تجربة البث المباشر",
     slug: "live-streaming-pulse",
     category: "البث المباشر",
     media_type: "effect",
     description:
-      "حركة بصرية مستوحاة من البث المباشر والتفاعل اللحظي، مصممة بالكود للحفاظ على سرعة الموقع.",
+      "مشهد مستوحى من طاقة البث المباشر والتفاعل مع الجمهور ضمن بيئة منظمة واحترافية.",
     media_url: null,
     thumbnail_url: null,
     effect_type: "live_pulse",
@@ -130,19 +130,19 @@ export default async function GalleryPage() {
           <h1 className="text-5xl font-black leading-tight md:text-7xl">
             معرض الوكالة
             <span className="block bg-gradient-to-r from-yellow-300 via-white to-purple-300 bg-clip-text text-transparent">
-              مشاهد بصرية خفيفة واحترافية
+              هوية بصرية فاخرة لصناع المحتوى
             </span>
           </h1>
 
           <p className="mx-auto mt-6 max-w-4xl text-lg leading-9 text-white/72 md:text-xl">
-            مساحة لعرض هوية وكالة حمزة وبرامجها وخدماتها بأسلوب عالمي يجمع بين
-            التصميم الفاخر، الحركة الناعمة، وسرعة التحميل.
+            مساحة تعرض روح وكالة حمزة، برامجها، خدماتها، وتجربة صناع المحتوى
+            بأسلوب بصري فاخر ينسجم مع هوية الوكالة وطبيعة عملها.
           </p>
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
-            <HeroStat value="خفيف" label="مصمم للأداء" />
-            <HeroStat value="بدون تشغيل تلقائي" label="للفيديوهات الحقيقية" />
-            <HeroStat value="مولّد بالكود" label="للمؤثرات الافتراضية" />
+            <HeroStat value="هوية فاخرة" label="ألوان موف وذهبية" />
+            <HeroStat value="حركة هادئة" label="تجربة مريحة للعين" />
+            <HeroStat value="تنظيم واضح" label="مشاهد تخدم محتوى الوكالة" />
           </div>
         </header>
 
@@ -150,14 +150,14 @@ export default async function GalleryPage() {
           <section className="mt-14">
             <div className="mb-6">
               <div className="mb-3 inline-flex rounded-full border border-yellow-400/20 bg-yellow-500/10 px-4 py-2 text-sm font-black text-yellow-100">
-                عناصر مميزة
+                مشاهد مميزة
               </div>
 
-              <h2 className="text-4xl font-black">مشاهد مصممة لجذب الانتباه</h2>
+              <h2 className="text-4xl font-black">لقطات تعبّر عن هوية الوكالة</h2>
 
               <p className="mt-3 max-w-3xl leading-8 text-white/60">
-                مؤثرات بصرية خفيفة تشبه الفيديو، لكنها تعمل بالكود حتى تبقى
-                الصفحة سريعة ومريحة للزائر.
+                مشاهد مصممة لتعكس طابع وكالة حمزة، وتعرض فكرة البرامج وصناعة
+                المحتوى بأسلوب بصري أنيق ومباشر.
               </p>
             </div>
 
@@ -176,11 +176,11 @@ export default async function GalleryPage() {
                 المزيد من المعرض
               </div>
 
-              <h2 className="text-4xl font-black">هوية بصرية قابلة للتوسع</h2>
+              <h2 className="text-4xl font-black">مشاهد إضافية من منظومة الوكالة</h2>
 
               <p className="mt-3 max-w-3xl leading-8 text-white/60">
-                يمكن لاحقاً إضافة صور، فيديوهات حقيقية، صور غلاف، أو مؤثرات
-                مولدة بالكود من لوحة التحكم مع الحفاظ على الأداء.
+                مساحة قابلة للتوسع لعرض مواد بصرية مرتبطة بالبرامج، الخدمات،
+                الشركاء، وهوية الوكالة.
               </p>
             </div>
 
@@ -194,24 +194,23 @@ export default async function GalleryPage() {
 
         <section className="mt-14 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 backdrop-blur">
           <div className="mb-3 inline-flex rounded-full border border-green-400/20 bg-green-500/10 px-4 py-2 text-sm font-black text-green-100">
-            أداء محسّن
+            تجربة مشاهدة مريحة
           </div>
 
           <h2 className="text-3xl font-black">
-            معرض إبداعي بدون تحميل ثقيل
+            معرض أنيق يحافظ على سرعة التصفح
           </h2>
 
           <p className="mt-4 max-w-4xl leading-8 text-white/70">
-            تم تصميم هذا القسم بحيث لا يعتمد على تشغيل فيديوهات كبيرة تلقائياً.
-            العناصر الافتراضية تعمل كمؤثرات مولدة بالكود، أما الصور والفيديوهات
-            الحقيقية فستُدار لاحقاً بصور غلاف وتحميل تدريجي.
+            تم تنظيم المعرض ليقدّم تجربة مشاهدة جذابة دون إرباك الزائر، مع
+            تركيز واضح على جمال الهوية وسلاسة التنقل بين الأقسام.
           </p>
 
           <div className="mt-7 grid gap-4 md:grid-cols-4">
-            <PerformanceItem title="Lazy Loading" text="تحميل عند الحاجة" />
-            <PerformanceItem title="Thumbnails" text="صور غلاف خفيفة" />
-            <PerformanceItem title="Click to Play" text="تشغيل الفيديو عند الضغط" />
-            <PerformanceItem title="Generated Effects" text="مؤثرات خفيفة بالكود" />
+            <PerformanceItem title="عرض منظم" text="مشاهد مرتبة حسب أهميتها" />
+            <PerformanceItem title="هوية موحدة" text="ألوان تنسجم مع الموقع" />
+            <PerformanceItem title="تجربة مريحة" text="حركة ناعمة وغير مزعجة" />
+            <PerformanceItem title="قابل للتوسع" text="مساحة لإضافة مواد جديدة" />
           </div>
         </section>
 
@@ -255,9 +254,9 @@ function GalleryCard({
   featured?: boolean;
 }) {
   const mediaType = item.media_type || "effect";
-  const title = item.title || "HAMZA AGENCY Visual";
+  const title = item.title || "مشهد من وكالة حمزة";
   const description =
-    item.description || "عنصر بصري احترافي ضمن معرض وكالة حمزة.";
+    item.description || "لقطة بصرية ضمن معرض وكالة حمزة.";
   const buttonUrl = item.button_url || "/programs";
   const buttonLabel = item.button_label || "معرفة المزيد";
 
@@ -301,10 +300,10 @@ function GalleryCard({
 
         <div className="absolute bottom-4 left-4 rounded-full border border-white/10 bg-black/45 px-3 py-1 text-xs font-black text-white/70 backdrop-blur">
           {mediaType === "effect"
-            ? "Generated Visual"
+            ? "مشهد بصري"
             : mediaType === "video"
-              ? "Click to Play"
-              : "Optimized Media"}
+              ? "مشهد تفاعلي"
+              : "مشهد من المعرض"}
         </div>
       </div>
 
@@ -351,7 +350,7 @@ function GeneratedVisual({ effectType }: { effectType: string }) {
             {label}
           </div>
           <div className="mt-2 text-xs font-bold uppercase tracking-[0.3em] text-yellow-100/75">
-            lightweight visual
+            HAMZA AGENCY
           </div>
         </div>
       </div>
