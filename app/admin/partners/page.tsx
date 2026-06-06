@@ -247,10 +247,13 @@ export default function AdminPartnersPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function resetForm() {
+  function resetForm(clearMessage = true) {
     setEditingPartner(null);
     setForm(emptyForm);
-    setMessage("");
+
+    if (clearMessage) {
+      setMessage("");
+    }
   }
 
   async function savePartner(event: React.FormEvent<HTMLFormElement>) {
@@ -326,7 +329,7 @@ export default function AdminPartnersPage() {
         setMessage("تمت إضافة الشريك أو البرنامج بنجاح.");
       }
 
-      resetForm();
+      resetForm(false);
       await loadPartners();
     } catch {
       setMessageType("error");
