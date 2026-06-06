@@ -999,4 +999,253 @@ function AnnouncementBar({
         </div>
       ) : (
         <div className="px-4 py-3 text-center text-sm font-bold md:text-base">
-          <
+          <span className="text-yellow-200">{announcement.title}</span>
+          <span className="mx-2 text-white/40">—</span>
+          <span>{announcement.content}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PublicBackground({ media }: { media: MediaItem | undefined }) {
+  const url = media?.file_url || "";
+  const fileType = media?.file_type || "";
+  const isUsableUrl = url.startsWith("http") || url.startsWith("/");
+
+  const isVideo =
+    fileType === "video" ||
+    fileType === "background_video" ||
+    /\.(mp4|webm|ogg)$/i.test(url);
+
+  const isImage =
+    fileType === "image" || /\.(jpg|jpeg|png|webp|gif)$/i.test(url);
+
+  if (isUsableUrl && isVideo) {
+    return (
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <video
+          className="h-full w-full object-cover opacity-36"
+          src={url}
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
+        <div className="absolute inset-0 bg-[#050008]/74" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(16,5,32,0.35),rgba(5,0,8,0.94))]" />
+      </div>
+    );
+  }
+
+  if (isUsableUrl && isImage) {
+    return (
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-34"
+          style={{ backgroundImage: `url("${url}")` }}
+        />
+        <div className="absolute inset-0 bg-[#050008]/76" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(16,5,32,0.35),rgba(5,0,8,0.94))]" />
+      </div>
+    );
+  }
+
+  return <GeneratedBackground variant={url || "generated://premium-luxury-dark"} />;
+}
+
+function GeneratedBackground({ variant }: { variant: string }) {
+  const normalized = variant.replace("generated://", "");
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      <div className="absolute inset-0 bg-[#040006]" />
+
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,#16072a_0%,#09000f_48%,#030004_100%)]" />
+
+      <div className="premium-purple-depth absolute inset-0 opacity-95" />
+
+      <div className="premium-silk-one absolute -left-[18%] top-[18%] h-[360px] w-[145vw] rotate-[-9deg] rounded-[999px] bg-gradient-to-r from-transparent via-purple-500/18 to-transparent blur-3xl" />
+
+      <div className="premium-silk-two absolute -right-[20%] top-[34%] hidden h-[260px] w-[135vw] rotate-[8deg] rounded-[999px] bg-gradient-to-r from-transparent via-violet-300/12 to-transparent blur-3xl md:block" />
+
+      <div className="premium-gold-thread absolute left-[-8%] top-[34%] h-[2px] w-[116vw] rotate-[-5deg] bg-gradient-to-r from-transparent via-yellow-200/34 to-transparent blur-[1px]" />
+
+      <div className="premium-gold-soft absolute right-[-20%] top-[24%] h-[240px] w-[55vw] rounded-full bg-yellow-300/8 blur-[90px]" />
+
+      <div className="premium-bottom-shadow absolute bottom-0 left-0 right-0 h-[45vh] bg-gradient-to-t from-black via-black/78 to-transparent" />
+
+      <div className="premium-fine-texture absolute inset-0 opacity-[0.055] [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.55)_1px,transparent_0)] [background-size:54px_54px]" />
+
+      <div className="premium-glint premium-glint-one absolute h-1.5 w-1.5 rounded-full bg-yellow-100/70 shadow-[0_0_22px_rgba(254,240,138,0.8)]" />
+      <div className="premium-glint premium-glint-two absolute h-1.5 w-1.5 rounded-full bg-purple-100/65 shadow-[0_0_22px_rgba(216,180,254,0.75)]" />
+
+      {normalized.includes("programs") && (
+        <div className="absolute left-[8%] top-[38%] hidden h-24 w-40 rounded-[2rem] border border-purple-300/10 bg-white/[0.025] backdrop-blur md:block" />
+      )}
+    </div>
+  );
+}
+
+function HeroVideoVisual() {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-0 mx-auto h-[500px] max-w-6xl overflow-hidden opacity-75">
+      <div className="premium-hero-aura absolute left-1/2 top-28 h-72 w-[680px] -translate-x-1/2 rounded-full bg-purple-500/14 blur-[85px]" />
+      <div className="premium-hero-gold absolute left-1/2 top-48 h-px w-[540px] -translate-x-1/2 bg-gradient-to-r from-transparent via-yellow-100/28 to-transparent" />
+    </div>
+  );
+}
+
+function SiteAnimationStyles() {
+  return (
+    <style>{`
+      @keyframes hamzaMarquee {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(50%); }
+      }
+
+      .hamza-marquee-track {
+        animation: hamzaMarquee var(--marquee-duration, 22s) linear infinite;
+      }
+
+      @keyframes premiumDepth {
+        0%, 100% {
+          background:
+            radial-gradient(circle at 50% 0%, rgba(91, 33, 182, 0.34), transparent 52%),
+            radial-gradient(circle at 18% 22%, rgba(124, 58, 237, 0.14), transparent 34%),
+            radial-gradient(circle at 85% 30%, rgba(212, 175, 55, 0.055), transparent 34%);
+        }
+        50% {
+          background:
+            radial-gradient(circle at 48% 3%, rgba(109, 40, 217, 0.42), transparent 54%),
+            radial-gradient(circle at 22% 26%, rgba(124, 58, 237, 0.18), transparent 35%),
+            radial-gradient(circle at 80% 27%, rgba(212, 175, 55, 0.085), transparent 34%);
+        }
+      }
+
+      @keyframes premiumSilkOne {
+        0%, 100% { transform: translate3d(0, 0, 0) rotate(-9deg); opacity: 0.72; }
+        50% { transform: translate3d(3%, 18px, 0) rotate(-8deg); opacity: 0.92; }
+      }
+
+      @keyframes premiumSilkTwo {
+        0%, 100% { transform: translate3d(0, 0, 0) rotate(8deg); opacity: 0.45; }
+        50% { transform: translate3d(-3%, -12px, 0) rotate(7deg); opacity: 0.65; }
+      }
+
+      @keyframes premiumGoldThread {
+        0%, 100% { transform: translate3d(0, 0, 0) rotate(-5deg); opacity: 0.42; }
+        50% { transform: translate3d(2%, 7px, 0) rotate(-4.5deg); opacity: 0.7; }
+      }
+
+      @keyframes premiumGoldSoft {
+        0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.58; }
+        50% { transform: translate3d(-24px, 12px, 0) scale(1.04); opacity: 0.82; }
+      }
+
+      @keyframes premiumGlint {
+        0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.18; }
+        50% { transform: translate3d(var(--x), var(--y), 0); opacity: 0.82; }
+      }
+
+      @keyframes premiumHeroAura {
+        0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.55; }
+        50% { transform: translateX(-50%) scale(1.04); opacity: 0.78; }
+      }
+
+      @keyframes premiumHeroGold {
+        0%, 100% { opacity: 0.18; transform: translateX(-50%) scaleX(0.9); }
+        50% { opacity: 0.45; transform: translateX(-50%) scaleX(1.04); }
+      }
+
+      .premium-purple-depth {
+        animation: premiumDepth 28s ease-in-out infinite;
+      }
+
+      .premium-silk-one {
+        animation: premiumSilkOne 24s ease-in-out infinite;
+        will-change: transform, opacity;
+      }
+
+      .premium-silk-two {
+        animation: premiumSilkTwo 30s ease-in-out infinite;
+        will-change: transform, opacity;
+      }
+
+      .premium-gold-thread {
+        animation: premiumGoldThread 26s ease-in-out infinite;
+        will-change: transform, opacity;
+      }
+
+      .premium-gold-soft {
+        animation: premiumGoldSoft 30s ease-in-out infinite;
+        will-change: transform, opacity;
+      }
+
+      .premium-glint {
+        animation: premiumGlint 18s ease-in-out infinite;
+        will-change: transform, opacity;
+      }
+
+      .premium-glint-one {
+        left: 18%;
+        top: 31%;
+        --x: 42px;
+        --y: 26px;
+      }
+
+      .premium-glint-two {
+        right: 22%;
+        top: 46%;
+        --x: -38px;
+        --y: 30px;
+        animation-delay: -7s;
+      }
+
+      .premium-hero-aura {
+        animation: premiumHeroAura 18s ease-in-out infinite;
+      }
+
+      .premium-hero-gold {
+        animation: premiumHeroGold 16s ease-in-out infinite;
+      }
+
+      @media (max-width: 768px) {
+        .premium-silk-one {
+          animation-duration: 34s;
+          opacity: 0.65;
+        }
+
+        .premium-purple-depth {
+          animation-duration: 40s;
+        }
+
+        .premium-gold-thread,
+        .premium-gold-soft,
+        .premium-glint,
+        .premium-hero-aura,
+        .premium-hero-gold {
+          animation: none !important;
+        }
+
+        .premium-fine-texture {
+          opacity: 0.035;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .hamza-marquee-track,
+        .premium-purple-depth,
+        .premium-silk-one,
+        .premium-silk-two,
+        .premium-gold-thread,
+        .premium-gold-soft,
+        .premium-glint,
+        .premium-hero-aura,
+        .premium-hero-gold {
+          animation: none !important;
+        }
+      }
+    `}</style>
+  );
+}
