@@ -262,7 +262,7 @@ export default function AdminReviewsPage() {
     if (!supabase) return;
 
     const confirmed = window.confirm(
-      "هل أنت متأكد من حذف هذا التقييم؟ لا يمكن التراجع عن هذا الإجراء بعد الحذف."
+      "هل أنت متأكد من حذف هذا التقييم؟ سيتم حذفه نهائياً ولا يمكن التراجع عن هذا الإجراء."
     );
 
     if (!confirmed) return;
