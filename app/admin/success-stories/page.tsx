@@ -135,11 +135,11 @@ export default function AdminSuccessStoriesPage() {
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false });
 
-    if (error) {
-      showMessage(
-        "تعذر تحميل قصص النجاح. يرجى تحديث الصفحة والمحاولة مرة أخرى.",
-        "error"
-      );
+    if (result.error) {
+  console.error("Success story save error:", result.error);
+  showMessage(`تعذر حفظ قصة النجاح: ${result.error.message}`, "error");
+  return;
+}
       return;
     }
 
