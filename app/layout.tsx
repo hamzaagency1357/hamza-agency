@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import PublicQuickNav from "@/components/PublicQuickNav";
+import PublicDesktopEnhancer from "@/components/PublicDesktopEnhancer";
 import "./globals.css";
 
 const siteUrl =
@@ -94,6 +95,7 @@ export default function RootLayout({
             __html: JSON.stringify(organizationJsonLd),
           }}
         />
+        <PublicDesktopEnhancer />
         {children}
         <PublicQuickNav />
       </body>
