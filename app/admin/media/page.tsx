@@ -19,7 +19,20 @@ type MediaItem = {
   uploaded_by: string | null;
 };
 
-const emptyForm = {
+type MediaForm = {
+  name: string;
+  file_url: string;
+  file_type: string;
+  category: string;
+  alt_text: string;
+  page_slug: string;
+  is_active: boolean;
+};
+
+const MEDIA_BUCKET = "media-library";
+const MAX_UPLOAD_SIZE = 80 * 1024 * 1024;
+
+const emptyForm: MediaForm = {
   name: "",
   file_url: "",
   file_type: "image",
@@ -107,13 +120,15 @@ export default function AdminMediaPage() {
 
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<MediaForm>(emptyForm);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isSavingDefaults, setIsSavingDefaults] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     async function checkAdminAccess() {
@@ -167,7 +182,7 @@ export default function AdminMediaPage() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      setError("تعذر تحميل مكتبة الوسائط. قد نحتاج إضافة RLS Policies لجدول media.");
+      setError("تعذر تحميل مكتبة الوسائط. يرجى مراجعة صلاحيات جدول media.");
       return;
     }
 
@@ -204,7 +219,7 @@ export default function AdminMediaPage() {
   ).length;
   const realFilesCount = mediaItems.length - generatedCount;
 
-  function updateField(key: keyof typeof form, value: string | boolean) {
+  function updateField(key: keyof MediaForm, value: string | boolean) {
     setForm((current) => ({
       ...current,
       [key]: value,
@@ -213,6 +228,7 @@ export default function AdminMediaPage() {
 
   function resetForm() {
     setSelectedMedia(null);
+    setSelectedFile(null);
     setForm(emptyForm);
     setMessage("");
     setError("");
@@ -220,6 +236,7 @@ export default function AdminMediaPage() {
 
   function editMedia(item: MediaItem) {
     setSelectedMedia(item);
+    setSelectedFile(null);
 
     setForm({
       name: item.name || "",
@@ -232,6 +249,54 @@ export default function AdminMediaPage() {
     });
 
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function handleFileSelect(file: File | null) {
+    setSelectedFile(file);
+    setMessage("");
+    setError("");
+
+    if (!file) return;
+
+    if (file.size > MAX_UPLOAD_SIZE) {
+      setSelectedFile(null);
+      setError("حجم الملف كبير. الحد الحالي 80MB للرفع من لوحة التحكم.");
+      return;
+    }
+
+    const detectedType = detectFileType(file);
+    const detectedCategory = detectCategory(detectedType, form.category);
+
+    setForm((current) => ({
+      ...current,
+      name: current.name || cleanNameFromFile(file.name),
+      file_type: detectedType,
+      category: detectedCategory,
+      alt_text: current.alt_text || cleanNameFromFile(file.name),
+    }));
+  }
+
+  async function uploadSelectedFile() {
+    if (!supabase || !selectedFile) return form.file_url.trim();
+
+    const safePath = buildStoragePath(selectedFile, form.category, form.page_slug);
+
+    const { error: uploadError } = await supabase.storage
+      .from(MEDIA_BUCKET)
+      .upload(safePath, selectedFile, {
+        cacheControl: "31536000",
+        upsert: false,
+        contentType: selectedFile.type || undefined,
+      });
+
+    if (uploadError) {
+      throw new Error(
+        "فشل رفع الملف إلى Supabase Storage. تأكد من وجود bucket باسم media-library ومن صلاحيات الرفع للأدمن."
+      );
+    }
+
+    const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(safePath);
+    return data.publicUrl;
   }
 
   async function saveDefaultMedia() {
@@ -261,7 +326,7 @@ export default function AdminMediaPage() {
     setIsSavingDefaults(false);
 
     if (error) {
-      setError("فشل إنشاء الوسائط الافتراضية. قد نحتاج مراجعة صلاحيات RLS لجدول media.");
+      setError("فشل إنشاء الوسائط الافتراضية. يرجى مراجعة صلاحيات جدول media.");
       return;
     }
 
@@ -290,14 +355,26 @@ export default function AdminMediaPage() {
       return;
     }
 
-    if (!form.file_url.trim()) {
-      setError("يرجى إضافة رابط الملف أو قيمة generated:// للخلفيات البرمجية.");
+    if (!selectedFile && !form.file_url.trim()) {
+      setError("يرجى اختيار ملف للرفع أو إضافة رابط ملف جاهز.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    let finalFileUrl = form.file_url.trim();
+
+    try {
+      finalFileUrl = await uploadSelectedFile();
+    } catch (uploadError) {
+      setIsSaving(false);
+      setError(uploadError instanceof Error ? uploadError.message : "فشل رفع الملف.");
       return;
     }
 
     const payload = {
       name: form.name.trim(),
-      file_url: form.file_url.trim(),
+      file_url: finalFileUrl,
       file_type: form.file_type.trim(),
       category: form.category.trim() || "general",
       alt_text: form.alt_text.trim(),
@@ -310,6 +387,8 @@ export default function AdminMediaPage() {
     const result = selectedMedia
       ? await supabase.from("media").update(payload).eq("id", selectedMedia.id)
       : await supabase.from("media").insert(payload);
+
+    setIsSaving(false);
 
     if (result.error) {
       setError("فشل حفظ الوسيط. تحقق من صلاحيات جدول media.");
@@ -324,7 +403,7 @@ export default function AdminMediaPage() {
       JSON.stringify(payload)
     );
 
-    setMessage(selectedMedia ? "تم تحديث الوسيط بنجاح." : "تمت إضافة الوسيط بنجاح.");
+    setMessage(selectedMedia ? "تم تحديث الوسيط بنجاح." : "تم رفع وحفظ الوسيط بنجاح.");
     resetForm();
     await loadMedia();
   }
@@ -370,7 +449,7 @@ export default function AdminMediaPage() {
       item.file_type === "image" ||
       item.file_type === "logo" ||
       item.file_type === "icon"
-    ) && url.startsWith("http");
+    ) && (url.startsWith("http") || url.startsWith("/"));
   }
 
   function canPreviewVideo(item: MediaItem) {
@@ -378,7 +457,7 @@ export default function AdminMediaPage() {
     return (
       item.file_type === "video" ||
       item.file_type === "background_video"
-    ) && url.startsWith("http");
+    ) && (url.startsWith("http") || url.startsWith("/"));
   }
 
   async function logActivity(
@@ -428,9 +507,8 @@ export default function AdminMediaPage() {
             <p className="mb-2 text-sm text-purple-200">Core CMS Foundation</p>
             <h1 className="text-4xl font-black">مكتبة الوسائط</h1>
             <p className="mt-3 max-w-3xl leading-8 text-white/60">
-              إدارة الصور، الفيديوهات، الشعارات، الخلفيات البرمجية، وملفات
-              الموقع. حالياً ندير الروابط والسجلات، ولاحقاً نربطها بـ Supabase
-              Storage للرفع المباشر.
+              إدارة ورفع الصور، الفيديوهات، الشعارات، الخلفيات، والملفات من لوحة
+              التحكم وربطها لاحقاً بصفحات وبرامج الموقع.
             </p>
           </div>
 
@@ -454,7 +532,7 @@ export default function AdminMediaPage() {
           <StatCard title="كل الوسائط" value={mediaItems.length} />
           <StatCard title="مفعّلة" value={activeCount} />
           <StatCard title="غير مفعّلة" value={inactiveCount} />
-          <StatCard title="خلفيات برمجية" value={generatedCount} />
+          <StatCard title="ملفات حقيقية" value={realFilesCount} />
         </div>
 
         <div className="mb-8 rounded-[2rem] border border-purple-500/20 bg-black/35 p-6">
@@ -462,9 +540,8 @@ export default function AdminMediaPage() {
             <div>
               <h2 className="text-3xl font-black">وسائط افتراضية احترافية</h2>
               <p className="mt-2 leading-8 text-white/60">
-                هذه السجلات تجعل الموقع يبدو مكتمل البنية أثناء التطوير، مع
-                إمكانية استبدالها لاحقاً بروابط صور وفيديوهات حقيقية من لوحة
-                التحكم.
+                هذه السجلات تدعم الخلفيات والهوية البصرية الحالية، ويمكن استبدالها
+                في أي وقت بملفات حقيقية من مكتبة الوسائط.
               </p>
             </div>
 
@@ -473,9 +550,7 @@ export default function AdminMediaPage() {
               disabled={isSavingDefaults}
               className="rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-6 py-4 font-black disabled:opacity-60"
             >
-              {isSavingDefaults
-                ? "جارٍ الإنشاء..."
-                : "إنشاء الوسائط الافتراضية"}
+              {isSavingDefaults ? "جارٍ الإنشاء..." : "إنشاء الوسائط الافتراضية"}
             </button>
           </div>
         </div>
@@ -496,10 +571,15 @@ export default function AdminMediaPage() {
           onSubmit={saveMedia}
           className="mb-8 rounded-[2rem] border border-purple-500/20 bg-black/35 p-6"
         >
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-3xl font-black">
-              {selectedMedia ? "تعديل وسيط" : "إضافة وسيط جديد"}
-            </h2>
+          <div className="mb-6 flex flex-col justify-between gap-3 md:flex-row md:items-center">
+            <div>
+              <h2 className="text-3xl font-black">
+                {selectedMedia ? "تعديل وسيط" : "رفع وسيط جديد"}
+              </h2>
+              <p className="mt-2 text-white/55">
+                يمكنك رفع ملف من جهازك أو استخدام رابط خارجي جاهز.
+              </p>
+            </div>
 
             {selectedMedia && (
               <button
@@ -512,18 +592,38 @@ export default function AdminMediaPage() {
             )}
           </div>
 
+          <div className="mb-5 rounded-3xl border border-dashed border-purple-400/35 bg-purple-500/10 p-5">
+            <label className="block cursor-pointer text-center">
+              <input
+                type="file"
+                className="hidden"
+                accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+                onChange={(event) => handleFileSelect(event.target.files?.[0] || null)}
+              />
+              <div className="text-2xl font-black text-purple-100">اختيار ملف من الجهاز</div>
+              <div className="mt-2 text-sm text-white/55">
+                صور، فيديوهات، شعارات، وملفات حتى 80MB
+              </div>
+              {selectedFile && (
+                <div className="mt-4 rounded-2xl border border-green-400/25 bg-green-500/10 p-3 text-green-100">
+                  الملف المختار: {selectedFile.name}
+                </div>
+              )}
+            </label>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2">
             <input
               value={form.name}
               onChange={(e) => updateField("name", e.target.value)}
-              placeholder="اسم الوسيط مثال: Home Hero Video"
+              placeholder="اسم الوسيط"
               className="rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
             />
 
             <input
               value={form.file_url}
               onChange={(e) => updateField("file_url", e.target.value)}
-              placeholder="رابط الملف أو generated://luxury-purple-neon"
+              placeholder="رابط الملف الخارجي أو generated://"
               className="rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
             />
 
@@ -570,16 +670,21 @@ export default function AdminMediaPage() {
             <textarea
               value={form.alt_text}
               onChange={(e) => updateField("alt_text", e.target.value)}
-              placeholder="Alt text / وصف الوسيط"
+              placeholder="وصف الوسيط"
               className="min-h-28 rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400 md:col-span-2"
             />
           </div>
 
           <button
             type="submit"
-            className="mt-6 rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 font-black"
+            disabled={isSaving}
+            className="mt-6 rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 font-black disabled:opacity-60"
           >
-            {selectedMedia ? "حفظ التعديل" : "إضافة الوسيط"}
+            {isSaving
+              ? "جارٍ الحفظ..."
+              : selectedMedia
+                ? "حفظ التعديل"
+                : "رفع وحفظ الوسيط"}
           </button>
         </form>
 
@@ -588,28 +693,27 @@ export default function AdminMediaPage() {
             <div>
               <h2 className="text-3xl font-black">قائمة الوسائط</h2>
               <p className="mt-2 text-white/55">
-                كل وسيط يمكن استخدامه لاحقاً في الصفحات، البرامج، الخلفيات،
-                SEO، والـ Page Builder.
+                كل وسيط يمكن استخدامه في الصفحات، البرامج، الخلفيات، والهوية.
               </p>
             </div>
 
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="بحث..."
-              className="rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="بحث في الوسائط..."
+              className="rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400 md:min-w-72"
             />
           </div>
 
-          <div className="mb-6 flex flex-wrap gap-2">
+          <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
             {categories.map((category) => (
               <button
                 key={category}
                 onClick={() => setActiveCategory(category)}
-                className={`rounded-full border px-4 py-2 text-sm ${
+                className={`shrink-0 rounded-full border px-4 py-2 text-sm ${
                   activeCategory === category
                     ? "border-purple-400 bg-purple-500/20 text-white"
-                    : "border-white/10 bg-black/20 text-white/60"
+                    : "border-white/10 bg-white/[0.04] text-white/65"
                 }`}
               >
                 {category === "all"
@@ -621,8 +725,7 @@ export default function AdminMediaPage() {
 
           {filteredMedia.length === 0 ? (
             <div className="rounded-3xl border border-yellow-500/30 bg-yellow-500/10 p-6 text-yellow-100">
-              لا توجد وسائط حالياً. اضغط على زر إنشاء الوسائط الافتراضية أو أضف
-              رابط صورة / فيديو جديد.
+              لا توجد وسائط مطابقة حالياً.
             </div>
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
@@ -634,16 +737,11 @@ export default function AdminMediaPage() {
                   <div className="mb-4 flex items-start justify-between gap-4">
                     <div>
                       <div className="text-sm text-purple-200">
-                        {categoryLabels[item.category || "general"] ||
-                          item.category ||
-                          "عام"}
+                        {categoryLabels[item.category || "general"] || item.category || "عام"}
                       </div>
-                      <h3 className="mt-1 text-2xl font-black">
-                        {item.name}
-                      </h3>
+                      <h3 className="mt-1 text-2xl font-black">{item.name}</h3>
                       <p className="mt-2 text-sm text-white/45">
-                        {fileTypeLabels[item.file_type || "image"] ||
-                          item.file_type}
+                        {fileTypeLabels[item.file_type || "image"] || item.file_type}
                         {" · "}
                         {item.page_slug || "بدون صفحة محددة"}
                       </p>
@@ -721,14 +819,52 @@ export default function AdminMediaPage() {
 
           {mediaItems.length > 0 && (
             <div className="mt-6 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-white/45">
-              الملفات الحقيقية: {realFilesCount} · الخلفيات البرمجية:{" "}
-              {generatedCount}
+              الملفات الحقيقية: {realFilesCount} · الخلفيات البرمجية: {generatedCount}
             </div>
           )}
         </div>
       </div>
     </main>
   );
+}
+
+function detectFileType(file: File) {
+  const name = file.name.toLowerCase();
+  const type = file.type.toLowerCase();
+
+  if (type.startsWith("video/")) return "video";
+  if (type.startsWith("image/") && name.includes("logo")) return "logo";
+  if (type.startsWith("image/")) return "image";
+  if (name.endsWith(".ico") || name.endsWith(".svg")) return "icon";
+  return "document";
+}
+
+function detectCategory(fileType: string, currentCategory: string) {
+  if (currentCategory && currentCategory !== "general") return currentCategory;
+  if (fileType === "logo" || fileType === "icon") return "logo";
+  if (fileType === "video") return "background";
+  if (fileType === "image") return "general";
+  return "general";
+}
+
+function cleanNameFromFile(fileName: string) {
+  return fileName.replace(/\.[^/.]+$/, "").replace(/[-_]+/g, " ").trim();
+}
+
+function buildStoragePath(file: File, category: string, pageSlug: string) {
+  const extension = file.name.includes(".") ? file.name.split(".").pop() : "file";
+  const safeCategory = sanitizeSegment(category || "general");
+  const safePage = sanitizeSegment(pageSlug || "global");
+  const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extension}`;
+  return `${safeCategory}/${safePage}/${uniqueName}`;
+}
+
+function sanitizeSegment(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "") || "media";
 }
 
 function StatCard({ title, value }: { title: string; value: number }) {
