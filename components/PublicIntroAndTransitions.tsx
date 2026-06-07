@@ -9,15 +9,14 @@ export default function PublicIntroAndTransitions() {
   const pathname = usePathname();
   const [showIntro, setShowIntro] = useState(false);
   const [isLeavingIntro, setIsLeavingIntro] = useState(false);
+  const [playedOnCurrentLoad, setPlayedOnCurrentLoad] = useState(false);
 
   useEffect(() => {
-    if (pathname !== "/") return;
-
-    const alreadyPlayed = window.sessionStorage.getItem("hamza-public-intro-played");
-    if (alreadyPlayed) return;
+    if (pathname !== "/" || playedOnCurrentLoad) return;
 
     setShowIntro(true);
-    window.sessionStorage.setItem("hamza-public-intro-played", "1");
+    setIsLeavingIntro(false);
+    setPlayedOnCurrentLoad(true);
 
     const leaveTimer = window.setTimeout(() => setIsLeavingIntro(true), 2600);
     const hideTimer = window.setTimeout(() => setShowIntro(false), 3300);
@@ -26,7 +25,7 @@ export default function PublicIntroAndTransitions() {
       window.clearTimeout(leaveTimer);
       window.clearTimeout(hideTimer);
     };
-  }, [pathname]);
+  }, [pathname, playedOnCurrentLoad]);
 
   if (pathname.startsWith("/admin")) return null;
 
