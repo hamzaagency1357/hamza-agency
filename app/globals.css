@@ -32,7 +32,47 @@ body {
 }
 
 body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black {
-  display: none !important;
+  background:
+    radial-gradient(circle at center, rgba(168, 85, 247, 0.42), transparent 30%),
+    radial-gradient(circle at 70% 35%, rgba(212, 175, 55, 0.18), transparent 24%),
+    linear-gradient(135deg, #050008, #2f0c56, #080012) !important;
+}
+
+body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black::before {
+  content: "HAMZA AGENCY\A وكالة حمزة";
+  white-space: pre;
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 135px);
+  transform: translateX(-50%);
+  text-align: center;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 900;
+  letter-spacing: 0.55em;
+  line-height: 2.2;
+  font-size: 14px;
+  text-shadow: 0 0 28px rgba(216, 180, 254, 0.45);
+}
+
+body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 225px);
+  width: min(56vw, 320px);
+  height: 4px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(216, 180, 254, 0.95), rgba(250, 204, 21, 0.9), rgba(216, 180, 254, 0.35));
+  box-shadow: 0 0 20px rgba(216, 180, 254, 0.35);
+}
+
+body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black img {
+  width: 176px;
+  height: 176px;
+  border-radius: 2rem;
+  object-fit: cover;
+  box-shadow: 0 0 90px rgba(168, 85, 247, 0.58) !important;
 }
 
 img,
@@ -98,6 +138,22 @@ button {
 @media (max-width: 768px) {
   body {
     min-width: 320px;
+  }
+
+  body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black img {
+    width: 176px;
+    height: 176px;
+  }
+
+  body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black::before {
+    top: calc(50% + 135px);
+    font-size: 13px;
+    letter-spacing: 0.45em;
+  }
+
+  body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black::after {
+    top: calc(50% + 220px);
+    width: min(64vw, 320px);
   }
 }
 
