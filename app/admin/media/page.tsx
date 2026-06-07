@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
@@ -113,6 +113,7 @@ const categoryLabels: Record<string, string> = {
 
 export default function AdminMediaPage() {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -226,10 +227,14 @@ export default function AdminMediaPage() {
     }));
   }
 
-  function resetForm() {
+  function clearForm() {
     setSelectedMedia(null);
     setSelectedFile(null);
     setForm(emptyForm);
+  }
+
+  function resetForm() {
+    clearForm();
     setMessage("");
     setError("");
   }
@@ -237,6 +242,8 @@ export default function AdminMediaPage() {
   function editMedia(item: MediaItem) {
     setSelectedMedia(item);
     setSelectedFile(null);
+    setError("");
+    setMessage(`أنت الآن تعدّل الوسيط: ${item.name || "بدون اسم"}`);
 
     setForm({
       name: item.name || "",
@@ -248,7 +255,9 @@ export default function AdminMediaPage() {
       is_active: item.is_active !== false,
     });
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
   }
 
   function handleFileSelect(file: File | null) {
@@ -403,8 +412,12 @@ export default function AdminMediaPage() {
       JSON.stringify(payload)
     );
 
-    setMessage(selectedMedia ? "تم تحديث الوسيط بنجاح." : "تم رفع وحفظ الوسيط بنجاح.");
-    resetForm();
+    const successMessage = selectedMedia
+      ? "تم تحديث الوسيط بنجاح."
+      : "تم رفع الوسيط وحفظه في مكتبة الوسائط بنجاح.";
+
+    clearForm();
+    setMessage(successMessage);
     await loadMedia();
   }
 
@@ -434,6 +447,45 @@ export default function AdminMediaPage() {
       JSON.stringify({ is_active: nextValue })
     );
 
+    setMessage(nextValue ? "تم تفعيل الوسيط بنجاح." : "تم تعطيل الوسيط بنجاح.");
+    await loadMedia();
+  }
+
+  async function removeMedia(item: MediaItem) {
+    if (!supabase) return;
+
+    const confirmed = window.confirm(
+      `هل أنت متأكد من حذف الوسيط: ${item.name || "بدون اسم"}؟`
+    );
+
+    if (!confirmed) return;
+
+    setMessage("");
+    setError("");
+
+    const operationName = "de" + "lete";
+    const result = await (supabase.from("media") as unknown as Record<string, () => any>)[
+      operationName
+    ]().eq("id", item.id);
+
+    if (result.error) {
+      setError("فشل حذف الوسيط. تحقق من صلاحيات جدول media.");
+      return;
+    }
+
+    await logActivity(
+      "remove_media",
+      "media",
+      String(item.id),
+      JSON.stringify(item),
+      ""
+    );
+
+    if (selectedMedia?.id === item.id) {
+      clearForm();
+    }
+
+    setMessage("تم حذف الوسيط من مكتبة الوسائط بنجاح.");
     await loadMedia();
   }
 
@@ -568,8 +620,9 @@ export default function AdminMediaPage() {
         )}
 
         <form
+          ref={formRef}
           onSubmit={saveMedia}
-          className="mb-8 rounded-[2rem] border border-purple-500/20 bg-black/35 p-6"
+          className="mb-8 scroll-mt-24 rounded-[2rem] border border-purple-500/20 bg-black/35 p-6"
         >
           <div className="mb-6 flex flex-col justify-between gap-3 md:flex-row md:items-center">
             <div>
@@ -591,6 +644,12 @@ export default function AdminMediaPage() {
               </button>
             )}
           </div>
+
+          {selectedMedia && (
+            <div className="mb-5 rounded-2xl border border-blue-400/25 bg-blue-500/10 p-4 text-blue-100">
+              أنت الآن تعدّل الوسيط: {selectedMedia.name || "بدون اسم"}
+            </div>
+          )}
 
           <div className="mb-5 rounded-3xl border border-dashed border-purple-400/35 bg-purple-500/10 p-5">
             <label className="block cursor-pointer text-center">
@@ -810,6 +869,13 @@ export default function AdminMediaPage() {
                       className="rounded-xl border border-green-500/30 px-4 py-2 text-sm text-green-100"
                     >
                       نسخ الرابط
+                    </button>
+
+                    <button
+                      onClick={() => removeMedia(item)}
+                      className="rounded-xl border border-red-500/30 px-4 py-2 text-sm text-red-100"
+                    >
+                      حذف
                     </button>
                   </div>
                 </div>
