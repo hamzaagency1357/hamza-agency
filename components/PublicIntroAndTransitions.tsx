@@ -9,16 +9,6 @@ export default function PublicIntroAndTransitions() {
   const pathname = usePathname();
   const [showIntro, setShowIntro] = useState(false);
   const [isLeavingIntro, setIsLeavingIntro] = useState(false);
-  const [isPageEntering, setIsPageEntering] = useState(false);
-
-  useEffect(() => {
-    if (pathname.startsWith("/admin")) return;
-
-    setIsPageEntering(true);
-    const timer = window.setTimeout(() => setIsPageEntering(false), 560);
-
-    return () => window.clearTimeout(timer);
-  }, [pathname]);
 
   useEffect(() => {
     if (pathname !== "/") return;
@@ -74,12 +64,6 @@ export default function PublicIntroAndTransitions() {
           </div>
         </div>
       )}
-
-      <div
-        className={`pointer-events-none fixed inset-0 z-[70] bg-gradient-to-br from-purple-950/30 via-transparent to-yellow-900/10 transition-opacity duration-500 ${
-          isPageEntering ? "opacity-100" : "opacity-0"
-        }`}
-      />
     </>
   );
 }
