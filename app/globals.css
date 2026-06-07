@@ -9,7 +9,7 @@
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;
-  background: #050008;
+  background: #130624;
 }
 
 html,
@@ -19,7 +19,7 @@ body {
   width: 100%;
   max-width: 100%;
   min-height: 100%;
-  background: #050008;
+  background: #130624;
   color: white;
 }
 
@@ -59,12 +59,28 @@ button {
 @media (min-width: 1024px) {
   .public-site-page {
     background:
-      radial-gradient(circle at 50% 0%, rgba(124, 58, 237, 0.16), transparent 34%),
-      #050008;
+      radial-gradient(circle at 50% -10%, rgba(216, 180, 254, 0.28), transparent 30%),
+      radial-gradient(circle at 15% 15%, rgba(124, 58, 237, 0.28), transparent 28%),
+      radial-gradient(circle at 86% 18%, rgba(212, 175, 55, 0.18), transparent 24%),
+      linear-gradient(135deg, #1b0731 0%, #35105f 36%, #180826 70%, #09020f 100%);
+    background-attachment: fixed;
   }
 
   .public-site-page main {
+    width: 100%;
     isolation: isolate;
+    background:
+      radial-gradient(circle at 50% 22%, rgba(168, 85, 247, 0.2), transparent 32%),
+      linear-gradient(180deg, rgba(71, 24, 118, 0.22), rgba(5, 0, 8, 0.38));
+  }
+
+  .public-site-page main > section,
+  .public-site-page main > div,
+  .public-site-page main > header,
+  .public-site-page footer > div {
+    width: min(100% - 48px, 1440px);
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .public-site-page section,
@@ -75,6 +91,7 @@ button {
 
   .public-site-page h1 {
     letter-spacing: -0.025em;
+    text-shadow: 0 0 34px rgba(216, 180, 254, 0.18);
   }
 
   .public-site-page p,
@@ -88,7 +105,8 @@ button {
       transform 180ms ease,
       border-color 180ms ease,
       background-color 180ms ease,
-      opacity 180ms ease;
+      opacity 180ms ease,
+      box-shadow 180ms ease;
   }
 
   .public-site-page a:hover,
@@ -102,18 +120,20 @@ button {
 
   .public-site-page .rounded-\[2rem\],
   .public-site-page .rounded-3xl {
-    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.18);
+    box-shadow:
+      0 22px 70px rgba(21, 6, 38, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
-}
 
-@media (min-width: 1280px) {
-  .public-site-page main > section,
-  .public-site-page main > div,
-  .public-site-page main > header,
-  .public-site-page footer > div {
-    max-width: 1180px;
-    margin-left: auto;
-    margin-right: auto;
+  .public-site-page [class*="bg-black"],
+  .public-site-page [class*="bg-[#050008]"],
+  .public-site-page [class*="bg-[#070009]"] {
+    background-color: rgba(18, 6, 33, 0.62) !important;
+  }
+
+  .public-site-page [class*="border-white/10"],
+  .public-site-page [class*="border-purple"] {
+    border-color: rgba(216, 180, 254, 0.18) !important;
   }
 }
 
@@ -122,6 +142,6 @@ button {
   .public-site-page main > div,
   .public-site-page main > header,
   .public-site-page footer > div {
-    max-width: 1260px;
+    width: min(100% - 72px, 1560px);
   }
 }
