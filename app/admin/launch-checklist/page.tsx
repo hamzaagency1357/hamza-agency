@@ -232,9 +232,8 @@ export default function LaunchChecklistPage() {
           </p>
           <h1 className="mt-3 text-4xl font-black">فحص الإطلاق V1</h1>
           <p className="mt-3 text-sm leading-7 text-white/55">
-            فحص تلقائي للروابط الأساسية قبل ربط الدومين الرسمي. الأدمن الحالي:
-            {" "}
-            {adminEmail}
+            فحص تلقائي للروابط الأساسية مع تشخيص وسبب محتمل واقتراح إصلاح.
+            الأدمن الحالي: {adminEmail}
           </p>
 
           <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
@@ -287,8 +286,8 @@ export default function LaunchChecklistPage() {
           <h2 className="text-2xl font-black">ملاحظات الفحص</h2>
           <ul className="mt-4 space-y-3 text-sm leading-7 text-white/65">
             <li>الفحص يتحقق من استجابة الصفحة وكود الحالة والتحويلات غير المتوقعة.</li>
-            <li>بعد ظهور النتائج، افتح أي رابط عليه خطأ أو تحذير لمراجعته بصرياً.</li>
-            <li>هذا لا يغيّر قاعدة البيانات ولا يغيّر حالات الطلبات.</li>
+            <li>كل خطأ أو تحذير سيظهر معه تفسير مختصر واقتراح إصلاح.</li>
+            <li>الإصلاحات الخطرة مثل تعديل كود أو RLS لا تتم تلقائياً حفاظاً على المشروع.</li>
           </ul>
         </div>
       </section>
@@ -314,6 +313,7 @@ function ChecklistSection({
             status: "idle",
             message: "لم يتم الفحص بعد",
           };
+          const advice = getFixAdvice(item, result);
 
           return (
             <div
@@ -348,6 +348,13 @@ function ChecklistSection({
                   <span dir="ltr">{result.durationMs}ms</span>
                 )}
               </div>
+
+              {advice && (
+                <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 p-3 text-xs leading-6 text-white/62">
+                  <span className="font-black text-yellow-100">اقتراح الإصلاح: </span>
+                  {advice}
+                </div>
+              )}
             </div>
           );
         })}
@@ -379,6 +386,41 @@ function SummaryCard({
       </div>
     </div>
   );
+}
+
+function getFixAdvice(item: CheckItem, result: CheckResult) {
+  if (result.status === "idle" || result.status === "checking") return "";
+  if (result.status === "ok") return "لا يحتاج إصلاح. افتح الصفحة بصرياً فقط للتأكد من التصميم والنصوص.";
+
+  if (result.message.includes("تسجيل الدخول")) {
+    return "راجع جلسة الأدمن أو صلاحيات الوصول. افتح الصفحة مباشرة بعد تسجيل الدخول وتأكد أنها لا تعيدك إلى صفحة الدخول.";
+  }
+
+  if (result.message.includes("تحويل إلى")) {
+    return "يوجد تحويل غير متوقع. راجع المسار الصحيح، أو إعدادات redirect، أو حماية الصفحة.";
+  }
+
+  if (result.message.includes("مهلة")) {
+    return "الصفحة بطيئة أو لا تستجيب. راجع البيانات الثقيلة، الصور، الفيديوهات، أو استعلامات Supabase.";
+  }
+
+  if (result.statusCode === 404) {
+    return `المسار ${item.href} غير موجود. يجب إنشاء الصفحة أو تعديل الرابط إلى المسار الصحيح.`;
+  }
+
+  if (result.statusCode === 401 || result.statusCode === 403) {
+    return "مشكلة صلاحيات. راجع Supabase Auth أو RLS أو شرط current_user_is_admin.";
+  }
+
+  if (result.statusCode && result.statusCode >= 500) {
+    return "خطأ سيرفر. راجع كود الصفحة، استعلامات Supabase، ومتغيرات البيئة في Vercel.";
+  }
+
+  if (result.status === "warning") {
+    return "افتح الرابط بصرياً وتأكد أن التحويل مقصود وأن الصفحة النهائية صحيحة.";
+  }
+
+  return "يحتاج مراجعة يدوية. افتح الرابط وشاهد الرسالة الظاهرة ثم أصلحه من الكود أو الإعدادات المناسبة.";
 }
 
 function statusLabel(status: CheckResult["status"]) {
