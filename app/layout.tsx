@@ -13,6 +13,9 @@ export const metadata: Metadata = {
   description:
     "وكالة حمزة — وكالة رقمية فاخرة لإدارة وتوظيف صناع المحتوى على منصات البث المباشر.",
   applicationName: "Hamza Agency",
+  generator: "Next.js",
+  creator: "HAMZA AGENCY",
+  publisher: "HAMZA AGENCY",
   manifest: "/manifest.webmanifest",
   keywords: [
     "وكالة حمزة",
@@ -53,6 +56,11 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
@@ -66,9 +74,27 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "HAMZA AGENCY",
+    alternateName: "وكالة حمزة",
+    url: siteUrl,
+    description:
+      "وكالة احترافية لإدارة وتوظيف ودعم صناع المحتوى على منصات البث المباشر والتواصل الاجتماعي.",
+  };
+
   return (
     <html lang="ar" dir="rtl">
-      <body>{children}</body>
+      <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationJsonLd),
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }
