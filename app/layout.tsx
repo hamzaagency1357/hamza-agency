@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import PublicFooterLinks from "@/components/PublicFooterLinks";
 import PublicQuickNav from "@/components/PublicQuickNav";
 import "./globals.css";
 
@@ -97,7 +96,6 @@ export default function RootLayout({
         />
         {children}
         <PublicQuickNav />
-        <PublicFooterLinks />
       </body>
     </html>
   );
