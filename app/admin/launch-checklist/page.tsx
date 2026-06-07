@@ -8,10 +8,14 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 type CheckItem = {
   label: string;
   href: string;
-  note?: string;
 };
 
-const STORAGE_KEY = "hamza-agency-launch-checklist-v1";
+type CheckResult = {
+  status: "idle" | "checking" | "ok" | "warning" | "error";
+  statusCode?: number;
+  message: string;
+  durationMs?: number;
+};
 
 const publicChecks: CheckItem[] = [
   { label: "الرئيسية", href: "/" },
@@ -60,34 +64,30 @@ const technicalChecks: CheckItem[] = [
   { label: "health endpoint", href: "/api/health" },
 ];
 
+const timeoutMs = 12000;
+
 export default function LaunchChecklistPage() {
   const router = useRouter();
   const [status, setStatus] = useState("checking");
   const [adminEmail, setAdminEmail] = useState("");
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [results, setResults] = useState<Record<string, CheckResult>>({});
+  const [isRunning, setIsRunning] = useState(false);
 
   const allItems = useMemo(
     () => [...publicChecks, ...adminChecks, ...technicalChecks],
     []
   );
 
-  const doneCount = allItems.filter((item) => checked[item.href]).length;
-  const progress = Math.round((doneCount / allItems.length) * 100);
-
-  useEffect(() => {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (!saved) return;
-
-    try {
-      setChecked(JSON.parse(saved));
-    } catch {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(checked));
-  }, [checked]);
+  const okCount = allItems.filter((item) => results[item.href]?.status === "ok")
+    .length;
+  const warningCount = allItems.filter(
+    (item) => results[item.href]?.status === "warning"
+  ).length;
+  const errorCount = allItems.filter(
+    (item) => results[item.href]?.status === "error"
+  ).length;
+  const checkedCount = okCount + warningCount + errorCount;
+  const progress = Math.round((checkedCount / allItems.length) * 100);
 
   useEffect(() => {
     async function checkAdminAccess() {
@@ -122,13 +122,92 @@ export default function LaunchChecklistPage() {
     checkAdminAccess();
   }, [router]);
 
-  function toggleChecked(href: string) {
-    setChecked((current) => ({ ...current, [href]: !current[href] }));
+  async function runSingleCheck(item: CheckItem): Promise<CheckResult> {
+    const startedAt = performance.now();
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(item.href, {
+        method: "GET",
+        cache: "no-store",
+        credentials: "same-origin",
+        signal: controller.signal,
+      });
+
+      const durationMs = Math.round(performance.now() - startedAt);
+      const finalUrl = new URL(response.url);
+      const requestedUrl = new URL(item.href, window.location.origin);
+      const redirectedToLogin = finalUrl.pathname.includes("/admin/login");
+
+      if (redirectedToLogin) {
+        return {
+          status: "error",
+          statusCode: response.status,
+          message: "تم التحويل إلى صفحة تسجيل الدخول",
+          durationMs,
+        };
+      }
+
+      if (finalUrl.pathname !== requestedUrl.pathname) {
+        return {
+          status: response.ok ? "warning" : "error",
+          statusCode: response.status,
+          message: `تحويل إلى ${finalUrl.pathname}`,
+          durationMs,
+        };
+      }
+
+      if (!response.ok) {
+        return {
+          status: "error",
+          statusCode: response.status,
+          message: `HTTP ${response.status}`,
+          durationMs,
+        };
+      }
+
+      return {
+        status: "ok",
+        statusCode: response.status,
+        message: "يعمل",
+        durationMs,
+      };
+    } catch (error) {
+      const durationMs = Math.round(performance.now() - startedAt);
+      const message = error instanceof Error ? error.message : "فشل الفحص";
+
+      return {
+        status: "error",
+        message: message.includes("aborted") ? "انتهت مهلة الفحص" : message,
+        durationMs,
+      };
+    } finally {
+      window.clearTimeout(timer);
+    }
   }
 
-  function resetChecklist() {
-    setChecked({});
-    window.localStorage.removeItem(STORAGE_KEY);
+  async function runAllChecks() {
+    setIsRunning(true);
+    setResults(
+      Object.fromEntries(
+        allItems.map((item) => [
+          item.href,
+          { status: "checking", message: "جاري الفحص" },
+        ])
+      )
+    );
+
+    for (const item of allItems) {
+      const result = await runSingleCheck(item);
+      setResults((current) => ({ ...current, [item.href]: result }));
+    }
+
+    setIsRunning(false);
+  }
+
+  function resetResults() {
+    setResults({});
   }
 
   if (status === "checking") {
@@ -153,15 +232,16 @@ export default function LaunchChecklistPage() {
           </p>
           <h1 className="mt-3 text-4xl font-black">فحص الإطلاق V1</h1>
           <p className="mt-3 text-sm leading-7 text-white/55">
-            صفحة داخلية لمراجعة روابط الإطلاق الأساسية بسرعة قبل ربط الدومين
-            الرسمي. الأدمن الحالي: {adminEmail}
+            فحص تلقائي للروابط الأساسية قبل ربط الدومين الرسمي. الأدمن الحالي:
+            {" "}
+            {adminEmail}
           </p>
 
           <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
             <div className="flex items-center justify-between gap-4 text-sm">
-              <span className="font-bold text-white/80">تقدم الفحص</span>
+              <span className="font-bold text-white/80">تقدم الفحص التلقائي</span>
               <span className="font-black text-yellow-200" dir="ltr">
-                {progress}% — {doneCount} / {allItems.length}
+                {progress}% — {checkedCount} / {allItems.length}
               </span>
             </div>
             <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/10">
@@ -171,41 +251,44 @@ export default function LaunchChecklistPage() {
               />
             </div>
 
-            <button
-              type="button"
-              onClick={resetChecklist}
-              className="mt-4 rounded-full border border-red-400/25 bg-red-500/10 px-4 py-2 text-xs font-black text-red-100 transition hover:bg-red-500/20"
-            >
-              إعادة ضبط الفحص
-            </button>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <SummaryCard label="يعمل" value={okCount} tone="green" />
+              <SummaryCard label="تحذير" value={warningCount} tone="yellow" />
+              <SummaryCard label="خطأ" value={errorCount} tone="red" />
+            </div>
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={runAllChecks}
+                disabled={isRunning}
+                className="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isRunning ? "جاري الفحص..." : "تشغيل الفحص التلقائي"}
+              </button>
+
+              <button
+                type="button"
+                onClick={resetResults}
+                disabled={isRunning}
+                className="rounded-full border border-red-400/25 bg-red-500/10 px-5 py-3 text-sm font-black text-red-100 transition hover:bg-red-500/20 disabled:opacity-50"
+              >
+                مسح النتائج
+              </button>
+            </div>
           </div>
         </div>
 
-        <ChecklistSection
-          title="الصفحات العامة"
-          items={publicChecks}
-          checked={checked}
-          onToggle={toggleChecked}
-        />
-        <ChecklistSection
-          title="صفحات الإدارة"
-          items={adminChecks}
-          checked={checked}
-          onToggle={toggleChecked}
-        />
-        <ChecklistSection
-          title="الفحوص التقنية"
-          items={technicalChecks}
-          checked={checked}
-          onToggle={toggleChecked}
-        />
+        <ChecklistSection title="الصفحات العامة" items={publicChecks} results={results} />
+        <ChecklistSection title="صفحات الإدارة" items={adminChecks} results={results} />
+        <ChecklistSection title="الفحوص التقنية" items={technicalChecks} results={results} />
 
         <div className="mt-8 rounded-[2rem] border border-purple-500/20 bg-purple-500/10 p-6">
-          <h2 className="text-2xl font-black">ملاحظات المرحلة</h2>
+          <h2 className="text-2xl font-black">ملاحظات الفحص</h2>
           <ul className="mt-4 space-y-3 text-sm leading-7 text-white/65">
-            <li>افتح كل رابط وتأكد أن الصفحة تعمل بدون رسائل اختبار أو نصوص داخلية.</li>
-            <li>اضغط تم بعد فحص كل رابط حتى تعرف نسبة تقدم الفحص.</li>
-            <li>تقدم الفحص يبقى محفوظاً على نفس الجهاز حتى بعد إغلاق الصفحة.</li>
+            <li>الفحص يتحقق من استجابة الصفحة وكود الحالة والتحويلات غير المتوقعة.</li>
+            <li>بعد ظهور النتائج، افتح أي رابط عليه خطأ أو تحذير لمراجعته بصرياً.</li>
+            <li>هذا لا يغيّر قاعدة البيانات ولا يغيّر حالات الطلبات.</li>
           </ul>
         </div>
       </section>
@@ -216,50 +299,123 @@ export default function LaunchChecklistPage() {
 function ChecklistSection({
   title,
   items,
-  checked,
-  onToggle,
+  results,
 }: {
   title: string;
   items: CheckItem[];
-  checked: Record<string, boolean>;
-  onToggle: (href: string) => void;
+  results: Record<string, CheckResult>;
 }) {
   return (
     <section className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur">
       <h2 className="text-2xl font-black">{title}</h2>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((item) => (
-          <div
-            key={item.href}
-            className="rounded-2xl border border-white/10 bg-black/25 p-4 transition hover:border-purple-400/50 hover:bg-purple-500/10"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <Link
-                href={item.href}
-                target={item.href.startsWith("/admin") ? undefined : "_blank"}
-                className="min-w-0 flex-1"
-              >
-                <div className="font-black text-white">{item.label}</div>
-                <div className="mt-1 break-all text-xs text-white/45">
-                  {item.href}
-                </div>
-              </Link>
+        {items.map((item) => {
+          const result = results[item.href] || {
+            status: "idle",
+            message: "لم يتم الفحص بعد",
+          };
 
-              <button
-                type="button"
-                onClick={() => onToggle(item.href)}
-                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black transition ${
-                  checked[item.href]
-                    ? "border-green-400/40 bg-green-500/20 text-green-100"
-                    : "border-white/10 bg-white/5 text-white/55"
-                }`}
-              >
-                {checked[item.href] ? "تم" : "فحص"}
-              </button>
+          return (
+            <div
+              key={item.href}
+              className={`rounded-2xl border p-4 transition ${resultClasses(
+                result.status
+              )}`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <Link
+                  href={item.href}
+                  target={item.href.startsWith("/admin") ? undefined : "_blank"}
+                  className="min-w-0 flex-1"
+                >
+                  <div className="font-black text-white">{item.label}</div>
+                  <div className="mt-1 break-all text-xs text-white/45">
+                    {item.href}
+                  </div>
+                </Link>
+
+                <span className={statusBadgeClasses(result.status)}>
+                  {statusLabel(result.status)}
+                </span>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/50">
+                <span>{result.message}</span>
+                {typeof result.statusCode === "number" && (
+                  <span dir="ltr">HTTP {result.statusCode}</span>
+                )}
+                {typeof result.durationMs === "number" && (
+                  <span dir="ltr">{result.durationMs}ms</span>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
+}
+
+function SummaryCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: "green" | "yellow" | "red";
+}) {
+  const tones = {
+    green: "border-green-400/25 bg-green-500/10 text-green-100",
+    yellow: "border-yellow-400/25 bg-yellow-500/10 text-yellow-100",
+    red: "border-red-400/25 bg-red-500/10 text-red-100",
+  };
+
+  return (
+    <div className={`rounded-2xl border p-4 ${tones[tone]}`}>
+      <div className="text-xs opacity-80">{label}</div>
+      <div className="mt-1 text-2xl font-black" dir="ltr">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function statusLabel(status: CheckResult["status"]) {
+  const labels = {
+    idle: "انتظار",
+    checking: "يفحص",
+    ok: "OK",
+    warning: "تحذير",
+    error: "خطأ",
+  };
+
+  return labels[status];
+}
+
+function statusBadgeClasses(status: CheckResult["status"]) {
+  const classes = {
+    idle: "rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-black text-white/55",
+    checking:
+      "rounded-full border border-blue-400/25 bg-blue-500/10 px-3 py-1 text-xs font-black text-blue-100",
+    ok: "rounded-full border border-green-400/30 bg-green-500/15 px-3 py-1 text-xs font-black text-green-100",
+    warning:
+      "rounded-full border border-yellow-400/30 bg-yellow-500/15 px-3 py-1 text-xs font-black text-yellow-100",
+    error:
+      "rounded-full border border-red-400/30 bg-red-500/15 px-3 py-1 text-xs font-black text-red-100",
+  };
+
+  return classes[status];
+}
+
+function resultClasses(status: CheckResult["status"]) {
+  const classes = {
+    idle: "border-white/10 bg-black/25 hover:border-purple-400/50 hover:bg-purple-500/10",
+    checking: "border-blue-400/20 bg-blue-500/10",
+    ok: "border-green-400/20 bg-green-500/10",
+    warning: "border-yellow-400/20 bg-yellow-500/10",
+    error: "border-red-400/25 bg-red-500/10",
+  };
+
+  return classes[status];
 }
