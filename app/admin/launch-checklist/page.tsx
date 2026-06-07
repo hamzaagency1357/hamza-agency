@@ -11,6 +11,8 @@ type CheckItem = {
   note?: string;
 };
 
+const STORAGE_KEY = "hamza-agency-launch-checklist-v1";
+
 const publicChecks: CheckItem[] = [
   { label: "الرئيسية", href: "/" },
   { label: "البرامج", href: "/programs" },
@@ -73,6 +75,21 @@ export default function LaunchChecklistPage() {
   const progress = Math.round((doneCount / allItems.length) * 100);
 
   useEffect(() => {
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+
+    try {
+      setChecked(JSON.parse(saved));
+    } catch {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(checked));
+  }, [checked]);
+
+  useEffect(() => {
     async function checkAdminAccess() {
       if (!isSupabaseConfigured || !supabase) {
         router.replace("/admin/login");
@@ -109,6 +126,11 @@ export default function LaunchChecklistPage() {
     setChecked((current) => ({ ...current, [href]: !current[href] }));
   }
 
+  function resetChecklist() {
+    setChecked({});
+    window.localStorage.removeItem(STORAGE_KEY);
+  }
+
   if (status === "checking") {
     return (
       <main
@@ -138,8 +160,8 @@ export default function LaunchChecklistPage() {
           <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
             <div className="flex items-center justify-between gap-4 text-sm">
               <span className="font-bold text-white/80">تقدم الفحص</span>
-              <span className="font-black text-yellow-200">
-                {doneCount} / {allItems.length} — {progress}%
+              <span className="font-black text-yellow-200" dir="ltr">
+                {progress}% — {doneCount} / {allItems.length}
               </span>
             </div>
             <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/10">
@@ -148,6 +170,14 @@ export default function LaunchChecklistPage() {
                 style={{ width: `${progress}%` }}
               />
             </div>
+
+            <button
+              type="button"
+              onClick={resetChecklist}
+              className="mt-4 rounded-full border border-red-400/25 bg-red-500/10 px-4 py-2 text-xs font-black text-red-100 transition hover:bg-red-500/20"
+            >
+              إعادة ضبط الفحص
+            </button>
           </div>
         </div>
 
@@ -175,7 +205,7 @@ export default function LaunchChecklistPage() {
           <ul className="mt-4 space-y-3 text-sm leading-7 text-white/65">
             <li>افتح كل رابط وتأكد أن الصفحة تعمل بدون رسائل اختبار أو نصوص داخلية.</li>
             <li>اضغط تم بعد فحص كل رابط حتى تعرف نسبة تقدم الفحص.</li>
-            <li>تأكد من الجوال واللابتوب قبل اعتماد الإطلاق.</li>
+            <li>تقدم الفحص يبقى محفوظاً على نفس الجهاز حتى بعد إغلاق الصفحة.</li>
           </ul>
         </div>
       </section>
