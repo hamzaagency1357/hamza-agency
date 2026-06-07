@@ -80,6 +80,28 @@ button {
   }
 }
 
+@keyframes hamzaCardFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(14px, 10px, 0) rotate(8deg);
+  }
+}
+
+@keyframes hamzaCardPulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
