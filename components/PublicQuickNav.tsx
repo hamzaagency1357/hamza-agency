@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const publicLinks = [
   { label: "الرئيسية", href: "/" },
@@ -24,11 +24,24 @@ const publicLinks = [
 export default function PublicQuickNav() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
 
-  if (pathname.startsWith("/admin")) return null;
+  useEffect(() => {
+    setIsOpen(false);
+    setIsVisible(false);
+
+    if (pathname.startsWith("/admin")) return;
+
+    const delay = pathname === "/" ? 3600 : 600;
+    const timer = window.setTimeout(() => setIsVisible(true), delay);
+
+    return () => window.clearTimeout(timer);
+  }, [pathname]);
+
+  if (pathname.startsWith("/admin") || !isVisible) return null;
 
   return (
-    <div dir="rtl" className="fixed bottom-4 right-4 z-[75] print:hidden">
+    <div dir="rtl" className="fixed bottom-4 right-4 z-[35] print:hidden">
       {isOpen && (
         <div className="mb-3 max-h-[70vh] w-[min(320px,calc(100vw-2rem))] overflow-y-auto rounded-3xl border border-purple-400/25 bg-[#09000f]/95 p-3 shadow-[0_0_70px_rgba(124,58,237,0.35)] backdrop-blur-xl">
           <div className="mb-3 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3">
