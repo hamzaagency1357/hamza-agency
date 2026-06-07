@@ -36,7 +36,7 @@ export default function PublicQuickNav() {
               HAMZA AGENCY
             </div>
             <div className="mt-1 text-sm font-black text-white">
-              روابط الموقع
+              صفحات الموقع
             </div>
           </div>
 
@@ -72,7 +72,7 @@ export default function PublicQuickNav() {
         onClick={() => setIsOpen((current) => !current)}
         className="rounded-full border border-yellow-300/35 bg-[#12051f]/95 px-5 py-3 text-sm font-black text-yellow-100 shadow-[0_0_35px_rgba(234,179,8,0.18)] transition hover:bg-purple-900/90"
       >
-        {isOpen ? "إغلاق الروابط" : "روابط الموقع"}
+        {isOpen ? "إغلاق الصفحات" : "صفحات الموقع"}
       </button>
     </div>
   );
