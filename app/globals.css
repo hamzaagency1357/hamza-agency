@@ -19,7 +19,7 @@ body {
   width: 100%;
   max-width: 100%;
   min-height: 100%;
-  background: #180826;
+  background: #241045;
   color: white;
 }
 
@@ -29,6 +29,54 @@ body {
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-x: none;
+}
+
+.public-site-page {
+  background:
+    radial-gradient(circle at 50% -8%, rgba(216, 180, 254, 0.32), transparent 30%),
+    radial-gradient(circle at 18% 18%, rgba(124, 58, 237, 0.28), transparent 30%),
+    radial-gradient(circle at 82% 22%, rgba(212, 175, 55, 0.16), transparent 26%),
+    linear-gradient(135deg, #2b0b4f 0%, #42157a 38%, #241045 72%, #11051f 100%);
+}
+
+.public-site-page main {
+  background:
+    radial-gradient(circle at 50% 18%, rgba(168, 85, 247, 0.32), transparent 34%),
+    radial-gradient(circle at 50% 72%, rgba(212, 175, 55, 0.08), transparent 38%),
+    linear-gradient(180deg, rgba(78, 25, 135, 0.28), rgba(17, 5, 31, 0.28)) !important;
+}
+
+.public-site-page .pointer-events-none.fixed.inset-0.z-0.overflow-hidden > .absolute.inset-0:first-child {
+  background: linear-gradient(180deg, #2f0c56 0%, #220a3e 48%, #12051f 100%) !important;
+}
+
+.public-site-page .pointer-events-none.fixed.inset-0.z-0.overflow-hidden > .absolute.inset-0:nth-child(2) {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(124, 58, 237, 0.48), transparent 54%),
+    radial-gradient(circle at 18% 22%, rgba(168, 85, 247, 0.18), transparent 34%),
+    radial-gradient(circle at 82% 30%, rgba(212, 175, 55, 0.1), transparent 34%) !important;
+}
+
+.public-site-page .premium-bottom-shadow {
+  background: linear-gradient(to top, rgba(12, 3, 24, 0.72), rgba(12, 3, 24, 0.22), transparent) !important;
+}
+
+.public-site-page h1 {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 980px;
+  background: linear-gradient(90deg, #c084fc 0%, #ffffff 44%, #facc15 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  text-shadow: 0 0 34px rgba(216, 180, 254, 0.18);
+}
+
+.public-site-page h1 span {
+  background: linear-gradient(90deg, #d8b4fe 0%, #ffffff 42%, #fde68a 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
 }
 
 body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black {
@@ -140,6 +188,12 @@ button {
     min-width: 320px;
   }
 
+  .public-site-page h1 {
+    max-width: 92vw;
+    font-size: clamp(3.6rem, 13vw, 5.2rem) !important;
+    line-height: 1.18 !important;
+  }
+
   body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black img {
     width: 176px;
     height: 176px;
@@ -161,20 +215,11 @@ button {
   .public-site-page {
     background:
       linear-gradient(180deg, #7c3aed 0, #7c3aed 72px, transparent 72px),
-      radial-gradient(circle at 50% -10%, rgba(216, 180, 254, 0.28), transparent 30%),
-      radial-gradient(circle at 15% 15%, rgba(124, 58, 237, 0.28), transparent 28%),
+      radial-gradient(circle at 50% -10%, rgba(216, 180, 254, 0.34), transparent 30%),
+      radial-gradient(circle at 15% 15%, rgba(124, 58, 237, 0.32), transparent 28%),
       radial-gradient(circle at 86% 18%, rgba(212, 175, 55, 0.18), transparent 24%),
-      linear-gradient(135deg, #1b0731 0%, #35105f 36%, #180826 70%, #09020f 100%);
+      linear-gradient(135deg, #2b0b4f 0%, #42157a 36%, #241045 70%, #11051f 100%);
     background-attachment: fixed;
-  }
-
-  .public-site-page main {
-    width: 100%;
-    isolation: isolate;
-    background:
-      linear-gradient(180deg, rgba(124, 58, 237, 0.95) 0, rgba(124, 58, 237, 0.62) 18px, transparent 88px),
-      radial-gradient(circle at 50% 22%, rgba(168, 85, 247, 0.2), transparent 32%),
-      linear-gradient(180deg, rgba(71, 24, 118, 0.22), rgba(5, 0, 8, 0.38));
   }
 
   .public-site-page main > section,
@@ -193,8 +238,8 @@ button {
   }
 
   .public-site-page h1 {
-    letter-spacing: -0.025em;
-    text-shadow: 0 0 34px rgba(216, 180, 254, 0.18);
+    font-size: clamp(4rem, 5.7vw, 6.4rem) !important;
+    line-height: 1.18 !important;
   }
 
   .public-site-page p,
@@ -231,7 +276,7 @@ button {
   .public-site-page [class*="bg-black"],
   .public-site-page [class*="bg-[#050008]"],
   .public-site-page [class*="bg-[#070009]"] {
-    background-color: rgba(18, 6, 33, 0.62) !important;
+    background-color: rgba(31, 10, 56, 0.58) !important;
   }
 
   .public-site-page [class*="border-white/10"],
