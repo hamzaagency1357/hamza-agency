@@ -7,6 +7,8 @@ export const size = {
 };
 export const contentType = "image/png";
 
+const logoUrl = "https://hamza-agency.vercel.app/Logo%20hamza%20agency.jpg";
+
 export default function Icon() {
   return new ImageResponse(
     (
@@ -17,16 +19,18 @@ export default function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          borderRadius: "18px",
-          background:
-            "linear-gradient(135deg, #050008 0%, #2e1065 48%, #d4af37 100%)",
-          color: "white",
-          fontSize: 34,
-          fontWeight: 900,
-          letterSpacing: "-0.08em",
+          background: "#050008",
         }}
       >
-        HA
+        <img
+          src={logoUrl}
+          alt="HAMZA AGENCY"
+          style={{
+            width: "64px",
+            height: "64px",
+            objectFit: "cover",
+          }}
+        />
       </div>
     ),
     size
