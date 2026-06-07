@@ -8,16 +8,50 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  background: #050008;
 }
 
 html,
 body {
   margin: 0;
   padding: 0;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100%;
   background: #050008;
   color: white;
 }
 
 body {
+  overflow-x: hidden;
   font-family: Arial, sans-serif;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-x: none;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+a,
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+@media (max-width: 768px) {
+  body {
+    min-width: 320px;
+  }
 }
