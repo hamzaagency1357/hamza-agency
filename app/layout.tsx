@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import PublicFooterLinks from "@/components/PublicFooterLinks";
 import "./globals.css";
 
 const siteUrl =
@@ -94,6 +95,7 @@ export default function RootLayout({
           }}
         />
         {children}
+        <PublicFooterLinks />
       </body>
     </html>
   );
