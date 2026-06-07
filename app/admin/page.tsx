@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
@@ -27,18 +26,22 @@ type DashboardCounts = {
   media: number;
   announcements: number;
   notifications: number;
+  jobs: number;
+  reviews: number;
+  successStories: number;
+  partners: number;
+  gallery: number;
 };
 
-type Tone =
-  | "purple"
-  | "gold"
-  | "green"
-  | "blue"
-  | "cyan"
-  | "pink"
-  | "amber"
-  | "red"
-  | "slate";
+type Tone = "purple" | "gold" | "green" | "blue" | "cyan" | "pink" | "amber" | "red" | "slate";
+
+type AdminLink = {
+  title: string;
+  description: string;
+  href: string;
+  tone: Tone;
+  badge?: string;
+};
 
 const statusLabel: Record<string, string> = {
   new: "جديد",
@@ -54,147 +57,92 @@ const statusTone: Record<string, Tone> = {
   rejected: "red",
 };
 
-const navItems = [
-  {
-    title: "لوحة التحكم",
-    href: "/admin",
-    icon: "◆",
-    tone: "gold" as Tone,
-    description: "الرئيسية",
-  },
+const dailyLinks: AdminLink[] = [
   {
     title: "طلبات الانضمام",
-    href: "/admin#applications",
-    icon: "◎",
-    tone: "blue" as Tone,
-    description: "المتقدمون",
+    description: "مراجعة المتقدمين وتغيير الحالة ونسخ بيانات التواصل.",
+    href: "#applications",
+    tone: "blue",
+    badge: "يومي",
   },
   {
     title: "طلبات الخدمات",
+    description: "إدارة طلبات الشحن والسحب والخدمات الرقمية.",
     href: "/admin/service-requests",
-    icon: "◉",
-    tone: "green" as Tone,
-    description: "الخدمات الرقمية",
+    tone: "green",
+    badge: "مهم",
   },
   {
-    title: "إدارة البرامج",
+    title: "البرامج",
+    description: "إدارة TikTok وBIGO LIVE وYaahlan وXena وCatchii.",
     href: "/admin/programs",
-    icon: "▣",
-    tone: "purple" as Tone,
-    description: "TikTok / BIGO / Xena",
+    tone: "purple",
   },
   {
-    title: "إدارة الصفحات",
+    title: "فحص الإطلاق",
+    description: "تشغيل فحص الروابط والتشخيص قبل الإطلاق.",
+    href: "/admin/launch-checklist",
+    tone: "gold",
+  },
+];
+
+const contentLinks: AdminLink[] = [
+  {
+    title: "الصفحات",
+    description: "إدارة صفحات الموقع ومحتواها الأساسي.",
     href: "/admin/pages",
-    icon: "▤",
-    tone: "cyan" as Tone,
-    description: "Pages CMS",
+    tone: "cyan",
   },
   {
-    title: "مكتبة الوسائط",
+    title: "الوسائط",
+    description: "تنظيم الصور والخلفيات والملفات المرئية.",
     href: "/admin/media",
-    icon: "◈",
-    tone: "pink" as Tone,
-    description: "صور وفيديوهات",
+    tone: "pink",
   },
   {
     title: "الإعلانات",
+    description: "إدارة الشريط الإعلاني والتنبيهات العامة.",
     href: "/admin/announcements",
-    icon: "✦",
-    tone: "amber" as Tone,
-    description: "الشريط العلوي",
+    tone: "amber",
   },
   {
     title: "الإعدادات",
+    description: "هوية الموقع، الواتساب، SEO، ومعلومات التواصل.",
     href: "/admin/settings",
-    icon: "⚙",
-    tone: "green" as Tone,
-    description: "هوية و SEO",
+    tone: "green",
   },
 ];
 
-const coreModules = [
-  {
-    title: "Service Requests",
-    subtitle: "طلبات الخدمات الرقمية",
-    description:
-      "عرض طلبات الخدمات الرقمية وتغيير الحالة وحفظ الملاحظات وفتح واتساب للعميل.",
-    href: "/admin/service-requests",
-    status: "مكتمل",
-    tone: "green" as Tone,
-  },
-  {
-    title: "Programs",
-    subtitle: "إدارة البرامج",
-    description:
-      "إضافة وتعديل وإظهار وإخفاء برامج الوكالة وربطها بالصفحات العامة.",
-    href: "/admin/programs",
-    status: "مكتمل",
-    tone: "purple" as Tone,
-  },
-  {
-    title: "Pages CMS",
-    subtitle: "إدارة الصفحات",
-    description:
-      "إنشاء وتعديل صفحات الموقع وربطها بالمحتوى و SEO وحالة النشر.",
-    href: "/admin/pages",
-    status: "مكتمل",
-    tone: "cyan" as Tone,
-  },
-  {
-    title: "Settings CMS",
-    subtitle: "إعدادات الموقع",
-    description:
-      "إدارة اسم الوكالة، الألوان، الواتساب، البريد، SEO، اللغات، والصيانة.",
-    href: "/admin/settings",
-    status: "مكتمل",
-    tone: "green" as Tone,
-  },
-  {
-    title: "Media Library",
-    subtitle: "مكتبة الوسائط",
-    description:
-      "إدارة الصور، الفيديوهات، الشعارات، الخلفيات، والوسائط البرمجية.",
-    href: "/admin/media",
-    status: "مكتمل",
-    tone: "pink" as Tone,
-  },
-  {
-    title: "Announcements",
-    subtitle: "الإعلانات",
-    description:
-      "إدارة الشريط الإعلاني والتنبيهات العامة وجدولة الظهور والإخفاء.",
-    href: "/admin/announcements",
-    status: "مكتمل",
-    tone: "amber" as Tone,
-  },
-];
-
-const upcomingModules = [
+const growthLinks: AdminLink[] = [
   {
     title: "الوظائف",
-    description: "إدارة الوظائف والأسئلة المخصصة وطلبات التقديم.",
-    tone: "blue" as Tone,
+    description: "إدارة الفرص وطلبات التقديم.",
+    href: "/admin/jobs",
+    tone: "blue",
   },
   {
-    title: "التقييمات وقصص النجاح",
-    description: "إدارة آراء العملاء والشركاء والنجاحات والمعرض.",
-    tone: "gold" as Tone,
+    title: "التقييمات",
+    description: "إدارة آراء العملاء وصناع المحتوى.",
+    href: "/admin/reviews",
+    tone: "gold",
   },
   {
-    title: "Operations",
-    description: "Activity Log، Trash، Version History، Backup، Export.",
-    tone: "green" as Tone,
+    title: "قصص النجاح",
+    description: "إدارة قصص النجاح المنشورة.",
+    href: "/admin/success-stories",
+    tone: "purple",
   },
   {
-    title: "AI Support",
-    description: "مركز الذكاء الصناعي وقاعدة المعرفة والتحويل إلى واتساب.",
-    tone: "cyan" as Tone,
+    title: "الشركاء",
+    description: "إدارة شركاء وبرامج الوكالة.",
+    href: "/admin/partners",
+    tone: "green",
   },
   {
-    title: "Page Builder",
-    description: "منشئ صفحات احترافي White Label Ready.",
-    tone: "pink" as Tone,
+    title: "المعرض",
+    description: "إدارة عناصر المعرض المرئي.",
+    href: "/admin/gallery",
+    tone: "pink",
   },
 ];
 
@@ -206,8 +154,10 @@ export default function AdminPage() {
   const [adminEmail, setAdminEmail] = useState("");
 
   const [applications, setApplications] = useState<Application[]>([]);
-  const [selectedApplication, setSelectedApplication] =
-    useState<Application | null>(null);
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [internalNotes, setInternalNotes] = useState("");
+  const [search, setSearch] = useState("");
+  const [error, setError] = useState("");
 
   const [counts, setCounts] = useState<DashboardCounts>({
     applications: 0,
@@ -217,11 +167,12 @@ export default function AdminPage() {
     media: 0,
     announcements: 0,
     notifications: 0,
+    jobs: 0,
+    reviews: 0,
+    successStories: 0,
+    partners: 0,
+    gallery: 0,
   });
-
-  const [search, setSearch] = useState("");
-  const [error, setError] = useState("");
-  const [internalNotes, setInternalNotes] = useState("");
 
   useEffect(() => {
     async function checkAdminAccess() {
@@ -239,9 +190,7 @@ export default function AdminPage() {
         return;
       }
 
-      const { data: isAdmin, error: adminError } = await supabase.rpc(
-        "current_user_is_admin"
-      );
+      const { data: isAdmin, error: adminError } = await supabase.rpc("current_user_is_admin");
 
       if (adminError || !isAdmin) {
         await supabase.auth.signOut();
@@ -266,15 +215,15 @@ export default function AdminPage() {
         return;
       }
 
-      const { data, error } = await supabase
+      const { data, error: applicationsError } = await supabase
         .from("agency_applications")
         .select(
           "id, full_name, country, whatsapp, platform, previous_experience, notes, status, internal_notes, created_at"
         )
         .order("created_at", { ascending: false });
 
-      if (error) {
-        setError("لا يمكن قراءة الطلبات حالياً. سنراجع صلاحيات RLS.");
+      if (applicationsError) {
+        setError("لا يمكن قراءة طلبات الانضمام حالياً.");
       } else {
         setApplications(data || []);
       }
@@ -287,6 +236,11 @@ export default function AdminPage() {
         mediaCount,
         announcementsCount,
         notificationsCount,
+        jobsCount,
+        reviewsCount,
+        successStoriesCount,
+        partnersCount,
+        galleryCount,
       ] = await Promise.all([
         getCount("agency_applications"),
         getCount("service_requests"),
@@ -295,6 +249,11 @@ export default function AdminPage() {
         getCount("media"),
         getCount("announcements"),
         getCount("notifications"),
+        getCount("jobs"),
+        getCount("reviews"),
+        getCount("success_stories"),
+        getCount("partners"),
+        getCount("gallery_items"),
       ]);
 
       setCounts({
@@ -305,6 +264,11 @@ export default function AdminPage() {
         media: mediaCount,
         announcements: announcementsCount,
         notifications: notificationsCount,
+        jobs: jobsCount,
+        reviews: reviewsCount,
+        successStories: successStoriesCount,
+        partners: partnersCount,
+        gallery: galleryCount,
       });
     }
 
@@ -323,27 +287,19 @@ export default function AdminPage() {
   }
 
   const filteredApplications = useMemo(() => {
-    return applications.filter((app) => {
-      const text =
-        `${app.full_name} ${app.country} ${app.whatsapp} ${app.platform}`.toLowerCase();
+    const query = search.trim().toLowerCase();
+    if (!query) return applications.slice(0, 12);
 
-      return text.includes(search.toLowerCase());
+    return applications.filter((app) => {
+      const text = `${app.full_name} ${app.country} ${app.whatsapp} ${app.platform}`.toLowerCase();
+      return text.includes(query);
     });
   }, [applications, search]);
 
-  const newCount = applications.filter((a) => a.status === "new").length;
-
-  const underReviewCount = applications.filter(
-    (a) => a.status === "under_review"
-  ).length;
-
-  const acceptedCount = applications.filter(
-    (a) => a.status === "accepted"
-  ).length;
-
-  const rejectedCount = applications.filter(
-    (a) => a.status === "rejected"
-  ).length;
+  const newCount = applications.filter((app) => app.status === "new").length;
+  const underReviewCount = applications.filter((app) => app.status === "under_review").length;
+  const acceptedCount = applications.filter((app) => app.status === "accepted").length;
+  const rejectedCount = applications.filter((app) => app.status === "rejected").length;
 
   async function updateStatus(id: number, status: string) {
     if (!supabase) return;
@@ -376,7 +332,7 @@ export default function AdminPage() {
       .eq("id", selectedApplication.id);
 
     if (error) {
-      alert("فشل حفظ ملاحظات الأدمن");
+      alert("فشل حفظ الملاحظات الداخلية");
       return;
     }
 
@@ -393,7 +349,7 @@ export default function AdminPage() {
       internal_notes: internalNotes,
     });
 
-    alert("تم حفظ ملاحظات الأدمن بنجاح");
+    alert("تم حفظ الملاحظات الداخلية");
   }
 
   function openDetails(app: Application) {
@@ -403,24 +359,24 @@ export default function AdminPage() {
 
   function copyWhatsAppNumber(number: string) {
     navigator.clipboard.writeText(number);
-    alert("تم نسخ رقم الواتساب");
+    alert("تم نسخ رقم واتساب");
   }
 
   function copyApplicationInfo(app: Application) {
     const info = `
 الاسم الكامل: ${app.full_name}
 الدولة: ${app.country}
-رقم الواتساب: ${app.whatsapp}
+رقم واتساب: ${app.whatsapp}
 البرنامج: ${app.platform}
 الحالة: ${statusLabel[app.status] || app.status}
 تاريخ الطلب: ${new Date(app.created_at).toLocaleDateString("ar")}
 الخبرات السابقة: ${app.previous_experience || "لا يوجد"}
 الملاحظات الإضافية: ${app.notes || "لا يوجد"}
-ملاحظات الأدمن: ${app.internal_notes || "لا يوجد"}
+الملاحظات الداخلية: ${app.internal_notes || "لا يوجد"}
     `.trim();
 
     navigator.clipboard.writeText(info);
-    alert("تم نسخ جميع معلومات الطلب");
+    alert("تم نسخ معلومات الطلب");
   }
 
   async function logout() {
@@ -433,320 +389,206 @@ export default function AdminPage() {
     return (
       <main
         dir="rtl"
-        className="flex min-h-screen items-center justify-center overflow-x-hidden bg-[#070009] text-white"
+        className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white"
       >
-        <div className="rounded-3xl border border-purple-500/25 bg-black/40 p-8 text-center shadow-[0_0_80px_rgba(124,58,237,0.25)]">
-          <div className="mb-3 text-sm text-purple-200">HAMZA AGENCY</div>
-          <div className="text-2xl font-black">
-            جاري التحقق من صلاحية الدخول...
+        <div className="rounded-3xl border border-purple-500/25 bg-black/45 p-8 text-center shadow-[0_0_80px_rgba(124,58,237,0.24)]">
+          <div className="mb-3 text-sm font-black tracking-[0.25em] text-yellow-200">
+            HAMZA AGENCY
           </div>
+          <div className="text-2xl font-black">جاري التحقق من صلاحية الدخول...</div>
         </div>
       </main>
     );
   }
 
   return (
-    <main
-      dir="rtl"
-      className="min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-[#070009] text-white"
-    >
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#4c0a77_0%,#09000d_42%,#000_100%)]" />
-      <div className="fixed inset-0 -z-10 opacity-25 [background-image:linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:44px_44px]" />
+    <main dir="rtl" className="min-h-screen bg-[#070009] text-white">
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#3b0764_0%,#070009_46%,#000_100%)]" />
 
-      <div className="mx-auto grid w-full max-w-[1500px] grid-cols-1 gap-6 p-4 xl:grid-cols-[320px_minmax(0,1fr)] xl:p-6">
-        <aside className="flex w-full max-w-full flex-col overflow-hidden rounded-[2rem] border border-purple-500/20 bg-black/45 p-4 shadow-[0_0_80px_rgba(124,58,237,0.12)] backdrop-blur xl:sticky xl:top-6 xl:h-[calc(100vh-48px)]">
-          <div className="shrink-0 overflow-hidden rounded-3xl border border-yellow-400/25 bg-gradient-to-br from-yellow-400/10 via-purple-500/10 to-black p-5">
-            <div className="text-xs font-bold uppercase tracking-[0.3em] text-yellow-200">
-              HAMZA AGENCY
+      <section className="mx-auto max-w-[1380px] px-5 py-6 lg:px-8">
+        <header className="sticky top-0 z-30 mb-6 rounded-[1.75rem] border border-white/10 bg-[#08000d]/90 p-4 shadow-[0_0_70px_rgba(124,58,237,0.14)] backdrop-blur-xl">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-black tracking-[0.3em] text-yellow-200">
+                HAMZA AGENCY
+              </p>
+              <h1 className="mt-2 text-3xl font-black lg:text-4xl">لوحة الإدارة</h1>
+              <p className="mt-1 break-all text-xs text-white/45">{adminEmail}</p>
             </div>
 
-            <h2 className="mt-3 text-3xl font-black text-white">
-              لوحة التحكم
-            </h2>
-
-            <p className="mt-2 break-all text-xs leading-6 text-white/50">
-              {adminEmail}
-            </p>
-
-            <div className="mt-4 rounded-2xl border border-green-500/25 bg-green-500/10 p-3">
-              <div className="text-xs text-green-200">حالة النظام</div>
-              <div className="mt-1 text-lg font-black text-green-100">
-                متصل بقاعدة البيانات
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-3xl border border-white/10 bg-black/20 p-2 [scrollbar-color:rgba(168,85,247,0.55)_transparent] [scrollbar-width:thin]">
-            <nav className="grid grid-cols-1 gap-2">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`group flex min-w-0 items-center justify-between rounded-2xl border px-4 py-3 text-sm transition ${toneSoftClasses(
-                    item.tone
-                  )}`}
-                >
-                  <div className="min-w-0">
-                    <div className="truncate font-bold text-white">
-                      {item.title}
-                    </div>
-                    <div className="mt-1 truncate text-xs text-white/45">
-                      {item.description}
-                    </div>
-                  </div>
-
-                  <span
-                    className={`mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-lg ${toneIconClasses(
-                      item.tone
-                    )}`}
-                  >
-                    {item.icon}
-                  </span>
-                </Link>
-              ))}
-            </nav>
-          </div>
-
-          <button
-            onClick={logout}
-            className="mt-4 w-full shrink-0 rounded-2xl border border-red-500/35 bg-red-500/10 px-4 py-3 font-bold text-red-200 transition hover:bg-red-500/20"
-          >
-            تسجيل الخروج
-          </button>
-        </aside>
-
-        <section className="w-full min-w-0 overflow-hidden">
-          <div className="mb-6 overflow-hidden rounded-[2rem] border border-yellow-400/25 bg-black/45 p-6 shadow-[0_0_100px_rgba(212,175,55,0.08)]">
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-center">
-              <div className="min-w-0">
-                <div className="mb-4 flex flex-wrap gap-2">
-                  <Badge tone="gold">Core CMS Foundation</Badge>
-                  <Badge tone="green">Production System</Badge>
-                  <Badge tone="purple">Luxury Admin</Badge>
-                </div>
-
-                <p className="mb-2 text-sm font-bold tracking-[0.25em] text-yellow-200">
-                  مركز الإدارة الرئيسي
-                </p>
-
-                <h1 className="max-w-4xl break-words text-4xl font-black leading-tight md:text-5xl 2xl:text-6xl">
-                  لوحة إدارة{" "}
-                  <span className="bg-gradient-to-l from-yellow-200 via-white to-purple-200 bg-clip-text text-transparent">
-                    وكالة حمزة
-                  </span>
-                </h1>
-
-                <p className="mt-4 max-w-4xl leading-8 text-white/65">
-                  مركز إدارة الطلبات، البرامج، الصفحات، الوسائط، الإعلانات،
-                  الإعدادات، والتنبيهات. تم تحسين الألوان والتمييز البصري حتى
-                  تكون كل وحدة واضحة وسريعة القراءة.
-                </p>
-              </div>
-
-              <div className="grid min-w-0 gap-3">
-                <SystemCard
-                  title="مرحلة التنفيذ"
-                  value="المرحلة 1"
-                  tone="purple"
-                />
-                <SystemCard
-                  title="Core CMS"
-                  value="مكتمل أساسياً"
-                  tone="green"
-                />
-              </div>
-            </div>
-          </div>
-
-          <SectionHeader
-            eyebrow="نظرة عامة"
-            title="إحصائيات النظام"
-            description="كل كرت له لون مخصص حتى لا تختلط الأقسام والإحصائيات مع بعضها."
-            tone="gold"
-          />
-
-          <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-7">
-            <StatCard title="طلبات الانضمام" value={counts.applications} tone="blue" />
-            <StatCard title="طلبات الخدمات" value={counts.serviceRequests} tone="green" />
-            <StatCard title="البرامج" value={counts.programs} tone="purple" />
-            <StatCard title="الصفحات" value={counts.pages} tone="cyan" />
-            <StatCard title="الوسائط" value={counts.media} tone="pink" />
-            <StatCard title="الإعلانات" value={counts.announcements} tone="amber" />
-            <StatCard title="التنبيهات" value={counts.notifications} tone="green" />
-          </div>
-
-          <div className="mb-8 overflow-hidden rounded-[2rem] border border-green-400/20 bg-green-500/10 p-6">
-            <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-              <SectionTitle
-                eyebrow="الخدمات الرقمية"
-                title="طلبات الخدمات"
-                description="إدارة طلبات الشحن والسحب والخدمات الرقمية التي تصل من صفحة /service-request."
-                tone="green"
-              />
-
+            <div className="flex flex-wrap gap-3">
               <Link
-                href="/admin/service-requests"
-                className="rounded-2xl bg-gradient-to-r from-green-600 to-emerald-500 px-5 py-3 text-center font-black text-white shadow-[0_0_35px_rgba(34,197,94,0.2)] transition hover:scale-[1.02]"
+                href="/admin/launch-checklist"
+                className="rounded-2xl border border-yellow-300/25 bg-yellow-400/10 px-4 py-3 text-sm font-black text-yellow-100 transition hover:bg-yellow-400/15"
               >
-                فتح إدارة طلبات الخدمات
+                فحص الإطلاق
               </Link>
-            </div>
-          </div>
-
-          <SectionHeader
-            eyebrow="طلبات الانضمام"
-            title="حالة الطلبات"
-            description="ألوان الحالات تساعدك على معرفة وضع الطلبات بسرعة."
-            tone="blue"
-          />
-
-          <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="طلبات جديدة" value={newCount} tone="blue" />
-            <StatCard title="قيد المراجعة" value={underReviewCount} tone="amber" />
-            <StatCard title="مقبولة" value={acceptedCount} tone="green" />
-            <StatCard title="مرفوضة" value={rejectedCount} tone="red" />
-          </div>
-
-          <div className="mb-8 overflow-hidden rounded-[2rem] border border-purple-500/20 bg-black/45 p-6">
-            <div className="mb-6 grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-              <SectionTitle
-                eyebrow="وحدات الإدارة المكتملة"
-                title="Core CMS Foundation"
-                description="هذه الوحدات تم بناؤها وربطها مع Supabase ضمن المرحلة الأولى وما بعدها."
-                tone="purple"
-              />
-
               <Link
-                href="/admin/programs"
-                className="rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-5 py-3 text-center font-black shadow-[0_0_35px_rgba(168,85,247,0.25)] transition hover:scale-[1.02]"
+                href="/"
+                target="_blank"
+                className="rounded-2xl border border-purple-300/25 bg-purple-500/10 px-4 py-3 text-sm font-black text-purple-100 transition hover:bg-purple-500/15"
               >
-                فتح إدارة البرامج
+                عرض الموقع
               </Link>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
-              {coreModules.map((module) => (
-                <ModuleCard
-                  key={module.title}
-                  title={module.title}
-                  subtitle={module.subtitle}
-                  description={module.description}
-                  href={module.href}
-                  status={module.status}
-                  tone={module.tone}
-                />
-              ))}
+              <button
+                onClick={logout}
+                className="rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm font-black text-red-100 transition hover:bg-red-500/20"
+              >
+                خروج
+              </button>
             </div>
           </div>
+        </header>
 
-          <div className="mb-8 overflow-hidden rounded-[2rem] border border-yellow-400/20 bg-black/45 p-6">
-            <SectionTitle
-              eyebrow="المراحل القادمة"
-              title="وحدات سيتم بناؤها لاحقاً"
-              description="هذه الوحدات من الخطة الرسمية ولم تُلغَ. تظهر هنا حتى تبقى خارطة المشروع واضحة."
+        <div className="mb-6 grid gap-4 lg:grid-cols-4">
+          <FocusStat label="طلبات جديدة" value={newCount} tone="blue" />
+          <FocusStat label="قيد المراجعة" value={underReviewCount} tone="amber" />
+          <FocusStat label="طلبات خدمات" value={counts.serviceRequests} tone="green" />
+          <FocusStat label="تنبيهات" value={counts.notifications} tone="purple" />
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="grid gap-6">
+            <DashboardPanel
+              eyebrow="الاستخدام اليومي"
+              title="المهام الأساسية"
+              description="أهم العمليات التي يحتاجها فريق الوكالة يومياً بدون ازدحام."
               tone="gold"
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                {dailyLinks.map((link) => (
+                  <AdminActionCard key={link.href} item={link} />
+                ))}
+              </div>
+            </DashboardPanel>
+
+            <DashboardPanel
+              eyebrow="المحتوى والإعدادات"
+              title="إدارة الموقع"
+              description="روابط المحتوى، الوسائط، الإعلانات، والإعدادات في مكان واحد."
+              tone="purple"
+            >
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {contentLinks.map((link) => (
+                  <CompactLinkCard key={link.href} item={link} />
+                ))}
+              </div>
+            </DashboardPanel>
+
+            <DashboardPanel
+              eyebrow="النمو والثقة"
+              title="الأقسام المنشورة"
+              description="إدارة الأقسام التي تدعم ثقة الزائر وانتشار الوكالة."
+              tone="green"
+            >
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                {growthLinks.map((link) => (
+                  <CompactLinkCard key={link.href} item={link} />
+                ))}
+              </div>
+            </DashboardPanel>
+          </div>
+
+          <aside className="grid gap-6">
+            <DashboardPanel
+              eyebrow="نظرة سريعة"
+              title="أرقام النظام"
+              description="ملخص بسيط بدون تفاصيل مزعجة."
+              tone="cyan"
+            >
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                <MiniCount label="طلبات الانضمام" value={counts.applications} tone="blue" />
+                <MiniCount label="البرامج" value={counts.programs} tone="purple" />
+                <MiniCount label="الصفحات" value={counts.pages} tone="cyan" />
+                <MiniCount label="الوسائط" value={counts.media} tone="pink" />
+                <MiniCount label="الإعلانات" value={counts.announcements} tone="amber" />
+                <MiniCount label="الوظائف" value={counts.jobs} tone="green" />
+                <MiniCount label="التقييمات" value={counts.reviews} tone="gold" />
+                <MiniCount label="قصص النجاح" value={counts.successStories} tone="purple" />
+                <MiniCount label="الشركاء" value={counts.partners} tone="green" />
+                <MiniCount label="المعرض" value={counts.gallery} tone="pink" />
+              </div>
+            </DashboardPanel>
+          </aside>
+        </div>
+
+        <section
+          id="applications"
+          className="mt-6 rounded-[2rem] border border-blue-400/20 bg-black/45 p-5 shadow-[0_0_70px_rgba(59,130,246,0.08)] backdrop-blur"
+        >
+          <div className="mb-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+            <div>
+              <p className="text-xs font-black tracking-[0.25em] text-blue-200">المتقدمون</p>
+              <h2 className="mt-2 text-3xl font-black">طلبات الانضمام</h2>
+              <p className="mt-2 text-sm leading-7 text-white/55">
+                عرض مختصر للطلبات. التفاصيل الكاملة داخل زر عرض التفاصيل.
+              </p>
+            </div>
+
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="بحث بالاسم، الدولة، واتساب، البرنامج..."
+              className="w-full rounded-2xl border border-blue-400/20 bg-blue-500/10 px-5 py-4 text-white outline-none placeholder:text-white/35 focus:border-blue-300/60"
             />
-
-            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
-              {upcomingModules.map((module) => (
-                <div
-                  key={module.title}
-                  className={`min-w-0 rounded-3xl border p-5 ${toneSoftClasses(
-                    module.tone
-                  )}`}
-                >
-                  <Badge tone={module.tone}>قادم لاحقاً</Badge>
-                  <h3 className="mt-4 break-words text-2xl font-black">
-                    {module.title}
-                  </h3>
-                  <p className="mt-3 leading-7 text-white/55">
-                    {module.description}
-                  </p>
-                </div>
-              ))}
-            </div>
           </div>
 
-          <div
-            id="applications"
-            className="overflow-hidden rounded-[2rem] border border-blue-500/20 bg-black/45 p-6"
-          >
-            <div className="mb-6 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(260px,360px)] md:items-center">
-              <SectionTitle
-                eyebrow="إدارة المتقدمين"
-                title="طلبات الانضمام"
-                description="عرض مختصر للطلبات مع زر تفاصيل لكل طلب لتجنب ازدحام الجدول."
-                tone="blue"
-              />
-
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="بحث بالاسم، الدولة، الواتساب، البرنامج..."
-                className="w-full rounded-2xl border border-blue-400/20 bg-blue-500/10 px-5 py-4 text-white outline-none placeholder:text-white/35 focus:border-blue-300/60"
-              />
+          {error && (
+            <div className="mb-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-100">
+              {error}
             </div>
+          )}
 
-            {error && (
-              <div className="mb-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-100">
-                {error}
-              </div>
-            )}
+          {filteredApplications.length === 0 ? (
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center text-white/55">
+              لا توجد طلبات مطابقة حالياً.
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-3xl border border-white/10">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] text-sm">
+                  <thead className="bg-white/[0.06] text-white/70">
+                    <tr>
+                      <th className="px-4 py-4 text-right">الاسم</th>
+                      <th className="px-4 py-4 text-right">الدولة</th>
+                      <th className="px-4 py-4 text-right">البرنامج</th>
+                      <th className="px-4 py-4 text-right">الحالة</th>
+                      <th className="px-4 py-4 text-right">التاريخ</th>
+                      <th className="px-4 py-4 text-right">إجراء</th>
+                    </tr>
+                  </thead>
 
-            {filteredApplications.length === 0 ? (
-              <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center text-white/55">
-                لا توجد طلبات مطابقة حالياً.
-              </div>
-            ) : (
-              <div className="overflow-hidden rounded-3xl border border-white/10">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[760px] text-sm">
-                    <thead className="bg-white/[0.06] text-white/70">
-                      <tr>
-                        <th className="px-4 py-4 text-right">الاسم</th>
-                        <th className="px-4 py-4 text-right">الدولة</th>
-                        <th className="px-4 py-4 text-right">البرنامج</th>
-                        <th className="px-4 py-4 text-right">الحالة</th>
-                        <th className="px-4 py-4 text-right">التاريخ</th>
-                        <th className="px-4 py-4 text-right">إجراء</th>
+                  <tbody>
+                    {filteredApplications.map((app) => (
+                      <tr key={app.id} className="border-t border-white/10 bg-black/20">
+                        <td className="px-4 py-4 font-bold">{app.full_name}</td>
+                        <td className="px-4 py-4 text-white/65">{app.country}</td>
+                        <td className="px-4 py-4 text-white/65">{app.platform}</td>
+                        <td className="px-4 py-4">
+                          <Badge tone={statusTone[app.status] || "slate"}>
+                            {statusLabel[app.status] || app.status}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-4 text-white/50">
+                          {new Date(app.created_at).toLocaleDateString("ar")}
+                        </td>
+                        <td className="px-4 py-4">
+                          <button
+                            onClick={() => openDetails(app)}
+                            className="rounded-xl border border-purple-400/25 bg-purple-500/10 px-4 py-2 font-bold text-purple-100 hover:bg-purple-500/20"
+                          >
+                            عرض التفاصيل
+                          </button>
+                        </td>
                       </tr>
-                    </thead>
-
-                    <tbody>
-                      {filteredApplications.map((app) => (
-                        <tr
-                          key={app.id}
-                          className="border-t border-white/10 bg-black/20"
-                        >
-                          <td className="px-4 py-4 font-bold">{app.full_name}</td>
-                          <td className="px-4 py-4 text-white/65">{app.country}</td>
-                          <td className="px-4 py-4 text-white/65">{app.platform}</td>
-                          <td className="px-4 py-4">
-                            <Badge tone={statusTone[app.status] || "slate"}>
-                              {statusLabel[app.status] || app.status}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-4 text-white/50">
-                            {new Date(app.created_at).toLocaleDateString("ar")}
-                          </td>
-                          <td className="px-4 py-4">
-                            <button
-                              onClick={() => openDetails(app)}
-                              className="rounded-xl border border-purple-400/25 bg-purple-500/10 px-4 py-2 font-bold text-purple-100 hover:bg-purple-500/20"
-                            >
-                              عرض التفاصيل
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </section>
-      </div>
+      </section>
 
       {selectedApplication && (
         <ApplicationDetailsModal
@@ -761,6 +603,79 @@ export default function AdminPage() {
         />
       )}
     </main>
+  );
+}
+
+function DashboardPanel({
+  eyebrow,
+  title,
+  description,
+  tone,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  tone: Tone;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className={`rounded-[2rem] border bg-black/45 p-5 backdrop-blur ${toneBorderClasses(tone)}`}>
+      <div className="mb-5">
+        <p className={`text-xs font-black tracking-[0.25em] ${toneTextClasses(tone)}`}>{eyebrow}</p>
+        <h2 className="mt-2 text-3xl font-black">{title}</h2>
+        <p className="mt-2 text-sm leading-7 text-white/55">{description}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function AdminActionCard({ item }: { item: AdminLink }) {
+  return (
+    <Link
+      href={item.href}
+      className={`group block rounded-3xl border p-5 transition hover:scale-[1.01] ${toneSoftClasses(item.tone)}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          {item.badge && <Badge tone={item.tone}>{item.badge}</Badge>}
+          <h3 className="mt-3 text-2xl font-black">{item.title}</h3>
+        </div>
+        <span className={`rounded-2xl border px-3 py-2 text-lg ${toneIconClasses(item.tone)}`}>↗</span>
+      </div>
+      <p className="mt-3 leading-7 text-white/60">{item.description}</p>
+    </Link>
+  );
+}
+
+function CompactLinkCard({ item }: { item: AdminLink }) {
+  return (
+    <Link
+      href={item.href}
+      className={`block rounded-2xl border p-4 transition hover:scale-[1.01] ${toneSoftClasses(item.tone)}`}
+    >
+      <div className="font-black text-white">{item.title}</div>
+      <div className="mt-2 text-xs leading-6 text-white/52">{item.description}</div>
+    </Link>
+  );
+}
+
+function FocusStat({ label, value, tone }: { label: string; value: number; tone: Tone }) {
+  return (
+    <div className={`rounded-3xl border p-5 ${toneSoftClasses(tone)}`}>
+      <div className="text-sm text-white/55">{label}</div>
+      <div className="mt-2 text-4xl font-black" dir="ltr">{value}</div>
+    </div>
+  );
+}
+
+function MiniCount({ label, value, tone }: { label: string; value: number; tone: Tone }) {
+  return (
+    <div className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${toneSoftClasses(tone)}`}>
+      <span className="text-sm font-bold text-white/75">{label}</span>
+      <span className="text-xl font-black" dir="ltr">{value}</span>
+    </div>
   );
 }
 
@@ -791,17 +706,13 @@ function ApplicationDetailsModal({
             <Badge tone={statusTone[application.status] || "slate"}>
               {statusLabel[application.status] || application.status}
             </Badge>
-            <h2 className="mt-3 text-3xl font-black">
-              {application.full_name}
-            </h2>
-            <p className="mt-2 text-white/50">
-              {new Date(application.created_at).toLocaleString("ar")}
-            </p>
+            <h2 className="mt-3 text-3xl font-black">{application.full_name}</h2>
+            <p className="mt-1 text-white/50">{application.platform}</p>
           </div>
 
           <button
             onClick={onClose}
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 font-bold text-white/75 hover:bg-white/[0.08]"
+            className="rounded-2xl border border-white/15 px-5 py-3 font-bold text-white/70 hover:bg-white/10"
           >
             إغلاق
           </button>
@@ -810,85 +721,69 @@ function ApplicationDetailsModal({
         <div className="grid gap-4 md:grid-cols-2">
           <DetailBox label="الدولة" value={application.country} />
           <DetailBox label="رقم واتساب" value={application.whatsapp} />
-          <DetailBox label="البرنامج" value={application.platform} />
           <DetailBox
-            label="الحالة"
-            value={statusLabel[application.status] || application.status}
+            label="تاريخ الطلب"
+            value={new Date(application.created_at).toLocaleString("ar")}
           />
+          <DetailBox label="البرنامج" value={application.platform} />
         </div>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <TextAreaBox
+        <div className="mt-4 grid gap-4">
+          <DetailBox
             label="الخبرات السابقة"
             value={application.previous_experience || "لا يوجد"}
           />
-          <TextAreaBox
-            label="ملاحظات المتقدم"
-            value={application.notes || "لا يوجد"}
-          />
+          <DetailBox label="ملاحظات إضافية" value={application.notes || "لا يوجد"} />
         </div>
 
-        <div className="mt-5 rounded-3xl border border-white/10 bg-black/25 p-5">
-          <label className="mb-3 block font-black text-white/75">
-            تغيير حالة الطلب
-          </label>
-
-          <select
-            value={application.status}
-            onChange={(event) =>
-              onUpdateStatus(application.id, event.target.value)
-            }
-            className="w-full rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-white outline-none"
-          >
-            <option value="new">جديد</option>
-            <option value="under_review">قيد المراجعة</option>
-            <option value="accepted">مقبول</option>
-            <option value="rejected">مرفوض</option>
-          </select>
+        <div className="mt-6 rounded-3xl border border-white/10 bg-black/25 p-5">
+          <h3 className="text-xl font-black">تغيير الحالة</h3>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {Object.entries(statusLabel).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => onUpdateStatus(application.id, value)}
+                className={`rounded-full border px-5 py-3 font-bold ${
+                  application.status === value
+                    ? toneSoftClasses(statusTone[value] || "slate")
+                    : "border-white/10 bg-white/[0.03] text-white/60 hover:bg-white/10"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="mt-5 rounded-3xl border border-white/10 bg-black/25 p-5">
-          <label className="mb-3 block font-black text-white/75">
-            ملاحظات داخلية
-          </label>
-
+        <div className="mt-6 rounded-3xl border border-white/10 bg-black/25 p-5">
+          <h3 className="text-xl font-black">ملاحظات داخلية</h3>
           <textarea
             value={internalNotes}
             onChange={(event) => setInternalNotes(event.target.value)}
-            className="min-h-32 w-full resize-none rounded-2xl border border-white/10 bg-black/40 p-4 text-white outline-none"
-            placeholder="اكتب ملاحظات داخلية لا تظهر للمتقدم..."
+            className="mt-4 min-h-32 w-full resize-none rounded-2xl border border-white/10 bg-black/35 p-4 text-white outline-none focus:border-purple-400"
+            placeholder="اكتب ملاحظات داخلية لفريق الإدارة"
           />
-
           <button
             onClick={onSaveNotes}
-            className="mt-4 w-full rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-5 py-3 font-black"
+            className="mt-4 rounded-2xl bg-purple-600 px-5 py-3 font-black text-white hover:bg-purple-500"
           >
             حفظ الملاحظات
           </button>
         </div>
 
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <div className="mt-6 flex flex-col gap-3 md:flex-row">
           <button
             onClick={() => onCopyWhatsApp(application.whatsapp)}
-            className="rounded-2xl border border-green-400/25 bg-green-500/10 px-5 py-3 font-black text-green-100"
+            className="rounded-2xl border border-green-400/25 bg-green-500/10 px-5 py-3 font-black text-green-100 hover:bg-green-500/20"
           >
             نسخ رقم واتساب
           </button>
-
           <button
             onClick={() => onCopyInfo(application)}
-            className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 px-5 py-3 font-black text-yellow-100"
+            className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 px-5 py-3 font-black text-yellow-100 hover:bg-yellow-500/20"
           >
-            نسخ كل المعلومات
+            نسخ معلومات الطلب كاملة
           </button>
-
-          <a
-            href={`https://wa.me/${application.whatsapp.replace(/[^\d]/g, "")}`}
-            target="_blank"
-            className="rounded-2xl bg-green-500 px-5 py-3 text-center font-black text-white"
-          >
-            فتح واتساب
-          </a>
         </div>
       </div>
     </div>
@@ -897,173 +792,48 @@ function ApplicationDetailsModal({
 
 function DetailBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-      <div className="text-xs font-black text-white/45">{label}</div>
-      <div className="mt-2 break-words font-bold text-white">{value}</div>
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="text-xs font-bold text-white/40">{label}</div>
+      <div className="mt-2 break-words text-lg font-bold text-white/82">{value}</div>
     </div>
   );
 }
 
-function TextAreaBox({ label, value }: { label: string; value: string }) {
+function Badge({ children, tone }: { children: React.ReactNode; tone: Tone }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-      <div className="mb-3 text-xs font-black text-white/45">{label}</div>
-      <div className="min-h-24 whitespace-pre-wrap leading-7 text-white/75">
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function Badge({ children, tone }: { children: ReactNode; tone: Tone }) {
-  return (
-    <span
-      className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${badgeClasses(
-        tone
-      )}`}
-    >
+    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${badgeClasses(tone)}`}>
       {children}
     </span>
   );
 }
 
-function SystemCard({
-  title,
-  value,
-  tone,
-}: {
-  title: string;
-  value: string;
-  tone: Tone;
-}) {
-  return (
-    <div className={`rounded-2xl border p-4 ${toneSoftClasses(tone)}`}>
-      <div className="text-xs text-white/50">{title}</div>
-      <div className="mt-2 text-xl font-black">{value}</div>
-    </div>
-  );
-}
-
-function SectionHeader({
-  eyebrow,
-  title,
-  description,
-  tone,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  tone: Tone;
-}) {
-  return (
-    <div className="mb-5">
-      <Badge tone={tone}>{eyebrow}</Badge>
-      <h2 className="mt-3 text-3xl font-black">{title}</h2>
-      <p className="mt-2 leading-7 text-white/55">{description}</p>
-    </div>
-  );
-}
-
-function SectionTitle({
-  eyebrow,
-  title,
-  description,
-  tone,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  tone: Tone;
-}) {
-  return (
-    <div>
-      <Badge tone={tone}>{eyebrow}</Badge>
-      <h2 className="mt-3 text-3xl font-black">{title}</h2>
-      <p className="mt-2 leading-7 text-white/55">{description}</p>
-    </div>
-  );
-}
-
-function StatCard({
-  title,
-  value,
-  tone,
-}: {
-  title: string;
-  value: number;
-  tone: Tone;
-}) {
-  return (
-    <div className={`rounded-3xl border p-5 text-center ${toneSoftClasses(tone)}`}>
-      <div className="text-4xl font-black text-white">{value}</div>
-      <div className="mt-2 text-sm font-bold text-white/55">{title}</div>
-    </div>
-  );
-}
-
-function ModuleCard({
-  title,
-  subtitle,
-  description,
-  href,
-  status,
-  tone,
-}: {
-  title: string;
-  subtitle: string;
-  description: string;
-  href: string;
-  status: string;
-  tone: Tone;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`block min-w-0 rounded-3xl border p-5 transition hover:scale-[1.01] ${toneSoftClasses(
-        tone
-      )}`}
-    >
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <Badge tone={tone}>{status}</Badge>
-        <span className={`text-xs font-bold ${toneTextClasses(tone)}`}>
-          فتح
-        </span>
-      </div>
-
-      <div className="text-sm font-black text-white/50">{title}</div>
-      <h3 className="mt-2 break-words text-2xl font-black">{subtitle}</h3>
-      <p className="mt-3 leading-7 text-white/55">{description}</p>
-    </Link>
-  );
-}
-
 function toneSoftClasses(tone: Tone) {
   const classes: Record<Tone, string> = {
-    purple: "border-purple-400/20 bg-purple-500/10 hover:bg-purple-500/15",
-    gold: "border-yellow-400/20 bg-yellow-500/10 hover:bg-yellow-500/15",
-    green: "border-green-400/20 bg-green-500/10 hover:bg-green-500/15",
-    blue: "border-blue-400/20 bg-blue-500/10 hover:bg-blue-500/15",
-    cyan: "border-cyan-400/20 bg-cyan-500/10 hover:bg-cyan-500/15",
-    pink: "border-pink-400/20 bg-pink-500/10 hover:bg-pink-500/15",
-    amber: "border-amber-400/20 bg-amber-500/10 hover:bg-amber-500/15",
-    red: "border-red-400/20 bg-red-500/10 hover:bg-red-500/15",
-    slate: "border-slate-400/20 bg-slate-500/10 hover:bg-slate-500/15",
+    purple: "border-purple-400/20 bg-purple-500/10 text-purple-100",
+    gold: "border-yellow-400/20 bg-yellow-500/10 text-yellow-100",
+    green: "border-green-400/20 bg-green-500/10 text-green-100",
+    blue: "border-blue-400/20 bg-blue-500/10 text-blue-100",
+    cyan: "border-cyan-400/20 bg-cyan-500/10 text-cyan-100",
+    pink: "border-pink-400/20 bg-pink-500/10 text-pink-100",
+    amber: "border-amber-400/20 bg-amber-500/10 text-amber-100",
+    red: "border-red-400/20 bg-red-500/10 text-red-100",
+    slate: "border-slate-400/20 bg-slate-500/10 text-slate-100",
   };
 
   return classes[tone];
 }
 
-function toneIconClasses(tone: Tone) {
+function toneBorderClasses(tone: Tone) {
   const classes: Record<Tone, string> = {
-    purple: "border-purple-300/20 bg-purple-500/15 text-purple-100",
-    gold: "border-yellow-300/20 bg-yellow-500/15 text-yellow-100",
-    green: "border-green-300/20 bg-green-500/15 text-green-100",
-    blue: "border-blue-300/20 bg-blue-500/15 text-blue-100",
-    cyan: "border-cyan-300/20 bg-cyan-500/15 text-cyan-100",
-    pink: "border-pink-300/20 bg-pink-500/15 text-pink-100",
-    amber: "border-amber-300/20 bg-amber-500/15 text-amber-100",
-    red: "border-red-300/20 bg-red-500/15 text-red-100",
-    slate: "border-slate-300/20 bg-slate-500/15 text-slate-100",
+    purple: "border-purple-400/20 shadow-[0_0_70px_rgba(168,85,247,0.08)]",
+    gold: "border-yellow-400/20 shadow-[0_0_70px_rgba(234,179,8,0.08)]",
+    green: "border-green-400/20 shadow-[0_0_70px_rgba(34,197,94,0.08)]",
+    blue: "border-blue-400/20 shadow-[0_0_70px_rgba(59,130,246,0.08)]",
+    cyan: "border-cyan-400/20 shadow-[0_0_70px_rgba(34,211,238,0.08)]",
+    pink: "border-pink-400/20 shadow-[0_0_70px_rgba(236,72,153,0.08)]",
+    amber: "border-amber-400/20 shadow-[0_0_70px_rgba(245,158,11,0.08)]",
+    red: "border-red-400/20 shadow-[0_0_70px_rgba(239,68,68,0.08)]",
+    slate: "border-slate-400/20 shadow-[0_0_70px_rgba(148,163,184,0.08)]",
   };
 
   return classes[tone];
@@ -1085,7 +855,7 @@ function toneTextClasses(tone: Tone) {
   return classes[tone];
 }
 
-function badgeClasses(tone: Tone) {
+function toneIconClasses(tone: Tone) {
   const classes: Record<Tone, string> = {
     purple: "border-purple-300/25 bg-purple-500/15 text-purple-100",
     gold: "border-yellow-300/25 bg-yellow-500/15 text-yellow-100",
@@ -1096,6 +866,22 @@ function badgeClasses(tone: Tone) {
     amber: "border-amber-300/25 bg-amber-500/15 text-amber-100",
     red: "border-red-300/25 bg-red-500/15 text-red-100",
     slate: "border-slate-300/25 bg-slate-500/15 text-slate-100",
+  };
+
+  return classes[tone];
+}
+
+function badgeClasses(tone: Tone) {
+  const classes: Record<Tone, string> = {
+    purple: "border-purple-300/30 bg-purple-500/15 text-purple-100",
+    gold: "border-yellow-300/30 bg-yellow-500/15 text-yellow-100",
+    green: "border-green-300/30 bg-green-500/15 text-green-100",
+    blue: "border-blue-300/30 bg-blue-500/15 text-blue-100",
+    cyan: "border-cyan-300/30 bg-cyan-500/15 text-cyan-100",
+    pink: "border-pink-300/30 bg-pink-500/15 text-pink-100",
+    amber: "border-amber-300/30 bg-amber-500/15 text-amber-100",
+    red: "border-red-300/30 bg-red-500/15 text-red-100",
+    slate: "border-slate-300/30 bg-slate-500/15 text-slate-100",
   };
 
   return classes[tone];
