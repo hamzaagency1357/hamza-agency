@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import PublicQuickNav from "@/components/PublicQuickNav";
 import PublicDesktopEnhancer from "@/components/PublicDesktopEnhancer";
 import PublicIntroAndTransitions from "@/components/PublicIntroAndTransitions";
-import PublicPlatformExperience from "@/components/PublicPlatformExperience";
 import "./globals.css";
 
 const siteUrl =
@@ -100,7 +99,6 @@ export default function RootLayout({
         <PublicDesktopEnhancer />
         <PublicIntroAndTransitions />
         {children}
-        <PublicPlatformExperience />
         <PublicQuickNav />
       </body>
     </html>
