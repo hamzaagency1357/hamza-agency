@@ -7,6 +7,8 @@ export const size = {
 };
 export const contentType = "image/png";
 
+const logoUrl = "https://hamza-agency.vercel.app/Logo%20hamza%20agency.jpg";
+
 export default function OpenGraphImage() {
   return new ImageResponse(
     (
@@ -15,68 +17,30 @@ export default function OpenGraphImage() {
           width: "100%",
           height: "100%",
           display: "flex",
-          flexDirection: "column",
+          alignItems: "center",
           justifyContent: "center",
-          padding: "70px",
           background:
-            "radial-gradient(circle at 68% 18%, rgba(212,175,55,0.28) 0%, transparent 24%), radial-gradient(circle at 22% 18%, rgba(124,58,237,0.5) 0%, transparent 30%), linear-gradient(135deg, #050008 0%, #16072a 52%, #050008 100%)",
-          color: "white",
-          fontFamily: "Arial",
+            "radial-gradient(circle at 50% 18%, rgba(124,58,237,0.38) 0%, transparent 30%), radial-gradient(circle at 74% 28%, rgba(212,175,55,0.22) 0%, transparent 28%), linear-gradient(135deg, #050008 0%, #16072a 50%, #050008 100%)",
         }}
       >
         <div
           style={{
-            color: "#f5d77a",
-            fontSize: 28,
-            fontWeight: 900,
-            letterSpacing: "0.28em",
+            width: "420px",
+            height: "420px",
+            borderRadius: "64px",
+            overflow: "hidden",
+            boxShadow: "0 0 90px rgba(124,58,237,0.55)",
           }}
         >
-          HAMZA AGENCY
-        </div>
-
-        <div
-          style={{
-            marginTop: 34,
-            maxWidth: 860,
-            fontSize: 74,
-            lineHeight: 1.12,
-            fontWeight: 900,
-            textAlign: "right",
-            direction: "rtl",
-          }}
-        >
-          وكالة حمزة لإدارة وتطوير صناع المحتوى
-        </div>
-
-        <div
-          style={{
-            marginTop: 30,
-            maxWidth: 820,
-            color: "rgba(255,255,255,0.72)",
-            fontSize: 30,
-            lineHeight: 1.55,
-            textAlign: "right",
-            direction: "rtl",
-          }}
-        >
-          منصة وكالة احترافية للتوظيف والدعم وإدارة المواهب على منصات البث المباشر.
-        </div>
-
-        <div
-          style={{
-            position: "absolute",
-            right: 70,
-            bottom: 58,
-            padding: "16px 26px",
-            borderRadius: 999,
-            border: "1px solid rgba(212,175,55,0.45)",
-            color: "#f5d77a",
-            fontSize: 22,
-            fontWeight: 800,
-          }}
-        >
-          TikTok • BIGO LIVE • Yaahlan • Xena • Catchii
+          <img
+            src={logoUrl}
+            alt="HAMZA AGENCY"
+            style={{
+              width: "420px",
+              height: "420px",
+              objectFit: "cover",
+            }}
+          />
         </div>
       </div>
     ),
