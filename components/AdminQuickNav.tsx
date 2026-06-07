@@ -1,0 +1,80 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+
+const adminLinks = [
+  { label: "الرئيسية", href: "/admin" },
+  { label: "طلبات الخدمات", href: "/admin/service-requests" },
+  { label: "البرامج", href: "/admin/programs" },
+  { label: "الصفحات", href: "/admin/pages" },
+  { label: "الوسائط", href: "/admin/media" },
+  { label: "الإعلانات", href: "/admin/announcements" },
+  { label: "الإعدادات", href: "/admin/settings" },
+  { label: "الوظائف", href: "/admin/jobs" },
+  { label: "التقييمات", href: "/admin/reviews" },
+  { label: "قصص النجاح", href: "/admin/success-stories" },
+  { label: "الشركاء", href: "/admin/partners" },
+  { label: "المعرض", href: "/admin/gallery" },
+  { label: "فحص الإطلاق", href: "/admin/launch-checklist" },
+];
+
+export default function AdminQuickNav() {
+  const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (pathname === "/admin/login") return null;
+
+  return (
+    <div dir="rtl" className="fixed bottom-4 left-4 z-[80] print:hidden">
+      {isOpen && (
+        <div className="mb-3 max-h-[70vh] w-[min(320px,calc(100vw-2rem))] overflow-y-auto rounded-3xl border border-purple-400/25 bg-[#09000f]/95 p-3 shadow-[0_0_70px_rgba(124,58,237,0.35)] backdrop-blur-xl">
+          <div className="mb-3 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3">
+            <div className="text-xs font-black uppercase tracking-[0.25em] text-yellow-200">
+              HAMZA AGENCY
+            </div>
+            <div className="mt-1 text-sm font-black text-white">
+              تنقل سريع للإدارة
+            </div>
+          </div>
+
+          <nav className="grid gap-2">
+            {adminLinks.map((link) => {
+              const active =
+                link.href === "/admin"
+                  ? pathname === "/admin"
+                  : pathname.startsWith(link.href);
+
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setIsOpen(false)}
+                  className={`rounded-2xl border px-4 py-3 text-sm font-bold transition ${
+                    active
+                      ? "border-yellow-300/35 bg-yellow-400/15 text-yellow-100"
+                      : "border-white/10 bg-white/[0.04] text-white/75 hover:border-purple-300/45 hover:bg-purple-500/10 hover:text-white"
+                  }`}
+                >
+                  <span className="block">{link.label}</span>
+                  <span className="mt-1 block text-[11px] font-normal text-white/38" dir="ltr">
+                    {link.href}
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setIsOpen((current) => !current)}
+        className="rounded-full border border-purple-300/35 bg-purple-600 px-5 py-3 text-sm font-black text-white shadow-[0_0_35px_rgba(168,85,247,0.35)] transition hover:bg-purple-500"
+      >
+        {isOpen ? "إغلاق التنقل" : "تنقل الإدارة"}
+      </button>
+    </div>
+  );
+}
