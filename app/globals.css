@@ -9,7 +9,7 @@
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;
-  background: #130624;
+  background: #7c3aed;
 }
 
 html,
@@ -19,7 +19,7 @@ body {
   width: 100%;
   max-width: 100%;
   min-height: 100%;
-  background: #130624;
+  background: #180826;
   color: white;
 }
 
@@ -29,6 +29,10 @@ body {
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-x: none;
+}
+
+body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black {
+  display: none !important;
 }
 
 img,
@@ -100,6 +104,7 @@ button {
 @media (min-width: 1024px) {
   .public-site-page {
     background:
+      linear-gradient(180deg, #7c3aed 0, #7c3aed 72px, transparent 72px),
       radial-gradient(circle at 50% -10%, rgba(216, 180, 254, 0.28), transparent 30%),
       radial-gradient(circle at 15% 15%, rgba(124, 58, 237, 0.28), transparent 28%),
       radial-gradient(circle at 86% 18%, rgba(212, 175, 55, 0.18), transparent 24%),
@@ -111,6 +116,7 @@ button {
     width: 100%;
     isolation: isolate;
     background:
+      linear-gradient(180deg, rgba(124, 58, 237, 0.95) 0, rgba(124, 58, 237, 0.62) 18px, transparent 88px),
       radial-gradient(circle at 50% 22%, rgba(168, 85, 247, 0.2), transparent 32%),
       linear-gradient(180deg, rgba(71, 24, 118, 0.22), rgba(5, 0, 8, 0.38));
   }
