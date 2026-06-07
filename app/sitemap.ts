@@ -6,6 +6,11 @@ const siteUrl =
 const publicRoutes = [
   "",
   "/programs",
+  "/programs/tiktok",
+  "/programs/bigo-live",
+  "/programs/yaahlan",
+  "/programs/xena",
+  "/programs/catchii",
   "/about",
   "/services",
   "/digital-services",
