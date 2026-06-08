@@ -17,6 +17,7 @@ export type AdminModule =
   | "success_stories"
   | "partners"
   | "gallery"
+  | "notifications"
   | "launch_checklist";
 
 export type AdminProfile = {
@@ -47,6 +48,7 @@ const superAdminModules: AdminModule[] = [
   "success_stories",
   "partners",
   "gallery",
+  "notifications",
   "launch_checklist",
 ];
 
@@ -64,6 +66,7 @@ const deputySuperAdminModules: AdminModule[] = [
   "success_stories",
   "partners",
   "gallery",
+  "notifications",
   "launch_checklist",
 ];
 
