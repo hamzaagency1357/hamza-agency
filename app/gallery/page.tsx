@@ -161,9 +161,9 @@ async function getMediaLibraryGalleryItems(): Promise<GalleryItem[]> {
         thumbnail_url: isVideo ? null : url,
         effect_type: null,
         external_url: null,
-        alt_text: isVideo ? "صورة من معرض وكالة حمزة",
-        button_label: "فتح الملف",
-        button_url: url,
+        alt_text: isVideo ? "فيديو من معرض وكالة حمزة" : "صورة من معرض وكالة حمزة",
+        button_label: null,
+        button_url: null,
         status: "published",
         is_visible: true,
         is_featured: false,
@@ -311,6 +311,7 @@ export default async function GalleryPage() {
             <a
               href="https://wa.me/905011730377"
               target="_blank"
+              rel="noreferrer"
               className="rounded-full bg-green-500 px-8 py-4 font-black text-white shadow-2xl"
             >
               التواصل عبر واتساب
@@ -341,8 +342,9 @@ function GalleryCard({
       ? "فيديو ضمن معرض وكالة حمزة."
       : "صورة ضمن معرض وكالة حمزة."
     : item.description || "لقطة بصرية ضمن معرض وكالة حمزة.";
-  const buttonUrl = item.button_url || "/programs";
-  const buttonLabel = item.button_label || "معرفة المزيد";
+  const buttonUrl = isLibraryUpload ? null : item.button_url || "/programs";
+  const buttonLabel = isLibraryUpload ? null : item.button_label || "معرفة المزيد";
+  const imageAlt = mediaType === "video" ? "فيديو من معرض وكالة حمزة" : "صورة من معرض وكالة حمزة";
 
   return (
     <article
@@ -356,7 +358,7 @@ function GalleryCard({
         {mediaType === "image" && item.media_url ? (
           <img
             src={item.thumbnail_url || item.media_url}
-            alt={mediaType === "video" ? "فيديو من معرض وكالة حمزة" : "صورة من معرض وكالة حمزة"}
+            alt={imageAlt}
             loading="lazy"
             className="h-full w-full object-contain bg-black/45 p-2"
           />
@@ -366,6 +368,7 @@ function GalleryCard({
             className="h-full w-full object-contain bg-black/45 p-2"
             controls
             preload="metadata"
+            aria-label="فيديو من معرض وكالة حمزة"
           />
         ) : mediaType === "video" && item.thumbnail_url ? (
           <div className="relative h-full w-full">
@@ -403,23 +406,25 @@ function GalleryCard({
 
         <p className="mt-4 leading-8 text-white/65">{description}</p>
 
-        {buttonUrl.startsWith("http") ? (
-          <a
-            href={buttonUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-6 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 text-sm font-black text-white/75"
-          >
-            {buttonLabel}
-          </a>
-        ) : (
-          <Link
-            href={buttonUrl}
-            className="mt-6 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 text-sm font-black text-white/75"
-          >
-            {buttonLabel}
-          </Link>
-        )}
+        {buttonUrl && buttonLabel ? (
+          buttonUrl.startsWith("http") ? (
+            <a
+              href={buttonUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-6 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 text-sm font-black text-white/75"
+            >
+              {buttonLabel}
+            </a>
+          ) : (
+            <Link
+              href={buttonUrl}
+              className="mt-6 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 text-sm font-black text-white/75"
+            >
+              {buttonLabel}
+            </Link>
+          )
+        ) : null}
       </div>
     </article>
   );
