@@ -161,7 +161,7 @@ async function getMediaLibraryGalleryItems(): Promise<GalleryItem[]> {
         thumbnail_url: isVideo ? null : url,
         effect_type: null,
         external_url: null,
-        alt_text: isVideo ? "فيديو من معرض وكالة حمزة" : "صورة من معرض وكالة حمزة",
+        alt_text: isVideo ? "صورة من معرض وكالة حمزة",
         button_label: "فتح الملف",
         button_url: url,
         status: "published",
