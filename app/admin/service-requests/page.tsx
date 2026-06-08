@@ -198,12 +198,7 @@ export default function AdminServiceRequestsPage() {
     return `"${text.replace(/"/g, '""').replace(/\r?\n/g, " ")}"`;
   }
 
-  function exportFilteredRequestsCsv() {
-    if (filteredRequests.length === 0) {
-      setMessage("لا توجد طلبات مطابقة لتصديرها.");
-      return;
-    }
-
+  function getExportRows() {
     const headers = [
       "رقم الطلب",
       "الاسم",
@@ -236,6 +231,16 @@ export default function AdminServiceRequestsPage() {
       formatDate(request.updated_at),
     ]);
 
+    return { headers, rows };
+  }
+
+  function exportFilteredRequestsCsv() {
+    if (filteredRequests.length === 0) {
+      setMessage("لا توجد طلبات مطابقة لتصديرها.");
+      return;
+    }
+
+    const { headers, rows } = getExportRows();
     const csvContent = [headers, ...rows]
       .map((row) => row.map((cell) => csvValue(cell)).join(","))
       .join("\n");
@@ -255,6 +260,69 @@ export default function AdminServiceRequestsPage() {
     URL.revokeObjectURL(url);
 
     setMessage(`تم تصدير ${filteredRequests.length} طلب خدمة بصيغة CSV.`);
+  }
+
+  function excelValue(value: string | number | null | undefined) {
+    const text = value === null || value === undefined ? "" : String(value);
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/\r?\n/g, " ");
+  }
+
+  function exportFilteredRequestsExcel() {
+    if (filteredRequests.length === 0) {
+      setMessage("لا توجد طلبات مطابقة لتصديرها.");
+      return;
+    }
+
+    const { headers, rows } = getExportRows();
+    const tableHeader = headers
+      .map((header) => `<th>${excelValue(header)}</th>`)
+      .join("");
+    const tableRows = rows
+      .map(
+        (row) =>
+          `<tr>${row.map((cell) => `<td>${excelValue(cell)}</td>`).join("")}</tr>`
+      )
+      .join("");
+
+    const workbook = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <meta charset="UTF-8" />
+          <style>
+            table { border-collapse: collapse; direction: rtl; font-family: Arial, sans-serif; }
+            th { background: #3b0764; color: #ffffff; font-weight: bold; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px; mso-number-format: "\\@"; }
+          </style>
+        </head>
+        <body>
+          <table>
+            <thead><tr>${tableHeader}</tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `.trim();
+
+    const blob = new Blob(["\ufeff" + workbook], {
+      type: "application/vnd.ms-excel;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+
+    link.href = url;
+    link.download = `hamza-service-requests-${date}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setMessage(`تم تصدير ${filteredRequests.length} طلب خدمة بصيغة Excel.`);
   }
 
   async function copyText(text: string, successMessage: string) {
@@ -376,6 +444,13 @@ export default function AdminServiceRequestsPage() {
               className="rounded-full border border-green-400/25 bg-green-500/10 px-5 py-3 font-bold text-green-100 transition hover:bg-green-500/20"
             >
               تصدير CSV
+            </button>
+
+            <button
+              onClick={exportFilteredRequestsExcel}
+              className="rounded-full border border-cyan-400/25 bg-cyan-500/10 px-5 py-3 font-bold text-cyan-100 transition hover:bg-cyan-500/20"
+            >
+              تصدير Excel
             </button>
 
             <Link
