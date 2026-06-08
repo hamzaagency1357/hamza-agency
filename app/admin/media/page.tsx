@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
+import { requireAdminModuleAccess } from "@/lib/adminAccess";
 
 type MediaItem = {
   id: number;
@@ -109,6 +110,7 @@ const categoryLabels: Record<string, string> = {
   services: "الخدمات",
   seo: "SEO / Open Graph",
   legal: "الصفحات القانونية",
+  gallery: "المعرض",
 };
 
 export default function AdminMediaPage() {
@@ -134,31 +136,31 @@ export default function AdminMediaPage() {
 
   useEffect(() => {
     async function checkAdminAccess() {
-      if (!isSupabaseConfigured || !supabase) {
-        router.replace("/admin/login");
+      const access = await requireAdminModuleAccess("media");
+
+      if (!access.isAuthorized || !access.profile) {
+        setIsAuthorized(false);
+        setIsCheckingAuth(false);
+
+        if (access.reason === "not_signed_in" || access.reason === "not_admin") {
+          router.replace("/admin/login");
+          return;
+        }
+
+        if (access.reason === "not_configured") {
+          setError("الاتصال بقاعدة البيانات غير مفعل.");
+        } else if (access.reason === "forbidden") {
+          setError("لا تملك صلاحية الوصول إلى مكتبة الوسائط.");
+        } else if (access.reason === "inactive") {
+          setError("حساب الإدارة غير مفعل حالياً.");
+        } else {
+          setError("غير مصرح بالدخول إلى مكتبة الوسائط.");
+        }
+
         return;
       }
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        router.replace("/admin/login");
-        return;
-      }
-
-      const { data: isAdmin, error: adminError } = await supabase.rpc(
-        "current_user_is_admin"
-      );
-
-      if (adminError || !isAdmin) {
-        await supabase.auth.signOut();
-        router.replace("/admin/login");
-        return;
-      }
-
-      setAdminEmail(session.user.email || "");
+      setAdminEmail(access.profile.email || access.user?.email || "");
       setIsAuthorized(true);
       setIsCheckingAuth(false);
     }
@@ -184,8 +186,7 @@ export default function AdminMediaPage() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      setError("تعذر تحميل مكتبة الوسائط. يرجى مراجعة صلاحيات جدول media.");
-      scrollToFeedback();
+      showError("تعذر تحميل مكتبة الوسائط. يرجى مراجعة صلاحيات جدول media.");
       return;
     }
 
@@ -570,6 +571,33 @@ export default function AdminMediaPage() {
         className="flex min-h-screen items-center justify-center bg-[#070009] text-white"
       >
         جاري التحقق من صلاحية الدخول...
+      </main>
+    );
+  }
+
+  if (!isAuthorized) {
+    return (
+      <main
+        dir="rtl"
+        className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white"
+      >
+        <div className="max-w-xl rounded-3xl border border-red-400/25 bg-red-500/10 p-8 text-center backdrop-blur">
+          <div className="text-3xl font-black text-red-100">غير مصرح بالدخول</div>
+          <p className="mt-4 leading-8 text-white/65">
+            يجب تسجيل الدخول بحساب إداري يملك صلاحية مكتبة الوسائط.
+          </p>
+          {error && (
+            <div className="mt-4 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm font-bold text-yellow-100">
+              {error}
+            </div>
+          )}
+          <Link
+            href="/admin/login"
+            className="mt-6 inline-flex rounded-full bg-purple-600 px-7 py-4 font-black text-white"
+          >
+            تسجيل الدخول
+          </Link>
+        </div>
       </main>
     );
   }
@@ -964,11 +992,13 @@ function buildStoragePath(file: File, category: string, pageSlug: string) {
 }
 
 function sanitizeSegment(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "") || "media";
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "") || "media"
+  );
 }
 
 function StatCard({ title, value }: { title: string; value: number }) {
