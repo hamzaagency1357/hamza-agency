@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getCurrentAdminProfile } from "@/lib/adminAccess";
 
 const adminLinks = [
   { label: "الرئيسية", href: "/admin" },
@@ -23,8 +24,44 @@ const adminLinks = [
 export default function AdminQuickNav() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [canShowNav, setCanShowNav] = useState(false);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
 
-  if (pathname === "/admin/login") return null;
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkAccess() {
+      setIsOpen(false);
+
+      if (pathname === "/admin/login") {
+        if (isMounted) {
+          setCanShowNav(false);
+          setIsCheckingAccess(false);
+        }
+        return;
+      }
+
+      if (isMounted) {
+        setIsCheckingAccess(true);
+        setCanShowNav(false);
+      }
+
+      const access = await getCurrentAdminProfile();
+
+      if (!isMounted) return;
+
+      setCanShowNav(access.isAuthorized && Boolean(access.profile));
+      setIsCheckingAccess(false);
+    }
+
+    checkAccess();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [pathname]);
+
+  if (pathname === "/admin/login" || isCheckingAccess || !canShowNav) return null;
 
   return (
     <div dir="rtl" className="fixed bottom-4 left-4 z-[80] print:hidden">
