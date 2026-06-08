@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { requireAdminModuleAccess } from "@/lib/adminAccess";
 
 type Partner = {
   id: number;
@@ -100,32 +101,25 @@ export default function AdminPartnersPage() {
         return;
       }
 
-      const { data: userData, error: userError } =
-        await supabase.auth.getUser();
+      const access = await requireAdminModuleAccess("partners");
 
-      if (userError || !userData.user?.email) {
-        setAuthorized(false);
-        setMessageType("error");
-        setMessage("يرجى تسجيل الدخول للوصول إلى لوحة إدارة الشركاء والبرامج.");
-        return;
-      }
+      if (!access.isAuthorized || !access.profile) {
+        if (access.reason === "not_signed_in" || access.reason === "not_admin") {
+          window.location.href = "/admin/login";
+          return;
+        }
 
-      const email = userData.user.email;
-
-      const { data: adminData, error: adminError } = await supabase
-        .from("admin_users")
-        .select("email, role, is_active")
-        .eq("email", email)
-        .maybeSingle();
-
-      if (adminError || !adminData || adminData.is_active === false) {
         setAuthorized(false);
         setMessageType("error");
         setMessage("هذا الحساب غير مخول للوصول إلى لوحة الإدارة.");
         return;
       }
 
-      setAdminProfile(adminData as AdminProfile);
+      setAdminProfile({
+        email: access.profile.email,
+        role: access.profile.role,
+        is_active: access.profile.is_active,
+      });
       setAuthorized(true);
       await loadPartners();
     } catch {
