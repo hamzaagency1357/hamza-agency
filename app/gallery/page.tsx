@@ -147,19 +147,21 @@ async function getMediaLibraryGalleryItems(): Promise<GalleryItem[]> {
 
       return {
         id: 900000 + item.id,
-        title: item.name || "صورة من وكالة حمزة",
+        title: isVideo ? "مشهد من معرض الوكالة" : "صورة من معرض الوكالة",
         slug: `media-library-${item.id}`,
         category:
           item.category === "gallery" || item.page_slug === "gallery"
             ? "معرض الوكالة"
             : "مكتبة الوسائط",
         media_type: isVideo ? "video" : "image",
-        description: item.alt_text || "مادة بصرية من مكتبة وسائط وكالة حمزة.",
+        description: isVideo
+          ? "فيديو ضمن معرض وكالة حمزة."
+          : "صورة ضمن معرض وكالة حمزة.",
         media_url: url,
         thumbnail_url: isVideo ? null : url,
         effect_type: null,
         external_url: null,
-        alt_text: item.alt_text || item.name || "وسيط من وكالة حمزة",
+        alt_text: isVideo ? "فيديو من معرض وكالة حمزة" : "صورة من معرض وكالة حمزة",
         button_label: "فتح الملف",
         button_url: url,
         status: "published",
@@ -328,9 +330,17 @@ function GalleryCard({
   featured?: boolean;
 }) {
   const mediaType = item.media_type || "effect";
-  const title = item.title || "مشهد من وكالة حمزة";
-  const description =
-    item.description || "لقطة بصرية ضمن معرض وكالة حمزة.";
+  const isLibraryUpload = item.id >= 900000;
+  const title = isLibraryUpload
+    ? mediaType === "video"
+      ? "مشهد من معرض الوكالة"
+      : "صورة من معرض الوكالة"
+    : item.title || "مشهد من وكالة حمزة";
+  const description = isLibraryUpload
+    ? mediaType === "video"
+      ? "فيديو ضمن معرض وكالة حمزة."
+      : "صورة ضمن معرض وكالة حمزة."
+    : item.description || "لقطة بصرية ضمن معرض وكالة حمزة.";
   const buttonUrl = item.button_url || "/programs";
   const buttonLabel = item.button_label || "معرفة المزيد";
 
@@ -346,7 +356,7 @@ function GalleryCard({
         {mediaType === "image" && item.media_url ? (
           <img
             src={item.thumbnail_url || item.media_url}
-            alt={item.alt_text || title}
+            alt={mediaType === "video" ? "فيديو من معرض وكالة حمزة" : "صورة من معرض وكالة حمزة"}
             loading="lazy"
             className="h-full w-full object-contain bg-black/45 p-2"
           />
@@ -361,7 +371,7 @@ function GalleryCard({
           <div className="relative h-full w-full">
             <img
               src={item.thumbnail_url}
-              alt={item.alt_text || title}
+              alt="فيديو من معرض وكالة حمزة"
               loading="lazy"
               className="h-full w-full object-cover"
             />
