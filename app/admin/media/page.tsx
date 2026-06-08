@@ -114,6 +114,7 @@ const categoryLabels: Record<string, string> = {
 export default function AdminMediaPage() {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
+  const feedbackRef = useRef<HTMLDivElement | null>(null);
 
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -184,6 +185,7 @@ export default function AdminMediaPage() {
 
     if (error) {
       setError("تعذر تحميل مكتبة الوسائط. يرجى مراجعة صلاحيات جدول media.");
+      scrollToFeedback();
       return;
     }
 
@@ -219,6 +221,24 @@ export default function AdminMediaPage() {
     (item) => item.file_type === "generated_background"
   ).length;
   const realFilesCount = mediaItems.length - generatedCount;
+
+  function scrollToFeedback() {
+    window.setTimeout(() => {
+      feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  }
+
+  function showSuccess(text: string) {
+    setError("");
+    setMessage(text);
+    scrollToFeedback();
+  }
+
+  function showError(text: string) {
+    setMessage("");
+    setError(text);
+    scrollToFeedback();
+  }
 
   function updateField(key: keyof MediaForm, value: string | boolean) {
     setForm((current) => ({
@@ -269,7 +289,7 @@ export default function AdminMediaPage() {
 
     if (file.size > MAX_UPLOAD_SIZE) {
       setSelectedFile(null);
-      setError("حجم الملف كبير. الحد الحالي 80MB للرفع من لوحة التحكم.");
+      showError("حجم الملف كبير. الحد الحالي 80MB للرفع من لوحة التحكم.");
       return;
     }
 
@@ -326,7 +346,7 @@ export default function AdminMediaPage() {
 
     if (missingDefaults.length === 0) {
       setIsSavingDefaults(false);
-      setMessage("كل الوسائط الافتراضية موجودة مسبقاً.");
+      showSuccess("كل الوسائط الافتراضية موجودة مسبقاً.");
       return;
     }
 
@@ -335,7 +355,7 @@ export default function AdminMediaPage() {
     setIsSavingDefaults(false);
 
     if (error) {
-      setError("فشل إنشاء الوسائط الافتراضية. يرجى مراجعة صلاحيات جدول media.");
+      showError("فشل إنشاء الوسائط الافتراضية. يرجى مراجعة صلاحيات جدول media.");
       return;
     }
 
@@ -347,7 +367,7 @@ export default function AdminMediaPage() {
       JSON.stringify(missingDefaults)
     );
 
-    setMessage("تم إنشاء الوسائط الافتراضية بنجاح.");
+    showSuccess("تم إنشاء الوسائط الافتراضية بنجاح.");
     await loadMedia();
   }
 
@@ -360,12 +380,12 @@ export default function AdminMediaPage() {
     setError("");
 
     if (!form.name.trim()) {
-      setError("يرجى كتابة اسم الوسيط.");
+      showError("يرجى كتابة اسم الوسيط.");
       return;
     }
 
     if (!selectedFile && !form.file_url.trim()) {
-      setError("يرجى اختيار ملف للرفع أو إضافة رابط ملف جاهز.");
+      showError("يرجى اختيار ملف للرفع أو إضافة رابط ملف جاهز.");
       return;
     }
 
@@ -377,7 +397,7 @@ export default function AdminMediaPage() {
       finalFileUrl = await uploadSelectedFile();
     } catch (uploadError) {
       setIsSaving(false);
-      setError(uploadError instanceof Error ? uploadError.message : "فشل رفع الملف.");
+      showError(uploadError instanceof Error ? uploadError.message : "فشل رفع الملف.");
       return;
     }
 
@@ -400,7 +420,7 @@ export default function AdminMediaPage() {
     setIsSaving(false);
 
     if (result.error) {
-      setError("فشل حفظ الوسيط. تحقق من صلاحيات جدول media.");
+      showError("فشل حفظ الوسيط. تحقق من صلاحيات جدول media.");
       return;
     }
 
@@ -417,7 +437,7 @@ export default function AdminMediaPage() {
       : "تم رفع الوسيط وحفظه في مكتبة الوسائط بنجاح.";
 
     clearForm();
-    setMessage(successMessage);
+    showSuccess(successMessage);
     await loadMedia();
   }
 
@@ -435,7 +455,7 @@ export default function AdminMediaPage() {
       .eq("id", item.id);
 
     if (error) {
-      alert("فشل تحديث حالة الوسيط.");
+      showError("فشل تحديث حالة الوسيط.");
       return;
     }
 
@@ -447,7 +467,7 @@ export default function AdminMediaPage() {
       JSON.stringify({ is_active: nextValue })
     );
 
-    setMessage(nextValue ? "تم تفعيل الوسيط بنجاح." : "تم تعطيل الوسيط بنجاح.");
+    showSuccess(nextValue ? "تم تفعيل الوسيط بنجاح." : "تم تعطيل الوسيط بنجاح.");
     await loadMedia();
   }
 
@@ -469,7 +489,7 @@ export default function AdminMediaPage() {
     ]().eq("id", item.id);
 
     if (result.error) {
-      setError("فشل حذف الوسيط. تحقق من صلاحيات جدول media.");
+      showError("فشل حذف الوسيط. تحقق من صلاحيات جدول media.");
       return;
     }
 
@@ -485,7 +505,7 @@ export default function AdminMediaPage() {
       clearForm();
     }
 
-    setMessage("تم حذف الوسيط من مكتبة الوسائط بنجاح.");
+    showSuccess("تم حذف الوسيط من مكتبة الوسائط بنجاح.");
     await loadMedia();
   }
 
@@ -510,6 +530,11 @@ export default function AdminMediaPage() {
       item.file_type === "video" ||
       item.file_type === "background_video"
     ) && (url.startsWith("http") || url.startsWith("/"));
+  }
+
+  function canOpenMedia(item: MediaItem) {
+    const url = item.file_url || "";
+    return url.startsWith("http") || url.startsWith("/");
   }
 
   async function logActivity(
@@ -607,17 +632,19 @@ export default function AdminMediaPage() {
           </div>
         </div>
 
-        {message && (
-          <div className="mb-6 rounded-2xl border border-green-500/30 bg-green-500/10 p-4 text-green-200">
-            {message}
-          </div>
-        )}
+        <div ref={feedbackRef} className="scroll-mt-24">
+          {message && (
+            <div className="mb-6 rounded-2xl border border-green-500/30 bg-green-500/10 p-4 text-green-200 shadow-[0_0_35px_rgba(34,197,94,0.16)]">
+              {message}
+            </div>
+          )}
 
-        {error && (
-          <div className="mb-6 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-yellow-100">
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="mb-6 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-yellow-100 shadow-[0_0_35px_rgba(234,179,8,0.12)]">
+              {error}
+            </div>
+          )}
+        </div>
 
         <form
           ref={formRef}
@@ -817,17 +844,17 @@ export default function AdminMediaPage() {
                     </span>
                   </div>
 
-                  <div className="mb-4 overflow-hidden rounded-2xl border border-white/10 bg-black/35">
+                  <div className="mb-4 overflow-hidden rounded-2xl border border-white/10 bg-black/50">
                     {canPreviewImage(item) ? (
                       <img
                         src={item.file_url || ""}
                         alt={item.alt_text || item.name || "media"}
-                        className="h-56 w-full object-cover"
+                        className="h-72 w-full object-contain p-2"
                       />
                     ) : canPreviewVideo(item) ? (
                       <video
                         src={item.file_url || ""}
-                        className="h-56 w-full object-cover"
+                        className="h-72 w-full object-contain p-2"
                         controls
                       />
                     ) : (
@@ -844,6 +871,17 @@ export default function AdminMediaPage() {
                       </div>
                     )}
                   </div>
+
+                  {canOpenMedia(item) && (
+                    <a
+                      href={item.file_url || "#"}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mb-4 inline-flex rounded-xl border border-white/15 px-4 py-2 text-sm text-white/75"
+                    >
+                      فتح الملف كاملاً
+                    </a>
+                  )}
 
                   <p className="mb-4 min-h-12 leading-7 text-white/60">
                     {item.alt_text || "لا يوجد وصف لهذا الوسيط."}
