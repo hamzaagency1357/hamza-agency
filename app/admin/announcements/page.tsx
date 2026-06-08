@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
+import { requireAdminModuleAccess } from "@/lib/adminAccess";
 
 type Announcement = {
   id: number;
@@ -70,31 +71,14 @@ export default function AdminAnnouncementsPage() {
 
   useEffect(() => {
     async function checkAdminAccess() {
-      if (!isSupabaseConfigured || !supabase) {
+      const access = await requireAdminModuleAccess("announcements");
+
+      if (!access.isAuthorized || !access.profile) {
         router.replace("/admin/login");
         return;
       }
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        router.replace("/admin/login");
-        return;
-      }
-
-      const { data: isAdmin, error: adminError } = await supabase.rpc(
-        "current_user_is_admin"
-      );
-
-      if (adminError || !isAdmin) {
-        await supabase.auth.signOut();
-        router.replace("/admin/login");
-        return;
-      }
-
-      setAdminEmail(session.user.email || "");
+      setAdminEmail(access.profile.email || access.user?.email || "");
       setIsAuthorized(true);
       setIsCheckingAuth(false);
     }
