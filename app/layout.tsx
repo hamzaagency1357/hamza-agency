@@ -19,6 +19,11 @@ export const metadata: Metadata = {
   creator: "HAMZA AGENCY",
   publisher: "HAMZA AGENCY",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/Logo%20hamza%20agency.jpg",
+    shortcut: "/Logo%20hamza%20agency.jpg",
+    apple: "/Logo%20hamza%20agency.jpg",
+  },
   keywords: [
     "وكالة حمزة",
     "Hamza Agency",
