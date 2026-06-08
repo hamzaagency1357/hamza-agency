@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
+import { requireAdminModuleAccess } from "@/lib/adminAccess";
 
 type ServiceRequest = {
   id: number;
@@ -69,36 +70,20 @@ export default function AdminServiceRequestsPage() {
   async function initializeAdminPage() {
     setMessage("");
 
-    if (!isSupabaseConfigured || !supabase) {
+    const access = await requireAdminModuleAccess("service_requests");
+
+    if (!access.isAuthorized || !access.profile) {
       setAdminStatus("unauthorized");
       setIsLoading(false);
-      setMessage("الاتصال بقاعدة البيانات غير مفعل.");
+
+      if (access.reason === "not_configured") {
+        setMessage("الاتصال بقاعدة البيانات غير مفعل.");
+      }
+
       return;
     }
 
-    const { data: userData } = await supabase.auth.getUser();
-    const email = userData.user?.email || "";
-
-    if (!email) {
-      setAdminStatus("unauthorized");
-      setIsLoading(false);
-      return;
-    }
-
-    const { data: adminData, error: adminError } = await supabase
-      .from("admin_users")
-      .select("email, role, is_active")
-      .eq("email", email)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (adminError || !adminData) {
-      setAdminStatus("unauthorized");
-      setIsLoading(false);
-      return;
-    }
-
-    setAdminEmail(email);
+    setAdminEmail(access.profile.email || access.user?.email || "");
     setAdminStatus("authorized");
     await loadRequests();
   }
