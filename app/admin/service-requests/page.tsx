@@ -193,6 +193,70 @@ export default function AdminServiceRequestsPage() {
     ].join("\n");
   }
 
+  function csvValue(value: string | number | null | undefined) {
+    const text = value === null || value === undefined ? "" : String(value);
+    return `"${text.replace(/"/g, '""').replace(/\r?\n/g, " ")}"`;
+  }
+
+  function exportFilteredRequestsCsv() {
+    if (filteredRequests.length === 0) {
+      setMessage("لا توجد طلبات مطابقة لتصديرها.");
+      return;
+    }
+
+    const headers = [
+      "رقم الطلب",
+      "الاسم",
+      "الدولة",
+      "واتساب",
+      "نوع الخدمة",
+      "المنصة",
+      "معرّف الحساب",
+      "المبلغ أو الكمية",
+      "الحالة",
+      "ملاحظات العميل",
+      "ملاحظات داخلية",
+      "تاريخ الطلب",
+      "آخر تحديث",
+    ];
+
+    const rows = filteredRequests.map((request) => [
+      request.request_code || `#${request.id}`,
+      request.full_name || "",
+      request.country || "",
+      request.whatsapp || "",
+      getServiceLabel(request.service_type),
+      request.platform || "",
+      request.account_identifier || "",
+      request.requested_amount || "",
+      getStatusLabel(request.status),
+      request.notes || "",
+      request.internal_notes || "",
+      formatDate(request.created_at),
+      formatDate(request.updated_at),
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => csvValue(cell)).join(","))
+      .join("\n");
+
+    const blob = new Blob(["\ufeff" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+
+    link.href = url;
+    link.download = `hamza-service-requests-${date}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setMessage(`تم تصدير ${filteredRequests.length} طلب خدمة بصيغة CSV.`);
+  }
+
   async function copyText(text: string, successMessage: string) {
     try {
       await navigator.clipboard.writeText(text);
@@ -305,6 +369,13 @@ export default function AdminServiceRequestsPage() {
               className="rounded-full border border-purple-400/25 bg-purple-500/10 px-5 py-3 font-bold text-purple-100 transition hover:bg-purple-500/20"
             >
               تحديث الطلبات
+            </button>
+
+            <button
+              onClick={exportFilteredRequestsCsv}
+              className="rounded-full border border-green-400/25 bg-green-500/10 px-5 py-3 font-bold text-green-100 transition hover:bg-green-500/20"
+            >
+              تصدير CSV
             </button>
 
             <Link
