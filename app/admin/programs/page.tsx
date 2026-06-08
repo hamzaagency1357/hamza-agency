@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
+import { requireAdminModuleAccess } from "@/lib/adminAccess";
 
 type Program = {
   id: number;
@@ -49,26 +50,9 @@ export default function AdminProgramsPage() {
 
   useEffect(() => {
     async function checkAdminAccess() {
-      if (!isSupabaseConfigured || !supabase) {
-        router.replace("/admin/login");
-        return;
-      }
+      const access = await requireAdminModuleAccess("programs");
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        router.replace("/admin/login");
-        return;
-      }
-
-      const { data: isAdmin, error } = await supabase.rpc(
-        "current_user_is_admin"
-      );
-
-      if (error || !isAdmin) {
-        await supabase.auth.signOut();
+      if (!access.isAuthorized) {
         router.replace("/admin/login");
         return;
       }
