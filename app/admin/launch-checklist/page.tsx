@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { requireAdminModuleAccess } from "@/lib/adminAccess";
 
 type CheckItem = {
   label: string;
@@ -29,6 +29,8 @@ const publicChecks: CheckItem[] = [
   { label: "الخدمات", href: "/services" },
   { label: "الخدمات الرقمية", href: "/digital-services" },
   { label: "طلب خدمة", href: "/service-request" },
+  { label: "تتبع طلب خدمة", href: "/service-status" },
+  { label: "تتبع طلب الانضمام", href: "/application-status" },
   { label: "الوظائف", href: "/jobs" },
   { label: "التقييمات", href: "/reviews" },
   { label: "قصص النجاح", href: "/success-stories" },
@@ -91,31 +93,14 @@ export default function LaunchChecklistPage() {
 
   useEffect(() => {
     async function checkAdminAccess() {
-      if (!isSupabaseConfigured || !supabase) {
+      const access = await requireAdminModuleAccess("launch_checklist");
+
+      if (!access.isAuthorized) {
         router.replace("/admin/login");
         return;
       }
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        router.replace("/admin/login");
-        return;
-      }
-
-      const { data: isAdmin, error } = await supabase.rpc(
-        "current_user_is_admin"
-      );
-
-      if (error || !isAdmin) {
-        await supabase.auth.signOut();
-        router.replace("/admin/login");
-        return;
-      }
-
-      setAdminEmail(session.user.email || "");
+      setAdminEmail(access.user?.email || access.profile?.email || "");
       setStatus("ready");
     }
 
@@ -134,7 +119,6 @@ export default function LaunchChecklistPage() {
         credentials: "same-origin",
         signal: controller.signal,
       });
-
       const durationMs = Math.round(performance.now() - startedAt);
       const finalUrl = new URL(response.url);
       const requestedUrl = new URL(item.href, window.location.origin);
@@ -409,7 +393,7 @@ function getFixAdvice(item: CheckItem, result: CheckResult) {
   }
 
   if (result.statusCode === 401 || result.statusCode === 403) {
-    return "مشكلة صلاحيات. راجع Supabase Auth أو RLS أو شرط current_user_is_admin.";
+    return "مشكلة صلاحيات. راجع Supabase Auth أو RLS أو شرط الصلاحيات الموحد.";
   }
 
   if (result.statusCode && result.statusCode >= 500) {
