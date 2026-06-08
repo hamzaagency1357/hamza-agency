@@ -24,6 +24,18 @@ type GalleryItem = {
   sort_order: number | null;
 };
 
+type MediaLibraryItem = {
+  id: number;
+  created_at: string | null;
+  name: string | null;
+  file_url: string | null;
+  file_type: string | null;
+  category: string | null;
+  alt_text: string | null;
+  page_slug: string | null;
+  is_active: boolean | null;
+};
+
 const fallbackItems: GalleryItem[] = [
   {
     id: 1,
@@ -87,8 +99,8 @@ const fallbackItems: GalleryItem[] = [
   },
 ];
 
-async function getGalleryItems(): Promise<GalleryItem[]> {
-  if (!supabase) return fallbackItems;
+async function getCuratedGalleryItems(): Promise<GalleryItem[]> {
+  if (!supabase) return [];
 
   const { data, error } = await supabase
     .from("gallery_items")
@@ -98,11 +110,73 @@ async function getGalleryItems(): Promise<GalleryItem[]> {
     .order("sort_order", { ascending: true })
     .limit(12);
 
-  if (error || !data || data.length === 0) {
-    return fallbackItems;
-  }
-
+  if (error || !data) return [];
   return data as GalleryItem[];
+}
+
+async function getMediaLibraryGalleryItems(): Promise<GalleryItem[]> {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("media")
+    .select(
+      "id, created_at, name, file_url, file_type, category, alt_text, page_slug, is_active"
+    )
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  if (error || !data) return [];
+
+  return (data as MediaLibraryItem[])
+    .filter((item) => {
+      const url = item.file_url || "";
+      const type = item.file_type || "";
+      const category = item.category || "";
+      const pageSlug = item.page_slug || "";
+      const isRealMedia = url.startsWith("http") || url.startsWith("/");
+      const isVisualFile = ["image", "logo", "video", "background_video"].includes(type);
+      const isGalleryReady =
+        pageSlug === "gallery" || category === "gallery" || category === "general";
+
+      return isRealMedia && isVisualFile && isGalleryReady;
+    })
+    .map((item, index) => {
+      const isVideo = item.file_type === "video" || item.file_type === "background_video";
+      const url = item.file_url || "";
+
+      return {
+        id: 900000 + item.id,
+        title: item.name || "صورة من وكالة حمزة",
+        slug: `media-library-${item.id}`,
+        category:
+          item.category === "gallery" || item.page_slug === "gallery"
+            ? "معرض الوكالة"
+            : "مكتبة الوسائط",
+        media_type: isVideo ? "video" : "image",
+        description: item.alt_text || "مادة بصرية من مكتبة وسائط وكالة حمزة.",
+        media_url: url,
+        thumbnail_url: isVideo ? null : url,
+        effect_type: null,
+        external_url: null,
+        alt_text: item.alt_text || item.name || "وسيط من وكالة حمزة",
+        button_label: "فتح الملف",
+        button_url: url,
+        status: "published",
+        is_visible: true,
+        is_featured: false,
+        sort_order: 1000 + index,
+      };
+    });
+}
+
+async function getGalleryItems(): Promise<GalleryItem[]> {
+  const curatedItems = await getCuratedGalleryItems();
+  const mediaItems = await getMediaLibraryGalleryItems();
+  const allItems = [...curatedItems, ...mediaItems];
+
+  if (allItems.length === 0) return fallbackItems;
+  return allItems;
 }
 
 export default async function GalleryPage() {
@@ -274,7 +348,14 @@ function GalleryCard({
             src={item.thumbnail_url || item.media_url}
             alt={item.alt_text || title}
             loading="lazy"
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain bg-black/45 p-2"
+          />
+        ) : mediaType === "video" && item.media_url ? (
+          <video
+            src={item.media_url}
+            className="h-full w-full object-contain bg-black/45 p-2"
+            controls
+            preload="metadata"
           />
         ) : mediaType === "video" && item.thumbnail_url ? (
           <div className="relative h-full w-full">
@@ -312,12 +393,23 @@ function GalleryCard({
 
         <p className="mt-4 leading-8 text-white/65">{description}</p>
 
-        <Link
-          href={buttonUrl}
-          className="mt-6 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 text-sm font-black text-white/75"
-        >
-          {buttonLabel}
-        </Link>
+        {buttonUrl.startsWith("http") ? (
+          <a
+            href={buttonUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-6 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 text-sm font-black text-white/75"
+          >
+            {buttonLabel}
+          </a>
+        ) : (
+          <Link
+            href={buttonUrl}
+            className="mt-6 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 text-sm font-black text-white/75"
+          >
+            {buttonLabel}
+          </Link>
+        )}
       </div>
     </article>
   );
