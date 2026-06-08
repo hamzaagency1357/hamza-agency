@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
+import { requireAdminModuleAccess } from "@/lib/adminAccess";
 
 type AdminStatus = "checking" | "authorized" | "unauthorized";
 type MessageType = "success" | "error" | "info";
@@ -90,34 +91,29 @@ export default function AdminReviewsPage() {
   async function checkAccessAndLoad() {
     setIsLoading(true);
 
-    if (!isSupabaseConfigured || !supabase) {
+    if (!supabase) {
       setAdminStatus("unauthorized");
       setIsLoading(false);
       return;
     }
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    const email = sessionData.session?.user?.email || "";
+    const access = await requireAdminModuleAccess("reviews");
 
-    if (!email) {
+    if (!access.isAuthorized || !access.profile) {
+      if (access.reason === "not_signed_in" || access.reason === "not_admin") {
+        window.location.href = "/admin/login";
+        return;
+      }
+
       setAdminStatus("unauthorized");
       setIsLoading(false);
       return;
     }
 
-    setAdminEmail(email);
-
-    const { data: isAdmin, error } = await supabase.rpc("current_user_is_admin");
-
-    if (error || !isAdmin) {
-      setAdminStatus("unauthorized");
-      setIsLoading(false);
-      return;
-    }
-
+    setAdminEmail(access.profile.email || access.user?.email || "");
     setAdminStatus("authorized");
-    await loadReviews();
-    setIsLoading(false);
+      await loadReviews();
+      setIsLoading(false);
   }
 
   async function loadReviews() {

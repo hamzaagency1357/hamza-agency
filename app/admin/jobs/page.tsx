@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
+import { requireAdminModuleAccess } from "@/lib/adminAccess";
 
 type AdminStatus = "checking" | "authorized" | "unauthorized";
 
@@ -122,34 +123,30 @@ export default function AdminJobsPage() {
   }, []);
 
   async function checkAccessAndLoad() {
-    if (!isSupabaseConfigured || !supabase) {
+    setIsLoading(true);
+
+    if (!supabase) {
       setAdminStatus("unauthorized");
       setIsLoading(false);
       return;
     }
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const access = await requireAdminModuleAccess("jobs");
 
-    if (!session) {
-      window.location.href = "/admin/login";
-      return;
-    }
+    if (!access.isAuthorized || !access.profile) {
+      if (access.reason === "not_signed_in" || access.reason === "not_admin") {
+        window.location.href = "/admin/login";
+        return;
+      }
 
-    const { data: isAdmin, error } = await supabase.rpc(
-      "current_user_is_admin"
-    );
-
-    if (error || !isAdmin) {
       setAdminStatus("unauthorized");
       setIsLoading(false);
       return;
     }
 
-    setAdminEmail(session.user.email || "");
+    setAdminEmail(access.profile.email || access.user?.email || "");
     setAdminStatus("authorized");
-    await loadData();
+      await loadData();
   }
 
   async function loadData() {
