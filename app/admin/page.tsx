@@ -169,6 +169,12 @@ const growthLinks: AdminLink[] = [
     href: "/admin/trash",
     tone: "red",
   },
+  {
+    title: "النسخ الاحتياطي",
+    description: "عرض سجلات النسخ الاحتياطي ومتابعة حالة النسخ.",
+    href: "/admin/backups",
+    tone: "green",
+  },
 ];
 
 export default function AdminPage() {
