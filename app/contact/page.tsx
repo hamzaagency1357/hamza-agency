@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import {
+  findCmsSection,
+  getCmsPageWithSections,
+  getCmsText,
+  type CmsSection,
+} from "@/lib/pageSections";
 
-type PageContent = {
-  title: string | null;
-  slug: string | null;
-  content: string | null;
-  is_published: boolean | null;
-};
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Setting = {
   setting_key: string | null;
@@ -14,33 +16,31 @@ type Setting = {
   is_public: boolean | null;
 };
 
+function getSectionContent(
+  section: CmsSection | null,
+  fallback: { title: string; subtitle: string; content: string }
+) {
+  return {
+    title: getCmsText(section?.title, fallback.title),
+    subtitle: getCmsText(section?.subtitle, fallback.subtitle),
+    content: getCmsText(section?.content, fallback.content),
+  };
+}
+
 async function getContactPageData() {
-  if (!supabase) {
-    return {
-      page: null,
-      settings: [],
-    };
-  }
-
-  const [pageResult, settingsResult] = await Promise.all([
+  const [pageData, settingsResult] = await Promise.all([
+    getCmsPageWithSections("contact"),
     supabase
-      .from("pages")
-      .select("title, slug, content, is_published")
-      .eq("slug", "contact")
-      .eq("is_published", true)
-      .limit(1),
-
-    supabase
-      .from("settings")
-      .select("setting_key, setting_value, is_public")
-      .eq("is_public", true),
+      ? supabase
+          .from("settings")
+          .select("setting_key, setting_value, is_public")
+          .eq("is_public", true)
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
   return {
-    page:
-      !pageResult.error && pageResult.data && pageResult.data.length > 0
-        ? pageResult.data[0]
-        : null,
+    page: pageData.page,
+    sections: pageData.sections,
     settings:
       !settingsResult.error && settingsResult.data ? settingsResult.data : [],
   };
@@ -58,7 +58,7 @@ function getSetting(settings: Setting[], keys: string[], fallback: string) {
 }
 
 export default async function ContactPage() {
-  const { page, settings } = await getContactPageData();
+  const { page, sections, settings } = await getContactPageData();
 
   const agencyName = getSetting(
     settings,
@@ -72,54 +72,63 @@ export default async function ContactPage() {
     "+905011730377"
   );
 
-  const email = getSetting(
-    settings,
-    ["contact_email", "support_email", "email"],
-    "سيتم تحديد البريد من لوحة التحكم"
-  );
-
+  const email = getSetting(settings, ["contact_email", "support_email", "email"], "");
   const workingHours = getSetting(
     settings,
     ["working_hours", "support_hours"],
-    "الدعم والمتابعة حسب توفر فريق الوكالة"
+    "تتم المتابعة حسب توفر فريق الوكالة وضغط الطلبات"
   );
 
   const cleanWhatsapp = whatsapp.replace(/[^\d]/g, "");
 
-  const title = page?.title || "اتصل بنا";
+  const contactOptions = getSectionContent(findCmsSection(sections, "contact-options"), {
+    title: "تواصل معنا",
+    subtitle: "فريق وكالة حمزة جاهز لمتابعة الاستفسارات",
+    content:
+      "يمكن التواصل مع الوكالة للاستفسار عن البرامج، طلبات الانضمام، الخدمات الرقمية، أو متابعة حالة الطلب.",
+  });
 
-  const intro =
-    page?.content ||
-    "يمكنك التواصل مع وكالة حمزة للاستفسار عن البرامج المتاحة، طلبات الانضمام، الخدمات الرقمية، أو أي مشكلة تقنية مرتبطة بالحسابات والبرامج. التواصل الأساسي حالياً يتم عبر واتساب لضمان سرعة المتابعة.";
+  const whatsappSupport = getSectionContent(findCmsSection(sections, "whatsapp-support"), {
+    title: "التواصل عبر واتساب",
+    subtitle: "القناة الأساسية للتواصل السريع مع فريق الوكالة",
+    content:
+      "تتم المتابعة الأساسية عبر واتساب عند الحاجة، خصوصاً في الطلبات التي تحتاج تأكيداً أو توضيحاً إضافياً.",
+  });
+
+  const title = page?.title || contactOptions.title;
+  const intro = page?.content || contactOptions.content;
 
   const contactCards = [
     {
-      title: "واتساب الوكالة",
+      title: whatsappSupport.title,
       text: whatsapp,
-      note: "أفضل طريقة للتواصل السريع ومتابعة الطلبات.",
+      note: whatsappSupport.content,
       action: "تواصل الآن",
       href: `https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent(
         "مرحباً، أريد التواصل مع وكالة حمزة."
       )}`,
       external: true,
+      visible: true,
     },
     {
       title: "البريد الإلكتروني",
       text: email,
-      note: "سيتم ربط البريد الرسمي من لوحة التحكم عند التجهيز الكامل.",
-      action: "الرئيسية",
-      href: "/",
-      external: false,
+      note: "يمكن استخدام البريد للتواصل الرسمي عند توفره ضمن بيانات الوكالة.",
+      action: "إرسال بريد",
+      href: `mailto:${email}`,
+      external: true,
+      visible: Boolean(email),
     },
     {
       title: "أوقات المتابعة",
       text: workingHours,
-      note: "قد تختلف سرعة الرد حسب ضغط الطلبات والبرنامج المطلوب.",
+      note: "قد تختلف سرعة الرد حسب ضغط الطلبات ونوع البرنامج أو الخدمة.",
       action: "عرض البرامج",
       href: "/programs",
       external: false,
+      visible: true,
     },
-  ];
+  ].filter((card) => card.visible);
 
   const reasons = [
     "الاستفسار عن الانضمام لأحد البرامج",
@@ -139,17 +148,17 @@ export default async function ContactPage() {
     {
       title: "خدمات الوكالة",
       href: "/services",
-      text: "تعرف على خدمات الإدارة والدعم والتدريب لصناع المحتوى.",
+      text: "تعرف على خدمات الإدارة والدعم والمتابعة لصناع المحتوى.",
     },
     {
       title: "الخدمات الرقمية",
       href: "/digital-services",
-      text: "شرح خدمات الشحن والسحب والمتابعة عبر واتساب.",
+      text: "تعرف على خدمات الشحن والسحب والمتابعة عبر واتساب.",
     },
     {
-      title: "من نحن",
-      href: "/about",
-      text: "تعرف على وكالة حمزة والرؤية وطريقة العمل.",
+      title: "تتبع الطلب",
+      href: "/application-status",
+      text: "تابع حالة طلب الانضمام باستخدام بيانات الطلب المتاحة.",
     },
   ];
 
@@ -173,7 +182,7 @@ export default async function ContactPage() {
           <h1 className="text-5xl font-black leading-tight md:text-7xl">
             {title}
             <span className="block bg-gradient-to-r from-green-300 via-white to-purple-300 bg-clip-text text-transparent">
-              نحن هنا لمساعدتك
+              {contactOptions.subtitle}
             </span>
           </h1>
 
@@ -237,9 +246,9 @@ export default async function ContactPage() {
           </h2>
 
           <p className="mt-5 leading-9 text-white/75">
-            لتسريع الرد، أرسل اسمك، الدولة، البرنامج المطلوب، ورقم واتساب صحيح.
-            إذا كنت تتابع طلباً سابقاً، اكتب نفس رقم الواتساب الذي استخدمته عند
-            إرسال الطلب.
+            لتسريع الرد، أرسل اسمك، الدولة، البرنامج أو الخدمة المطلوبة، ورقم
+            واتساب صحيح. وإذا كنت تتابع طلباً سابقاً، استخدم نفس رقم الواتساب
+            الذي أرسلته في الطلب.
           </p>
         </div>
 
@@ -251,17 +260,16 @@ export default async function ContactPage() {
               className="rounded-[2rem] border border-white/10 bg-black/35 p-6 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10"
             >
               <h3 className="text-2xl font-black">{link.title}</h3>
-
               <p className="mt-4 leading-8 text-white/65">{link.text}</p>
             </Link>
           ))}
         </div>
 
         <div className="mt-10 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
-          <h2 className="text-3xl font-black">تواصل مباشر عبر واتساب</h2>
+          <h2 className="text-3xl font-black">{whatsappSupport.title}</h2>
 
           <p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">
-            اضغط على الزر بالأسفل لفتح محادثة واتساب مع وكالة حمزة.
+            {whatsappSupport.subtitle}
           </p>
 
           <a
@@ -283,13 +291,9 @@ function ContactBackground() {
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       <div className="absolute inset-0 bg-[#070009]" />
-
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(34,197,94,0.18)_0%,rgba(124,58,237,0.2)_35%,rgba(7,0,9,0.98)_72%)]" />
-
       <div className="absolute -left-24 top-16 h-80 w-80 rounded-full bg-purple-600/14 blur-3xl" />
-
-      <div className="hidden md:block absolute -right-24 top-44 h-96 w-96 rounded-full bg-green-400/10 blur-3xl" />
-
+      <div className="absolute -right-24 top-44 hidden h-96 w-96 rounded-full bg-green-400/10 blur-3xl md:block" />
       <div className="absolute inset-0 opacity-10 [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.35)_1px,transparent_0)] [background-size:42px_42px]" />
     </div>
   );
