@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { canUseAdminModulePermission, requireAdminModuleAccess } from "@/lib/adminAccess";
 import { supabase } from "@/lib/supabase";
 
 type ApplicationRow = {
@@ -109,12 +109,25 @@ export default function AdminAnalyticsPage() {
 
   useEffect(() => {
     async function checkAccess() {
-      const access = await requireAdminModuleAccess("dashboard");
+      const access = await requireAdminModuleAccess("analytics");
 
       if (!access.isAuthorized || !access.profile) {
         setIsAuthorized(false);
         setIsCheckingAuth(false);
-        router.replace("/admin/login");
+        router.replace(access.reason === "forbidden" ? "/admin" : "/admin/login");
+        return;
+      }
+
+      const canViewAnalytics = await canUseAdminModulePermission(
+        access.profile,
+        "analytics",
+        "can_view"
+      );
+
+      if (!canViewAnalytics) {
+        setIsAuthorized(false);
+        setIsCheckingAuth(false);
+        router.replace("/admin");
         return;
       }
 
