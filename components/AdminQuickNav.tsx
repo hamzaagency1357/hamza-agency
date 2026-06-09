@@ -26,6 +26,7 @@ const adminLinks = [
   { label: "وضع التدقيق", href: "/admin/audit-mode" },
   { label: "قاعدة المعرفة", href: "/admin/knowledge-base" },
   { label: "الدعم الذكي", href: "/admin/ai-support" },
+  { label: "إعدادات الدعم الذكي", href: "/admin/ai-settings" },
   { label: "الصلاحيات", href: "/admin/permissions" },
   { label: "الإشعارات", href: "/admin/notifications" },
   { label: "التحليلات", href: "/admin/analytics" },
