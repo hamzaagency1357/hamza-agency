@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
@@ -23,7 +23,6 @@ const filters: { key: FilterKey; label: string }[] = [
 function getString(item: TrashItem, keys: string[], fallback = "") {
   for (const key of keys) {
     const value = item[key];
-
     if (value === null || value === undefined) continue;
     if (typeof value === "string" && value.trim()) return value.trim();
     if (typeof value === "number" || typeof value === "boolean") return String(value);
@@ -35,14 +34,13 @@ function getString(item: TrashItem, keys: string[], fallback = "") {
 function formatDate(value: string) {
   if (!value) return "غير متوفر";
 
-  try {
-    return new Intl.DateTimeFormat("ar", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(new Date(value));
-  } catch {
-    return "غير متوفر";
-  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "غير متوفر";
+
+  return new Intl.DateTimeFormat("ar", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
 }
 
 function formatValue(value: unknown) {
@@ -112,7 +110,8 @@ function getTone(category: FilterKey): Tone {
   if (category === "pages") return "cyan";
   if (category === "services") return "green";
   if (category === "content") return "yellow";
-  return "slate";
+  if (category === "other") return "slate";
+  return "red";
 }
 
 function getTitle(item: TrashItem) {
@@ -137,6 +136,12 @@ function getDeletedBy(item: TrashItem) {
 
 function getDeletedAt(item: TrashItem) {
   return getString(item, ["deleted_at", "created_at", "updated_at", "timestamp", "date"], "");
+}
+
+function getTimeValue(item: TrashItem) {
+  const value = getDeletedAt(item);
+  const time = Date.parse(value);
+  return Number.isNaN(time) ? 0 : time;
 }
 
 function getPayload(item: TrashItem) {
@@ -200,17 +205,20 @@ export default function AdminTrashPage() {
     const { data, error: trashError } = await supabase
       .from("trash_items")
       .select("*")
-      .order("created_at", { ascending: false })
       .limit(120);
 
     setIsLoading(false);
 
     if (trashError) {
-      setError("تعذر تحميل سلة المحذوفات. يرجى التأكد من صلاحيات جدول trash_items.");
+      setError("تعذر تحميل سلة المحذوفات. يرجى التأكد من إعدادات جدول trash_items.");
       return;
     }
 
-    setItems((data || []) as TrashItem[]);
+    const sortedItems = ((data || []) as TrashItem[])
+      .slice()
+      .sort((first, second) => getTimeValue(second) - getTimeValue(first));
+
+    setItems(sortedItems);
   }
 
   const filteredItems = useMemo(() => {
@@ -223,13 +231,7 @@ export default function AdminTrashPage() {
       if (!matchesFilter) return false;
       if (!query) return true;
 
-      const text = [
-        getTitle(item),
-        getEntityLabel(item),
-        getRecordId(item),
-        getDeletedBy(item),
-        formatValue(getPayload(item)),
-      ]
+      const text = [getTitle(item), getEntityLabel(item), getRecordId(item), getDeletedBy(item), formatValue(getPayload(item))]
         .join(" ")
         .toLowerCase();
 
@@ -349,7 +351,7 @@ export default function AdminTrashPage() {
         </div>
 
         <div className="grid gap-4">
-          {filteredItems.length === 0 && (
+          {filteredItems.length === 0 && !error && (
             <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center text-white/55">
               لا توجد عناصر محذوفة مطابقة حالياً.
             </div>
@@ -409,7 +411,7 @@ function StatCard({ label, value, tone }: { label: string; value: number; tone: 
   );
 }
 
-function FilterButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function FilterButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
   return (
     <button
       onClick={onClick}
@@ -424,7 +426,7 @@ function FilterButton({ active, onClick, children }: { active: boolean; onClick:
   );
 }
 
-function Badge({ children, tone }: { children: React.ReactNode; tone: Tone }) {
+function Badge({ children, tone }: { children: ReactNode; tone: Tone }) {
   return (
     <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${toneSoftClasses(tone)}`}>
       {children}
