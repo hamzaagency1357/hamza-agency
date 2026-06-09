@@ -64,7 +64,7 @@ export default function AdminQuickNav() {
   if (pathname === "/admin/login" || isCheckingAccess || !canShowNav) return null;
 
   return (
-    <div dir="rtl" className="fixed bottom-20 left-4 z-[80] print:hidden md:bottom-4">
+    <div dir="rtl" className="fixed bottom-20 left-3 z-[80] print:hidden md:bottom-4 md:left-4">
       {isOpen && (
         <div className="mb-3 max-h-[70vh] w-[min(320px,calc(100vw-2rem))] overflow-y-auto rounded-3xl border border-purple-400/25 bg-[#09000f]/95 p-3 shadow-[0_0_70px_rgba(124,58,237,0.35)] backdrop-blur-xl">
           <div className="mb-3 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3">
@@ -108,9 +108,11 @@ export default function AdminQuickNav() {
       <button
         type="button"
         onClick={() => setIsOpen((current) => !current)}
-        className="rounded-full border border-purple-300/35 bg-purple-600 px-5 py-3 text-sm font-black text-white shadow-[0_0_35px_rgba(168,85,247,0.35)] transition hover:bg-purple-500"
+        aria-label={isOpen ? "إغلاق التنقل الإداري" : "فتح التنقل الإداري"}
+        className="flex h-12 w-12 items-center justify-center rounded-full border border-purple-300/35 bg-purple-600 text-lg font-black text-white shadow-[0_0_35px_rgba(168,85,247,0.35)] transition hover:bg-purple-500 md:h-auto md:w-auto md:px-5 md:py-3 md:text-sm"
       >
-        {isOpen ? "إغلاق التنقل" : "تنقل الإدارة"}
+        <span className="md:hidden">{isOpen ? "×" : "☰"}</span>
+        <span className="hidden md:inline">{isOpen ? "إغلاق التنقل" : "تنقل الإدارة"}</span>
       </button>
     </div>
   );
