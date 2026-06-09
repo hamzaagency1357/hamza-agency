@@ -64,7 +64,7 @@ export default function AdminQuickNav() {
   if (pathname === "/admin/login" || isCheckingAccess || !canShowNav) return null;
 
   return (
-    <div dir="rtl" className="fixed bottom-4 left-4 z-[80] print:hidden">
+    <div dir="rtl" className="fixed bottom-20 left-4 z-[80] print:hidden md:bottom-4">
       {isOpen && (
         <div className="mb-3 max-h-[70vh] w-[min(320px,calc(100vw-2rem))] overflow-y-auto rounded-3xl border border-purple-400/25 bg-[#09000f]/95 p-3 shadow-[0_0_70px_rgba(124,58,237,0.35)] backdrop-blur-xl">
           <div className="mb-3 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3">
