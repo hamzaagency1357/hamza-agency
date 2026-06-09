@@ -160,14 +160,11 @@ export default function HomePage() {
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
-
   const [settings, setSettings] = useState<Setting[]>([]);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [programs, setPrograms] = useState<Program[]>(fallbackPrograms);
-  const [homepageContent, setHomepageContent] = useState<PageContent | null>(
-    null
-  );
+  const [homepageContent, setHomepageContent] = useState<PageContent | null>(null);
 
   const [form, setForm] = useState({
     fullName: "",
@@ -190,50 +187,35 @@ export default function HomePage() {
   async function loadPublicCmsData() {
     if (!isSupabaseConfigured || !supabase) return;
 
-    const [
-      settingsResult,
-      mediaResult,
-      announcementsResult,
-      programsResult,
-      pagesResult,
-    ] = await Promise.all([
-      supabase
-        .from("settings")
-        .select("setting_key, setting_value, setting_group, is_public")
-        .eq("is_public", true),
-
-      supabase
-        .from("media")
-        .select(
-          "name, file_url, file_type, category, alt_text, page_slug, is_active"
-        )
-        .eq("is_active", true),
-
-      supabase
-        .from("announcements")
-        .select(
-          "id, title, content, start_date, end_date, is_active, show_on_homepage, priority"
-        )
-        .eq("is_active", true)
-        .eq("show_on_homepage", true)
-        .order("priority", { ascending: true }),
-
-      supabase
-        .from("programs")
-        .select(
-          "id, name, slug, short_description, description, status, sort_order, is_visible, is_active"
-        )
-        .eq("is_visible", true)
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true }),
-
-      supabase
-        .from("pages")
-        .select("title, slug, content, is_homepage, is_published")
-        .eq("is_homepage", true)
-        .eq("is_published", true)
-        .limit(1),
-    ]);
+    const [settingsResult, mediaResult, announcementsResult, programsResult, pagesResult] =
+      await Promise.all([
+        supabase
+          .from("settings")
+          .select("setting_key, setting_value, setting_group, is_public")
+          .eq("is_public", true),
+        supabase
+          .from("media")
+          .select("name, file_url, file_type, category, alt_text, page_slug, is_active")
+          .eq("is_active", true),
+        supabase
+          .from("announcements")
+          .select("id, title, content, start_date, end_date, is_active, show_on_homepage, priority")
+          .eq("is_active", true)
+          .eq("show_on_homepage", true)
+          .order("priority", { ascending: true }),
+        supabase
+          .from("programs")
+          .select("id, name, slug, short_description, description, status, sort_order, is_visible, is_active")
+          .eq("is_visible", true)
+          .eq("is_active", true)
+          .order("sort_order", { ascending: true }),
+        supabase
+          .from("pages")
+          .select("title, slug, content, is_homepage, is_published")
+          .eq("is_homepage", true)
+          .eq("is_published", true)
+          .limit(1),
+      ]);
 
     if (!settingsResult.error && settingsResult.data) {
       setSettings(settingsResult.data);
@@ -244,11 +226,7 @@ export default function HomePage() {
     }
 
     if (!announcementsResult.error && announcementsResult.data) {
-      setAnnouncements(
-        announcementsResult.data.filter((item) =>
-          isAnnouncementVisible(item)
-        )
-      );
+      setAnnouncements(announcementsResult.data.filter((item) => isAnnouncementVisible(item)));
     }
 
     if (!programsResult.error && programsResult.data?.length) {
@@ -266,9 +244,7 @@ export default function HomePage() {
 
   function getSetting(keys: string[], fallback: string) {
     for (const key of keys) {
-      const value = settings.find((item) => item.setting_key === key)
-        ?.setting_value;
-
+      const value = settings.find((item) => item.setting_key === key)?.setting_value;
       if (value && value.trim()) return value.trim();
     }
 
@@ -298,19 +274,10 @@ export default function HomePage() {
       const pageMatch = options.pageSlug
         ? item.page_slug === options.pageSlug || item.page_slug === "global"
         : true;
-
-      const categoryMatch = options.category
-        ? item.category === options.category
-        : true;
-
-      const typeMatch = options.fileType
-        ? item.file_type === options.fileType
-        : true;
-
+      const categoryMatch = options.category ? item.category === options.category : true;
+      const typeMatch = options.fileType ? item.file_type === options.fileType : true;
       const nameMatch = options.nameIncludes
-        ? (item.name || "")
-            .toLowerCase()
-            .includes(options.nameIncludes.toLowerCase())
+        ? (item.name || "").toLowerCase().includes(options.nameIncludes.toLowerCase())
         : true;
 
       return pageMatch && categoryMatch && typeMatch && nameMatch;
@@ -326,155 +293,89 @@ export default function HomePage() {
   function normalizeAnnouncementPosition(value: string): AnnouncementPosition {
     const normalized = value.toLowerCase().trim();
 
-    if (
-      normalized === "top" ||
-      normalized === "top_site" ||
-      normalized === "site_top"
-    ) {
+    if (normalized === "top" || normalized === "top_site" || normalized === "site_top") {
       return "top";
     }
 
-    if (
-      normalized === "under_nav" ||
-      normalized === "under_logo" ||
-      normalized === "below_nav" ||
-      normalized === "below_logo"
-    ) {
+    if (normalized === "under_nav" || normalized === "under_logo" || normalized === "below_nav" || normalized === "below_logo") {
       return "under_nav";
     }
 
-    if (
-      normalized === "inside_hero" ||
-      normalized === "hero" ||
-      normalized === "in_hero"
-    ) {
+    if (normalized === "inside_hero" || normalized === "hero" || normalized === "in_hero") {
       return "inside_hero";
     }
 
-    if (
-      normalized === "hidden" ||
-      normalized === "off" ||
-      normalized === "none"
-    ) {
+    if (normalized === "hidden" || normalized === "off" || normalized === "none") {
       return "hidden";
     }
 
     return "under_nav";
   }
 
-  function normalizeAnnouncementAnimation(
-    value: string
-  ): AnnouncementAnimation {
+  function normalizeAnnouncementAnimation(value: string): AnnouncementAnimation {
     const normalized = value.toLowerCase().trim();
-
-    if (
-      normalized === "marquee" ||
-      normalized === "moving" ||
-      normalized === "move"
-    ) {
+    if (normalized === "marquee" || normalized === "moving" || normalized === "move") {
       return "marquee";
     }
-
     return "fixed";
   }
 
   const publicSettings = useMemo(() => {
-    const agencyName = getSetting(
-      ["agency_name_ar", "agency_name", "site_name", "brand_name"],
-      "وكالة حمزة"
-    );
-
-    const englishName = getSetting(
-      ["site_name", "site_name_en", "english_name", "company_name"],
-      "HAMZA AGENCY"
-    );
-
-    const whatsapp = getSetting(
-      ["primary_whatsapp", "whatsapp", "support_whatsapp"],
-      "+905011730377"
-    );
-
+    const agencyName = getSetting(["agency_name_ar", "agency_name", "site_name", "brand_name"], "وكالة حمزة");
+    const englishName = getSetting(["agency_name_en", "site_name", "site_name_en", "english_name", "company_name"], "HAMZA AGENCY");
+    const whatsapp = getSetting(["primary_whatsapp", "whatsapp", "support_whatsapp"], "+905011730377");
     const cleanWhatsapp = whatsapp.replace(/[^\d]/g, "");
+    const contactEmail = getSetting(["contact_email", "support_email", "email"], "hamza.alshami.13579@gmail.com");
+    const footerDescription = getSetting(
+      ["footer_description_ar", "footer_description", "site_description"],
+      "وكالة حمزة منصة وكالة متخصصة في تنظيم ودعم صناع المحتوى على برامج ومنصات البث والتواصل."
+    );
+    const footerCopyright = getSetting(
+      ["footer_copyright_ar", "footer_copyright", "footer_text"],
+      "جميع الحقوق محفوظة لوكالة حمزة"
+    );
+    const socialLinks = [
+      { label: "TikTok", href: getSetting(["social_tiktok_url"], "") },
+      { label: "Instagram", href: getSetting(["social_instagram_url"], "") },
+      { label: "Facebook", href: getSetting(["social_facebook_url"], "") },
+      { label: "Telegram", href: getSetting(["social_telegram_url"], "") },
+    ].filter((link) => link.href.trim().length > 0);
 
     return {
       agencyName,
       englishName,
       whatsapp,
       cleanWhatsapp,
+      contactEmail,
+      footerDescription,
+      footerCopyright,
+      socialLinks,
+      footerWhatsappLabel: getSetting(["footer_whatsapp_label"], "فتح واتساب"),
+      workingHours: getSetting(["working_hours"], "تتم المتابعة حسب توفر فريق الوكالة وضغط الطلبات"),
       primaryColor: getSetting(["primary_color"], "#7c3aed"),
       secondaryColor: getSetting(["secondary_color"], "#d4af37"),
-
-      heroTitle: getSetting(
-        ["home_hero_title", "hero_title"],
-        "وكالة حمزة لإدارة وتطوير"
-      ),
-      heroHighlight: getSetting(
-        ["home_hero_highlight", "hero_highlight"],
-        "صناع المحتوى"
-      ),
+      heroTitle: getSetting(["home_hero_title", "hero_title"], "وكالة حمزة لإدارة وتطوير"),
+      heroHighlight: getSetting(["home_hero_highlight", "hero_highlight"], "صناع المحتوى"),
       heroDescription: getSetting(
-        ["home_hero_description", "hero_description", "site_description"],
+        ["home_hero_description", "hero_description", "site_description", "site_tagline_ar"],
         "نساعد صناع المحتوى على النمو وتحقيق الأرباح على منصات البث المباشر والتواصل الاجتماعي من خلال إدارة احترافية، دعم يومي، وفرص حقيقية للتطور."
       ),
-      heroBadge: getSetting(
-        ["home_hero_badge", "hero_badge"],
-        "وكالة عالمية محترفة لإدارة صناع المحتوى"
-      ),
-
-      announcementPosition: normalizeAnnouncementPosition(
-        getSetting(
-          ["announcement_bar_position", "announcement_position"],
-          "under_nav"
-        )
-      ),
-      announcementAnimation: normalizeAnnouncementAnimation(
-        getSetting(
-          ["announcement_bar_animation", "announcement_animation"],
-          "marquee"
-        )
-      ),
-      announcementSpeed: Number(
-        getSetting(["announcement_bar_speed", "announcement_speed"], "22")
-      ),
-
-      footerText: getSetting(
-        ["footer_text"],
-        "© 2026 HAMZA AGENCY | وكالة حمزة. All Rights Reserved."
-      ),
+      heroBadge: getSetting(["home_hero_badge", "hero_badge"], "وكالة عالمية محترفة لإدارة صناع المحتوى"),
+      announcementPosition: normalizeAnnouncementPosition(getSetting(["announcement_bar_position", "announcement_position"], "under_nav")),
+      announcementAnimation: normalizeAnnouncementAnimation(getSetting(["announcement_bar_animation", "announcement_animation"], "marquee")),
+      announcementSpeed: Number(getSetting(["announcement_bar_speed", "announcement_speed"], "22")),
     };
   }, [settings]);
 
-  const logoMedia = getMediaByPurpose({
-    category: "logo",
-    nameIncludes: "logo",
-  });
+  const logoMedia = getMediaByPurpose({ category: "logo", nameIncludes: "logo" });
 
   const homeBackgroundMedia =
-    getMediaByPurpose({
-      pageSlug: "home",
-      category: "background",
-      fileType: "background_video",
-    }) ||
-    getMediaByPurpose({
-      pageSlug: "home",
-      category: "background",
-      fileType: "video",
-    }) ||
-    getMediaByPurpose({
-      pageSlug: "home",
-      category: "background",
-      fileType: "image",
-    }) ||
-    getMediaByPurpose({
-      pageSlug: "home",
-      category: "background",
-    });
+    getMediaByPurpose({ pageSlug: "home", category: "background", fileType: "background_video" }) ||
+    getMediaByPurpose({ pageSlug: "home", category: "background", fileType: "video" }) ||
+    getMediaByPurpose({ pageSlug: "home", category: "background", fileType: "image" }) ||
+    getMediaByPurpose({ pageSlug: "home", category: "background" });
 
-  const logoUrl = getUsableImageUrl(
-    logoMedia,
-    "/Logo%20hamza%20agency.jpg"
-  );
-
+  const logoUrl = getUsableImageUrl(logoMedia, "/Logo%20hamza%20agency.jpg");
   const activePrograms = programs.length ? programs : fallbackPrograms;
   const activeAnnouncement = announcements[0] || null;
 
@@ -524,10 +425,7 @@ export default function HomePage() {
     }
 
     localStorage.setItem(duplicateKey, "true");
-
-    setMessage(
-      "تم استلام طلبك بنجاح. سيقوم فريق الوكالة بمراجعة الطلب وقد يتم التواصل معك عبر واتساب."
-    );
+    setMessage("تم استلام طلبك بنجاح. سيقوم فريق الوكالة بمراجعة الطلب وقد يتم التواصل معك عبر واتساب.");
 
     setForm({
       fullName: "",
@@ -549,7 +447,6 @@ export default function HomePage() {
       <main className="fixed inset-0 z-50 flex items-center justify-center bg-black">
         <div className="absolute h-72 w-72 rounded-full bg-purple-700/30 blur-3xl" />
         <div className="absolute h-96 w-96 animate-pulse rounded-full border border-purple-500/20" />
-
         <img
           src={logoUrl}
           alt={publicSettings.englishName}
@@ -563,15 +460,9 @@ export default function HomePage() {
     <main
       dir="rtl"
       className="relative min-h-screen overflow-hidden bg-[#070009] text-white"
-      style={
-        {
-          "--primary": publicSettings.primaryColor,
-          "--secondary": publicSettings.secondaryColor,
-        } as CSSProperties
-      }
+      style={{ "--primary": publicSettings.primaryColor, "--secondary": publicSettings.secondaryColor } as CSSProperties}
     >
       <SiteAnimationStyles />
-
       <PublicBackground media={homeBackgroundMedia} />
 
       {publicSettings.announcementPosition === "top" && activeAnnouncement && (
@@ -589,12 +480,9 @@ export default function HomePage() {
             alt={publicSettings.englishName}
             className="h-12 w-12 rounded-xl object-cover shadow-[0_0_25px_rgba(168,85,247,0.45)]"
           />
-
           <div>
             <div className="text-sm font-bold">{publicSettings.englishName}</div>
-            <div className="text-xs text-yellow-200/80">
-              {publicSettings.agencyName}
-            </div>
+            <div className="text-xs text-yellow-200/80">{publicSettings.agencyName}</div>
           </div>
         </Link>
 
@@ -625,9 +513,22 @@ export default function HomePage() {
         </div>
       </div>
 
-      {publicSettings.announcementPosition === "under_nav" &&
-        activeAnnouncement && (
-          <div className="relative z-20 mx-auto max-w-7xl px-5">
+      {publicSettings.announcementPosition === "under_nav" && activeAnnouncement && (
+        <div className="relative z-20 mx-auto max-w-7xl px-5">
+          <AnnouncementBar
+            announcement={activeAnnouncement}
+            animation={publicSettings.announcementAnimation}
+            speed={publicSettings.announcementSpeed}
+            rounded
+          />
+        </div>
+      )}
+
+      <section className="relative z-20 mx-auto max-w-7xl px-5 pb-20 pt-10 text-center">
+        <HeroVideoVisual />
+
+        {publicSettings.announcementPosition === "inside_hero" && activeAnnouncement && (
+          <div className="relative z-20 mx-auto mb-8 max-w-4xl">
             <AnnouncementBar
               announcement={activeAnnouncement}
               animation={publicSettings.announcementAnimation}
@@ -636,21 +537,6 @@ export default function HomePage() {
             />
           </div>
         )}
-
-      <section className="relative z-20 mx-auto max-w-7xl px-5 pb-20 pt-10 text-center">
-        <HeroVideoVisual />
-
-        {publicSettings.announcementPosition === "inside_hero" &&
-          activeAnnouncement && (
-            <div className="relative z-20 mx-auto mb-8 max-w-4xl">
-              <AnnouncementBar
-                announcement={activeAnnouncement}
-                animation={publicSettings.announcementAnimation}
-                speed={publicSettings.announcementSpeed}
-                rounded
-              />
-            </div>
-          )}
 
         <div className="relative z-20">
           <img
@@ -681,7 +567,6 @@ export default function HomePage() {
             >
               انضم الآن
             </button>
-
             <Link
               href="/programs"
               className="rounded-full border border-white/15 bg-white/[0.05] px-9 py-4 text-lg font-bold text-white/80 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10"
@@ -694,10 +579,7 @@ export default function HomePage() {
 
       <section className="relative z-20 mx-auto grid max-w-6xl grid-cols-2 gap-5 px-5 pb-20 lg:grid-cols-4">
         {fallbackStats.map(([number, label]) => (
-          <div
-            key={label}
-            className="rounded-3xl border border-white/10 bg-white/[0.05] p-7 text-center backdrop-blur"
-          >
+          <div key={label} className="rounded-3xl border border-white/10 bg-white/[0.05] p-7 text-center backdrop-blur">
             <div className="bg-gradient-to-r from-purple-300 to-yellow-300 bg-clip-text text-4xl font-black text-transparent">
               {number}
             </div>
@@ -707,13 +589,9 @@ export default function HomePage() {
       </section>
 
       <section className="relative z-20 mx-auto max-w-7xl px-5 pb-24">
-        <h2 className="text-center text-4xl font-black">
-          البرامج المتاحة حالياً
-        </h2>
-
+        <h2 className="text-center text-4xl font-black">البرامج المتاحة حالياً</h2>
         <p className="mx-auto mt-4 max-w-2xl text-center text-white/60">
-          اختر البرنامج المناسب لك لعرض التفاصيل الكاملة، الشروط، نظام العمل،
-          وما تقدمه وكالة حمزة.
+          اختر البرنامج المناسب لك لعرض التفاصيل الكاملة، الشروط، نظام العمل، وما تقدمه وكالة حمزة.
         </p>
 
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
@@ -724,15 +602,9 @@ export default function HomePage() {
               className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-center backdrop-blur transition hover:border-purple-400/60 hover:bg-purple-500/10"
             >
               <div className="mb-3 inline-flex rounded-full border border-green-400/30 bg-green-500/10 px-3 py-1 text-xs font-bold text-green-200">
-                {program.status === "limited"
-                  ? "قبول محدود"
-                  : program.status === "paused"
-                    ? "متوقف مؤقتاً"
-                    : "متاح الآن"}
+                {program.status === "limited" ? "قبول محدود" : program.status === "paused" ? "متوقف مؤقتاً" : "متاح الآن"}
               </div>
-
               <div className="text-2xl font-black">{program.name}</div>
-
               <div className="mt-3 text-sm leading-7 text-white/60">
                 {program.short_description || "عرض تفاصيل البرنامج"}
               </div>
@@ -753,37 +625,22 @@ export default function HomePage() {
       <section className="relative z-20 mx-auto max-w-6xl px-5 pb-24">
         <div className="rounded-[2rem] border border-purple-400/20 bg-white/[0.04] p-8 backdrop-blur">
           <h2 className="text-3xl font-black">لماذا وكالة حمزة؟</h2>
-
           <div className="mt-8 grid gap-5 md:grid-cols-3">
             {whyUsItems.map((item) => (
-              <div
-                key={item}
-                className="rounded-2xl border border-white/10 bg-black/25 p-5"
-              >
+              <div key={item} className="rounded-2xl border border-white/10 bg-black/25 p-5">
                 {item}
               </div>
             ))}
           </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
-            <Link
-              href="/about"
-              className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center font-bold text-white/75 transition hover:border-purple-400/50"
-            >
+            <Link href="/about" className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center font-bold text-white/75 transition hover:border-purple-400/50">
               تعرف علينا
             </Link>
-
-            <Link
-              href="/services"
-              className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center font-bold text-white/75 transition hover:border-purple-400/50"
-            >
+            <Link href="/services" className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center font-bold text-white/75 transition hover:border-purple-400/50">
               خدمات الوكالة
             </Link>
-
-            <Link
-              href="/contact"
-              className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center font-bold text-white/75 transition hover:border-purple-400/50"
-            >
+            <Link href="/contact" className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center font-bold text-white/75 transition hover:border-purple-400/50">
               تواصل معنا
             </Link>
           </div>
@@ -803,37 +660,15 @@ export default function HomePage() {
               >
                 إغلاق
               </button>
-
               <h2 className="text-3xl font-black">طلب الانضمام للوكالة</h2>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              <input
-                value={form.fullName}
-                onChange={(e) => updateField("fullName", e.target.value)}
-                placeholder="الاسم الثلاثي"
-                className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400"
-              />
+              <input value={form.fullName} onChange={(e) => updateField("fullName", e.target.value)} placeholder="الاسم الثلاثي" className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400" />
+              <input value={form.country} onChange={(e) => updateField("country", e.target.value)} placeholder="الدولة" className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400" />
+              <input value={form.whatsapp} onChange={(e) => updateField("whatsapp", e.target.value)} placeholder="رقم واتساب" className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400" />
 
-              <input
-                value={form.country}
-                onChange={(e) => updateField("country", e.target.value)}
-                placeholder="الدولة"
-                className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400"
-              />
-
-              <input
-                value={form.whatsapp}
-                onChange={(e) => updateField("whatsapp", e.target.value)}
-                placeholder="رقم واتساب"
-                className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400"
-              />
-
-              <select
-                value={form.platform}
-                onChange={(e) => updateField("platform", e.target.value)}
-                className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400"
-              >
+              <select value={form.platform} onChange={(e) => updateField("platform", e.target.value)} className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400">
                 {activePrograms.map((program) => (
                   <option key={program.id} value={program.name || ""}>
                     {program.name}
@@ -843,27 +678,11 @@ export default function HomePage() {
 
               <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
                 <h3 className="mb-3 text-2xl font-black">خبرات سابقة</h3>
-
-                <p className="mb-4 text-lg text-purple-200">
-                  هل عملت على برامج أو وكالات أخرى سابقاً؟
-                </p>
-
-                <textarea
-                  value={form.previousExperience}
-                  onChange={(e) =>
-                    updateField("previousExperience", e.target.value)
-                  }
-                  placeholder="اكتب خبراتك السابقة إن وجدت"
-                  className="min-h-40 w-full resize-none bg-transparent text-xl outline-none"
-                />
+                <p className="mb-4 text-lg text-purple-200">هل عملت على برامج أو وكالات أخرى سابقاً؟</p>
+                <textarea value={form.previousExperience} onChange={(e) => updateField("previousExperience", e.target.value)} placeholder="اكتب خبراتك السابقة إن وجدت" className="min-h-40 w-full resize-none bg-transparent text-xl outline-none" />
               </div>
 
-              <textarea
-                value={form.notes}
-                onChange={(e) => updateField("notes", e.target.value)}
-                placeholder="ملاحظات إضافية"
-                className="min-h-36 w-full resize-none rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400"
-              />
+              <textarea value={form.notes} onChange={(e) => updateField("notes", e.target.value)} placeholder="ملاحظات إضافية" className="min-h-36 w-full resize-none rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400" />
 
               {message && (
                 <div className="rounded-3xl border border-yellow-500/40 bg-yellow-500/10 p-5 text-center text-xl font-bold text-yellow-100">
@@ -871,11 +690,7 @@ export default function HomePage() {
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-5 text-2xl font-black disabled:opacity-60"
-              >
+              <button type="submit" disabled={isSubmitting} className="w-full rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-5 text-2xl font-black disabled:opacity-60">
                 {isSubmitting ? "جارٍ الإرسال..." : "إرسال الطلب"}
               </button>
             </form>
@@ -883,11 +698,7 @@ export default function HomePage() {
         </div>
       )}
 
-      <a
-        href={`https://wa.me/${publicSettings.cleanWhatsapp}`}
-        target="_blank"
-        className="fixed bottom-5 left-5 z-30 rounded-full bg-green-500 px-5 py-4 text-sm font-black text-white shadow-2xl"
-      >
+      <a href={`https://wa.me/${publicSettings.cleanWhatsapp}`} target="_blank" className="fixed bottom-5 left-5 z-30 rounded-full bg-green-500 px-5 py-4 text-sm font-black text-white shadow-2xl">
         واتساب
       </a>
 
@@ -895,36 +706,30 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-4">
           <div>
             <div className="flex items-center gap-3">
-              <img
-                src={logoUrl}
-                alt={publicSettings.englishName}
-                className="h-12 w-12 rounded-xl object-cover"
-              />
-
+              <img src={logoUrl} alt={publicSettings.englishName} className="h-12 w-12 rounded-xl object-cover" />
               <div>
                 <div className="font-black">{publicSettings.englishName}</div>
-                <div className="text-sm text-yellow-200/75">
-                  {publicSettings.agencyName}
-                </div>
+                <div className="text-sm text-yellow-200/75">{publicSettings.agencyName}</div>
               </div>
             </div>
+            <p className="mt-5 leading-8 text-white/55">{publicSettings.footerDescription}</p>
 
-            <p className="mt-5 leading-8 text-white/55">
-              منصة وكالة احترافية لإدارة وتوظيف ودعم صناع المحتوى على منصات
-              البث المباشر والتواصل الاجتماعي.
-            </p>
+            {publicSettings.socialLinks.length > 0 && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {publicSettings.socialLinks.map((link) => (
+                  <a key={link.label} href={link.href} target="_blank" className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/70 transition hover:border-purple-400/50 hover:text-white">
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>
             <h3 className="font-black text-white">روابط الموقع</h3>
-
             <div className="mt-4 grid gap-3 text-white/60">
               {mainNavigationLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="transition hover:text-purple-200"
-                >
+                <Link key={link.href} href={link.href} className="transition hover:text-purple-200">
                   {link.label}
                 </Link>
               ))}
@@ -933,14 +738,9 @@ export default function HomePage() {
 
           <div>
             <h3 className="font-black text-white">الصفحات القانونية</h3>
-
             <div className="mt-4 grid gap-3 text-white/60">
               {footerLegalLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="transition hover:text-yellow-200"
-                >
+                <Link key={link.href} href={link.href} className="transition hover:text-yellow-200">
                   {link.label}
                 </Link>
               ))}
@@ -949,21 +749,17 @@ export default function HomePage() {
 
           <div>
             <h3 className="font-black text-white">التواصل</h3>
-
             <p className="mt-4 text-white/60">{publicSettings.whatsapp}</p>
-
-            <a
-              href={`https://wa.me/${publicSettings.cleanWhatsapp}`}
-              target="_blank"
-              className="mt-5 inline-flex rounded-full bg-green-500 px-6 py-3 font-black text-white"
-            >
-              فتح واتساب
+            <p className="mt-2 break-all text-white/50">{publicSettings.contactEmail}</p>
+            <p className="mt-3 leading-7 text-white/45">{publicSettings.workingHours}</p>
+            <a href={`https://wa.me/${publicSettings.cleanWhatsapp}`} target="_blank" className="mt-5 inline-flex rounded-full bg-green-500 px-6 py-3 font-black text-white">
+              {publicSettings.footerWhatsappLabel}
             </a>
           </div>
         </div>
 
         <div className="mx-auto mt-10 max-w-7xl border-t border-white/10 pt-6 text-center text-sm text-white/45">
-          {publicSettings.footerText}
+          {publicSettings.footerCopyright}
         </div>
       </footer>
     </main>
@@ -982,7 +778,6 @@ function AnnouncementBar({
   rounded?: boolean;
 }) {
   const text = `${announcement.title || ""} — ${announcement.content || ""}`;
-
   if (!text.trim()) return null;
 
   return (
@@ -992,14 +787,7 @@ function AnnouncementBar({
       }`}
     >
       {animation === "marquee" ? (
-        <div
-          className="hamza-marquee-track flex w-max whitespace-nowrap py-3 text-sm font-bold md:text-base"
-          style={
-            {
-              "--marquee-duration": `${speed || 22}s`,
-            } as CSSProperties
-          }
-        >
+        <div className="hamza-marquee-track flex w-max whitespace-nowrap py-3 text-sm font-bold md:text-base" style={{ "--marquee-duration": `${speed || 22}s` } as CSSProperties}>
           <span className="mx-8">{text}</span>
           <span className="mx-8">{text}</span>
           <span className="mx-8">{text}</span>
@@ -1020,26 +808,13 @@ function PublicBackground({ media }: { media: MediaItem | undefined }) {
   const url = media?.file_url || "";
   const fileType = media?.file_type || "";
   const isUsableUrl = url.startsWith("http") || url.startsWith("/");
-
-  const isVideo =
-    fileType === "video" ||
-    fileType === "background_video" ||
-    /\.(mp4|webm|ogg)$/i.test(url);
-
-  const isImage =
-    fileType === "image" || /\.(jpg|jpeg|png|webp|gif)$/i.test(url);
+  const isVideo = fileType === "video" || fileType === "background_video" || /\.(mp4|webm|ogg)$/i.test(url);
+  const isImage = fileType === "image" || /\.(jpg|jpeg|png|webp|gif)$/i.test(url);
 
   if (isUsableUrl && isVideo) {
     return (
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <video
-          className="h-full w-full object-cover opacity-36"
-          src={url}
-          autoPlay
-          loop
-          muted
-          playsInline
-        />
+        <video className="h-full w-full object-cover opacity-36" src={url} autoPlay loop muted playsInline />
         <div className="absolute inset-0 bg-[#050008]/74" />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(16,5,32,0.35),rgba(5,0,8,0.94))]" />
       </div>
@@ -1049,10 +824,7 @@ function PublicBackground({ media }: { media: MediaItem | undefined }) {
   if (isUsableUrl && isImage) {
     return (
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-34"
-          style={{ backgroundImage: `url("${url}")` }}
-        />
+        <div className="absolute inset-0 bg-cover bg-center opacity-34" style={{ backgroundImage: `url("${url}")` }} />
         <div className="absolute inset-0 bg-[#050008]/76" />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(16,5,32,0.35),rgba(5,0,8,0.94))]" />
       </div>
@@ -1068,26 +840,16 @@ function GeneratedBackground({ variant }: { variant: string }) {
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       <div className="absolute inset-0 bg-[#040006]" />
-
       <div className="absolute inset-0 bg-[linear-gradient(180deg,#16072a_0%,#09000f_48%,#030004_100%)]" />
-
       <div className="premium-purple-depth absolute inset-0 opacity-95" />
-
       <div className="premium-silk-one absolute -left-[18%] top-[18%] h-[360px] w-[145vw] rotate-[-9deg] rounded-[999px] bg-gradient-to-r from-transparent via-purple-500/18 to-transparent blur-3xl" />
-
       <div className="premium-silk-two absolute -right-[20%] top-[34%] hidden h-[260px] w-[135vw] rotate-[8deg] rounded-[999px] bg-gradient-to-r from-transparent via-violet-300/12 to-transparent blur-3xl md:block" />
-
       <div className="premium-gold-thread absolute left-[-8%] top-[34%] h-[2px] w-[116vw] rotate-[-5deg] bg-gradient-to-r from-transparent via-yellow-200/34 to-transparent blur-[1px]" />
-
       <div className="premium-gold-soft absolute right-[-20%] top-[24%] h-[240px] w-[55vw] rounded-full bg-yellow-300/8 blur-[90px]" />
-
       <div className="premium-bottom-shadow absolute bottom-0 left-0 right-0 h-[45vh] bg-gradient-to-t from-black via-black/78 to-transparent" />
-
       <div className="premium-fine-texture absolute inset-0 opacity-[0.055] [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.55)_1px,transparent_0)] [background-size:54px_54px]" />
-
       <div className="premium-glint premium-glint-one absolute h-1.5 w-1.5 rounded-full bg-yellow-100/70 shadow-[0_0_22px_rgba(254,240,138,0.8)]" />
       <div className="premium-glint premium-glint-two absolute h-1.5 w-1.5 rounded-full bg-purple-100/65 shadow-[0_0_22px_rgba(216,180,254,0.75)]" />
-
       {normalized.includes("programs") && (
         <div className="absolute left-[8%] top-[38%] hidden h-24 w-40 rounded-[2rem] border border-purple-300/10 bg-white/[0.025] backdrop-blur md:block" />
       )}
@@ -1166,79 +928,26 @@ function SiteAnimationStyles() {
         50% { opacity: 0.45; transform: translateX(-50%) scaleX(1.04); }
       }
 
-      .premium-purple-depth {
-        animation: premiumDepth 28s ease-in-out infinite;
-      }
-
-      .premium-silk-one {
-        animation: premiumSilkOne 24s ease-in-out infinite;
-        will-change: transform, opacity;
-      }
-
-      .premium-silk-two {
-        animation: premiumSilkTwo 30s ease-in-out infinite;
-        will-change: transform, opacity;
-      }
-
-      .premium-gold-thread {
-        animation: premiumGoldThread 26s ease-in-out infinite;
-        will-change: transform, opacity;
-      }
-
-      .premium-gold-soft {
-        animation: premiumGoldSoft 30s ease-in-out infinite;
-        will-change: transform, opacity;
-      }
-
-      .premium-glint {
-        animation: premiumGlint 18s ease-in-out infinite;
-        will-change: transform, opacity;
-      }
-
-      .premium-glint-one {
-        left: 18%;
-        top: 31%;
-        --x: 42px;
-        --y: 26px;
-      }
-
-      .premium-glint-two {
-        right: 22%;
-        top: 46%;
-        --x: -38px;
-        --y: 30px;
-        animation-delay: -7s;
-      }
-
-      .premium-hero-aura {
-        animation: premiumHeroAura 18s ease-in-out infinite;
-      }
-
-      .premium-hero-gold {
-        animation: premiumHeroGold 16s ease-in-out infinite;
-      }
+      .premium-purple-depth { animation: premiumDepth 28s ease-in-out infinite; }
+      .premium-silk-one { animation: premiumSilkOne 24s ease-in-out infinite; will-change: transform, opacity; }
+      .premium-silk-two { animation: premiumSilkTwo 30s ease-in-out infinite; will-change: transform, opacity; }
+      .premium-gold-thread { animation: premiumGoldThread 26s ease-in-out infinite; will-change: transform, opacity; }
+      .premium-gold-soft { animation: premiumGoldSoft 30s ease-in-out infinite; will-change: transform, opacity; }
+      .premium-glint { animation: premiumGlint 18s ease-in-out infinite; will-change: transform, opacity; }
+      .premium-glint-one { left: 18%; top: 31%; --x: 42px; --y: 26px; }
+      .premium-glint-two { right: 22%; top: 46%; --x: -38px; --y: 30px; animation-delay: -7s; }
+      .premium-hero-aura { animation: premiumHeroAura 18s ease-in-out infinite; }
+      .premium-hero-gold { animation: premiumHeroGold 16s ease-in-out infinite; }
 
       @media (max-width: 768px) {
-        .premium-silk-one {
-          animation-duration: 34s;
-          opacity: 0.65;
-        }
-
-        .premium-purple-depth {
-          animation-duration: 40s;
-        }
-
+        .premium-silk-one { animation-duration: 34s; opacity: 0.65; }
+        .premium-purple-depth { animation-duration: 40s; }
         .premium-gold-thread,
         .premium-gold-soft,
         .premium-glint,
         .premium-hero-aura,
-        .premium-hero-gold {
-          animation: none !important;
-        }
-
-        .premium-fine-texture {
-          opacity: 0.035;
-        }
+        .premium-hero-gold { animation: none !important; }
+        .premium-fine-texture { opacity: 0.035; }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -1250,9 +959,7 @@ function SiteAnimationStyles() {
         .premium-gold-soft,
         .premium-glint,
         .premium-hero-aura,
-        .premium-hero-gold {
-          animation: none !important;
-        }
+        .premium-hero-gold { animation: none !important; }
       }
     `}</style>
   );
