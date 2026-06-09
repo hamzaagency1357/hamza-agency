@@ -19,6 +19,7 @@ const adminLinks = [
   { label: "الشركاء", href: "/admin/partners" },
   { label: "المعرض", href: "/admin/gallery" },
   { label: "سجل النشاطات", href: "/admin/activity-logs" },
+  { label: "سلة المحذوفات", href: "/admin/trash" },
   { label: "الإشعارات", href: "/admin/notifications" },
   { label: "التحليلات", href: "/admin/analytics" },
   { label: "فحص الإطلاق", href: "/admin/launch-checklist" },
