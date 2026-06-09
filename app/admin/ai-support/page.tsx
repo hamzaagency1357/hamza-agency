@@ -1,0 +1,380 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { supabase } from "@/lib/supabase";
+
+type GenericRow = Record<string, unknown>;
+type FilterKey = "all" | "open" | "answered" | "unanswered" | "escalated";
+type Tone = "purple" | "green" | "blue" | "yellow" | "red" | "cyan";
+
+const filters: { key: FilterKey; label: string }[] = [
+  { key: "all", label: "الكل" },
+  { key: "open", label: "مفتوح" },
+  { key: "answered", label: "تمت الإجابة" },
+  { key: "unanswered", label: "غير مجاب" },
+  { key: "escalated", label: "محول للمتابعة" },
+];
+
+function getString(row: GenericRow, keys: string[], fallback = "") {
+  for (const key of keys) {
+    const value = row[key];
+    if (value === null || value === undefined) continue;
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+  }
+
+  return fallback;
+}
+
+function formatValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return "غير متوفر";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return "بيانات غير قابلة للعرض";
+  }
+}
+
+function formatDate(value: string) {
+  if (!value) return "غير متوفر";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "غير متوفر";
+
+  return new Intl.DateTimeFormat("ar", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function getStatus(row: GenericRow): FilterKey {
+  const status = getString(row, ["status", "state", "conversation_status", "question_status"], "open").toLowerCase();
+
+  if (["answered", "resolved", "closed", "done"].includes(status)) return "answered";
+  if (["unanswered", "pending", "new"].includes(status)) return "unanswered";
+  if (["escalated", "whatsapp", "human", "support"].includes(status)) return "escalated";
+
+  return "open";
+}
+
+function getStatusLabel(row: GenericRow) {
+  const status = getStatus(row);
+  if (status === "answered") return "تمت الإجابة";
+  if (status === "unanswered") return "غير مجاب";
+  if (status === "escalated") return "محول للمتابعة";
+  return "مفتوح";
+}
+
+function getQuestion(row: GenericRow) {
+  return getString(row, ["question", "message", "user_message", "last_message", "prompt", "title", "content"], "محادثة دعم ذكي");
+}
+
+function getAnswer(row: GenericRow) {
+  return getString(row, ["answer", "response", "ai_response", "assistant_response", "reply"], "");
+}
+
+function getVisitor(row: GenericRow) {
+  return getString(row, ["visitor_name", "name", "user_name", "full_name", "visitor_id", "session_id", "phone", "whatsapp"], "غير محدد");
+}
+
+function getCreatedAt(row: GenericRow) {
+  return getString(row, ["created_at", "updated_at", "last_message_at", "asked_at", "date"], "");
+}
+
+function getRecordId(row: GenericRow) {
+  return getString(row, ["id", "conversation_id", "question_id", "session_id"], "غير متوفر");
+}
+
+function toneForStatus(status: FilterKey): Tone {
+  if (status === "answered") return "green";
+  if (status === "unanswered") return "red";
+  if (status === "escalated") return "yellow";
+  return "purple";
+}
+
+export default function AdminAiSupportPage() {
+  const router = useRouter();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isForbidden, setIsForbidden] = useState(false);
+  const [adminEmail, setAdminEmail] = useState("");
+  const [conversations, setConversations] = useState<GenericRow[]>([]);
+  const [unansweredQuestions, setUnansweredQuestions] = useState<GenericRow[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [filter, setFilter] = useState<FilterKey>("all");
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    async function checkAccess() {
+      const access = await requireAdminModuleAccess("dashboard");
+
+      if (!access.isAuthorized || !access.profile) {
+        setIsAuthorized(false);
+        setIsCheckingAuth(false);
+        router.replace("/admin/login");
+        return;
+      }
+
+      if (access.profile.role === "program_admin") {
+        setAdminEmail(access.profile.email || access.user?.email || "");
+        setIsForbidden(true);
+        setIsAuthorized(false);
+        setIsCheckingAuth(false);
+        return;
+      }
+
+      setAdminEmail(access.profile.email || access.user?.email || "");
+      setIsAuthorized(true);
+      setIsCheckingAuth(false);
+    }
+
+    checkAccess();
+  }, [router]);
+
+  useEffect(() => {
+    if (!isAuthorized) return;
+    loadAiSupportData();
+  }, [isAuthorized]);
+
+  async function loadAiSupportData() {
+    if (!supabase) {
+      setError("الاتصال بقاعدة البيانات غير مفعل.");
+      return;
+    }
+
+    setError("");
+    setIsLoading(true);
+
+    const [conversationsResult, unansweredResult] = await Promise.all([
+      supabase.from("ai_conversations").select("*").limit(120),
+      supabase.from("ai_unanswered_questions").select("*").limit(120),
+    ]);
+
+    setIsLoading(false);
+
+    if (conversationsResult.error || unansweredResult.error) {
+      setError("تعذر تحميل بيانات الدعم الذكي. يرجى التأكد من إعدادات جداول ai_conversations و ai_unanswered_questions وصلاحيات القراءة.");
+      return;
+    }
+
+    setConversations((conversationsResult.data || []) as GenericRow[]);
+    setUnansweredQuestions((unansweredResult.data || []) as GenericRow[]);
+  }
+
+  const allItems = useMemo(() => {
+    return [
+      ...conversations.map((row) => ({ row, source: "conversation" as const })),
+      ...unansweredQuestions.map((row) => ({ row, source: "unanswered" as const })),
+    ];
+  }, [conversations, unansweredQuestions]);
+
+  const filteredItems = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return allItems.filter((item) => {
+      const status = item.source === "unanswered" ? "unanswered" : getStatus(item.row);
+      const matchesFilter = filter === "all" || status === filter;
+
+      if (!matchesFilter) return false;
+      if (!query) return true;
+
+      const text = [
+        getQuestion(item.row),
+        getAnswer(item.row),
+        getVisitor(item.row),
+        getStatusLabel(item.row),
+        getRecordId(item.row),
+        item.source,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return text.includes(query);
+    });
+  }, [allItems, filter, search]);
+
+  const answeredCount = conversations.filter((row) => getStatus(row) === "answered").length;
+  const escalatedCount = conversations.filter((row) => getStatus(row) === "escalated").length;
+  const unansweredCount = unansweredQuestions.length;
+
+  if (isCheckingAuth) {
+    return (
+      <main dir="rtl" className="min-h-screen bg-[#070009] p-6 text-white">
+        <div className="mx-auto max-w-6xl rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center">
+          جاري التحقق من صلاحيات الإدارة...
+        </div>
+      </main>
+    );
+  }
+
+  if (isForbidden) {
+    return (
+      <main dir="rtl" className="min-h-screen bg-[#070009] p-5 pb-40 text-white md:p-8 md:pb-10">
+        <section className="mx-auto max-w-4xl rounded-[2rem] border border-red-400/25 bg-red-500/10 p-8 text-center">
+          <div className="text-sm font-black tracking-[0.25em] text-red-100">صلاحيات محدودة</div>
+          <h1 className="mt-3 text-3xl font-black">لا يمكن عرض الدعم الذكي لهذا الحساب</h1>
+          <p className="mt-4 leading-8 text-white/60">إدارة الدعم الذكي مخصصة لحسابات السوبر أدمن ونائب السوبر أدمن فقط.</p>
+          <p className="mt-3 text-sm text-white/45">الحساب: {adminEmail}</p>
+          <Link href="/admin" className="mt-6 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-6 py-3 font-bold text-white/75">
+            العودة إلى لوحة التحكم
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
+  if (!isAuthorized) return null;
+
+  return (
+    <main dir="rtl" className="min-h-screen bg-[#070009] p-5 pb-40 text-white md:p-8 md:pb-10">
+      <section className="mx-auto max-w-7xl">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="mb-3 inline-flex rounded-full border border-fuchsia-400/25 bg-fuchsia-500/10 px-5 py-2 text-sm font-bold text-fuchsia-100">
+              الدعم الذكي
+            </div>
+            <h1 className="text-4xl font-black md:text-5xl">AI Support</h1>
+            <p className="mt-3 max-w-3xl leading-8 text-white/55">
+              مركز متابعة محادثات الدعم الذكي والأسئلة غير المجاب عنها وتحويل الحالات التي تحتاج متابعة بشرية.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={loadAiSupportData}
+              disabled={isLoading}
+              className="rounded-full bg-gradient-to-r from-fuchsia-600 to-purple-600 px-6 py-3 font-black text-white shadow-[0_0_30px_rgba(168,85,247,0.22)] disabled:opacity-60"
+            >
+              {isLoading ? "جاري التحديث..." : "تحديث البيانات"}
+            </button>
+            <Link href="/admin" className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">
+              لوحة الإدارة
+            </Link>
+          </div>
+        </div>
+
+        <div className="mb-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-sm text-white/55">
+          حساب الإدارة: <span className="text-white">{adminEmail}</span>
+        </div>
+
+        {error && (
+          <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 leading-8 text-red-100">
+            {error}
+          </div>
+        )}
+
+        <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <StatCard label="المحادثات" value={conversations.length} tone="purple" />
+          <StatCard label="تمت الإجابة" value={answeredCount} tone="green" />
+          <StatCard label="غير مجاب" value={unansweredCount} tone="red" />
+          <StatCard label="محول للمتابعة" value={escalatedCount} tone="yellow" />
+          <StatCard label="إجمالي العناصر" value={allItems.length} tone="cyan" />
+        </div>
+
+        <section className="mb-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="ابحث في السؤال أو الرد أو الزائر..."
+              className="w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none placeholder:text-white/35 focus:border-fuchsia-300/40"
+            />
+            <select
+              value={filter}
+              onChange={(event) => setFilter(event.target.value as FilterKey)}
+              className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-fuchsia-300/40"
+            >
+              {filters.map((item) => (
+                <option key={item.key} value={item.key} className="bg-[#120018]">
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
+
+        <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-2xl font-black">متابعة الدعم الذكي</h2>
+              <p className="mt-2 text-sm text-white/45">عدد النتائج: {filteredItems.length}</p>
+            </div>
+          </div>
+
+          {filteredItems.length === 0 && (
+            <div className="rounded-3xl border border-white/10 bg-black/25 p-8 text-center text-white/55">
+              لا توجد محادثات أو أسئلة مطابقة حالياً.
+            </div>
+          )}
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {filteredItems.map((item, index) => {
+              const status = item.source === "unanswered" ? "unanswered" : getStatus(item.row);
+
+              return (
+                <article key={`${item.source}-${getRecordId(item.row)}-${index}`} className={`rounded-3xl border p-5 ${toneClass(toneForStatus(status))}`}>
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <div className="mb-3 inline-flex rounded-full border border-white/10 bg-black/20 px-4 py-1 text-sm font-black">
+                        {item.source === "unanswered" ? "غير مجاب" : getStatusLabel(item.row)}
+                      </div>
+                      <h3 className="text-2xl font-black">{getQuestion(item.row)}</h3>
+                      <p className="mt-2 text-sm opacity-75">الزائر: {getVisitor(item.row)}</p>
+                      <p className="mt-1 text-sm opacity-75">المعرّف: {getRecordId(item.row)}</p>
+                    </div>
+
+                    <div className="text-sm opacity-70 md:text-left">
+                      {formatDate(getCreatedAt(item.row))}
+                    </div>
+                  </div>
+
+                  {getAnswer(item.row) && (
+                    <p className="mt-4 line-clamp-4 leading-8 opacity-80">
+                      {getAnswer(item.row)}
+                    </p>
+                  )}
+
+                  {!getAnswer(item.row) && item.source !== "unanswered" && (
+                    <pre className="mt-4 max-h-44 overflow-auto whitespace-pre-wrap rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-7 opacity-75">
+                      {formatValue(item.row)}
+                    </pre>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      </section>
+    </main>
+  );
+}
+
+function StatCard({ label, value, tone }: { label: string; value: number; tone: Tone }) {
+  return (
+    <div className={`rounded-3xl border p-5 ${toneClass(tone)}`}>
+      <div className="text-sm font-bold opacity-75">{label}</div>
+      <div className="mt-2 text-4xl font-black" dir="ltr">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function toneClass(tone: Tone) {
+  const classes: Record<Tone, string> = {
+    purple: "border-purple-400/20 bg-purple-500/10 text-purple-100",
+    green: "border-green-400/20 bg-green-500/10 text-green-100",
+    blue: "border-blue-400/20 bg-blue-500/10 text-blue-100",
+    yellow: "border-yellow-400/20 bg-yellow-500/10 text-yellow-100",
+    red: "border-red-400/20 bg-red-500/10 text-red-100",
+    cyan: "border-cyan-400/20 bg-cyan-500/10 text-cyan-100",
+  };
+
+  return classes[tone];
+}
