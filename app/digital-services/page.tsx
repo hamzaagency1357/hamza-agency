@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import {
+  findCmsSection,
+  getCmsPageWithSections,
+  getCmsText,
+  type CmsSection,
+} from "@/lib/pageSections";
 
-type PageContent = {
-  title: string | null;
-  slug: string | null;
-  content: string | null;
-  is_published: boolean | null;
-};
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Setting = {
   setting_key: string | null;
@@ -14,33 +16,31 @@ type Setting = {
   is_public: boolean | null;
 };
 
+function getSectionContent(
+  section: CmsSection | null,
+  fallback: { title: string; subtitle: string; content: string }
+) {
+  return {
+    title: getCmsText(section?.title, fallback.title),
+    subtitle: getCmsText(section?.subtitle, fallback.subtitle),
+    content: getCmsText(section?.content, fallback.content),
+  };
+}
+
 async function getDigitalServicesPageData() {
-  if (!supabase) {
-    return {
-      page: null,
-      settings: [],
-    };
-  }
-
-  const [pageResult, settingsResult] = await Promise.all([
+  const [pageData, settingsResult] = await Promise.all([
+    getCmsPageWithSections("digital-services"),
     supabase
-      .from("pages")
-      .select("title, slug, content, is_published")
-      .eq("slug", "digital-services")
-      .eq("is_published", true)
-      .limit(1),
-
-    supabase
-      .from("settings")
-      .select("setting_key, setting_value, is_public")
-      .eq("is_public", true),
+      ? supabase
+          .from("settings")
+          .select("setting_key, setting_value, is_public")
+          .eq("is_public", true)
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
   return {
-    page:
-      !pageResult.error && pageResult.data && pageResult.data.length > 0
-        ? pageResult.data[0]
-        : null,
+    page: pageData.page,
+    sections: pageData.sections,
     settings:
       !settingsResult.error && settingsResult.data ? settingsResult.data : [],
   };
@@ -60,31 +60,31 @@ function getSetting(settings: Setting[], keys: string[], fallback: string) {
 const digitalServices = [
   {
     title: "شحن المنصات",
-    text: "خدمة شرح ومساعدة لطلبات شحن بعض المنصات حسب التوفر، مع إرسال الطلب من الموقع والمتابعة عبر واتساب.",
+    text: "متابعة طلبات الشحن حسب المنصة والبيانات المطلوبة، مع تأكيد التفاصيل عبر قنوات الوكالة الرسمية.",
     tag: "Top Up",
   },
   {
     title: "سحب الأرباح",
-    text: "مساعدة صناع المحتوى في فهم خطوات سحب الأرباح وإرسال طلب متابعة للوكالة حسب البرنامج.",
+    text: "مساعدة صناع المحتوى في فهم خطوات سحب الأرباح وإرسال طلب متابعة منظم حسب البرنامج.",
     tag: "Withdrawals",
   },
   {
     title: "متابعة الطلبات الرقمية",
-    text: "تنظيم طلبات الخدمات الرقمية ومتابعتها بشكل واضح من خلال فريق الوكالة ولوحة الإدارة.",
+    text: "تنظيم طلبات الخدمات الرقمية ومراجعة حالتها من لوحة الإدارة بطريقة واضحة.",
     tag: "Requests",
   },
   {
-    title: "دعم واتساب مباشر",
-    text: "التواصل مع فريق الوكالة عبر واتساب لشرح الخدمة المطلوبة أو متابعة الطلب عند الحاجة.",
+    title: "دعم واتساب",
+    text: "التواصل مع فريق الوكالة لتوضيح الخدمة المطلوبة أو متابعة الطلب عند الحاجة.",
     tag: "WhatsApp",
   },
 ];
 
 const rules = [
-  "لا يوجد حالياً نظام محفظة داخل الموقع",
-  "لا يوجد دفع إلكتروني مباشر داخل الموقع حالياً",
-  "كل خدمة تتم بعد إرسال الطلب والتأكيد عبر واتساب",
-  "الخدمات الرقمية منفصلة عن خدمات إدارة صناع المحتوى",
+  "يتم تأكيد تفاصيل الخدمة قبل تنفيذ أي طلب.",
+  "يتم التواصل عبر واتساب عند الحاجة لتوضيح البيانات.",
+  "الخدمات الرقمية تُراجع من فريق الوكالة حسب نوع الطلب.",
+  "إرسال الطلب من الموقع يساعد على تنظيم المتابعة داخل لوحة الإدارة.",
 ];
 
 const workflow = [
@@ -92,11 +92,11 @@ const workflow = [
   "تعبئة نموذج طلب الخدمة",
   "إرسال تفاصيل الطلب",
   "مراجعة الطلب من فريق الوكالة",
-  "التواصل عبر واتساب للتأكيد",
+  "التواصل عبر واتساب للتأكيد والمتابعة",
 ];
 
 export default async function DigitalServicesPage() {
-  const { page, settings } = await getDigitalServicesPageData();
+  const { page, sections, settings } = await getDigitalServicesPageData();
 
   const agencyName = getSetting(
     settings,
@@ -112,11 +112,25 @@ export default async function DigitalServicesPage() {
 
   const cleanWhatsapp = whatsapp.replace(/[^\d]/g, "");
 
-  const title = page?.title || "الخدمات الرقمية";
+  const overview = getSectionContent(
+    findCmsSection(sections, "digital-services-overview"),
+    {
+      title: "الخدمات الرقمية",
+      subtitle: "شحن وسحب وخدمات مساعدة",
+      content:
+        "توفر وكالة حمزة صفحة مخصصة لشرح الخدمات الرقمية مثل شحن المنصات وسحب الأرباح والخدمات المساعدة، مع إمكانية إرسال طلب خدمة من الموقع ومتابعته من فريق الوكالة عبر واتساب.",
+    }
+  );
 
-  const intro =
-    page?.content ||
-    "توفر وكالة حمزة صفحة مخصصة لشرح الخدمات الرقمية مثل شحن المنصات وسحب الأرباح والخدمات المساعدة، مع إمكانية إرسال طلب خدمة من الموقع ومتابعته من فريق الوكالة عبر واتساب.";
+  const requestCta = getSectionContent(findCmsSection(sections, "service-request-cta"), {
+    title: "إرسال طلب خدمة",
+    subtitle: "أرسل تفاصيل طلبك ليتم متابعته من لوحة الإدارة",
+    content:
+      "يمكن للعميل إرسال طلب خدمة مع البيانات الأساسية، ثم تتم مراجعته وتحديث حالته من لوحة التحكم.",
+  });
+
+  const title = page?.title || overview.title;
+  const intro = page?.content || overview.content;
 
   return (
     <main
@@ -138,7 +152,7 @@ export default async function DigitalServicesPage() {
           <h1 className="text-5xl font-black leading-tight md:text-7xl">
             {title}
             <span className="block bg-gradient-to-r from-yellow-300 via-white to-purple-300 bg-clip-text text-transparent">
-              شحن وسحب وخدمات مساعدة
+              {overview.subtitle}
             </span>
           </h1>
 
@@ -177,7 +191,6 @@ export default async function DigitalServicesPage() {
               </div>
 
               <h2 className="text-3xl font-black">{service.title}</h2>
-
               <p className="mt-4 leading-8 text-white/68">{service.text}</p>
             </div>
           ))}
@@ -220,11 +233,10 @@ export default async function DigitalServicesPage() {
         </div>
 
         <div className="mt-10 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
-          <h2 className="text-3xl font-black">لطلب خدمة رقمية</h2>
+          <h2 className="text-3xl font-black">{requestCta.title}</h2>
 
           <p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">
-            يمكنك إرسال طلب خدمة رقمية من النموذج الرسمي، وسيقوم فريق وكالة
-            حمزة بمراجعة الطلب ثم التواصل معك عبر واتساب للتأكيد والمتابعة.
+            {requestCta.content}
           </p>
 
           <div className="mt-7 flex flex-col justify-center gap-4 sm:flex-row">
@@ -255,13 +267,9 @@ function DigitalServicesBackground() {
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       <div className="absolute inset-0 bg-[#070009]" />
-
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(212,175,55,0.24)_0%,rgba(124,58,237,0.18)_35%,rgba(7,0,9,0.98)_72%)]" />
-
       <div className="absolute -left-24 top-16 h-80 w-80 rounded-full bg-purple-600/14 blur-3xl" />
-
       <div className="absolute -right-24 top-44 hidden h-96 w-96 rounded-full bg-yellow-400/12 blur-3xl md:block" />
-
       <div className="absolute inset-0 opacity-10 [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.35)_1px,transparent_0)] [background-size:42px_42px]" />
     </div>
   );
