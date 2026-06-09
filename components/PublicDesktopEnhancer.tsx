@@ -14,25 +14,25 @@ const publicMobileCss = `
     }
 
     body.public-site-page main {
-      padding-bottom: 7.5rem !important;
+      padding-bottom: 8.5rem !important;
     }
 
     body.public-site-page nav {
       width: 100% !important;
       max-width: 100vw !important;
-      gap: 0.65rem !important;
-      padding: 0.85rem 1rem 0.55rem !important;
+      gap: 0.6rem !important;
+      padding: 0.8rem 0.9rem 0.5rem !important;
       overflow: hidden !important;
     }
 
     body.public-site-page nav > a:first-child {
       min-width: 0 !important;
-      max-width: 76vw !important;
+      max-width: 78vw !important;
     }
 
     body.public-site-page nav > a:first-child img {
-      height: 40px !important;
-      width: 40px !important;
+      height: 38px !important;
+      width: 38px !important;
       flex: 0 0 auto !important;
     }
 
@@ -50,7 +50,7 @@ const publicMobileCss = `
       overflow-y: hidden !important;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
-      padding-inline: 0.15rem !important;
+      padding-inline: 0.4rem !important;
     }
 
     body.public-site-page div.overflow-x-auto::-webkit-scrollbar {
@@ -59,37 +59,37 @@ const publicMobileCss = `
 
     body.public-site-page div.overflow-x-auto a {
       white-space: nowrap !important;
-      font-size: 0.78rem !important;
-      padding: 0.55rem 0.85rem !important;
+      font-size: 0.76rem !important;
+      padding: 0.52rem 0.8rem !important;
       min-width: max-content !important;
     }
 
     body.public-site-page .hamza-marquee-track {
-      font-size: 0.78rem !important;
+      font-size: 0.76rem !important;
       line-height: 1.65 !important;
-      padding-top: 0.55rem !important;
-      padding-bottom: 0.55rem !important;
+      padding-top: 0.52rem !important;
+      padding-bottom: 0.52rem !important;
       max-width: none !important;
     }
 
     body.public-site-page section:first-of-type {
-      padding-top: 0.75rem !important;
-      padding-bottom: 5rem !important;
+      padding-top: 0.7rem !important;
+      padding-bottom: 5.25rem !important;
     }
 
     body.public-site-page section:first-of-type img {
-      width: min(32vw, 118px) !important;
-      height: min(32vw, 118px) !important;
-      margin-bottom: 0.9rem !important;
-      border-radius: 1.3rem !important;
+      width: min(31vw, 112px) !important;
+      height: min(31vw, 112px) !important;
+      margin-bottom: 0.85rem !important;
+      border-radius: 1.25rem !important;
     }
 
     body.public-site-page section:first-of-type h1,
     body.public-site-page h1 {
       max-width: 92vw !important;
-      font-size: clamp(1.85rem, 7.65vw, 2.75rem) !important;
+      font-size: clamp(1.8rem, 7.45vw, 2.65rem) !important;
       line-height: 1.18 !important;
-      letter-spacing: -0.025em !important;
+      letter-spacing: -0.02em !important;
       overflow-wrap: break-word !important;
     }
 
@@ -101,59 +101,89 @@ const publicMobileCss = `
 
     body.public-site-page section:first-of-type p {
       max-width: 92vw !important;
-      font-size: 0.92rem !important;
-      line-height: 1.75 !important;
-      margin-top: 0.85rem !important;
+      font-size: 0.9rem !important;
+      line-height: 1.72 !important;
+      margin-top: 0.8rem !important;
     }
 
     body.public-site-page section:first-of-type .mt-10 {
       margin-top: 1rem !important;
-      margin-bottom: 2.1rem !important;
+      margin-bottom: 2rem !important;
     }
 
     body.public-site-page section:first-of-type button,
     body.public-site-page section:first-of-type a[href="/programs"] {
-      width: min(100%, 250px) !important;
-      padding: 0.78rem 1.25rem !important;
-      font-size: 0.94rem !important;
+      width: min(100%, 245px) !important;
+      padding: 0.76rem 1.2rem !important;
+      font-size: 0.92rem !important;
     }
 
     body.public-site-page a[href*="wa.me"] {
-      bottom: calc(env(safe-area-inset-bottom, 0px) + 0.7rem) !important;
-      left: 0.65rem !important;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 0.35rem) !important;
+      left: 0.55rem !important;
       z-index: 34 !important;
-      padding: 0.68rem 0.78rem !important;
-      font-size: 0.78rem !important;
-      max-width: 7rem !important;
+      min-width: 4.25rem !important;
+      max-width: 5.9rem !important;
+      padding: 0.58rem 0.66rem !important;
+      font-size: 0.74rem !important;
+      border-radius: 999px !important;
     }
 
     body.public-site-page div.fixed.bottom-4.right-4 {
-      bottom: calc(env(safe-area-inset-bottom, 0px) + 0.7rem) !important;
-      right: 0.65rem !important;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 0.35rem) !important;
+      right: 0.55rem !important;
       z-index: 35 !important;
-      max-width: 9.5rem !important;
+      max-width: 7.9rem !important;
     }
 
     body.public-site-page div.fixed.bottom-4.right-4 > button {
-      padding: 0.68rem 0.78rem !important;
-      font-size: 0.78rem !important;
+      padding: 0.58rem 0.66rem !important;
+      font-size: 0.74rem !important;
       white-space: nowrap !important;
+      border-radius: 999px !important;
     }
 
     body.public-site-page section:nth-of-type(2) {
-      padding-bottom: 6rem !important;
+      padding-bottom: 9rem !important;
+    }
+
+    body.public-site-page section:nth-of-type(2) > div {
+      padding: 1.15rem !important;
+      min-height: 9.4rem !important;
+    }
+
+    body.public-site-page section:nth-of-type(2) > div > div:first-child {
+      font-size: 2.55rem !important;
+    }
+
+    body.public-site-page section:nth-of-type(2) > div > div:last-child {
+      font-size: 0.9rem !important;
+      line-height: 1.55 !important;
     }
   }
 
   @media (max-width: 380px) {
     body.public-site-page section:first-of-type h1,
     body.public-site-page h1 {
-      font-size: clamp(1.72rem, 7.35vw, 2.45rem) !important;
+      font-size: clamp(1.66rem, 7.15vw, 2.35rem) !important;
     }
 
     body.public-site-page section:first-of-type button,
     body.public-site-page section:first-of-type a[href="/programs"] {
-      width: min(100%, 235px) !important;
+      width: min(100%, 225px) !important;
+    }
+
+    body.public-site-page a[href*="wa.me"] {
+      max-width: 5.25rem !important;
+      font-size: 0.7rem !important;
+    }
+
+    body.public-site-page div.fixed.bottom-4.right-4 {
+      max-width: 7.1rem !important;
+    }
+
+    body.public-site-page div.fixed.bottom-4.right-4 > button {
+      font-size: 0.7rem !important;
     }
   }
 `;
