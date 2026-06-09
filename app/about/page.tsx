@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import {
+  findCmsSection,
+  getCmsPageWithSections,
+  getCmsText,
+  type CmsSection,
+} from "@/lib/pageSections";
 
-type PageContent = {
-  title: string | null;
-  slug: string | null;
-  content: string | null;
-  is_published: boolean | null;
-};
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Setting = {
   setting_key: string | null;
@@ -15,32 +17,19 @@ type Setting = {
 };
 
 async function getAboutPageData() {
-  if (!supabase) {
-    return {
-      page: null,
-      settings: [],
-    };
-  }
-
-  const [pageResult, settingsResult] = await Promise.all([
+  const [pageData, settingsResult] = await Promise.all([
+    getCmsPageWithSections("about"),
     supabase
-      .from("pages")
-      .select("title, slug, content, is_published")
-      .eq("slug", "about")
-      .eq("is_published", true)
-      .limit(1),
-
-    supabase
-      .from("settings")
-      .select("setting_key, setting_value, is_public")
-      .eq("is_public", true),
+      ? supabase
+          .from("settings")
+          .select("setting_key, setting_value, is_public")
+          .eq("is_public", true)
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
   return {
-    page:
-      !pageResult.error && pageResult.data && pageResult.data.length > 0
-        ? pageResult.data[0]
-        : null,
+    page: pageData.page,
+    sections: pageData.sections,
     settings:
       !settingsResult.error && settingsResult.data ? settingsResult.data : [],
   };
@@ -48,17 +37,26 @@ async function getAboutPageData() {
 
 function getSetting(settings: Setting[], keys: string[], fallback: string) {
   for (const key of keys) {
-    const value = settings.find((item) => item.setting_key === key)
-      ?.setting_value;
-
+    const value = settings.find((item) => item.setting_key === key)?.setting_value;
     if (value && value.trim()) return value.trim();
   }
 
   return fallback;
 }
 
+function getSectionContent(
+  section: CmsSection | null,
+  fallback: { title: string; subtitle: string; content: string }
+) {
+  return {
+    title: getCmsText(section?.title, fallback.title),
+    subtitle: getCmsText(section?.subtitle, fallback.subtitle),
+    content: getCmsText(section?.content, fallback.content),
+  };
+}
+
 export default async function AboutPage() {
-  const { page, settings } = await getAboutPageData();
+  const { page, sections, settings } = await getAboutPageData();
 
   const agencyName = getSetting(
     settings,
@@ -74,11 +72,22 @@ export default async function AboutPage() {
 
   const cleanWhatsapp = whatsapp.replace(/[^\d]/g, "");
 
-  const title = page?.title || "من نحن";
+  const agencyIntro = getSectionContent(findCmsSection(sections, "agency-intro"), {
+    title: "من هي وكالة حمزة؟",
+    subtitle: "وكالة لإدارة ودعم صناع المحتوى",
+    content:
+      "وكالة حمزة هي منصة وكالة احترافية لإدارة وتوظيف ودعم صناع المحتوى على منصات البث المباشر والتواصل الاجتماعي، مع متابعة واضحة وبيئة عمل منظمة.",
+  });
 
-  const intro =
-    page?.content ||
-    "وكالة حمزة هي منصة وكالة احترافية لإدارة وتوظيف ودعم صناع المحتوى على منصات البث المباشر والتواصل الاجتماعي. نعمل على مساعدة صناع المحتوى في اختيار البرنامج المناسب، تقديم الطلبات، متابعة الحسابات، تطوير الأداء، وحل المشاكل التقنية من خلال منظومة منظمة وقابلة للتوسع.";
+  const workMethod = getSectionContent(findCmsSection(sections, "work-method"), {
+    title: "طريقة عملنا",
+    subtitle: "خطوات واضحة من التقديم إلى المتابعة",
+    content:
+      "يعتمد العمل على استقبال الطلبات، مراجعة البيانات، توجيه المتقدمين للبرنامج المناسب، ثم المتابعة عبر فريق الوكالة.",
+  });
+
+  const title = page?.title || "من نحن";
+  const intro = page?.content || agencyIntro.content;
 
   const values = [
     {
@@ -87,15 +96,15 @@ export default async function AboutPage() {
     },
     {
       title: "دعم ومتابعة",
-      text: "نوفّر متابعة للطلبات والمشاكل الفنية والتواصل مع المتقدمين عبر واتساب عند الحاجة.",
+      text: "نوفر متابعة للطلبات والمشاكل الفنية والتواصل مع المتقدمين عبر واتساب عند الحاجة.",
     },
     {
       title: "برامج متعددة",
-      text: "ندعم عدة برامج مثل TikTok وBIGO LIVE وYaahlan وXena وCatchii مع إمكانية إضافة برامج جديدة لاحقاً.",
+      text: "ندعم عدة برامج مثل TikTok وBIGO LIVE وYaahlan وXena وCatchii، مع قابلية توسعة البرامج من منظومة الإدارة.",
     },
     {
       title: "نظام قابل للتوسع",
-      text: "المشروع مبني ليكون منصة وكالة كاملة، وليس مجرد موقع تعريفي، مع لوحة تحكم لإدارة المحتوى والطلبات والبرامج.",
+      text: "المشروع مبني ليكون منصة وكالة كاملة، مع إدارة منظمة للمحتوى والطلبات والبرامج.",
     },
   ];
 
@@ -103,7 +112,7 @@ export default async function AboutPage() {
     "استقبال طلبات الانضمام من الموقع",
     "مراجعة الطلبات من لوحة التحكم",
     "إدارة البرامج من قاعدة البيانات",
-    "تطوير صفحات ومحتوى الوكالة تدريجياً",
+    "تنظيم المحتوى والصفحات من نظام إدارة مركزي",
   ];
 
   return (
@@ -126,7 +135,7 @@ export default async function AboutPage() {
           <h1 className="text-5xl font-black leading-tight md:text-7xl">
             {title}
             <span className="block bg-gradient-to-r from-purple-300 via-white to-yellow-300 bg-clip-text text-transparent">
-              وكالة لإدارة صناع المحتوى
+              {agencyIntro.subtitle}
             </span>
           </h1>
 
@@ -140,10 +149,7 @@ export default async function AboutPage() {
             </h2>
 
             <p className="mt-4 text-xl leading-9 text-white/80">
-              وكالة حمزة بإدارة الوكيل{" "}
-              <span className="font-black text-yellow-200">
-                ⚔عܓོراب✴سܓོوريا⚔
-              </span>
+              وكالة حمزة بإدارة الوكيل
             </p>
           </div>
         </div>
@@ -155,7 +161,6 @@ export default async function AboutPage() {
               className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur"
             >
               <h3 className="text-2xl font-black">{item.title}</h3>
-
               <p className="mt-4 leading-8 text-white/65">{item.text}</p>
             </div>
           ))}
@@ -163,28 +168,23 @@ export default async function AboutPage() {
 
         <div className="mt-10 grid gap-6 lg:grid-cols-2">
           <div className="rounded-[2rem] border border-purple-400/20 bg-purple-500/10 p-7 backdrop-blur">
-            <h2 className="text-3xl font-black">رؤيتنا</h2>
-
-            <p className="mt-5 leading-9 text-white/72">
-              أن تصبح وكالة حمزة منصة احترافية موثوقة لصناع المحتوى، تجمع بين
-              الإدارة الذكية، الدعم السريع، والفرص الحقيقية على منصات البث
-              المباشر والتواصل الاجتماعي.
+            <h2 className="text-3xl font-black">{workMethod.title}</h2>
+            <p className="mt-3 text-lg font-bold text-purple-100/85">
+              {workMethod.subtitle}
             </p>
+            <p className="mt-5 leading-9 text-white/72">{workMethod.content}</p>
           </div>
 
           <div className="rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-7 backdrop-blur">
             <h2 className="text-3xl font-black">رسالتنا</h2>
-
             <p className="mt-5 leading-9 text-white/72">
-              تقديم تجربة واضحة وسهلة للمتقدمين، وتمكين الإدارة من متابعة
-              الطلبات والبرامج والمحتوى من لوحة تحكم واحدة بدون تعقيد.
+              تقديم تجربة واضحة وسهلة للمتقدمين، وتمكين الإدارة من متابعة الطلبات والبرامج والمحتوى من مكان واحد بدون تعقيد.
             </p>
           </div>
         </div>
 
         <div className="mt-10 rounded-[2rem] border border-white/10 bg-black/35 p-7 backdrop-blur">
-          <h2 className="text-3xl font-black">ماذا أنجزنا حتى الآن؟</h2>
-
+          <h2 className="text-3xl font-black">نظام وكالة منظم</h2>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             {milestones.map((item) => (
               <div
@@ -199,12 +199,9 @@ export default async function AboutPage() {
 
         <div className="mt-10 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
           <h2 className="text-3xl font-black">هل تريد الانضمام للوكالة؟</h2>
-
           <p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">
-            يمكنك تصفح البرامج المتاحة وإرسال طلب الانضمام، أو التواصل معنا
-            مباشرة عبر واتساب.
+            يمكنك تصفح البرامج المتاحة وإرسال طلب الانضمام، أو التواصل معنا مباشرة عبر واتساب.
           </p>
-
           <div className="mt-7 flex flex-col justify-center gap-4 sm:flex-row">
             <Link
               href="/programs"
@@ -212,7 +209,6 @@ export default async function AboutPage() {
             >
               عرض البرامج
             </Link>
-
             <a
               href={`https://wa.me/${cleanWhatsapp}`}
               target="_blank"
@@ -231,13 +227,9 @@ function AboutBackground() {
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       <div className="absolute inset-0 bg-[#070009]" />
-
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,58,237,0.36)_0%,rgba(7,0,9,0.98)_68%)]" />
-
       <div className="absolute -left-24 top-16 h-80 w-80 rounded-full bg-purple-600/18 blur-3xl" />
-
-      <div className="hidden md:block absolute -right-24 top-44 h-96 w-96 rounded-full bg-yellow-400/10 blur-3xl" />
-
+      <div className="absolute -right-24 top-44 hidden h-96 w-96 rounded-full bg-yellow-400/10 blur-3xl md:block" />
       <div className="absolute inset-0 opacity-10 [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.35)_1px,transparent_0)] [background-size:42px_42px]" />
     </div>
   );
