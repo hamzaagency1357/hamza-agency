@@ -30,7 +30,7 @@ export default function PublicQuickNav() {
     setIsOpen(false);
     setIsVisible(false);
 
-    if (pathname.startsWith("/admin")) return;
+    if (pathname.startsWith("/admin") || pathname === "/maintenance") return;
 
     const delay = pathname === "/" ? 3600 : 600;
     const timer = window.setTimeout(() => setIsVisible(true), delay);
@@ -38,7 +38,7 @@ export default function PublicQuickNav() {
     return () => window.clearTimeout(timer);
   }, [pathname]);
 
-  if (pathname.startsWith("/admin") || !isVisible) return null;
+  if (pathname.startsWith("/admin") || pathname === "/maintenance" || !isVisible) return null;
 
   return (
     <div dir="rtl" className="fixed bottom-4 right-4 z-[35] print:hidden">
