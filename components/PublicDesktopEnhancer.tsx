@@ -118,7 +118,7 @@ const publicMobileCss = `
       font-size: 0.92rem !important;
     }
 
-    body.public-site-page a[href*="wa.me"] {
+    body.public-site-page main > a.fixed[href*="wa.me"] {
       position: fixed !important;
       left: 0.75rem !important;
       right: auto !important;
@@ -191,7 +191,7 @@ const publicMobileCss = `
       width: min(100%, 225px) !important;
     }
 
-    body.public-site-page a[href*="wa.me"],
+    body.public-site-page main > a.fixed[href*="wa.me"],
     body.public-site-page div.fixed.bottom-4.right-4 > button {
       height: 2.85rem !important;
       font-size: 0.74rem !important;
