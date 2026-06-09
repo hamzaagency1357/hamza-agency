@@ -148,6 +148,26 @@ const mobilePublicCss = `
   }
 `;
 
+function applyHomepageStatTextOverrides() {
+  const replacements = new Map([
+    ["+500", "+7000"],
+    ["صانع محتوى", "صنّاع وصانعات محتوى"],
+    ["50+", "+500"],
+    ["+50", "+500"],
+  ]);
+
+  document
+    .querySelectorAll("body.public-site-page main div")
+    .forEach((element) => {
+      const currentText = element.textContent?.trim() || "";
+      const nextText = replacements.get(currentText);
+
+      if (nextText) {
+        element.textContent = nextText;
+      }
+    });
+}
+
 export default function PublicDesktopEnhancer() {
   const pathname = usePathname();
 
@@ -172,6 +192,22 @@ export default function PublicDesktopEnhancer() {
     return () => {
       document.body.classList.remove("public-site-page");
       document.body.classList.remove("admin-site-page");
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    if (pathname !== "/") return;
+
+    const timers = [600, 1800, 3400].map((delay) =>
+      window.setTimeout(applyHomepageStatTextOverrides, delay)
+    );
+
+    const observer = new MutationObserver(() => applyHomepageStatTextOverrides());
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      observer.disconnect();
     };
   }, [pathname]);
 
