@@ -51,6 +51,14 @@ export type AdminModulePermission = {
   notes: string | null;
 };
 
+export type AdminPermissionAction =
+  | "can_view"
+  | "can_create"
+  | "can_edit"
+  | "can_delete"
+  | "can_export"
+  | "can_manage";
+
 const superAdminModules: AdminModule[] = [
   "dashboard",
   "applications",
@@ -148,6 +156,27 @@ export async function getAdminModulePermission(
     can_manage: data.can_manage === true,
     notes: data.notes || null,
   };
+}
+
+export async function canUseAdminModulePermission(
+  profile: AdminProfile,
+  module: AdminModule,
+  action: AdminPermissionAction = "can_view"
+): Promise<boolean> {
+  if (profile.role === "super_admin") return true;
+
+  if (profile.role === "program_admin") {
+    return canAccessAdminModule(profile.role, module);
+  }
+
+  if (!canAccessAdminModule(profile.role, module)) return false;
+
+  const permission = await getAdminModulePermission(profile.email, module);
+
+  if (!permission) return true;
+  if (permission.can_manage) return true;
+
+  return permission[action] === true;
 }
 
 export async function getCurrentAdminProfile(): Promise<AdminAccessResult> {
