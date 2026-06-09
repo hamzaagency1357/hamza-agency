@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import PublicQuickNav from "@/components/PublicQuickNav";
 import PublicDesktopEnhancer from "@/components/PublicDesktopEnhancer";
+import VisualBackgroundPresets from "@/components/VisualBackgroundPresets";
 import "./globals.css";
 
 const siteUrl =
@@ -105,6 +106,7 @@ export default function RootLayout({
           }}
         />
         <PublicDesktopEnhancer />
+        <VisualBackgroundPresets />
         {children}
         <PublicQuickNav />
       </body>
