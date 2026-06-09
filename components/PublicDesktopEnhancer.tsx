@@ -149,22 +149,38 @@ const mobilePublicCss = `
 `;
 
 function applyHomepageStatTextOverrides() {
-  const replacements = new Map([
-    ["+500", "+7000"],
-    ["صانع محتوى", "صنّاع وصانعات محتوى"],
-    ["50+", "+500"],
-    ["+50", "+500"],
-  ]);
-
   document
-    .querySelectorAll("body.public-site-page main div")
-    .forEach((element) => {
-      const currentText = element.textContent?.trim() || "";
-      const nextText = replacements.get(currentText);
+    .querySelectorAll("body.public-site-page main section")
+    .forEach((section) => {
+      const cards = Array.from(section.children).filter((child) =>
+        child.textContent?.includes("منصات متاحة") ||
+        child.textContent?.includes("صانع محتوى") ||
+        child.textContent?.includes("فرصة نجاح شهرية")
+      );
 
-      if (nextText) {
-        element.textContent = nextText;
-      }
+      cards.forEach((card) => {
+        const children = Array.from(card.children);
+        const numberElement = children[0] as HTMLElement | undefined;
+        const labelElement = children[1] as HTMLElement | undefined;
+        const label = labelElement?.textContent?.trim() || "";
+
+        if (!numberElement || !labelElement) return;
+
+        if (label.includes("صانع محتوى")) {
+          numberElement.textContent = "+7000";
+          labelElement.textContent = "صنّاع وصانعات محتوى";
+        }
+
+        if (label.includes("منصات متاحة")) {
+          numberElement.textContent = "5+";
+          labelElement.textContent = "برامج ومنصات قابلة للتوسع";
+        }
+
+        if (label.includes("فرصة نجاح شهرية")) {
+          numberElement.textContent = "+500";
+          labelElement.textContent = "فرصة نجاح شهرية";
+        }
+      });
     });
 }
 
