@@ -275,7 +275,7 @@ export default function AdminActivityLogsPage() {
 
   if (isForbidden) {
     return (
-      <main dir="rtl" className="min-h-screen bg-[#070009] p-5 text-white md:p-8">
+      <main dir="rtl" className="min-h-screen bg-[#070009] p-5 pb-40 text-white md:p-8 md:pb-10">
         <section className="mx-auto max-w-4xl rounded-[2rem] border border-red-400/25 bg-red-500/10 p-8 text-center">
           <div className="text-sm font-black tracking-[0.25em] text-red-100">صلاحيات محدودة</div>
           <h1 className="mt-3 text-3xl font-black">لا يمكن عرض سجل النشاطات لهذا الحساب</h1>
@@ -297,7 +297,7 @@ export default function AdminActivityLogsPage() {
   if (!isAuthorized) return null;
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#070009] p-5 text-white md:p-8">
+    <main dir="rtl" className="min-h-screen bg-[#070009] p-5 pb-40 text-white md:p-8 md:pb-10">
       <section className="mx-auto max-w-7xl">
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
