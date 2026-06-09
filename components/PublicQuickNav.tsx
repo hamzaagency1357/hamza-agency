@@ -11,6 +11,8 @@ const publicLinks = [
   { label: "الخدمات", href: "/services" },
   { label: "الخدمات الرقمية", href: "/digital-services" },
   { label: "طلب خدمة", href: "/service-request" },
+  { label: "تتبع طلب خدمة", href: "/service-status" },
+  { label: "تتبع طلب الانضمام", href: "/application-status" },
   { label: "الوظائف", href: "/jobs" },
   { label: "التقييمات", href: "/reviews" },
   { label: "قصص النجاح", href: "/success-stories" },
@@ -19,6 +21,9 @@ const publicLinks = [
   { label: "مركز المعرفة", href: "/knowledge-center" },
   { label: "FAQ", href: "/faq" },
   { label: "اتصل بنا", href: "/contact" },
+  { label: "سياسة الخصوصية", href: "/privacy-policy" },
+  { label: "الشروط والأحكام", href: "/terms-and-conditions" },
+  { label: "سياسة الذكاء الاصطناعي", href: "/ai-policy" },
 ];
 
 export default function PublicQuickNav() {
