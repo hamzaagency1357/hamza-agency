@@ -1,8 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import {
+  findCmsSection,
+  getCmsPageWithSections,
+  getCmsText,
+  type CmsSection,
+} from "@/lib/pageSections";
 
 type ServiceType =
   | "platform_topup"
@@ -10,6 +16,11 @@ type ServiceType =
   | "digital_service"
   | "technical_support"
   | "other";
+
+type CmsPageData = {
+  title: string | null;
+  content: string | null;
+};
 
 const serviceTypes: { value: ServiceType; label: string; hint: string }[] = [
   {
@@ -48,10 +59,23 @@ const platforms = [
   "منصة أخرى",
 ];
 
-export default function ServiceRequestPage() {
+function getSectionContent(
+  section: CmsSection | null,
+  fallback: { title: string; subtitle: string; content: string }
+) {
+  return {
+    title: getCmsText(section?.title, fallback.title),
+    subtitle: getCmsText(section?.subtitle, fallback.subtitle),
+    content: getCmsText(section?.content, fallback.content),
+  };
+}
+
+export default function ServicesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successCode, setSuccessCode] = useState("");
   const [message, setMessage] = useState("");
+  const [cmsPage, setCmsPage] = useState<CmsPageData | null>(null);
+  const [cmsSections, setCmsSections] = useState<CmsSection[]>([]);
 
   const [form, setForm] = useState({
     fullName: "",
@@ -64,9 +88,41 @@ export default function ServiceRequestPage() {
     notes: "",
   });
 
+  useEffect(() => {
+    async function loadCmsContent() {
+      const data = await getCmsPageWithSections("services");
+      setCmsPage(data.page ? { title: data.page.title, content: data.page.content } : null);
+      setCmsSections(data.sections);
+    }
+
+    loadCmsContent();
+  }, []);
+
   const selectedService = useMemo(() => {
     return serviceTypes.find((item) => item.value === form.serviceType);
   }, [form.serviceType]);
+
+  const agencyServices = useMemo(
+    () =>
+      getSectionContent(findCmsSection(cmsSections, "agency-services"), {
+        title: "خدمات الوكالة",
+        subtitle: "خدمات تنظيمية وتشغيلية لصناع المحتوى",
+        content:
+          "تشمل الخدمات متابعة طلبات الانضمام، دعم البرامج، الإرشاد، تنظيم التواصل، ومساعدة صناع المحتوى على فهم متطلبات كل برنامج.",
+      }),
+    [cmsSections]
+  );
+
+  const supportProcess = useMemo(
+    () =>
+      getSectionContent(findCmsSection(cmsSections, "support-process"), {
+        title: "آلية الدعم والمتابعة",
+        subtitle: "متابعة منظمة حسب نوع الطلب والبرنامج",
+        content:
+          "يتم التعامل مع كل طلب حسب حالته، مع تسجيل الملاحظات الداخلية وتحديث الحالة من لوحة التحكم.",
+      }),
+    [cmsSections]
+  );
 
   function updateField(key: keyof typeof form, value: string) {
     setForm((current) => ({
@@ -108,7 +164,6 @@ export default function ServiceRequestPage() {
     }
 
     const requestCode = generateRequestCode();
-
     setIsSubmitting(true);
 
     const { error } = await supabase.from("service_requests").insert({
@@ -126,11 +181,11 @@ export default function ServiceRequestPage() {
 
     setIsSubmitting(false);
 
-   if (error) {
-  console.error("Service request insert error:", error);
-  setMessage(`حدث خطأ أثناء إرسال الطلب: ${error.message}`);
-  return;
-   } 
+    if (error) {
+      console.error("Service request insert error:", error);
+      setMessage("حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.");
+      return;
+    }
 
     setSuccessCode(requestCode);
     setMessage(
@@ -179,17 +234,36 @@ export default function ServiceRequestPage() {
 
         <div className="mb-8 rounded-[2rem] border border-purple-400/20 bg-white/[0.04] p-7 text-center shadow-[0_0_60px_rgba(124,58,237,0.14)] backdrop-blur">
           <div className="mx-auto mb-5 inline-flex rounded-full border border-purple-400/25 bg-purple-500/10 px-5 py-2 text-sm font-bold text-purple-100">
-            HAMZA AGENCY Digital Services
+            HAMZA AGENCY Services
           </div>
 
           <h1 className="text-4xl font-black leading-tight md:text-6xl">
-            طلب خدمة رقمية
+            {cmsPage?.title || agencyServices.title}
           </h1>
 
           <p className="mx-auto mt-5 max-w-3xl text-lg leading-9 text-white/70">
-            أرسل طلبك للوكالة، وسيقوم فريق وكالة حمزة بمراجعة التفاصيل ثم
-            التواصل معك عبر واتساب للتأكيد والمتابعة.
+            {cmsPage?.content || agencyServices.content}
           </p>
+        </div>
+
+        <div className="mb-8 grid gap-5 md:grid-cols-2">
+          <div className="rounded-[2rem] border border-purple-400/20 bg-purple-500/10 p-6 backdrop-blur">
+            <h2 className="text-2xl font-black">{agencyServices.title}</h2>
+            <p className="mt-3 text-sm font-bold text-purple-100/80">
+              {agencyServices.subtitle}
+            </p>
+            <p className="mt-4 leading-8 text-white/68">{agencyServices.content}</p>
+          </div>
+
+          <div className="rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-6 backdrop-blur">
+            <h2 className="text-2xl font-black text-yellow-100">
+              {supportProcess.title}
+            </h2>
+            <p className="mt-3 text-sm font-bold text-yellow-100/80">
+              {supportProcess.subtitle}
+            </p>
+            <p className="mt-4 leading-8 text-white/68">{supportProcess.content}</p>
+          </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
@@ -201,9 +275,7 @@ export default function ServiceRequestPage() {
               <Field label="الاسم الكامل">
                 <input
                   value={form.fullName}
-                  onChange={(event) =>
-                    updateField("fullName", event.target.value)
-                  }
+                  onChange={(event) => updateField("fullName", event.target.value)}
                   placeholder="اكتب اسمك الكامل"
                   className="field-input"
                 />
@@ -212,9 +284,7 @@ export default function ServiceRequestPage() {
               <Field label="الدولة">
                 <input
                   value={form.country}
-                  onChange={(event) =>
-                    updateField("country", event.target.value)
-                  }
+                  onChange={(event) => updateField("country", event.target.value)}
                   placeholder="مثال: تركيا"
                   className="field-input"
                 />
@@ -223,9 +293,7 @@ export default function ServiceRequestPage() {
               <Field label="رقم واتساب">
                 <input
                   value={form.whatsapp}
-                  onChange={(event) =>
-                    updateField("whatsapp", event.target.value)
-                  }
+                  onChange={(event) => updateField("whatsapp", event.target.value)}
                   placeholder="+905011730377"
                   className="field-input"
                 />
@@ -234,9 +302,7 @@ export default function ServiceRequestPage() {
               <Field label="نوع الخدمة">
                 <select
                   value={form.serviceType}
-                  onChange={(event) =>
-                    updateField("serviceType", event.target.value)
-                  }
+                  onChange={(event) => updateField("serviceType", event.target.value)}
                   className="field-input"
                 >
                   {serviceTypes.map((type) => (
@@ -250,9 +316,7 @@ export default function ServiceRequestPage() {
               <Field label="المنصة">
                 <select
                   value={form.platform}
-                  onChange={(event) =>
-                    updateField("platform", event.target.value)
-                  }
+                  onChange={(event) => updateField("platform", event.target.value)}
                   className="field-input"
                 >
                   {platforms.map((platform) => (
@@ -277,9 +341,7 @@ export default function ServiceRequestPage() {
               <Field label="المبلغ أو الكمية المطلوبة">
                 <input
                   value={form.requestedAmount}
-                  onChange={(event) =>
-                    updateField("requestedAmount", event.target.value)
-                  }
+                  onChange={(event) => updateField("requestedAmount", event.target.value)}
                   placeholder="مثال: 1000 ألماسة / 50$ / حسب الطلب"
                   className="field-input"
                 />
@@ -299,8 +361,7 @@ export default function ServiceRequestPage() {
 
             {selectedService && (
               <div className="mt-5 rounded-3xl border border-purple-400/20 bg-purple-500/10 p-5 text-sm leading-7 text-purple-100">
-                <span className="font-black">ملاحظة:</span>{" "}
-                {selectedService.hint}
+                <span className="font-black">ملاحظة:</span> {selectedService.hint}
               </div>
             )}
 
@@ -339,17 +400,13 @@ export default function ServiceRequestPage() {
               <h2 className="text-2xl font-black text-yellow-100">
                 مهم قبل الإرسال
               </h2>
-
               <p className="mt-4 leading-8 text-yellow-50/75">
-                هذه الصفحة مخصصة لاستلام الطلب فقط. لا يوجد حالياً دفع إلكتروني
-                مباشر داخل الموقع، وسيتم تأكيد التفاصيل عبر واتساب قبل تنفيذ أي
-                خدمة.
+                هذه الصفحة مخصصة لاستلام الطلب فقط. لا يوجد حالياً دفع إلكتروني مباشر داخل الموقع، وسيتم تأكيد التفاصيل عبر واتساب قبل تنفيذ أي خدمة.
               </p>
             </div>
 
             <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur">
               <h2 className="text-2xl font-black">ماذا يحدث بعد الإرسال؟</h2>
-
               <div className="mt-5 space-y-4 text-white/65">
                 <Step number="1" text="يتم حفظ طلبك في نظام وكالة حمزة." />
                 <Step number="2" text="يراجع الفريق تفاصيل الخدمة المطلوبة." />
@@ -362,7 +419,6 @@ export default function ServiceRequestPage() {
               <h2 className="text-2xl font-black text-green-100">
                 تحتاج تواصل مباشر؟
               </h2>
-
               <a
                 href="https://wa.me/905011730377"
                 target="_blank"
@@ -426,8 +482,7 @@ function Step({ number, text }: { number: string; text: string }) {
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-500/20 text-sm font-black text-purple-100">
         {number}
       </div>
-
       <p className="leading-8">{text}</p>
     </div>
   );
-                  }
+}
