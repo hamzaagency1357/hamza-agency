@@ -378,6 +378,10 @@ export default function HomePage() {
   const logoUrl = getUsableImageUrl(logoMedia, "/Logo%20hamza%20agency.jpg");
   const activePrograms = programs.length ? programs : fallbackPrograms;
   const activeAnnouncement = announcements[0] || null;
+  const homeStats = fallbackStats.map(([fallbackNumber, fallbackLabel], index) => [
+    getSetting([`home_stat_${index + 1}_number`], fallbackNumber),
+    getSetting([`home_stat_${index + 1}_label`], fallbackLabel),
+  ]);
 
   const updateField = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -578,7 +582,7 @@ export default function HomePage() {
       </section>
 
       <section className="relative z-20 mx-auto grid max-w-6xl grid-cols-2 gap-5 px-5 pb-20 lg:grid-cols-4">
-        {fallbackStats.map(([number, label]) => (
+        {homeStats.map(([number, label]) => (
           <div key={label} className="rounded-3xl border border-white/10 bg-white/[0.05] p-7 text-center backdrop-blur">
             <div className="bg-gradient-to-r from-purple-300 to-yellow-300 bg-clip-text text-4xl font-black text-transparent">
               {number}
