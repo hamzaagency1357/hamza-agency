@@ -40,13 +40,9 @@ export default function MaintenancePage() {
               href="/"
               className="rounded-full border border-white/10 bg-white/[0.05] px-7 py-4 font-bold text-white/75 transition hover:border-purple-300/40 hover:text-white"
             >
-              العودة للرئيسية لاحقاً
+              العودة للرئيسية
             </Link>
           </div>
-
-          <p className="mt-7 text-sm leading-7 text-white/40">
-            هذه الصفحة مخصصة لعرض حالة الصيانة عند تفعيلها لاحقاً من لوحة الإدارة.
-          </p>
         </div>
       </section>
     </main>
