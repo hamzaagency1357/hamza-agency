@@ -21,6 +21,7 @@ const adminLinks = [
   { label: "سجل النشاطات", href: "/admin/activity-logs" },
   { label: "سلة المحذوفات", href: "/admin/trash" },
   { label: "النسخ الاحتياطي", href: "/admin/backups" },
+  { label: "سجل الإصدارات", href: "/admin/version-history" },
   { label: "الصلاحيات", href: "/admin/permissions" },
   { label: "الإشعارات", href: "/admin/notifications" },
   { label: "التحليلات", href: "/admin/analytics" },
