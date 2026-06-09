@@ -39,6 +39,18 @@ export type AdminAccessResult = {
   profile: AdminProfile | null;
 };
 
+export type AdminModulePermission = {
+  admin_email: string;
+  module_key: AdminModule;
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+  can_export: boolean;
+  can_manage: boolean;
+  notes: string | null;
+};
+
 const superAdminModules: AdminModule[] = [
   "dashboard",
   "applications",
@@ -105,6 +117,37 @@ export function getAllowedModulesForRole(role: AdminRole): AdminModule[] {
 
 export function canAccessAdminModule(role: AdminRole, module: AdminModule): boolean {
   return getAllowedModulesForRole(role).includes(module);
+}
+
+export async function getAdminModulePermission(
+  adminEmail: string,
+  module: AdminModule
+): Promise<AdminModulePermission | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+
+  const email = adminEmail.trim().toLowerCase();
+  if (!email) return null;
+
+  const { data, error } = await supabase
+    .from("admin_permissions")
+    .select("admin_email, module_key, can_view, can_create, can_edit, can_delete, can_export, can_manage, notes")
+    .ilike("admin_email", email)
+    .eq("module_key", module)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return {
+    admin_email: data.admin_email || email,
+    module_key: module,
+    can_view: data.can_view === true,
+    can_create: data.can_create === true,
+    can_edit: data.can_edit === true,
+    can_delete: data.can_delete === true,
+    can_export: data.can_export === true,
+    can_manage: data.can_manage === true,
+    notes: data.notes || null,
+  };
 }
 
 export async function getCurrentAdminProfile(): Promise<AdminAccessResult> {
