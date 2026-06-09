@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
@@ -24,8 +25,10 @@ type DashboardCounts = {
   serviceRequests: number;
   programs: number;
   pages: number;
+  sections: number;
   media: number;
   announcements: number;
+  settings: number;
   notifications: number;
   jobs: number;
   reviews: number;
@@ -58,32 +61,45 @@ const statusTone: Record<string, Tone> = {
   rejected: "red",
 };
 
-const dailyLinks: AdminLink[] = [
+const quickActions: AdminLink[] = [
   {
-    title: "طلبات الانضمام",
-    description: "مراجعة المتقدمين وتغيير الحالة ونسخ بيانات التواصل.",
+    title: "مراجعة الطلبات",
+    description: "الانتقال مباشرة إلى طلبات الانضمام الجديدة والمتابعة اليومية.",
     href: "#applications",
     tone: "blue",
     badge: "يومي",
   },
   {
     title: "طلبات الخدمات",
-    description: "إدارة طلبات الشحن والسحب والخدمات الرقمية.",
+    description: "متابعة طلبات الشحن والسحب والخدمات الرقمية وتحديث حالتها.",
     href: "/admin/service-requests",
     tone: "green",
+    badge: "تشغيلي",
+  },
+  {
+    title: "إدارة البرامج",
+    description: "إضافة وتعديل وإظهار البرامج المتاحة للانضمام.",
+    href: "/admin/programs",
+    tone: "purple",
     badge: "مهم",
   },
   {
-    title: "البرامج",
-    description: "إدارة TikTok وBIGO LIVE وYaahlan وXena وCatchii.",
-    href: "/admin/programs",
-    tone: "purple",
+    title: "إدارة الصفحات",
+    description: "الصفحات الأساسية، SEO، وحالة النشر ضمن Page Builder.",
+    href: "/admin/pages",
+    tone: "cyan",
   },
   {
-    title: "فحص الإطلاق",
-    description: "تشغيل فحص الروابط والتشخيص قبل الإطلاق.",
-    href: "/admin/launch-checklist",
+    title: "إدارة الأقسام",
+    description: "تنظيم أقسام الصفحات وترتيبها وإظهارها أو إخفاؤها.",
+    href: "/admin/sections",
     tone: "gold",
+  },
+  {
+    title: "إعدادات الموقع",
+    description: "الهوية، واتساب، الفوتر، الإحصائيات، والصيانة.",
+    href: "/admin/settings",
+    tone: "green",
   },
 ];
 
@@ -93,6 +109,12 @@ const contentLinks: AdminLink[] = [
     description: "إدارة صفحات الموقع ومحتواها الأساسي.",
     href: "/admin/pages",
     tone: "cyan",
+  },
+  {
+    title: "الأقسام",
+    description: "إدارة أقسام الصفحات المرتبطة بالـ CMS.",
+    href: "/admin/sections",
+    tone: "gold",
   },
   {
     title: "الوسائط",
@@ -114,7 +136,7 @@ const contentLinks: AdminLink[] = [
   },
 ];
 
-const growthLinks: AdminLink[] = [
+const operationsLinks: AdminLink[] = [
   {
     title: "الوظائف",
     description: "إدارة الفرص وطلبات التقديم.",
@@ -194,6 +216,7 @@ export default function AdminPage() {
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [internalNotes, setInternalNotes] = useState("");
   const [search, setSearch] = useState("");
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   const [counts, setCounts] = useState<DashboardCounts>({
@@ -201,8 +224,10 @@ export default function AdminPage() {
     serviceRequests: 0,
     programs: 0,
     pages: 0,
+    sections: 0,
     media: 0,
     announcements: 0,
+    settings: 0,
     notifications: 0,
     jobs: 0,
     reviews: 0,
@@ -230,72 +255,77 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!isAuthorized) return;
-
-    async function loadDashboard() {
-      if (!supabase) {
-        setError("Supabase غير متصل.");
-        return;
-      }
-
-      const { data, error: applicationsError } = await supabase
-        .from("agency_applications")
-        .select(
-          "id, full_name, country, whatsapp, platform, previous_experience, notes, status, internal_notes, created_at"
-        )
-        .order("created_at", { ascending: false });
-
-      if (applicationsError) {
-        setError("لا يمكن قراءة طلبات الانضمام حالياً.");
-      } else {
-        setApplications(data || []);
-      }
-
-      const [
-        applicationsCount,
-        serviceRequestsCount,
-        programsCount,
-        pagesCount,
-        mediaCount,
-        announcementsCount,
-        notificationsCount,
-        jobsCount,
-        reviewsCount,
-        successStoriesCount,
-        partnersCount,
-        galleryCount,
-      ] = await Promise.all([
-        getCount("agency_applications"),
-        getCount("service_requests"),
-        getCount("programs"),
-        getCount("pages"),
-        getCount("media"),
-        getCount("announcements"),
-        getCount("notifications"),
-        getCount("jobs"),
-        getCount("reviews"),
-        getCount("success_stories"),
-        getCount("partners"),
-        getCount("gallery_items"),
-      ]);
-
-      setCounts({
-        applications: applicationsCount,
-        serviceRequests: serviceRequestsCount,
-        programs: programsCount,
-        pages: pagesCount,
-        media: mediaCount,
-        announcements: announcementsCount,
-        notifications: notificationsCount,
-        jobs: jobsCount,
-        reviews: reviewsCount,
-        successStories: successStoriesCount,
-        partners: partnersCount,
-        gallery: galleryCount,
-      });
-    }
-
     loadDashboard();
   }, [isAuthorized]);
+
+  async function loadDashboard() {
+    if (!supabase) {
+      setError("Supabase غير متصل.");
+      return;
+    }
+
+    const { data, error: applicationsError } = await supabase
+      .from("agency_applications")
+      .select(
+        "id, full_name, country, whatsapp, platform, previous_experience, notes, status, internal_notes, created_at"
+      )
+      .order("created_at", { ascending: false });
+
+    if (applicationsError) {
+      setError("لا يمكن قراءة طلبات الانضمام حالياً.");
+    } else {
+      setApplications(data || []);
+    }
+
+    const [
+      applicationsCount,
+      serviceRequestsCount,
+      programsCount,
+      pagesCount,
+      sectionsCount,
+      mediaCount,
+      announcementsCount,
+      settingsCount,
+      notificationsCount,
+      jobsCount,
+      reviewsCount,
+      successStoriesCount,
+      partnersCount,
+      galleryCount,
+    ] = await Promise.all([
+      getCount("agency_applications"),
+      getCount("service_requests"),
+      getCount("programs"),
+      getCount("pages"),
+      getCount("sections"),
+      getCount("media"),
+      getCount("announcements"),
+      getCount("settings"),
+      getCount("notifications"),
+      getCount("jobs"),
+      getCount("reviews"),
+      getCount("success_stories"),
+      getCount("partners"),
+      getCount("gallery_items"),
+    ]);
+
+    setCounts({
+      applications: applicationsCount,
+      serviceRequests: serviceRequestsCount,
+      programs: programsCount,
+      pages: pagesCount,
+      sections: sectionsCount,
+      media: mediaCount,
+      announcements: announcementsCount,
+      settings: settingsCount,
+      notifications: notificationsCount,
+      jobs: jobsCount,
+      reviews: reviewsCount,
+      successStories: successStoriesCount,
+      partners: partnersCount,
+      gallery: galleryCount,
+    });
+  }
 
   async function getCount(table: string) {
     if (!supabase) return 0;
@@ -326,13 +356,16 @@ export default function AdminPage() {
   async function updateStatus(id: number, status: string) {
     if (!supabase) return;
 
+    setMessage("");
+    setError("");
+
     const { error } = await supabase
       .from("agency_applications")
       .update({ status })
       .eq("id", id);
 
     if (error) {
-      alert("فشل تحديث حالة الطلب");
+      setError("فشل تحديث حالة الطلب.");
       return;
     }
 
@@ -343,10 +376,15 @@ export default function AdminPage() {
     setSelectedApplication((current) =>
       current && current.id === id ? { ...current, status } : current
     );
+
+    setMessage("تم تحديث حالة الطلب بنجاح.");
   }
 
   async function saveInternalNotes() {
     if (!supabase || !selectedApplication) return;
+
+    setMessage("");
+    setError("");
 
     const { error } = await supabase
       .from("agency_applications")
@@ -354,7 +392,7 @@ export default function AdminPage() {
       .eq("id", selectedApplication.id);
 
     if (error) {
-      alert("فشل حفظ الملاحظات الداخلية");
+      setError("فشل حفظ الملاحظات الداخلية.");
       return;
     }
 
@@ -371,7 +409,7 @@ export default function AdminPage() {
       internal_notes: internalNotes,
     });
 
-    alert("تم حفظ الملاحظات الداخلية");
+    setMessage("تم حفظ الملاحظات الداخلية بنجاح.");
   }
 
   function openDetails(app: Application) {
@@ -381,7 +419,7 @@ export default function AdminPage() {
 
   function copyWhatsAppNumber(number: string) {
     navigator.clipboard.writeText(number);
-    alert("تم نسخ رقم واتساب");
+    setMessage("تم نسخ رقم واتساب.");
   }
 
   function copyApplicationInfo(app: Application) {
@@ -398,7 +436,7 @@ export default function AdminPage() {
     `.trim();
 
     navigator.clipboard.writeText(info);
-    alert("تم نسخ معلومات الطلب");
+    setMessage("تم نسخ معلومات الطلب كاملة.");
   }
 
   async function logout() {
@@ -424,7 +462,7 @@ export default function AdminPage() {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#070009] text-white">
+    <main dir="rtl" className="min-h-screen overflow-x-hidden bg-[#070009] text-white">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#3b0764_0%,#070009_46%,#000_100%)]" />
 
       <section className="mx-auto max-w-[1380px] px-5 py-6 lg:px-8">
@@ -440,10 +478,10 @@ export default function AdminPage() {
 
             <div className="flex flex-wrap gap-3">
               <Link
-                href="/admin/launch-checklist"
-                className="rounded-2xl border border-yellow-300/25 bg-yellow-400/10 px-4 py-3 text-sm font-black text-yellow-100 transition hover:bg-yellow-400/15"
+                href="/admin/settings"
+                className="rounded-2xl border border-green-300/25 bg-green-500/10 px-4 py-3 text-sm font-black text-green-100 transition hover:bg-green-500/15"
               >
-                فحص الإطلاق
+                الإعدادات
               </Link>
               <Link
                 href="/"
@@ -462,6 +500,18 @@ export default function AdminPage() {
           </div>
         </header>
 
+        {message && (
+          <div className="mb-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-100">
+            {message}
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-100">
+            {error}
+          </div>
+        )}
+
         <div className="mb-6 grid gap-4 lg:grid-cols-4">
           <FocusStat label="طلبات جديدة" value={newCount} tone="blue" />
           <FocusStat label="قيد المراجعة" value={underReviewCount} tone="amber" />
@@ -469,28 +519,28 @@ export default function AdminPage() {
           <FocusStat label="تنبيهات" value={counts.notifications} tone="purple" />
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="grid gap-6">
-            <DashboardPanel
-              eyebrow="الاستخدام اليومي"
-              title="المهام الأساسية"
-              description="أهم العمليات التي يحتاجها فريق الوكالة يومياً بدون ازدحام."
-              tone="gold"
-            >
-              <div className="grid gap-4 md:grid-cols-2">
-                {dailyLinks.map((link) => (
-                  <AdminActionCard key={link.href} item={link} />
-                ))}
-              </div>
-            </DashboardPanel>
+        <DashboardPanel
+          eyebrow="إجراءات سريعة"
+          title="اختصارات الإدارة اليومية"
+          description="روابط مباشرة لأهم أعمال الوكالة حتى لا تحتاج للتنقل الطويل داخل لوحة التحكم."
+          tone="gold"
+        >
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {quickActions.map((link) => (
+              <AdminActionCard key={link.href} item={link} />
+            ))}
+          </div>
+        </DashboardPanel>
 
+        <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="grid gap-6">
             <DashboardPanel
               eyebrow="المحتوى والإعدادات"
               title="إدارة الموقع"
-              description="روابط المحتوى، الوسائط، الإعلانات، والإعدادات في مكان واحد."
+              description="روابط المحتوى، الأقسام، الوسائط، الإعلانات، والإعدادات في مكان واحد."
               tone="purple"
             >
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 {contentLinks.map((link) => (
                   <CompactLinkCard key={link.href} item={link} />
                 ))}
@@ -498,13 +548,13 @@ export default function AdminPage() {
             </DashboardPanel>
 
             <DashboardPanel
-              eyebrow="النمو والثقة"
-              title="الأقسام المنشورة"
-              description="إدارة الأقسام التي تدعم ثقة الزائر وانتشار الوكالة."
+              eyebrow="التشغيل والنمو"
+              title="أنظمة الوكالة"
+              description="إدارة الأقسام التي تدعم التشغيل، الثقة، والمتابعة الإدارية."
               tone="green"
             >
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                {growthLinks.map((link) => (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {operationsLinks.map((link) => (
                   <CompactLinkCard key={link.href} item={link} />
                 ))}
               </div>
@@ -515,16 +565,18 @@ export default function AdminPage() {
             <DashboardPanel
               eyebrow="نظرة سريعة"
               title="أرقام النظام"
-              description="ملخص بسيط بدون تفاصيل مزعجة."
+              description="ملخص بسيط يساعدك على فهم حالة لوحة التحكم."
               tone="cyan"
             >
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                 <MiniCount label="طلبات الانضمام" value={counts.applications} tone="blue" />
+                <MiniCount label="طلبات الخدمات" value={counts.serviceRequests} tone="green" />
                 <MiniCount label="البرامج" value={counts.programs} tone="purple" />
                 <MiniCount label="الصفحات" value={counts.pages} tone="cyan" />
-                <MiniCount label="الوسائط" value={counts.media} tone="pink" />
+                <MiniCount label="الأقسام" value={counts.sections} tone="gold" />
+                <MiniCount label="الإعدادات" value={counts.settings} tone="green" />
                 <MiniCount label="الإعلانات" value={counts.announcements} tone="amber" />
-                <MiniCount label="الوظائف" value={counts.jobs} tone="green" />
+                <MiniCount label="الوظائف" value={counts.jobs} tone="blue" />
                 <MiniCount label="التقييمات" value={counts.reviews} tone="gold" />
                 <MiniCount label="قصص النجاح" value={counts.successStories} tone="purple" />
                 <MiniCount label="الشركاء" value={counts.partners} tone="green" />
@@ -555,11 +607,12 @@ export default function AdminPage() {
             />
           </div>
 
-          {error && (
-            <div className="mb-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-100">
-              {error}
-            </div>
-          )}
+          <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <MiniCount label="جديد" value={newCount} tone="blue" />
+            <MiniCount label="قيد المراجعة" value={underReviewCount} tone="amber" />
+            <MiniCount label="مقبول" value={acceptedCount} tone="green" />
+            <MiniCount label="مرفوض" value={rejectedCount} tone="red" />
+          </div>
 
           {filteredApplications.length === 0 ? (
             <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center text-white/55">
@@ -639,7 +692,7 @@ function DashboardPanel({
   title: string;
   description: string;
   tone: Tone;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className={`rounded-[2rem] border bg-black/45 p-5 backdrop-blur ${toneBorderClasses(tone)}`}>
@@ -821,7 +874,7 @@ function DetailBox({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Badge({ children, tone }: { children: React.ReactNode; tone: Tone }) {
+function Badge({ children, tone }: { children: ReactNode; tone: Tone }) {
   return (
     <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${badgeClasses(tone)}`}>
       {children}
