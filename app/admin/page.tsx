@@ -175,6 +175,12 @@ const growthLinks: AdminLink[] = [
     href: "/admin/backups",
     tone: "green",
   },
+  {
+    title: "الصلاحيات",
+    description: "إدارة صلاحيات المدراء حسب الأقسام.",
+    href: "/admin/permissions",
+    tone: "purple",
+  },
 ];
 
 export default function AdminPage() {
