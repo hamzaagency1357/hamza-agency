@@ -22,6 +22,7 @@ const adminLinks = [
   { label: "سلة المحذوفات", href: "/admin/trash" },
   { label: "النسخ الاحتياطي", href: "/admin/backups" },
   { label: "سجل الإصدارات", href: "/admin/version-history" },
+  { label: "مركز التصدير", href: "/admin/export-center" },
   { label: "الصلاحيات", href: "/admin/permissions" },
   { label: "الإشعارات", href: "/admin/notifications" },
   { label: "التحليلات", href: "/admin/analytics" },
