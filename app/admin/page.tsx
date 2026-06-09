@@ -145,6 +145,18 @@ const growthLinks: AdminLink[] = [
     href: "/admin/gallery",
     tone: "pink",
   },
+  {
+    title: "التنبيهات",
+    description: "متابعة تنبيهات النظام والإشعارات الإدارية.",
+    href: "/admin/notifications",
+    tone: "cyan",
+  },
+  {
+    title: "التحليلات",
+    description: "مراجعة مؤشرات الأداء والبيانات العامة للوكالة.",
+    href: "/admin/analytics",
+    tone: "amber",
+  },
 ];
 
 export default function AdminPage() {
