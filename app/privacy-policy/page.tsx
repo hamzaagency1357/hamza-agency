@@ -1,61 +1,56 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import {
+  findCmsSection,
+  getCmsPageWithSections,
+  getCmsText,
+  type CmsSection,
+} from "@/lib/pageSections";
 
-type PageContent = {
-  title: string | null;
-  slug: string | null;
-  content: string | null;
-  is_published: boolean | null;
-};
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Setting = {
   setting_key: string | null;
   setting_value: string | null;
-  is_public: boolean | null;
 };
 
-async function getPrivacyPageData() {
-  if (!supabase) {
-    return {
-      page: null,
-      settings: [],
-    };
-  }
-
-  const [pageResult, settingsResult] = await Promise.all([
-    supabase
-      .from("pages")
-      .select("title, slug, content, is_published")
-      .eq("slug", "privacy-policy")
-      .eq("is_published", true)
-      .limit(1),
-
-    supabase
-      .from("settings")
-      .select("setting_key, setting_value, is_public")
-      .eq("is_public", true),
-  ]);
-
+function getSectionContent(
+  section: CmsSection | null,
+  fallback: { title: string; subtitle: string; content: string }
+) {
   return {
-    page:
-      !pageResult.error && pageResult.data && pageResult.data.length > 0
-        ? pageResult.data[0]
-        : null,
-
-    settings:
-      !settingsResult.error && settingsResult.data ? settingsResult.data : [],
+    title: getCmsText(section?.title, fallback.title),
+    subtitle: getCmsText(section?.subtitle, fallback.subtitle),
+    content: getCmsText(section?.content, fallback.content),
   };
 }
 
 function getSetting(settings: Setting[], keys: string[], fallback: string) {
   for (const key of keys) {
-    const value = settings.find((item) => item.setting_key === key)
-      ?.setting_value;
-
+    const value = settings.find((item) => item.setting_key === key)?.setting_value;
     if (value && value.trim()) return value.trim();
   }
 
   return fallback;
+}
+
+async function getPrivacyPageData() {
+  const [pageData, settingsResult] = await Promise.all([
+    getCmsPageWithSections("privacy-policy"),
+    supabase
+      ? supabase
+          .from("settings")
+          .select("setting_key, setting_value")
+          .eq("is_public", true)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  return {
+    page: pageData.page,
+    sections: pageData.sections,
+    settings: !settingsResult.error && settingsResult.data ? settingsResult.data : [],
+  };
 }
 
 const privacySections = [
@@ -65,7 +60,7 @@ const privacySections = [
   },
   {
     title: "كيف نستخدم المعلومات",
-    text: "نستخدم المعلومات لمراجعة طلبات الانضمام، التواصل مع المتقدمين، متابعة حالة الطلب، تقديم الدعم، تحسين خدمات الوكالة، وتنظيم البرامج والخدمات داخل لوحة الإدارة.",
+    text: "نستخدم المعلومات لمراجعة الطلبات، التواصل مع المتقدمين، متابعة حالة الطلب، تقديم الدعم، تحسين خدمات الوكالة، وتنظيم البرامج والخدمات المرتبطة بصناع المحتوى.",
   },
   {
     title: "التواصل عبر واتساب",
@@ -73,7 +68,7 @@ const privacySections = [
   },
   {
     title: "حماية البيانات",
-    text: "نعمل على حماية البيانات قدر الإمكان من خلال استخدام أدوات إدارة وقاعدة بيانات موثوقة، وتقليل الوصول إلى المعلومات بحسب صلاحيات الإدارة داخل النظام.",
+    text: "نعمل على حماية البيانات قدر الإمكان من خلال استخدام أدوات موثوقة، وتقليل الوصول إلى المعلومات حسب حاجة العمل والمتابعة داخل الوكالة.",
   },
   {
     title: "مشاركة البيانات",
@@ -85,7 +80,7 @@ const privacySections = [
   },
   {
     title: "ملفات تعريف الارتباط والتحليلات",
-    text: "قد يستخدم الموقع لاحقاً أدوات تحليل مثل Google Analytics أو أدوات مشابهة لفهم أداء الموقع وتحسين تجربة المستخدم، وسيتم توضيح ذلك عند تفعيل هذه الأدوات.",
+    text: "قد يستخدم الموقع أدوات قياس وتحليل لتحسين تجربة المستخدم وفهم أداء الصفحات، مع مراعاة حماية البيانات قدر الإمكان.",
   },
   {
     title: "خدمات الطرف الثالث",
@@ -102,7 +97,7 @@ const privacySections = [
 ];
 
 export default async function PrivacyPolicyPage() {
-  const { page, settings } = await getPrivacyPageData();
+  const { page, sections, settings } = await getPrivacyPageData();
 
   const agencyName = getSetting(
     settings,
@@ -118,17 +113,25 @@ export default async function PrivacyPolicyPage() {
 
   const cleanWhatsapp = whatsapp.replace(/[^\d]/g, "");
 
-  const title = page?.title || "سياسة الخصوصية";
+  const overview = getSectionContent(findCmsSection(sections, "privacy-overview"), {
+    title: "سياسة الخصوصية",
+    subtitle: "كيف نتعامل مع البيانات",
+    content:
+      "توضح سياسة الخصوصية آلية جمع واستخدام وحماية بيانات المتقدمين والعملاء عند استخدام موقع وكالة حمزة ونماذجها.",
+  });
 
-  const intro =
-    page?.content ||
-    "توضح سياسة الخصوصية هذه كيفية تعامل وكالة حمزة مع المعلومات التي يقدمها المستخدمون عند استخدام الموقع، إرسال طلبات الانضمام، أو التواصل مع فريق الوكالة. هذه الصفحة مخصصة لتوضيح طريقة جمع واستخدام وحماية البيانات بشكل واضح ومباشر.";
+  const dataUsage = getSectionContent(findCmsSection(sections, "data-usage"), {
+    title: "استخدام البيانات",
+    subtitle: "تُستخدم البيانات لمراجعة الطلبات وتحسين التواصل",
+    content:
+      "تُستخدم البيانات المقدمة عبر النماذج لأغراض مراجعة الطلبات، التواصل، تقديم الدعم، وتحسين تجربة المستخدم.",
+  });
+
+  const title = page?.title || overview.title;
+  const intro = page?.content || overview.content;
 
   return (
-    <main
-      dir="rtl"
-      className="relative min-h-screen overflow-hidden bg-[#070009] text-white"
-    >
+    <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
       <PrivacyBackground />
 
       <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
@@ -144,7 +147,7 @@ export default async function PrivacyPolicyPage() {
           <h1 className="text-5xl font-black leading-tight md:text-7xl">
             {title}
             <span className="block bg-gradient-to-r from-purple-300 via-white to-yellow-300 bg-clip-text text-transparent">
-              حماية ووضوح البيانات
+              {overview.subtitle}
             </span>
           </h1>
 
@@ -154,25 +157,15 @@ export default async function PrivacyPolicyPage() {
         </div>
 
         <div className="mt-10 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-7 backdrop-blur">
-          <h2 className="text-3xl font-black text-yellow-100">
-            تنبيه مهم
-          </h2>
-
-          <p className="mt-5 leading-9 text-white/75">
-            هذه السياسة هي صياغة تشغيلية أولية مناسبة لإطلاق الموقع. عند توسع
-            المشروع أو إضافة الدفع الإلكتروني أو المحافظ أو التحليلات المتقدمة،
-            يجب مراجعة السياسة وتحديثها بما يتناسب مع الخدمات الفعلية.
-          </p>
+          <h2 className="text-3xl font-black text-yellow-100">{dataUsage.title}</h2>
+          <p className="mt-3 text-lg font-bold text-yellow-100/80">{dataUsage.subtitle}</p>
+          <p className="mt-5 leading-9 text-white/75">{dataUsage.content}</p>
         </div>
 
         <div className="mt-10 grid gap-6 md:grid-cols-2">
           {privacySections.map((section) => (
-            <div
-              key={section.title}
-              className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur"
-            >
+            <div key={section.title} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur">
               <h2 className="text-3xl font-black">{section.title}</h2>
-
               <p className="mt-5 leading-9 text-white/70">{section.text}</p>
             </div>
           ))}
@@ -180,27 +173,18 @@ export default async function PrivacyPolicyPage() {
 
         <div className="mt-10 rounded-[2rem] border border-purple-400/20 bg-purple-500/10 p-7 backdrop-blur">
           <h2 className="text-3xl font-black">بيانات طلبات الانضمام</h2>
-
           <p className="mt-5 leading-9 text-white/75">
-            عند تعبئة نموذج الانضمام، يتم حفظ البيانات داخل نظام الوكالة بهدف
-            مراجعة الطلب وإدارته من لوحة التحكم. يمكن أن تشمل هذه البيانات:
-            الاسم، الدولة، رقم واتساب، البرنامج، الخبرات السابقة، الملاحظات،
-            وحالة الطلب.
+            عند تعبئة نموذج الانضمام، يتم حفظ البيانات بهدف مراجعة الطلب ومتابعته. يمكن أن تشمل هذه البيانات الاسم، الدولة، رقم واتساب، البرنامج، الخبرات السابقة، الملاحظات، وحالة الطلب.
           </p>
         </div>
 
         <div className="mt-10 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
           <h2 className="text-3xl font-black">للاستفسار حول الخصوصية</h2>
-
           <p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">
-            يمكنك التواصل مع وكالة حمزة عبر واتساب للاستفسار عن البيانات أو طلب
-            تحديث معلوماتك.
+            يمكنك التواصل مع وكالة حمزة عبر واتساب للاستفسار عن البيانات أو طلب تحديث معلوماتك.
           </p>
-
           <a
-            href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent(
-              "مرحباً، لدي استفسار بخصوص سياسة الخصوصية في وكالة حمزة."
-            )}`}
+            href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent("مرحباً، لدي استفسار بخصوص سياسة الخصوصية في وكالة حمزة.")}`}
             target="_blank"
             className="mt-7 inline-flex rounded-full bg-green-500 px-8 py-4 font-black text-white shadow-2xl"
           >
@@ -216,13 +200,9 @@ function PrivacyBackground() {
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       <div className="absolute inset-0 bg-[#070009]" />
-
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,58,237,0.32)_0%,rgba(7,0,9,0.98)_68%)]" />
-
       <div className="absolute -left-24 top-16 h-80 w-80 rounded-full bg-purple-600/14 blur-3xl" />
-
-      <div className="hidden md:block absolute -right-24 top-44 h-96 w-96 rounded-full bg-yellow-400/10 blur-3xl" />
-
+      <div className="absolute -right-24 top-44 hidden h-96 w-96 rounded-full bg-yellow-400/10 blur-3xl md:block" />
       <div className="absolute inset-0 opacity-10 [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.35)_1px,transparent_0)] [background-size:42px_42px]" />
     </div>
   );
