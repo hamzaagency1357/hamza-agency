@@ -1,0 +1,3 @@
+Deployment trigger for HAMZA AGENCY.
+Purpose: force Vercel to deploy the latest main branch after the AI policy CMS update.
+This file does not affect the application runtime.
