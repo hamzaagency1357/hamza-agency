@@ -22,7 +22,22 @@ type PageItem = {
   sort_order: number | null;
 };
 
-const emptyForm = {
+type PageForm = {
+  title: string;
+  slug: string;
+  content: string;
+  seo_title: string;
+  seo_description: string;
+  seo_keywords: string;
+  og_image: string;
+  is_homepage: boolean;
+  is_published: boolean;
+  sort_order: string;
+};
+
+type PageFilter = "all" | "published" | "draft" | "homepage" | "needs_seo";
+
+const emptyForm: PageForm = {
   title: "",
   slug: "",
   content: "",
@@ -35,6 +50,70 @@ const emptyForm = {
   sort_order: "1",
 };
 
+const filterOptions: { value: PageFilter; label: string }[] = [
+  { value: "all", label: "كل الصفحات" },
+  { value: "published", label: "منشورة" },
+  { value: "draft", label: "غير منشورة" },
+  { value: "homepage", label: "الرئيسية" },
+  { value: "needs_seo", label: "تحتاج SEO" },
+];
+
+const recommendedCorePages = [
+  "home",
+  "about",
+  "services",
+  "digital-services",
+  "contact",
+  "faq",
+  "knowledge-center",
+  "privacy-policy",
+  "terms-and-conditions",
+  "ai-policy",
+];
+
+function normalizeSlug(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "غير متوفر";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "غير متوفر";
+
+  return new Intl.DateTimeFormat("ar", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function getSeoScore(page: PageItem) {
+  let score = 0;
+  if ((page.seo_title || "").trim()) score += 1;
+  if ((page.seo_description || "").trim()) score += 1;
+  if ((page.seo_keywords || "").trim()) score += 1;
+  if ((page.og_image || "").trim()) score += 1;
+  return score;
+}
+
+function getSeoLabel(page: PageItem) {
+  const score = getSeoScore(page);
+  if (score >= 4) return "مكتمل";
+  if (score >= 2) return "جزئي";
+  return "يحتاج إعداد";
+}
+
+function getPublicPath(slug: string | null) {
+  if (!slug || slug === "home" || slug === "homepage") return "/";
+  return `/${slug}`;
+}
+
 export default function AdminPagesPage() {
   const router = useRouter();
 
@@ -44,11 +123,13 @@ export default function AdminPagesPage() {
 
   const [pages, setPages] = useState<PageItem[]>([]);
   const [selectedPage, setSelectedPage] = useState<PageItem | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<PageForm>(emptyForm);
 
   const [search, setSearch] = useState("");
+  const [activeFilter, setActiveFilter] = useState<PageFilter>("all");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -74,49 +155,104 @@ export default function AdminPagesPage() {
   }, [isAuthorized]);
 
   async function loadPages() {
-    if (!supabase) return;
+    if (!supabase) {
+      showError("الاتصال بقاعدة البيانات غير مفعل.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
 
     const { data, error } = await supabase
       .from("pages")
       .select(
         "id, created_at, updated_at, title, slug, content, seo_title, seo_description, seo_keywords, og_image, is_homepage, is_published, sort_order"
       )
-      .order("sort_order", { ascending: true });
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    setIsLoading(false);
 
     if (error) {
-      setError("تعذر تحميل الصفحات. تحقق من صلاحيات جدول pages.");
+      showError("تعذر تحميل الصفحات. تحقق من صلاحيات جدول pages.");
       return;
     }
 
     setPages(data || []);
   }
 
+  const stats = useMemo(() => {
+    const published = pages.filter((page) => page.is_published !== false).length;
+    const draft = pages.filter((page) => page.is_published === false).length;
+    const homepage = pages.filter((page) => page.is_homepage === true).length;
+    const needsSeo = pages.filter((page) => getSeoScore(page) < 4).length;
+    const existingSlugs = new Set(pages.map((page) => page.slug || ""));
+    const missingCorePages = recommendedCorePages.filter(
+      (slug) => !existingSlugs.has(slug)
+    ).length;
+
+    return {
+      total: pages.length,
+      published,
+      draft,
+      homepage,
+      needsSeo,
+      missingCorePages,
+    };
+  }, [pages]);
+
   const filteredPages = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+
     return pages.filter((page) => {
+      const seoScore = getSeoScore(page);
+      const filterMatch =
+        activeFilter === "all" ||
+        (activeFilter === "published" && page.is_published !== false) ||
+        (activeFilter === "draft" && page.is_published === false) ||
+        (activeFilter === "homepage" && page.is_homepage === true) ||
+        (activeFilter === "needs_seo" && seoScore < 4);
+
       const text = `${page.title || ""} ${page.slug || ""} ${
         page.content || ""
-      }`.toLowerCase();
+      } ${page.seo_title || ""} ${page.seo_description || ""}`.toLowerCase();
 
-      return text.includes(search.toLowerCase());
+      return filterMatch && (!normalizedSearch || text.includes(normalizedSearch));
     });
-  }, [pages, search]);
+  }, [pages, search, activeFilter]);
 
-  function updateField(key: keyof typeof form, value: string | boolean) {
+  function showSuccess(text: string) {
+    setError("");
+    setMessage(text);
+  }
+
+  function showError(text: string) {
+    setMessage("");
+    setError(text);
+  }
+
+  function updateField(key: keyof PageForm, value: string | boolean) {
     setForm((current) => ({
       ...current,
       [key]: value,
     }));
   }
 
-  function resetForm() {
+  function clearForm() {
     setSelectedPage(null);
     setForm(emptyForm);
+  }
+
+  function resetForm() {
+    clearForm();
     setMessage("");
     setError("");
   }
 
   function editPage(page: PageItem) {
     setSelectedPage(page);
+    setMessage(`أنت الآن تعدّل الصفحة: ${page.title || "بدون عنوان"}`);
+    setError("");
 
     setForm({
       title: page.title || "",
@@ -134,28 +270,34 @@ export default function AdminPagesPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function normalizeSlug(value: string) {
-    return value
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "");
-  }
-
   async function savePage(event: React.FormEvent) {
     event.preventDefault();
     setMessage("");
     setError("");
 
-    if (!supabase) return;
-
-    if (!form.title.trim()) {
-      setError("يرجى كتابة عنوان الصفحة.");
+    if (!supabase) {
+      showError("الاتصال بقاعدة البيانات غير مفعل.");
       return;
     }
 
-    if (!form.slug.trim()) {
-      setError("يرجى كتابة رابط الصفحة slug.");
+    const normalizedSlug = normalizeSlug(form.slug);
+
+    if (!form.title.trim()) {
+      showError("يرجى كتابة عنوان الصفحة.");
+      return;
+    }
+
+    if (!normalizedSlug) {
+      showError("يرجى كتابة رابط صفحة صحيح باللغة الإنجليزية مثل about أو contact.");
+      return;
+    }
+
+    const duplicatePage = pages.find(
+      (page) => page.slug === normalizedSlug && page.id !== selectedPage?.id
+    );
+
+    if (duplicatePage) {
+      showError("هذا الرابط مستخدم في صفحة أخرى. يرجى اختيار رابط مختلف.");
       return;
     }
 
@@ -163,7 +305,7 @@ export default function AdminPagesPage() {
 
     const payload = {
       title: form.title.trim(),
-      slug: normalizeSlug(form.slug),
+      slug: normalizedSlug,
       content: form.content.trim(),
       seo_title: form.seo_title.trim(),
       seo_description: form.seo_description.trim(),
@@ -178,7 +320,7 @@ export default function AdminPagesPage() {
     if (payload.is_homepage) {
       await supabase
         .from("pages")
-        .update({ is_homepage: false })
+        .update({ is_homepage: false, updated_at: new Date().toISOString() })
         .neq("id", selectedPage?.id || 0);
     }
 
@@ -189,7 +331,7 @@ export default function AdminPagesPage() {
     setIsSaving(false);
 
     if (result.error) {
-      setError("فشل حفظ الصفحة. تأكد أن slug غير مكرر وأن الجدول صحيح.");
+      showError("فشل حفظ الصفحة. تأكد أن slug غير مكرر وأن صلاحيات الجدول صحيحة.");
       return;
     }
 
@@ -201,18 +343,27 @@ export default function AdminPagesPage() {
       JSON.stringify(payload)
     );
 
-    setMessage(selectedPage ? "تم تحديث الصفحة بنجاح." : "تمت إضافة الصفحة بنجاح.");
-    resetForm();
+    clearForm();
+    showSuccess(selectedPage ? "تم تحديث الصفحة بنجاح." : "تمت إضافة الصفحة بنجاح.");
     await loadPages();
   }
 
   async function togglePage(page: PageItem, field: "is_published" | "is_homepage") {
-    if (!supabase) return;
+    if (!supabase) {
+      showError("الاتصال بقاعدة البيانات غير مفعل.");
+      return;
+    }
+
+    setMessage("");
+    setError("");
 
     const nextValue = !Boolean(page[field]);
 
     if (field === "is_homepage" && nextValue) {
-      await supabase.from("pages").update({ is_homepage: false }).neq("id", page.id);
+      await supabase
+        .from("pages")
+        .update({ is_homepage: false, updated_at: new Date().toISOString() })
+        .neq("id", page.id);
     }
 
     const { error } = await supabase
@@ -224,7 +375,7 @@ export default function AdminPagesPage() {
       .eq("id", page.id);
 
     if (error) {
-      alert("فشل تحديث حالة الصفحة.");
+      showError("فشل تحديث حالة الصفحة. تحقق من صلاحيات جدول pages.");
       return;
     }
 
@@ -236,6 +387,16 @@ export default function AdminPagesPage() {
       JSON.stringify({ [field]: nextValue })
     );
 
+    const successText =
+      field === "is_published"
+        ? nextValue
+          ? "تم نشر الصفحة بنجاح."
+          : "تم إخفاء الصفحة بنجاح."
+        : nextValue
+          ? "تم تعيين الصفحة كصفحة رئيسية بنجاح."
+          : "تم إلغاء تعيين الصفحة الرئيسية بنجاح.";
+
+    showSuccess(successText);
     await loadPages();
   }
 
@@ -269,244 +430,499 @@ export default function AdminPagesPage() {
     return (
       <main
         dir="rtl"
-        className="flex min-h-screen items-center justify-center bg-[#070009] text-white"
+        className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white"
       >
-        جاري التحقق من صلاحية الدخول...
+        <div className="rounded-[2rem] border border-purple-500/25 bg-black/45 p-8 text-center shadow-[0_0_80px_rgba(124,58,237,0.18)]">
+          <div className="mb-3 text-sm font-black tracking-[0.25em] text-yellow-200">
+            HAMZA AGENCY
+          </div>
+          <div className="text-2xl font-black">جاري التحقق من صلاحية الدخول...</div>
+        </div>
       </main>
     );
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#070009] text-white">
+    <main dir="rtl" className="min-h-screen overflow-x-hidden bg-[#070009] text-white">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#4c0a77_0%,#09000d_45%,#000_100%)]" />
+      <div className="fixed inset-0 -z-10 bg-[linear-gradient(135deg,rgba(212,175,55,0.07),transparent_30%,rgba(124,58,237,0.09)_70%,transparent)]" />
 
-      <div className="mx-auto max-w-7xl p-4 md:p-6">
-        <div className="mb-6 flex flex-col justify-between gap-4 rounded-[2rem] border border-purple-500/20 bg-black/35 p-6 md:flex-row md:items-center">
-          <div>
-            <p className="mb-2 text-sm text-purple-200">Core CMS Foundation</p>
-            <h1 className="text-4xl font-black">إدارة الصفحات</h1>
-            <p className="mt-3 max-w-3xl leading-8 text-white/60">
-              من هنا تستطيع إنشاء وتعديل صفحات الموقع وربطها لاحقاً بالواجهة
-              العامة، مع إدارة SEO وحالة النشر والترتيب والصفحة الرئيسية.
-            </p>
+      <div className="mx-auto max-w-7xl px-4 py-5 md:px-6 md:py-7">
+        <section className="mb-6 overflow-hidden rounded-[2rem] border border-purple-500/20 bg-black/40 p-6 shadow-[0_0_80px_rgba(124,58,237,0.14)] backdrop-blur-xl md:p-8">
+          <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div>
+              <div className="mb-4 flex flex-wrap items-center gap-3">
+                <span className="rounded-full border border-purple-400/30 bg-purple-500/15 px-4 py-2 text-sm font-bold text-purple-100">
+                  Core CMS Foundation
+                </span>
+                <span className="rounded-full border border-yellow-400/25 bg-yellow-500/10 px-4 py-2 text-sm font-bold text-yellow-100">
+                  أساس Page Builder
+                </span>
+              </div>
+
+              <h1 className="text-4xl font-black leading-tight md:text-5xl">
+                إدارة الصفحات
+              </h1>
+              <p className="mt-4 max-w-3xl leading-8 text-white/62">
+                مركز إدارة صفحات HAMZA AGENCY، حالة النشر، الصفحة الرئيسية،
+                ترتيب الصفحات، ومعلومات SEO. هذه الصفحة هي الأساس الذي سنبني
+                فوقه إدارة الأقسام والـ Page Builder.
+              </p>
+              <p className="mt-3 text-sm text-white/45">الأدمن: {adminEmail}</p>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+              <button
+                type="button"
+                onClick={loadPages}
+                disabled={isLoading}
+                className="rounded-2xl border border-purple-300/25 bg-purple-500/10 px-5 py-3 font-black text-purple-100 transition hover:bg-purple-500/15 disabled:opacity-60"
+              >
+                {isLoading ? "جاري التحديث..." : "تحديث الصفحات"}
+              </button>
+              <Link
+                href="/admin"
+                className="rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-center font-bold text-white/80 transition hover:bg-white/10"
+              >
+                العودة للوحة التحكم
+              </Link>
+              <button
+                type="button"
+                onClick={logout}
+                className="rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-3 font-bold text-red-100 transition hover:bg-red-500/20"
+              >
+                تسجيل الخروج
+              </button>
+            </div>
           </div>
+        </section>
 
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/admin"
-              className="rounded-2xl border border-white/15 px-4 py-3 text-white/80"
-            >
-              العودة للوحة التحكم
-            </Link>
-            <button
-              onClick={logout}
-              className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-200"
-            >
-              تسجيل الخروج
-            </button>
-          </div>
-        </div>
+        <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <StatCard title="كل الصفحات" value={stats.total} tone="purple" />
+          <StatCard title="منشورة" value={stats.published} tone="green" />
+          <StatCard title="غير منشورة" value={stats.draft} tone="yellow" />
+          <StatCard title="تحتاج SEO" value={stats.needsSeo} tone="blue" />
+          <StatCard title="صفحات أساسية ناقصة" value={stats.missingCorePages} tone="red" />
+        </section>
 
-        <form
-          onSubmit={savePage}
-          className="mb-8 rounded-[2rem] border border-purple-500/20 bg-black/35 p-6"
-        >
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-3xl font-black">
-              {selectedPage ? "تعديل صفحة" : "إضافة صفحة جديدة"}
-            </h2>
+        {(message || error) && (
+          <section
+            className={`mb-6 rounded-3xl border p-5 font-bold leading-8 ${
+              error
+                ? "border-red-400/25 bg-red-500/10 text-red-100"
+                : "border-green-400/25 bg-green-500/10 text-green-100"
+            }`}
+          >
+            {error || message}
+          </section>
+        )}
+
+        <section className="mb-8 rounded-[2rem] border border-purple-500/20 bg-black/40 p-5 shadow-[0_0_70px_rgba(124,58,237,0.1)] backdrop-blur md:p-6">
+          <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
+            <div>
+              <h2 className="text-3xl font-black">
+                {selectedPage ? "تعديل صفحة" : "إضافة صفحة جديدة"}
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-white/52">
+                اكتب بيانات الصفحة الأساسية. سيتم استخدام نفس السجل لاحقاً عند
+                ربط الأقسام والقوالب داخل Page Builder.
+              </p>
+            </div>
 
             {selectedPage && (
               <button
                 type="button"
                 onClick={resetForm}
-                className="rounded-xl border border-white/15 px-4 py-2 text-white/70"
+                className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 font-bold text-white/75 transition hover:bg-white/10"
               >
                 إلغاء التعديل
               </button>
             )}
           </div>
 
-          {message && (
-            <div className="mb-4 rounded-2xl border border-green-500/30 bg-green-500/10 p-4 text-green-200">
-              {message}
-            </div>
-          )}
-
-          {error && (
-            <div className="mb-4 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-yellow-100">
-              {error}
-            </div>
-          )}
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <input
-              value={form.title}
-              onChange={(e) => updateField("title", e.target.value)}
-              placeholder="عنوان الصفحة مثال: من نحن"
-              className="rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
-            />
-
-            <input
-              value={form.slug}
-              onChange={(e) => updateField("slug", e.target.value)}
-              placeholder="slug مثال: about"
-              className="rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
-            />
-
-            <input
-              value={form.seo_title}
-              onChange={(e) => updateField("seo_title", e.target.value)}
-              placeholder="SEO Title"
-              className="rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
-            />
-
-            <input
-              value={form.seo_keywords}
-              onChange={(e) => updateField("seo_keywords", e.target.value)}
-              placeholder="SEO Keywords"
-              className="rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
-            />
-
-            <textarea
-              value={form.seo_description}
-              onChange={(e) => updateField("seo_description", e.target.value)}
-              placeholder="SEO Description"
-              className="min-h-28 rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400 md:col-span-2"
-            />
-
-            <input
-              value={form.og_image}
-              onChange={(e) => updateField("og_image", e.target.value)}
-              placeholder="OG Image URL"
-              className="rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400 md:col-span-2"
-            />
-
-            <textarea
-              value={form.content}
-              onChange={(e) => updateField("content", e.target.value)}
-              placeholder="محتوى الصفحة..."
-              className="min-h-44 rounded-2xl border border-white/10 bg-black/35 p-4 leading-8 outline-none focus:border-purple-400 md:col-span-2"
-            />
-
-            <input
-              value={form.sort_order}
-              onChange={(e) => updateField("sort_order", e.target.value)}
-              placeholder="الترتيب"
-              type="number"
-              className="rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
-            />
-
-            <div className="flex flex-wrap items-center gap-6 rounded-2xl border border-white/10 bg-black/25 p-4">
-              <label className="flex items-center gap-2">
+          <form onSubmit={savePage} className="grid gap-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="عنوان الصفحة" hint="مثال: من نحن">
                 <input
-                  type="checkbox"
+                  value={form.title}
+                  onChange={(event) => updateField("title", event.target.value)}
+                  placeholder="عنوان الصفحة"
+                  className="input-control"
+                />
+              </Field>
+
+              <Field
+                label="رابط الصفحة"
+                hint="استخدم أحرفاً إنجليزية مثل about أو contact"
+              >
+                <input
+                  value={form.slug}
+                  onChange={(event) => updateField("slug", event.target.value)}
+                  placeholder="about"
+                  dir="ltr"
+                  className="input-control text-left"
+                />
+              </Field>
+
+              <Field label="SEO Title" hint="عنوان مخصص لمحركات البحث">
+                <input
+                  value={form.seo_title}
+                  onChange={(event) => updateField("seo_title", event.target.value)}
+                  placeholder="HAMZA AGENCY | من نحن"
+                  className="input-control"
+                />
+              </Field>
+
+              <Field label="SEO Keywords" hint="كلمات مفصولة بفواصل">
+                <input
+                  value={form.seo_keywords}
+                  onChange={(event) => updateField("seo_keywords", event.target.value)}
+                  placeholder="وكالة حمزة, صناع المحتوى"
+                  className="input-control"
+                />
+              </Field>
+            </div>
+
+            <Field label="SEO Description" hint="وصف قصير يظهر في نتائج البحث والمشاركة">
+              <textarea
+                value={form.seo_description}
+                onChange={(event) => updateField("seo_description", event.target.value)}
+                placeholder="اكتب وصفاً مختصراً وواضحاً للصفحة."
+                rows={3}
+                className="input-control leading-8"
+              />
+            </Field>
+
+            <Field label="Open Graph Image URL" hint="رابط صورة المشاركة، ويمكن ربطها لاحقاً بمكتبة الوسائط">
+              <input
+                value={form.og_image}
+                onChange={(event) => updateField("og_image", event.target.value)}
+                placeholder="https://..."
+                dir="ltr"
+                className="input-control text-left"
+              />
+            </Field>
+
+            <Field label="محتوى الصفحة الأساسي" hint="هذا المحتوى يستخدم كقاعدة قبل ربط الأقسام المتقدمة">
+              <textarea
+                value={form.content}
+                onChange={(event) => updateField("content", event.target.value)}
+                placeholder="اكتب محتوى الصفحة الأساسي هنا..."
+                rows={7}
+                className="input-control leading-8"
+              />
+            </Field>
+
+            <div className="grid gap-4 md:grid-cols-[1fr_1.4fr]">
+              <Field label="الترتيب" hint="رقم أصغر يعني ظهوراً أعلى في القوائم الإدارية">
+                <input
+                  value={form.sort_order}
+                  onChange={(event) => updateField("sort_order", event.target.value)}
+                  type="number"
+                  min="1"
+                  className="input-control"
+                />
+              </Field>
+
+              <div className="grid gap-3 rounded-3xl border border-white/10 bg-black/25 p-4 sm:grid-cols-2">
+                <ToggleCard
+                  title="حالة النشر"
+                  description="اجعل الصفحة متاحة للاستخدام العام عند الربط."
                   checked={form.is_published}
-                  onChange={(e) => updateField("is_published", e.target.checked)}
+                  activeLabel="منشورة"
+                  inactiveLabel="غير منشورة"
+                  onChange={(value) => updateField("is_published", value)}
                 />
-                منشورة
-              </label>
-
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
+                <ToggleCard
+                  title="الصفحة الرئيسية"
+                  description="يمكن اختيار صفحة واحدة فقط كصفحة رئيسية."
                   checked={form.is_homepage}
-                  onChange={(e) => updateField("is_homepage", e.target.checked)}
+                  activeLabel="رئيسية"
+                  inactiveLabel="صفحة عادية"
+                  onChange={(value) => updateField("is_homepage", value)}
                 />
-                الصفحة الرئيسية
-              </label>
+              </div>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={isSaving}
-            className="mt-6 rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 font-black disabled:opacity-60"
-          >
-            {isSaving ? "جارٍ الحفظ..." : selectedPage ? "حفظ التعديل" : "إضافة الصفحة"}
-          </button>
-        </form>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 font-black text-white shadow-[0_0_35px_rgba(168,85,247,0.22)] transition hover:scale-[1.01] disabled:opacity-60"
+              >
+                {isSaving ? "جارٍ الحفظ..." : selectedPage ? "حفظ التعديل" : "إضافة الصفحة"}
+              </button>
 
-        <div className="rounded-[2rem] border border-purple-500/20 bg-black/35 p-6">
-          <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-2xl border border-white/15 bg-white/5 px-6 py-4 font-bold text-white/70 transition hover:bg-white/10"
+              >
+                تفريغ النموذج
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section className="rounded-[2rem] border border-purple-500/20 bg-black/40 p-5 shadow-[0_0_70px_rgba(124,58,237,0.1)] backdrop-blur md:p-6">
+          <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_360px] lg:items-end">
             <div>
               <h2 className="text-3xl font-black">قائمة الصفحات</h2>
               <p className="mt-2 text-white/55">
-                الصفحات التي ستغذي الموقع العام والـ Page Builder لاحقاً.
+                راقب الصفحات الأساسية، حالة النشر، جاهزية SEO، وترتيب المحتوى.
               </p>
             </div>
 
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="بحث..."
-              className="rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="بحث بالعنوان أو الرابط أو المحتوى..."
+              className="input-control"
             />
           </div>
 
-          <div className="overflow-auto">
-            <table className="w-full min-w-[900px]">
+          <div className="mb-5 flex flex-wrap gap-2">
+            {filterOptions.map((filter) => (
+              <button
+                key={filter.value}
+                type="button"
+                onClick={() => setActiveFilter(filter.value)}
+                className={`rounded-full border px-4 py-2 text-sm font-bold transition ${
+                  activeFilter === filter.value
+                    ? "border-yellow-300/40 bg-yellow-400/15 text-yellow-100"
+                    : "border-white/10 bg-white/[0.04] text-white/62 hover:border-purple-300/35 hover:text-white"
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="overflow-x-auto rounded-3xl border border-white/10">
+            <table className="w-full min-w-[1040px]">
               <thead>
-                <tr className="border-b border-purple-500/20 text-white/50">
-                  <th className="p-3 text-right">العنوان</th>
-                  <th className="p-3 text-right">Slug</th>
-                  <th className="p-3 text-right">منشورة</th>
-                  <th className="p-3 text-right">رئيسية</th>
-                  <th className="p-3 text-right">الترتيب</th>
-                  <th className="p-3 text-right">الإجراءات</th>
+                <tr className="border-b border-purple-500/20 bg-white/[0.03] text-sm text-white/55">
+                  <th className="p-4 text-right">الصفحة</th>
+                  <th className="p-4 text-right">الرابط</th>
+                  <th className="p-4 text-right">الحالة</th>
+                  <th className="p-4 text-right">SEO</th>
+                  <th className="p-4 text-right">الترتيب</th>
+                  <th className="p-4 text-right">آخر تحديث</th>
+                  <th className="p-4 text-right">الإجراءات</th>
                 </tr>
               </thead>
 
               <tbody>
                 {filteredPages.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-4 text-white/50">
-                      لا توجد صفحات حالياً. أضف الصفحة الرئيسية وصفحات الموقع الأساسية.
+                    <td colSpan={7} className="p-8 text-center text-white/50">
+                      لا توجد صفحات مطابقة. أضف الصفحات الأساسية أو غيّر الفلتر الحالي.
                     </td>
                   </tr>
                 ) : (
-                  filteredPages.map((page) => (
-                    <tr key={page.id} className="border-b border-white/5">
-                      <td className="p-3">{page.title}</td>
-                      <td className="p-3">{page.slug}</td>
-                      <td className="p-3">{page.is_published ? "نعم" : "لا"}</td>
-                      <td className="p-3">{page.is_homepage ? "نعم" : "لا"}</td>
-                      <td className="p-3">{page.sort_order || 1}</td>
-                      <td className="p-3">
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => editPage(page)}
-                            className="rounded-xl border border-purple-500/30 px-3 py-2 text-sm"
-                          >
-                            تعديل
-                          </button>
+                  filteredPages.map((page) => {
+                    const publicPath = getPublicPath(page.slug);
+                    const seoLabel = getSeoLabel(page);
 
-                          <button
-                            type="button"
-                            onClick={() => togglePage(page, "is_published")}
-                            className="rounded-xl border border-yellow-500/30 px-3 py-2 text-sm text-yellow-100"
-                          >
-                            {page.is_published ? "إخفاء" : "نشر"}
-                          </button>
+                    return (
+                      <tr key={page.id} className="border-b border-white/5 align-top last:border-b-0">
+                        <td className="p-4">
+                          <div className="font-black text-white">{page.title || "بدون عنوان"}</div>
+                          <div className="mt-2 line-clamp-2 max-w-sm text-sm leading-6 text-white/45">
+                            {page.content || "لا يوجد محتوى أساسي بعد."}
+                          </div>
+                          {page.is_homepage && (
+                            <span className="mt-3 inline-flex rounded-full border border-yellow-300/25 bg-yellow-400/10 px-3 py-1 text-xs font-bold text-yellow-100">
+                              الصفحة الرئيسية
+                            </span>
+                          )}
+                        </td>
 
-                          <button
-                            type="button"
-                            onClick={() => togglePage(page, "is_homepage")}
-                            className="rounded-xl border border-green-500/30 px-3 py-2 text-sm text-green-100"
+                        <td className="p-4 font-mono text-sm text-purple-100" dir="ltr">
+                          {page.slug || "-"}
+                        </td>
+
+                        <td className="p-4">
+                          <StatusBadge active={page.is_published !== false} />
+                        </td>
+
+                        <td className="p-4">
+                          <span
+                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${
+                              seoLabel === "مكتمل"
+                                ? "border-green-400/25 bg-green-500/10 text-green-100"
+                                : seoLabel === "جزئي"
+                                  ? "border-yellow-400/25 bg-yellow-500/10 text-yellow-100"
+                                  : "border-red-400/25 bg-red-500/10 text-red-100"
+                            }`}
                           >
-                            {page.is_homepage ? "إلغاء الرئيسية" : "اجعلها رئيسية"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                            {seoLabel}
+                          </span>
+                        </td>
+
+                        <td className="p-4 text-white/70">{page.sort_order || 1}</td>
+                        <td className="p-4 text-sm text-white/45">
+                          {formatDate(page.updated_at || page.created_at)}
+                        </td>
+
+                        <td className="p-4">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => editPage(page)}
+                              className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-sm font-bold text-purple-100 transition hover:bg-purple-500/15"
+                            >
+                              تعديل
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => togglePage(page, "is_published")}
+                              className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm font-bold text-yellow-100 transition hover:bg-yellow-500/15"
+                            >
+                              {page.is_published !== false ? "إخفاء" : "نشر"}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => togglePage(page, "is_homepage")}
+                              className="rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm font-bold text-green-100 transition hover:bg-green-500/15"
+                            >
+                              {page.is_homepage ? "إلغاء الرئيسية" : "اجعلها رئيسية"}
+                            </button>
+
+                            <Link
+                              href={publicPath}
+                              target="_blank"
+                              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-bold text-white/65 transition hover:bg-white/10 hover:text-white"
+                            >
+                              فتح
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
+
+        <style jsx>{`
+          .input-control {
+            width: 100%;
+            border-radius: 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.32);
+            padding: 1rem;
+            color: white;
+            outline: none;
+            transition: border-color 0.2s ease, background 0.2s ease;
+          }
+
+          .input-control:focus {
+            border-color: rgba(192, 132, 252, 0.85);
+            background: rgba(0, 0, 0, 0.46);
+          }
+
+          .input-control::placeholder {
+            color: rgba(255, 255, 255, 0.32);
+          }
+        `}</style>
       </div>
     </main>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-black text-white/78">{label}</span>
+      {children}
+      {hint && <span className="mt-2 block text-xs leading-5 text-white/40">{hint}</span>}
+    </label>
+  );
+}
+
+function ToggleCard({
+  title,
+  description,
+  checked,
+  activeLabel,
+  inactiveLabel,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  checked: boolean;
+  activeLabel: string;
+  inactiveLabel: string;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`rounded-2xl border p-4 text-right transition ${
+        checked
+          ? "border-purple-300/35 bg-purple-500/15 text-white"
+          : "border-white/10 bg-white/[0.04] text-white/60 hover:border-purple-300/25"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-black">{title}</span>
+        <span
+          className={`rounded-full border px-3 py-1 text-xs font-bold ${
+            checked
+              ? "border-green-400/25 bg-green-500/10 text-green-100"
+              : "border-white/10 bg-black/25 text-white/45"
+          }`}
+        >
+          {checked ? activeLabel : inactiveLabel}
+        </span>
+      </div>
+      <p className="mt-2 text-sm leading-6 opacity-70">{description}</p>
+    </button>
+  );
+}
+
+function StatCard({ title, value, tone }: { title: string; value: number; tone: string }) {
+  const toneClass =
+    tone === "green"
+      ? "border-green-400/20 bg-green-500/10 text-green-100"
+      : tone === "yellow"
+        ? "border-yellow-400/20 bg-yellow-500/10 text-yellow-100"
+        : tone === "blue"
+          ? "border-blue-400/20 bg-blue-500/10 text-blue-100"
+          : tone === "red"
+            ? "border-red-400/20 bg-red-500/10 text-red-100"
+            : "border-purple-400/20 bg-purple-500/10 text-purple-100";
+
+  return (
+    <div className={`rounded-3xl border p-5 shadow-[0_0_50px_rgba(0,0,0,0.18)] ${toneClass}`}>
+      <div className="text-3xl font-black">{value}</div>
+      <div className="mt-2 text-sm font-bold opacity-80">{title}</div>
+    </div>
+  );
+}
+
+function StatusBadge({ active }: { active: boolean }) {
+  return active ? (
+    <span className="inline-flex rounded-full border border-green-400/25 bg-green-500/10 px-3 py-1 text-xs font-bold text-green-100">
+      منشورة
+    </span>
+  ) : (
+    <span className="inline-flex rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-xs font-bold text-white/55">
+      غير منشورة
+    </span>
   );
 }
