@@ -8,35 +8,41 @@ import { requireAdminModuleAccess } from "@/lib/adminAccess";
 
 type SettingItem = {
   id: number;
-  created_at: string;
+  created_at: string | null;
   updated_at: string | null;
   setting_key: string | null;
   setting_value: string | null;
   setting_group: string | null;
+  group_name: string | null;
+  label_ar: string | null;
+  label_en: string | null;
   description: string | null;
+  input_type: string | null;
+  sort_order: number | null;
   is_public: boolean | null;
 };
 
 type SettingDraft = {
   value: string;
+  groupName: string;
+  labelAr: string;
+  labelEn: string;
   description: string;
-  is_public: boolean;
+  inputType: string;
+  sortOrder: string;
+  isPublic: boolean;
 };
 
 type NewSettingDraft = {
   setting_key: string;
   setting_value: string;
-  setting_group: string;
+  group_name: string;
+  label_ar: string;
+  label_en: string;
   description: string;
+  input_type: string;
+  sort_order: string;
   is_public: boolean;
-};
-
-type SettingMeta = {
-  label: string;
-  hint: string;
-  control?: "text" | "textarea" | "color" | "toggle" | "select";
-  placeholder?: string;
-  options?: { label: string; value: string }[];
 };
 
 type SectionDefinition = {
@@ -48,206 +54,99 @@ type SectionDefinition = {
   tone: string;
 };
 
-const defaultSettings = [
-  {
-    setting_key: "site_name",
-    setting_value: "HAMZA AGENCY",
-    setting_group: "identity",
-    description: "اسم الموقع الرسمي الذي يظهر في العنوان والـ SEO.",
-    is_public: true,
-  },
-  {
-    setting_key: "agency_name_ar",
-    setting_value: "وكالة حمزة",
-    setting_group: "identity",
-    description: "اسم الوكالة باللغة العربية.",
-    is_public: true,
-  },
-  {
-    setting_key: "agency_manager_name",
-    setting_value: "وكالة حمزة بإدارة الوكيل ⚔عܓོراب✴سܓོوريا⚔",
-    setting_group: "identity",
-    description: "تعريف الوكيل يظهر في صفحة من نحن وليس في Hero الرئيسي.",
-    is_public: true,
-  },
-  {
-    setting_key: "site_description",
-    setting_value:
-      "منصة وكالة احترافية لإدارة وتوظيف ودعم صناع المحتوى على منصات البث المباشر والتواصل الاجتماعي.",
-    setting_group: "identity",
-    description: "وصف عام للموقع والوكالة.",
-    is_public: true,
-  },
-  {
-    setting_key: "primary_whatsapp",
-    setting_value: "+905011730377",
-    setting_group: "contact",
-    description: "رقم واتساب الأساسي للتواصل والتحويل من AI Support.",
-    is_public: true,
-  },
-  {
-    setting_key: "support_email",
-    setting_value: "hamza.alshami.13579@gmail.com",
-    setting_group: "contact",
-    description: "البريد الرسمي الظاهر في صفحات التواصل والفوتر.",
-    is_public: true,
-  },
-  {
-    setting_key: "primary_color",
-    setting_value: "#7c3aed",
-    setting_group: "branding",
-    description: "اللون الأساسي: موف ملكي.",
-    is_public: true,
-  },
-  {
-    setting_key: "secondary_color",
-    setting_value: "#d4af37",
-    setting_group: "branding",
-    description: "اللون الثانوي: ذهبي فاخر.",
-    is_public: true,
-  },
-  {
-    setting_key: "background_color",
-    setting_value: "#070009",
-    setting_group: "branding",
-    description: "لون الخلفية الأساسي للموقع.",
-    is_public: true,
-  },
-  {
-    setting_key: "default_visual_background",
-    setting_value: "luxury-purple-neon",
-    setting_group: "media",
-    description: "الخلفية المتحركة البرمجية الافتراضية عند عدم وجود فيديو مرفوع.",
-    is_public: true,
-  },
-  {
-    setting_key: "homepage_background_mode",
-    setting_value: "generated",
-    setting_group: "media",
-    description: "وضع خلفية الصفحة الرئيسية: generated أو video. لاحقاً يتم التحكم به من لوحة الوسائط.",
-    is_public: true,
-  },
-  {
-    setting_key: "seo_default_title",
-    setting_value: "HAMZA AGENCY | وكالة حمزة لصناع المحتوى",
-    setting_group: "seo",
-    description: "عنوان SEO الافتراضي للموقع.",
-    is_public: true,
-  },
-  {
-    setting_key: "seo_default_description",
-    setting_value:
-      "وكالة حمزة منصة احترافية لدعم صناع المحتوى والتقديم على برامج TikTok وBIGO LIVE وYaahlan وXena وCatchii.",
-    setting_group: "seo",
-    description: "وصف SEO الافتراضي للموقع.",
-    is_public: true,
-  },
-  {
-    setting_key: "seo_default_keywords",
-    setting_value:
-      "وكالة حمزة, صناع المحتوى, TikTok Agency, BIGO LIVE, بث مباشر, وكالة محتوى",
-    setting_group: "seo",
-    description: "الكلمات المفتاحية الافتراضية.",
-    is_public: true,
-  },
-  {
-    setting_key: "ai_support_enabled",
-    setting_value: "true",
-    setting_group: "ai",
-    description: "تشغيل أو إيقاف دعم الذكاء الصناعي داخل الموقع.",
-    is_public: false,
-  },
-  {
-    setting_key: "ai_whatsapp_escalation_message",
-    setting_value: "مرحباً، أحتاج التواصل مع موظف من وكالة حمزة بخصوص البرامج أو الطلبات.",
-    setting_group: "ai",
-    description: "الرسالة الجاهزة عند تحويل العميل إلى واتساب.",
-    is_public: false,
-  },
-  {
-    setting_key: "maintenance_mode",
-    setting_value: "false",
-    setting_group: "system",
-    description: "تشغيل أو إيقاف وضع الصيانة للموقع.",
-    is_public: false,
-  },
-  {
-    setting_key: "default_language",
-    setting_value: "ar",
-    setting_group: "languages",
-    description: "اللغة الافتراضية للموقع.",
-    is_public: true,
-  },
-  {
-    setting_key: "supported_languages",
-    setting_value: "ar,en,tr",
-    setting_group: "languages",
-    description: "اللغات المدعومة في الموقع.",
-    is_public: true,
-  },
-];
+type SettingMeta = {
+  label: string;
+  hint: string;
+  control?: "text" | "textarea" | "color" | "toggle" | "select" | "url" | "email" | "number";
+  placeholder?: string;
+  options?: { label: string; value: string }[];
+};
 
 const sectionDefinitions: SectionDefinition[] = [
   {
     key: "identity",
-    label: "الإعدادات العامة والهوية",
-    shortLabel: "العامة",
+    label: "الهوية العامة",
+    shortLabel: "هوية",
     icon: "◆",
-    description: "اسم الموقع، اسم الوكالة، الوصف العام، وتعريف الإدارة.",
+    description: "اسم الوكالة، وصفها المختصر، والنصوص التعريفية الأساسية.",
     tone: "from-purple-500/20 to-fuchsia-500/10 border-purple-400/25",
   },
   {
     key: "contact",
-    label: "معلومات التواصل",
-    shortLabel: "التواصل",
+    label: "التواصل",
+    shortLabel: "تواصل",
     icon: "☎",
-    description: "واتساب، البريد الرسمي، وروابط التواصل الأساسية.",
+    description: "أرقام واتساب، البريد الإلكتروني، وأوقات المتابعة.",
     tone: "from-emerald-500/20 to-green-500/10 border-emerald-400/25",
+  },
+  {
+    key: "footer",
+    label: "الفوتر",
+    shortLabel: "فوتر",
+    icon: "▣",
+    description: "نصوص تذييل الموقع، حقوق النشر، وأزرار التواصل السريعة.",
+    tone: "from-amber-500/20 to-yellow-500/10 border-amber-400/25",
+  },
+  {
+    key: "social",
+    label: "الروابط الاجتماعية",
+    shortLabel: "روابط",
+    icon: "↗",
+    description: "روابط الحسابات الرسمية التي يمكن عرضها في الموقع.",
+    tone: "from-cyan-500/20 to-blue-500/10 border-cyan-400/25",
   },
   {
     key: "branding",
     label: "الألوان والمظهر",
-    shortLabel: "المظهر",
+    shortLabel: "مظهر",
     icon: "✦",
-    description: "الألوان الأساسية للهوية البصرية الفاخرة.",
-    tone: "from-amber-500/20 to-yellow-500/10 border-amber-400/25",
+    description: "ألوان الهوية البصرية والخلفيات العامة.",
+    tone: "from-yellow-500/20 to-purple-500/10 border-yellow-400/25",
   },
   {
     key: "media",
     label: "الوسائط والخلفيات",
-    shortLabel: "الوسائط",
+    shortLabel: "وسائط",
     icon: "◈",
-    description: "إعدادات الخلفيات البرمجية والفيديوهات المستقبلية.",
+    description: "إعدادات الخلفيات والوسائط المرتبطة بالموقع.",
     tone: "from-pink-500/20 to-purple-500/10 border-pink-400/25",
   },
   {
-    key: "languages",
+    key: "language",
     label: "اللغات",
-    shortLabel: "اللغات",
+    shortLabel: "لغات",
     icon: "⌘",
-    description: "اللغة الافتراضية واللغات المدعومة في الموقع.",
-    tone: "from-cyan-500/20 to-blue-500/10 border-cyan-400/25",
+    description: "اللغة الافتراضية واتجاه العرض وإعدادات الترجمة.",
+    tone: "from-sky-500/20 to-cyan-500/10 border-sky-400/25",
+  },
+  {
+    key: "languages",
+    label: "اللغات القديمة",
+    shortLabel: "لغات",
+    icon: "⌘",
+    description: "إعدادات لغات موجودة من النظام السابق، تبقى قابلة للإدارة.",
+    tone: "from-sky-500/20 to-cyan-500/10 border-sky-400/25",
   },
   {
     key: "seo",
-    label: "إعدادات SEO",
+    label: "SEO",
     shortLabel: "SEO",
     icon: "◎",
-    description: "العنوان والوصف والكلمات المفتاحية لمحركات البحث.",
+    description: "العنوان والوصف والكلمات المفتاحية الافتراضية لمحركات البحث.",
     tone: "from-blue-500/20 to-indigo-500/10 border-blue-400/25",
   },
   {
     key: "ai",
-    label: "الذكاء الصناعي",
+    label: "الذكاء الاصطناعي",
     shortLabel: "AI",
     icon: "✺",
-    description: "تفعيل الدعم الذكي ورسائل التحويل إلى واتساب.",
+    description: "تشغيل الدعم الذكي وتعليماته ورسائل التصعيد.",
     tone: "from-violet-500/20 to-purple-500/10 border-violet-400/25",
   },
   {
     key: "system",
     label: "النظام والصيانة",
-    shortLabel: "النظام",
+    shortLabel: "نظام",
     icon: "⚙",
     description: "وضع الصيانة والإعدادات الداخلية الحساسة.",
     tone: "from-red-500/20 to-orange-500/10 border-red-400/25",
@@ -255,9 +154,9 @@ const sectionDefinitions: SectionDefinition[] = [
   {
     key: "custom",
     label: "إعدادات مخصصة",
-    shortLabel: "مخصصة",
+    shortLabel: "مخصص",
     icon: "+",
-    description: "أي إعدادات إضافية نضيفها لاحقاً بدون تغيير الكود.",
+    description: "إعدادات إضافية غير مصنفة ضمن المجموعات الأساسية.",
     tone: "from-slate-500/20 to-white/5 border-white/15",
   },
 ];
@@ -265,7 +164,7 @@ const sectionDefinitions: SectionDefinition[] = [
 const settingMeta: Record<string, SettingMeta> = {
   site_name: {
     label: "اسم الموقع الرسمي",
-    hint: "يظهر في عناوين الصفحات ومحركات البحث.",
+    hint: "الاسم الأساسي الذي يظهر في المتصفح وبيانات الموقع.",
     control: "text",
     placeholder: "HAMZA AGENCY",
   },
@@ -275,26 +174,93 @@ const settingMeta: Record<string, SettingMeta> = {
     control: "text",
     placeholder: "وكالة حمزة",
   },
+  agency_name_en: {
+    label: "اسم الوكالة بالإنجليزية",
+    hint: "الاسم الإنجليزي المستخدم في الواجهات وبيانات المشاركة.",
+    control: "text",
+    placeholder: "HAMZA AGENCY",
+  },
   agency_manager_name: {
-    label: "تعريف الوكيل / الإدارة",
-    hint: "النص الرسمي الذي يوضح إدارة الوكالة.",
+    label: "تعريف إدارة الوكالة",
+    hint: "نص تعريفي إداري يظهر عند الحاجة داخل صفحات الوكالة.",
+    control: "text",
+  },
+  site_tagline_ar: {
+    label: "الوصف المختصر للموقع",
+    hint: "جملة قصيرة تلخص نشاط وكالة حمزة.",
     control: "text",
   },
   site_description: {
     label: "وصف الوكالة العام",
-    hint: "وصف قصير احترافي يظهر في الصفحات و SEO.",
+    hint: "وصف عام يمكن استخدامه في الصفحات وبيانات SEO.",
     control: "textarea",
   },
   primary_whatsapp: {
     label: "رقم واتساب الأساسي",
-    hint: "الرقم الرئيسي للتواصل وتحويل العملاء من الموقع.",
+    hint: "الرقم الرئيسي للتواصل من الصفحات العامة.",
     control: "text",
     placeholder: "+905011730377",
   },
-  support_email: {
-    label: "البريد الإلكتروني الرسمي",
-    hint: "البريد الظاهر في صفحة التواصل والفوتر.",
+  support_whatsapp: {
+    label: "رقم واتساب الدعم",
+    hint: "رقم الدعم والمتابعة المستخدم في صفحات التواصل والخدمات.",
     control: "text",
+    placeholder: "+905011730377",
+  },
+  contact_email: {
+    label: "البريد الإلكتروني",
+    hint: "البريد الرسمي الظاهر في صفحة التواصل.",
+    control: "email",
+    placeholder: "name@example.com",
+  },
+  support_email: {
+    label: "بريد الدعم",
+    hint: "بريد دعم موجود من الإعدادات السابقة، يبقى قابلاً للإدارة.",
+    control: "email",
+  },
+  working_hours: {
+    label: "أوقات المتابعة",
+    hint: "نص يوضح طريقة متابعة الرسائل والطلبات.",
+    control: "textarea",
+  },
+  footer_description_ar: {
+    label: "وصف الفوتر",
+    hint: "النص التعريفي المختصر في تذييل الموقع.",
+    control: "textarea",
+  },
+  footer_copyright_ar: {
+    label: "حقوق النشر",
+    hint: "نص حقوق النشر الظاهر أسفل الموقع.",
+    control: "text",
+  },
+  footer_whatsapp_label: {
+    label: "نص زر واتساب في الفوتر",
+    hint: "النص المستخدم لزر التواصل السريع.",
+    control: "text",
+  },
+  social_tiktok_url: {
+    label: "رابط TikTok",
+    hint: "رابط الحساب الرسمي عند توفره.",
+    control: "url",
+    placeholder: "https://...",
+  },
+  social_instagram_url: {
+    label: "رابط Instagram",
+    hint: "رابط حساب Instagram الرسمي عند توفره.",
+    control: "url",
+    placeholder: "https://...",
+  },
+  social_facebook_url: {
+    label: "رابط Facebook",
+    hint: "رابط صفحة Facebook الرسمية عند توفرها.",
+    control: "url",
+    placeholder: "https://...",
+  },
+  social_telegram_url: {
+    label: "رابط Telegram",
+    hint: "رابط Telegram الرسمي عند توفره.",
+    control: "url",
+    placeholder: "https://...",
   },
   primary_color: {
     label: "اللون الأساسي",
@@ -313,7 +279,7 @@ const settingMeta: Record<string, SettingMeta> = {
   },
   default_visual_background: {
     label: "الخلفية البرمجية الافتراضية",
-    hint: "الخلفية الخفيفة التي تعمل عندما لا يوجد فيديو مرفوع.",
+    hint: "الخلفية الخفيفة التي تظهر عند عدم وجود وسائط مخصصة.",
     control: "select",
     options: [
       { label: "Luxury Purple Neon", value: "luxury-purple-neon" },
@@ -324,47 +290,17 @@ const settingMeta: Record<string, SettingMeta> = {
   },
   homepage_background_mode: {
     label: "طريقة خلفية الصفحة الرئيسية",
-    hint: "هل نستخدم خلفية برمجية خفيفة أم فيديو مرفوع لاحقاً.",
+    hint: "اختر نوع الخلفية الافتراضية للصفحة الرئيسية.",
     control: "select",
     options: [
-      { label: "خلفية برمجية خفيفة", value: "generated" },
-      { label: "فيديو مرفوع", value: "video" },
-      { label: "بدون خلفية متحركة", value: "static" },
+      { label: "خلفية برمجية", value: "generated" },
+      { label: "فيديو", value: "video" },
+      { label: "ثابتة", value: "static" },
     ],
-  },
-  seo_default_title: {
-    label: "عنوان SEO الافتراضي",
-    hint: "العنوان الذي يظهر في Google عند عدم وجود عنوان مخصص للصفحة.",
-    control: "text",
-  },
-  seo_default_description: {
-    label: "وصف SEO الافتراضي",
-    hint: "وصف مختصر واضح لمحركات البحث ووسائل المشاركة.",
-    control: "textarea",
-  },
-  seo_default_keywords: {
-    label: "الكلمات المفتاحية الافتراضية",
-    hint: "كلمات مفصولة بفواصل تساعد في تنظيم استراتيجية SEO.",
-    control: "textarea",
-  },
-  ai_support_enabled: {
-    label: "تشغيل مساعد الذكاء الصناعي",
-    hint: "إعداد داخلي لتفعيل أو إيقاف AI Support لاحقاً.",
-    control: "toggle",
-  },
-  ai_whatsapp_escalation_message: {
-    label: "رسالة التحويل إلى واتساب",
-    hint: "الرسالة الجاهزة عند طلب العميل التواصل مع موظف.",
-    control: "textarea",
-  },
-  maintenance_mode: {
-    label: "وضع الصيانة",
-    hint: "إعداد داخلي لإيقاف الموقع مؤقتاً أثناء الصيانة عند تفعيله لاحقاً.",
-    control: "toggle",
   },
   default_language: {
     label: "اللغة الافتراضية",
-    hint: "اللغة الأساسية التي يبدأ بها الموقع.",
+    hint: "اللغة الأساسية للموقع حالياً.",
     control: "select",
     options: [
       { label: "العربية", value: "ar" },
@@ -372,19 +308,108 @@ const settingMeta: Record<string, SettingMeta> = {
       { label: "Türkçe", value: "tr" },
     ],
   },
+  default_direction: {
+    label: "اتجاه العرض الافتراضي",
+    hint: "اتجاه عرض النصوص في الموقع.",
+    control: "select",
+    options: [
+      { label: "من اليمين إلى اليسار", value: "rtl" },
+      { label: "من اليسار إلى اليمين", value: "ltr" },
+    ],
+  },
   supported_languages: {
     label: "اللغات المدعومة",
-    hint: "اكتب رموز اللغات مفصولة بفواصل، مثال: ar,en,tr.",
+    hint: "رموز اللغات مفصولة بفواصل، مثال: ar,en,tr.",
     control: "text",
     placeholder: "ar,en,tr",
   },
+  seo_default_title: {
+    label: "عنوان SEO الافتراضي",
+    hint: "العنوان الافتراضي عند عدم وجود عنوان مخصص للصفحة.",
+    control: "text",
+  },
+  seo_default_description: {
+    label: "وصف SEO الافتراضي",
+    hint: "وصف مختصر لمحركات البحث ووسائل المشاركة.",
+    control: "textarea",
+  },
+  seo_default_keywords: {
+    label: "الكلمات المفتاحية الافتراضية",
+    hint: "كلمات مفصولة بفواصل لتنظيم استراتيجية الظهور.",
+    control: "textarea",
+  },
+  ai_support_enabled: {
+    label: "تشغيل الدعم الذكي",
+    hint: "إعداد داخلي لتفعيل أو إيقاف دعم الذكاء الاصطناعي.",
+    control: "toggle",
+  },
+  ai_whatsapp_escalation_message: {
+    label: "رسالة التحويل إلى واتساب",
+    hint: "الرسالة الجاهزة عند تحويل الزائر إلى فريق الوكالة.",
+    control: "textarea",
+  },
+  ai_support_instructions: {
+    label: "تعليمات الدعم الذكي",
+    hint: "إرشادات داخلية لضبط طريقة رد الدعم الذكي.",
+    control: "textarea",
+  },
+  ai_knowledge_base_enabled: {
+    label: "تفعيل قاعدة المعرفة للذكاء الاصطناعي",
+    hint: "يسمح للدعم الذكي بالاعتماد على محتوى مركز المعرفة.",
+    control: "toggle",
+  },
+  ai_unanswered_capture_enabled: {
+    label: "حفظ الأسئلة غير المجابة",
+    hint: "يجمع الأسئلة التي تحتاج مراجعة إدارية لتحسين الدعم.",
+    control: "toggle",
+  },
+  maintenance_mode: {
+    label: "وضع الصيانة",
+    hint: "إعداد داخلي لإظهار رسالة صيانة عند تفعيله.",
+    control: "toggle",
+  },
+  maintenance_mode_enabled: {
+    label: "تفعيل وضع الصيانة",
+    hint: "إعداد قديم للتوافق مع النسخة الحالية.",
+    control: "toggle",
+  },
+  maintenance_message_ar: {
+    label: "رسالة الصيانة",
+    hint: "الرسالة التي تظهر عند تفعيل وضع الصيانة.",
+    control: "textarea",
+  },
+  maintenance_mode_message: {
+    label: "رسالة الصيانة القديمة",
+    hint: "رسالة صيانة موجودة من الإعدادات السابقة.",
+    control: "textarea",
+  },
+  maintenance_mode_whatsapp_enabled: {
+    label: "إظهار واتساب أثناء الصيانة",
+    hint: "يسمح بإظهار خيار التواصل أثناء وضع الصيانة.",
+    control: "toggle",
+  },
 };
+
+const inputTypeOptions = [
+  { label: "نص قصير", value: "text" },
+  { label: "نص طويل", value: "textarea" },
+  { label: "رابط", value: "url" },
+  { label: "بريد إلكتروني", value: "email" },
+  { label: "لون", value: "color" },
+  { label: "تشغيل/إيقاف", value: "boolean" },
+  { label: "اختيار", value: "select" },
+  { label: "رقم", value: "number" },
+];
 
 const emptyNewSetting: NewSettingDraft = {
   setting_key: "",
   setting_value: "",
-  setting_group: "custom",
+  group_name: "custom",
+  label_ar: "",
+  label_en: "",
   description: "",
+  input_type: "text",
+  sort_order: "100",
   is_public: false,
 };
 
@@ -394,16 +419,14 @@ export default function AdminSettingsPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
-
   const [settings, setSettings] = useState<SettingItem[]>([]);
   const [drafts, setDrafts] = useState<Record<number, SettingDraft>>({});
   const [newSetting, setNewSetting] = useState<NewSettingDraft>(emptyNewSetting);
-
   const [search, setSearch] = useState("");
   const [activeGroup, setActiveGroup] = useState("all");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [isSavingDefaults, setIsSavingDefaults] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [showAdvancedForm, setShowAdvancedForm] = useState(false);
 
   useEffect(() => {
@@ -431,49 +454,52 @@ export default function AdminSettingsPage() {
   async function loadSettings() {
     if (!supabase) return;
 
+    setIsLoading(true);
     setError("");
 
     const { data, error } = await supabase
       .from("settings")
       .select(
-        "id, created_at, updated_at, setting_key, setting_value, setting_group, description, is_public"
+        "id, created_at, updated_at, setting_key, setting_value, setting_group, group_name, label_ar, label_en, description, input_type, sort_order, is_public"
       )
-      .order("setting_group", { ascending: true })
+      .order("group_name", { ascending: true, nullsFirst: false })
+      .order("setting_group", { ascending: true, nullsFirst: false })
+      .order("sort_order", { ascending: true, nullsFirst: false })
       .order("id", { ascending: true });
 
+    setIsLoading(false);
+
     if (error) {
-      setError("تعذر تحميل الإعدادات. قد نحتاج إضافة RLS Policies لجدول settings.");
+      setError("تعذر تحميل الإعدادات. يرجى التأكد من صلاحيات جدول settings.");
       return;
     }
 
-    const items = data || [];
+    const items = (data || []) as SettingItem[];
     setSettings(items);
 
     const nextDrafts: Record<number, SettingDraft> = {};
 
     items.forEach((setting) => {
+      const groupName = getGroupKey(setting);
+      const meta = getSettingMeta(setting.setting_key || "", setting);
+
       nextDrafts[setting.id] = {
         value: setting.setting_value || "",
-        description: setting.description || "",
-        is_public: Boolean(setting.is_public),
+        groupName,
+        labelAr: setting.label_ar || meta.label,
+        labelEn: setting.label_en || "",
+        description: setting.description || meta.hint,
+        inputType: setting.input_type || normalizeInputType(meta.control || "text"),
+        sortOrder: String(setting.sort_order ?? 100),
+        isPublic: Boolean(setting.is_public),
       };
     });
 
     setDrafts(nextDrafts);
   }
 
-  const existingDefaultKeys = useMemo(() => {
-    return new Set(settings.map((setting) => setting.setting_key || ""));
-  }, [settings]);
-
-  const missingDefaultsCount = defaultSettings.filter(
-    (setting) => !existingDefaultKeys.has(setting.setting_key)
-  ).length;
-
   const orderedGroupKeys = useMemo(() => {
-    const presentGroups = new Set(
-      settings.map((setting) => setting.setting_group || "custom")
-    );
+    const presentGroups = new Set(settings.map((setting) => getGroupKey(setting)));
 
     const knownGroups = sectionDefinitions
       .map((section) => section.key)
@@ -490,115 +516,78 @@ export default function AdminSettingsPage() {
     const normalizedSearch = search.trim().toLowerCase();
 
     return settings.filter((setting) => {
-      const groupKey = setting.setting_group || "custom";
+      const groupKey = getGroupKey(setting);
       const key = setting.setting_key || "";
-      const meta = getSettingMeta(key);
+      const meta = getSettingMeta(key, setting);
+      const draft = drafts[setting.id];
       const groupMatch = activeGroup === "all" || groupKey === activeGroup;
       const text = `${key} ${meta.label} ${meta.hint} ${setting.setting_value || ""} ${
         setting.description || ""
-      } ${groupKey}`.toLowerCase();
+      } ${setting.label_ar || ""} ${setting.label_en || ""} ${groupKey} ${draft?.groupName || ""}`.toLowerCase();
 
       return groupMatch && (!normalizedSearch || text.includes(normalizedSearch));
     });
-  }, [settings, activeGroup, search]);
+  }, [settings, activeGroup, search, drafts]);
 
   const settingsByGroup = useMemo(() => {
     return filteredSettings.reduce<Record<string, SettingItem[]>>((groups, setting) => {
-      const groupKey = setting.setting_group || "custom";
+      const groupKey = drafts[setting.id]?.groupName || getGroupKey(setting);
       groups[groupKey] = groups[groupKey] || [];
       groups[groupKey].push(setting);
       return groups;
     }, {});
-  }, [filteredSettings]);
+  }, [filteredSettings, drafts]);
 
   const publicCount = settings.filter((setting) => setting.is_public).length;
   const privateCount = settings.filter((setting) => !setting.is_public).length;
-  const visibleGroupCount = orderedGroupKeys.filter(
-    (groupKey) => settingsByGroup[groupKey]?.length
+  const footerAndContactCount = settings.filter((setting) =>
+    ["contact", "footer", "social"].includes(getGroupKey(setting))
   ).length;
+  const visibleGroupCount = orderedGroupKeys.filter((groupKey) => settingsByGroup[groupKey]?.length)
+    .length;
 
   function updateDraft(id: number, key: keyof SettingDraft, value: string | boolean) {
     setDrafts((current) => ({
       ...current,
       [id]: {
-        ...(current[id] || { value: "", description: "", is_public: false }),
+        ...(current[id] || defaultDraft()),
         [key]: value,
       },
     }));
   }
 
-  function updateNewSetting<K extends keyof NewSettingDraft>(
-    key: K,
-    value: NewSettingDraft[K]
-  ) {
-    setNewSetting((current) => ({
-      ...current,
-      [key]: value,
-    }));
-  }
-
-  async function saveDefaultSettings() {
-    if (!supabase) return;
-
-    setMessage("");
-    setError("");
-    setIsSavingDefaults(true);
-
-    const missingDefaults = defaultSettings.filter(
-      (setting) => !existingDefaultKeys.has(setting.setting_key)
-    );
-
-    if (missingDefaults.length === 0) {
-      setIsSavingDefaults(false);
-      setMessage("كل الإعدادات الافتراضية موجودة مسبقاً.");
-      return;
-    }
-
-    const { error } = await supabase.from("settings").insert(missingDefaults);
-
-    setIsSavingDefaults(false);
-
-    if (error) {
-      setError("فشل إنشاء الإعدادات الافتراضية. قد نحتاج مراجعة صلاحيات RLS.");
-      return;
-    }
-
-    await logActivity(
-      "seed_default_settings",
-      "settings",
-      "default_settings",
-      "",
-      JSON.stringify(missingDefaults)
-    );
-
-    setMessage("تم إنشاء الإعدادات الافتراضية بنجاح.");
-    await loadSettings();
+  function updateNewSetting<K extends keyof NewSettingDraft>(key: K, value: NewSettingDraft[K]) {
+    setNewSetting((current) => ({ ...current, [key]: value }));
   }
 
   async function saveSetting(setting: SettingItem) {
     if (!supabase) return;
 
     const draft = drafts[setting.id];
-
     if (!draft) return;
 
     setMessage("");
     setError("");
 
+    const cleanGroupName = draft.groupName.trim() || "custom";
+    const cleanInputType = draft.inputType.trim() || "text";
     const payload = {
       setting_value: draft.value,
-      description: draft.description,
-      is_public: draft.is_public,
+      setting_group: cleanGroupName,
+      group_name: cleanGroupName,
+      label_ar: draft.labelAr.trim() || prettifyKey(setting.setting_key || ""),
+      label_en: draft.labelEn.trim(),
+      description: draft.description.trim(),
+      input_type: cleanInputType,
+      sort_order: Number.parseInt(draft.sortOrder, 10) || 0,
+      is_public: draft.isPublic,
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase
-      .from("settings")
-      .update(payload)
-      .eq("id", setting.id);
+    const { error } = await supabase.from("settings").update(payload).eq("id", setting.id);
 
     if (error) {
-      setError("فشل حفظ الإعداد. تحقق من صلاحيات جدول settings.");
+      setError("فشل حفظ الإعداد. يرجى التأكد من صلاحيات جدول settings.");
       return;
     }
 
@@ -610,13 +599,12 @@ export default function AdminSettingsPage() {
       JSON.stringify(payload)
     );
 
-    setMessage(`تم حفظ الإعداد: ${getSettingMeta(setting.setting_key || "").label}`);
+    setMessage(`تم حفظ الإعداد: ${payload.label_ar}`);
     await loadSettings();
   }
 
   async function createSetting(event: React.FormEvent) {
     event.preventDefault();
-
     if (!supabase) return;
 
     setMessage("");
@@ -634,11 +622,17 @@ export default function AdminSettingsPage() {
       return;
     }
 
+    const cleanGroupName = newSetting.group_name.trim() || "custom";
     const payload = {
       setting_key: newKey,
       setting_value: newSetting.setting_value.trim(),
-      setting_group: newSetting.setting_group.trim() || "custom",
+      setting_group: cleanGroupName,
+      group_name: cleanGroupName,
+      label_ar: newSetting.label_ar.trim() || prettifyKey(newKey),
+      label_en: newSetting.label_en.trim(),
       description: newSetting.description.trim(),
+      input_type: newSetting.input_type.trim() || "text",
+      sort_order: Number.parseInt(newSetting.sort_order, 10) || 100,
       is_public: Boolean(newSetting.is_public),
       updated_at: new Date().toISOString(),
     };
@@ -650,13 +644,7 @@ export default function AdminSettingsPage() {
       return;
     }
 
-    await logActivity(
-      "create_setting",
-      "settings",
-      payload.setting_key,
-      "",
-      JSON.stringify(payload)
-    );
+    await logActivity("create_setting", "settings", payload.setting_key, "", JSON.stringify(payload));
 
     setNewSetting(emptyNewSetting);
     setMessage("تمت إضافة الإعداد الجديد بنجاح.");
@@ -691,8 +679,8 @@ export default function AdminSettingsPage() {
 
   function renderValueControl(setting: SettingItem, draft: SettingDraft) {
     const key = setting.setting_key || "";
-    const meta = getSettingMeta(key);
-    const control = resolveControl(key, draft.value, meta);
+    const meta = getSettingMeta(key, setting);
+    const control = resolveControl(key, draft.value, draft.inputType, meta);
 
     if (control === "toggle") {
       const isOn = isEnabledValue(draft.value);
@@ -702,9 +690,7 @@ export default function AdminSettingsPage() {
           <div className="mb-3 flex items-center justify-between gap-4">
             <div>
               <div className="font-black text-white">القيمة الحالية</div>
-              <div className="mt-1 text-sm text-white/45">
-                {isOn ? "مفعّل" : "متوقف"}
-              </div>
+              <div className="mt-1 text-sm text-white/45">{isOn ? "مفعّل" : "متوقف"}</div>
             </div>
             <button
               type="button"
@@ -739,7 +725,7 @@ export default function AdminSettingsPage() {
               value={colorValue}
               onChange={(event) => updateDraft(setting.id, "value", event.target.value)}
               className="h-20 w-full cursor-pointer rounded-2xl border border-white/10 bg-transparent"
-              aria-label={meta.label}
+              aria-label={draft.labelAr || meta.label}
             />
           </div>
           <input
@@ -782,6 +768,7 @@ export default function AdminSettingsPage() {
     return (
       <input
         value={draft.value}
+        type={control === "email" ? "email" : control === "url" ? "url" : control === "number" ? "number" : "text"}
         onChange={(event) => updateDraft(setting.id, "value", event.target.value)}
         placeholder={meta.placeholder || "قيمة الإعداد"}
         className="w-full rounded-3xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
@@ -817,17 +804,14 @@ export default function AdminSettingsPage() {
                   Core CMS Foundation
                 </span>
                 <span className="rounded-full border border-emerald-400/25 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-100">
-                  واجهة منظمة جديدة
+                  Settings CMS
                 </span>
               </div>
 
-              <h1 className="text-3xl font-black leading-tight md:text-5xl">
-                إعدادات الموقع
-              </h1>
+              <h1 className="text-3xl font-black leading-tight md:text-5xl">إعدادات الموقع</h1>
               <p className="mt-4 max-w-3xl leading-8 text-white/62">
-                مركز مرتب لإدارة هوية HAMZA AGENCY، التواصل، الألوان، اللغات،
-                SEO، الذكاء الصناعي، ووضع الصيانة بدون التعامل مع المفاتيح
-                التقنية إلا عند الحاجة.
+                مركز منظم لإدارة هوية HAMZA AGENCY، التواصل، الفوتر، الروابط الاجتماعية،
+                SEO، الذكاء الاصطناعي، ووضع الصيانة من لوحة واحدة.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-3 text-sm text-white/50">
@@ -869,128 +853,210 @@ export default function AdminSettingsPage() {
 
         <section className="mb-6 grid gap-4 md:grid-cols-4">
           <StatCard title="كل الإعدادات" value={settings.length} note="إجمالي القيم" />
-          <StatCard title="عامة للموقع" value={publicCount} note="تظهر للواجهة" />
+          <StatCard title="عامة للموقع" value={publicCount} note="تقرأها الواجهة" />
           <StatCard title="داخلية" value={privateCount} note="للإدارة فقط" />
-          <StatCard title="الأقسام" value={visibleGroupCount} note="مجموعات منظمة" />
+          <StatCard title="التواصل والفوتر" value={footerAndContactCount} note="جاهزة للإدارة" />
         </section>
 
         <section className="mb-6 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="rounded-[2rem] border border-purple-500/20 bg-black/40 p-5 backdrop-blur-xl md:p-6">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
               <div>
-                <h2 className="text-2xl font-black">تجهيز الإعدادات الأساسية</h2>
+                <h2 className="text-2xl font-black">إدارة منظمة حسب التصنيفات</h2>
                 <p className="mt-2 leading-7 text-white/55">
-                  هذا الزر يضيف فقط الإعدادات الافتراضية الناقصة، ولا يكرر
-                  الموجود ولا يحذف أي قيمة معدلة مسبقاً.
+                  تعرض هذه الصفحة الحقول الجديدة مثل التصنيف، التسمية العربية، نوع الحقل،
+                  والترتيب، مع إبقاء المفاتيح التقنية قابلة للفحص عند الحاجة.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={saveDefaultSettings}
-                disabled={isSavingDefaults}
+                onClick={loadSettings}
+                disabled={isLoading}
                 className="rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-6 py-4 font-black shadow-[0_0_35px_rgba(168,85,247,0.25)] disabled:opacity-60"
               >
-                {isSavingDefaults
-                  ? "جارٍ التجهيز..."
-                  : missingDefaultsCount > 0
-                    ? `إضافة ${missingDefaultsCount} إعداد ناقص`
-                    : "الإعدادات مكتملة"}
+                {isLoading ? "جاري التحديث..." : "تحديث الإعدادات"}
               </button>
             </div>
           </div>
 
           <div className="rounded-[2rem] border border-amber-400/20 bg-amber-500/10 p-5 md:p-6">
-            <div className="text-sm font-bold text-amber-100">ملاحظة إدارية</div>
+            <div className="text-sm font-bold text-amber-100">تنظيم مهم</div>
             <p className="mt-2 leading-7 text-white/62">
-              المفاتيح التقنية ما زالت محفوظة داخلياً حتى لا ينكسر الربط، لكن
-              الواجهة تعرض أسماء واضحة مثل رقم واتساب الأساسي ووضع الصيانة.
+              تظهر الإعدادات القديمة والجديدة معاً لضمان عدم كسر أي صفحة. يتم توحيد الأسماء
+              بشكل نهائي ضمن مراجعة الجودة الشاملة.
             </p>
           </div>
         </section>
 
-        <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {orderedGroupKeys.map((groupKey) => {
-            const group = resolveSection(groupKey);
-            const count = settings.filter(
-              (setting) => (setting.setting_group || "custom") === groupKey
-            ).length;
-
-            return (
-              <button
-                type="button"
-                key={groupKey}
-                onClick={() => setActiveGroup(groupKey)}
-                className={classNames(
-                  "rounded-[1.7rem] border bg-gradient-to-br p-5 text-right transition hover:-translate-y-0.5 hover:bg-white/[0.06]",
-                  group.tone,
-                  activeGroup === groupKey ? "ring-2 ring-purple-300/40" : ""
-                )}
-              >
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-black/25 text-xl">
-                    {group.icon}
-                  </span>
-                  <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-sm text-white/65">
-                    {count} إعداد
-                  </span>
-                </div>
-                <h3 className="text-lg font-black">{group.label}</h3>
-                <p className="mt-2 text-sm leading-6 text-white/55">
-                  {group.description}
-                </p>
-              </button>
-            );
-          })}
-        </section>
-
-        <section className="mb-6 rounded-[2rem] border border-purple-500/20 bg-black/40 p-4 backdrop-blur-xl md:p-5">
-          <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
+        <section className="mb-6 rounded-[2rem] border border-white/10 bg-black/35 p-4 md:p-5">
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="ابحث باسم الإعداد، قيمته، أو وصفه..."
-              className="w-full rounded-2xl border border-white/10 bg-black/35 px-5 py-4 outline-none transition focus:border-purple-400"
+              placeholder="ابحث باسم الإعداد، المفتاح، التصنيف، أو القيمة..."
+              className="w-full rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
             />
 
-            <div className="flex max-w-full gap-2 overflow-x-auto pb-1 md:justify-end">
-              <button
-                type="button"
-                onClick={() => setActiveGroup("all")}
-                className={tabClass(activeGroup === "all")}
-              >
-                الكل
-              </button>
-              {orderedGroupKeys.map((groupKey) => (
+            <button
+              type="button"
+              onClick={() => setShowAdvancedForm((current) => !current)}
+              className="rounded-2xl border border-purple-400/25 bg-purple-500/15 px-5 py-4 font-black text-purple-100"
+            >
+              {showAdvancedForm ? "إخفاء إضافة إعداد" : "إضافة إعداد مخصص"}
+            </button>
+          </div>
+
+          <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
+            <button type="button" onClick={() => setActiveGroup("all")} className={tabClass(activeGroup === "all")}>
+              الكل
+            </button>
+            {orderedGroupKeys.map((groupKey) => {
+              const group = resolveSection(groupKey);
+              return (
                 <button
-                  type="button"
                   key={groupKey}
+                  type="button"
                   onClick={() => setActiveGroup(groupKey)}
                   className={tabClass(activeGroup === groupKey)}
                 >
-                  {resolveSection(groupKey).shortLabel}
+                  {group.shortLabel}
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
         </section>
 
-        <section className="space-y-6">
+        {showAdvancedForm && (
+          <section className="mb-6 rounded-[2rem] border border-purple-500/20 bg-black/40 p-5 md:p-6">
+            <form onSubmit={createSetting} className="grid gap-4 md:grid-cols-2">
+              <label>
+                <span className="mb-2 block text-sm font-bold text-white/70">المفتاح التقني</span>
+                <input
+                  value={newSetting.setting_key}
+                  onChange={(event) => updateNewSetting("setting_key", event.target.value)}
+                  placeholder="footer_text"
+                  className="w-full rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
+                />
+              </label>
+
+              <label>
+                <span className="mb-2 block text-sm font-bold text-white/70">التصنيف</span>
+                <select
+                  value={newSetting.group_name}
+                  onChange={(event) => updateNewSetting("group_name", event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
+                >
+                  {sectionDefinitions.map((section) => (
+                    <option key={section.key} value={section.key} className="bg-[#120019]">
+                      {section.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span className="mb-2 block text-sm font-bold text-white/70">الاسم العربي</span>
+                <input
+                  value={newSetting.label_ar}
+                  onChange={(event) => updateNewSetting("label_ar", event.target.value)}
+                  placeholder="اسم واضح داخل لوحة التحكم"
+                  className="w-full rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
+                />
+              </label>
+
+              <label>
+                <span className="mb-2 block text-sm font-bold text-white/70">نوع الحقل</span>
+                <select
+                  value={newSetting.input_type}
+                  onChange={(event) => updateNewSetting("input_type", event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
+                >
+                  {inputTypeOptions.map((option) => (
+                    <option key={option.value} value={option.value} className="bg-[#120019]">
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span className="mb-2 block text-sm font-bold text-white/70">الترتيب</span>
+                <input
+                  value={newSetting.sort_order}
+                  onChange={(event) => updateNewSetting("sort_order", event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
+                />
+              </label>
+
+              <label>
+                <span className="mb-2 block text-sm font-bold text-white/70">الاسم الإنجليزي</span>
+                <input
+                  value={newSetting.label_en}
+                  onChange={(event) => updateNewSetting("label_en", event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
+                />
+              </label>
+
+              <label className="md:col-span-2">
+                <span className="mb-2 block text-sm font-bold text-white/70">القيمة</span>
+                <textarea
+                  value={newSetting.setting_value}
+                  onChange={(event) => updateNewSetting("setting_value", event.target.value)}
+                  placeholder="قيمة الإعداد"
+                  className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
+                />
+              </label>
+
+              <label className="md:col-span-2">
+                <span className="mb-2 block text-sm font-bold text-white/70">الشرح الإداري</span>
+                <textarea
+                  value={newSetting.description}
+                  onChange={(event) => updateNewSetting("description", event.target.value)}
+                  placeholder="شرح الإعداد لفريق الإدارة"
+                  className="min-h-24 w-full rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
+                />
+              </label>
+
+              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-4">
+                <input
+                  type="checkbox"
+                  checked={newSetting.is_public}
+                  onChange={(event) => updateNewSetting("is_public", event.target.checked)}
+                  className="h-5 w-5 accent-purple-500"
+                />
+                متاح للواجهة العامة
+              </label>
+
+              <div className="md:col-span-2">
+                <button
+                  type="submit"
+                  className="rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 font-black shadow-[0_0_35px_rgba(168,85,247,0.22)]"
+                >
+                  إضافة الإعداد
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
+
+        <section className="space-y-5">
           {filteredSettings.length === 0 ? (
-            <div className="rounded-[2rem] border border-yellow-500/30 bg-yellow-500/10 p-6 text-yellow-100">
-              لا توجد إعدادات مطابقة. جرّب تغيير البحث أو اضغط على الإعدادات
-              الافتراضية إذا كانت الصفحة فارغة.
+            <div className="rounded-[2rem] border border-white/10 bg-black/35 p-8 text-center text-white/55">
+              لا توجد إعدادات مطابقة. جرّب تغيير البحث أو التصنيف.
             </div>
           ) : (
             orderedGroupKeys.map((groupKey) => {
               const groupSettings = settingsByGroup[groupKey] || [];
               const group = resolveSection(groupKey);
-
               if (groupSettings.length === 0) return null;
 
               return (
                 <div
                   key={groupKey}
-                  className="rounded-[2rem] border border-purple-500/20 bg-black/38 p-4 backdrop-blur-xl md:p-6"
+                  className={classNames(
+                    "rounded-[2rem] border bg-gradient-to-br p-4 backdrop-blur-xl md:p-6",
+                    group.tone
+                  )}
                 >
                   <div className="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-center">
                     <div className="flex items-start gap-3">
@@ -1002,27 +1068,21 @@ export default function AdminSettingsPage() {
                         <p className="mt-1 leading-7 text-white/55">{group.description}</p>
                       </div>
                     </div>
-                    <span className="w-fit rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/60">
+                    <span className="w-fit rounded-full border border-white/10 bg-black/25 px-4 py-2 text-sm text-white/70">
                       {groupSettings.length} إعداد
                     </span>
                   </div>
 
                   <div className="grid gap-4 xl:grid-cols-2">
                     {groupSettings.map((setting) => {
-                      const draft =
-                        drafts[setting.id] ||
-                        {
-                          value: setting.setting_value || "",
-                          description: setting.description || "",
-                          is_public: Boolean(setting.is_public),
-                        };
+                      const draft = drafts[setting.id] || defaultDraft();
                       const key = setting.setting_key || "";
-                      const meta = getSettingMeta(key);
+                      const meta = getSettingMeta(key, setting);
 
                       return (
                         <article
                           key={setting.id}
-                          className="rounded-[1.7rem] border border-white/10 bg-white/[0.035] p-4 shadow-[0_0_40px_rgba(0,0,0,0.18)] md:p-5"
+                          className="rounded-[1.7rem] border border-white/10 bg-black/35 p-4 shadow-[0_0_40px_rgba(0,0,0,0.18)] md:p-5"
                         >
                           <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-start">
                             <div>
@@ -1033,31 +1093,89 @@ export default function AdminSettingsPage() {
                                 <span
                                   className={classNames(
                                     "rounded-full border px-3 py-1 text-xs",
-                                    draft.is_public
+                                    draft.isPublic
                                       ? "border-emerald-400/25 bg-emerald-500/10 text-emerald-100"
                                       : "border-white/10 bg-white/5 text-white/45"
                                   )}
                                 >
-                                  {draft.is_public ? "عام" : "داخلي"}
+                                  {draft.isPublic ? "عام" : "داخلي"}
                                 </span>
                               </div>
-                              <h3 className="text-xl font-black leading-8">{meta.label}</h3>
-                              <p className="mt-1 leading-7 text-white/55">{meta.hint}</p>
+                              <h3 className="text-xl font-black leading-8">
+                                {draft.labelAr || meta.label}
+                              </h3>
+                              <p className="mt-1 leading-7 text-white/55">
+                                {draft.description || meta.hint}
+                              </p>
                             </div>
                           </div>
 
                           <div className="space-y-4">
                             {renderValueControl(setting, draft)}
 
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <label>
+                                <span className="mb-2 block text-sm font-bold text-white/70">
+                                  التسمية العربية
+                                </span>
+                                <input
+                                  value={draft.labelAr}
+                                  onChange={(event) => updateDraft(setting.id, "labelAr", event.target.value)}
+                                  className="w-full rounded-2xl border border-white/10 bg-black/30 p-3 outline-none focus:border-purple-400"
+                                />
+                              </label>
+
+                              <label>
+                                <span className="mb-2 block text-sm font-bold text-white/70">
+                                  التصنيف
+                                </span>
+                                <select
+                                  value={draft.groupName}
+                                  onChange={(event) => updateDraft(setting.id, "groupName", event.target.value)}
+                                  className="w-full rounded-2xl border border-white/10 bg-black/30 p-3 outline-none focus:border-purple-400"
+                                >
+                                  {sectionDefinitions.map((section) => (
+                                    <option key={section.key} value={section.key} className="bg-[#120019]">
+                                      {section.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+
+                              <label>
+                                <span className="mb-2 block text-sm font-bold text-white/70">
+                                  نوع الحقل
+                                </span>
+                                <select
+                                  value={draft.inputType}
+                                  onChange={(event) => updateDraft(setting.id, "inputType", event.target.value)}
+                                  className="w-full rounded-2xl border border-white/10 bg-black/30 p-3 outline-none focus:border-purple-400"
+                                >
+                                  {inputTypeOptions.map((option) => (
+                                    <option key={option.value} value={option.value} className="bg-[#120019]">
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+
+                              <label>
+                                <span className="mb-2 block text-sm font-bold text-white/70">الترتيب</span>
+                                <input
+                                  value={draft.sortOrder}
+                                  onChange={(event) => updateDraft(setting.id, "sortOrder", event.target.value)}
+                                  className="w-full rounded-2xl border border-white/10 bg-black/30 p-3 outline-none focus:border-purple-400"
+                                />
+                              </label>
+                            </div>
+
                             <div>
                               <label className="mb-2 block text-sm font-bold text-white/70">
-                                شرح داخلي لهذا الإعداد
+                                الشرح الإداري
                               </label>
                               <textarea
                                 value={draft.description}
-                                onChange={(event) =>
-                                  updateDraft(setting.id, "description", event.target.value)
-                                }
+                                onChange={(event) => updateDraft(setting.id, "description", event.target.value)}
                                 placeholder="اكتب شرحاً يساعد فريق الإدارة على فهم الإعداد."
                                 className="min-h-24 w-full rounded-3xl border border-white/10 bg-black/30 p-4 leading-7 outline-none focus:border-purple-400"
                               />
@@ -1073,19 +1191,15 @@ export default function AdminSettingsPage() {
                                 </span>
                                 <input
                                   type="checkbox"
-                                  checked={Boolean(draft.is_public)}
-                                  onChange={(event) =>
-                                    updateDraft(setting.id, "is_public", event.target.checked)
-                                  }
+                                  checked={Boolean(draft.isPublic)}
+                                  onChange={(event) => updateDraft(setting.id, "isPublic", event.target.checked)}
                                   className="h-5 w-5 accent-purple-500"
                                 />
                               </label>
                             </div>
 
                             <details className="rounded-2xl border border-white/10 bg-black/20 p-3 text-sm text-white/45">
-                              <summary className="cursor-pointer font-bold text-white/60">
-                                المفتاح التقني
-                              </summary>
+                              <summary className="cursor-pointer font-bold text-white/60">المفتاح التقني</summary>
                               <div className="mt-2 select-all break-all rounded-xl bg-black/35 p-3 font-mono text-xs text-purple-100">
                                 {key || "بدون مفتاح"}
                               </div>
@@ -1108,92 +1222,6 @@ export default function AdminSettingsPage() {
             })
           )}
         </section>
-
-        <section className="mt-6 rounded-[2rem] border border-white/10 bg-black/35 p-5 md:p-6">
-          <button
-            type="button"
-            onClick={() => setShowAdvancedForm((current) => !current)}
-            className="flex w-full items-center justify-between gap-4 text-right"
-          >
-            <span>
-              <span className="block text-2xl font-black">إضافة إعداد مخصص</span>
-              <span className="mt-1 block leading-7 text-white/55">
-                قسم متقدم لإضافة مفاتيح جديدة عند الحاجة بدون تعديل الكود.
-              </span>
-            </span>
-            <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-white/70">
-              {showAdvancedForm ? "إخفاء" : "فتح"}
-            </span>
-          </button>
-
-          {showAdvancedForm && (
-            <form onSubmit={createSetting} className="mt-6 border-t border-white/10 pt-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <label>
-                  <span className="mb-2 block text-sm font-bold text-white/70">المفتاح التقني</span>
-                  <input
-                    value={newSetting.setting_key}
-                    onChange={(event) => updateNewSetting("setting_key", event.target.value)}
-                    placeholder="footer_text"
-                    className="w-full rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
-                  />
-                </label>
-
-                <label>
-                  <span className="mb-2 block text-sm font-bold text-white/70">القسم</span>
-                  <select
-                    value={newSetting.setting_group}
-                    onChange={(event) => updateNewSetting("setting_group", event.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
-                  >
-                    {sectionDefinitions.map((section) => (
-                      <option key={section.key} value={section.key} className="bg-[#120019]">
-                        {section.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="md:col-span-2">
-                  <span className="mb-2 block text-sm font-bold text-white/70">القيمة</span>
-                  <textarea
-                    value={newSetting.setting_value}
-                    onChange={(event) => updateNewSetting("setting_value", event.target.value)}
-                    placeholder="قيمة الإعداد"
-                    className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
-                  />
-                </label>
-
-                <label className="md:col-span-2">
-                  <span className="mb-2 block text-sm font-bold text-white/70">الشرح الداخلي</span>
-                  <textarea
-                    value={newSetting.description}
-                    onChange={(event) => updateNewSetting("description", event.target.value)}
-                    placeholder="شرح الإعداد لفريق الإدارة"
-                    className="min-h-24 w-full rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
-                  />
-                </label>
-
-                <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-4">
-                  <input
-                    type="checkbox"
-                    checked={newSetting.is_public}
-                    onChange={(event) => updateNewSetting("is_public", event.target.checked)}
-                    className="h-5 w-5 accent-purple-500"
-                  />
-                  متاح للواجهة العامة
-                </label>
-              </div>
-
-              <button
-                type="submit"
-                className="mt-6 rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 font-black shadow-[0_0_35px_rgba(168,85,247,0.22)]"
-              >
-                إضافة الإعداد
-              </button>
-            </form>
-          )}
-        </section>
       </div>
     </main>
   );
@@ -1209,14 +1237,23 @@ function StatCard({ title, value, note }: { title: string; value: number; note: 
   );
 }
 
-function getSettingMeta(key: string): SettingMeta {
-  return (
-    settingMeta[key] || {
+function getSettingMeta(key: string, setting?: SettingItem): SettingMeta {
+  const explicitLabel = setting?.label_ar?.trim();
+  const explicitHint = setting?.description?.trim();
+  const base =
+    settingMeta[key] ||
+    ({
       label: prettifyKey(key),
       hint: "إعداد مخصص يمكن التحكم به من لوحة الإدارة.",
       control: "textarea",
-    }
-  );
+    } satisfies SettingMeta);
+
+  return {
+    ...base,
+    label: explicitLabel || base.label,
+    hint: explicitHint || base.hint,
+    control: normalizeControl(setting?.input_type || base.control),
+  };
 }
 
 function resolveSection(key: string): SectionDefinition {
@@ -1232,12 +1269,50 @@ function resolveSection(key: string): SectionDefinition {
   );
 }
 
-function resolveControl(key: string, value: string, meta: SettingMeta) {
-  if (meta.control) return meta.control;
+function resolveControl(key: string, value: string, inputType: string, meta: SettingMeta) {
+  const normalized = normalizeControl(inputType || meta.control);
+  if (normalized) return normalized;
   if (key.includes("color")) return "color";
   if (["true", "false"].includes(value.toLowerCase())) return "toggle";
   if (value.length > 80 || value.includes(",")) return "textarea";
   return "text";
+}
+
+function normalizeControl(value?: string | null): SettingMeta["control"] | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "boolean") return "toggle";
+  if (normalized === "long_text") return "textarea";
+  if (["text", "textarea", "color", "toggle", "select", "url", "email", "number"].includes(normalized)) {
+    return normalized as SettingMeta["control"];
+  }
+  return undefined;
+}
+
+function normalizeInputType(value?: string | null) {
+  const normalized = value?.trim().toLowerCase() || "text";
+  if (normalized === "toggle") return "boolean";
+  if (["text", "textarea", "url", "email", "color", "boolean", "select", "number"].includes(normalized)) {
+    return normalized;
+  }
+  return "text";
+}
+
+function getGroupKey(setting: SettingItem) {
+  return setting.group_name || setting.setting_group || "custom";
+}
+
+function defaultDraft(): SettingDraft {
+  return {
+    value: "",
+    groupName: "custom",
+    labelAr: "",
+    labelEn: "",
+    description: "",
+    inputType: "text",
+    sortOrder: "100",
+    isPublic: false,
+  };
 }
 
 function isEnabledValue(value: string) {
