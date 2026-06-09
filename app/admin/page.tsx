@@ -163,6 +163,12 @@ const growthLinks: AdminLink[] = [
     href: "/admin/activity-logs",
     tone: "slate",
   },
+  {
+    title: "سلة المحذوفات",
+    description: "عرض العناصر المحذوفة ومتابعة سلة النظام.",
+    href: "/admin/trash",
+    tone: "red",
+  },
 ];
 
 export default function AdminPage() {
