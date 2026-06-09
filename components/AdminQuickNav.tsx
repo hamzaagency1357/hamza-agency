@@ -18,6 +18,9 @@ const adminLinks = [
   { label: "قصص النجاح", href: "/admin/success-stories" },
   { label: "الشركاء", href: "/admin/partners" },
   { label: "المعرض", href: "/admin/gallery" },
+  { label: "سجل النشاطات", href: "/admin/activity-logs" },
+  { label: "الإشعارات", href: "/admin/notifications" },
+  { label: "التحليلات", href: "/admin/analytics" },
   { label: "فحص الإطلاق", href: "/admin/launch-checklist" },
 ];
 
