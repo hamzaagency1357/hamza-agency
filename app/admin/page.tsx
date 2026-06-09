@@ -157,6 +157,12 @@ const growthLinks: AdminLink[] = [
     href: "/admin/analytics",
     tone: "amber",
   },
+  {
+    title: "سجل النشاطات",
+    description: "مراجعة سجل العمليات الإدارية والتغييرات المهمة.",
+    href: "/admin/activity-logs",
+    tone: "slate",
+  },
 ];
 
 export default function AdminPage() {
