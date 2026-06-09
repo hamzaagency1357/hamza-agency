@@ -19,7 +19,7 @@ const mobilePublicCss = `
       width: 100% !important;
       max-width: 100vw !important;
       gap: 0.75rem !important;
-      padding: 1.1rem 1rem 0.9rem !important;
+      padding: 1rem 1rem 0.7rem !important;
     }
 
     body.public-site-page nav > a:first-child {
@@ -28,8 +28,8 @@ const mobilePublicCss = `
     }
 
     body.public-site-page nav > a:first-child img {
-      height: 44px !important;
-      width: 44px !important;
+      height: 42px !important;
+      width: 42px !important;
       border-radius: 0.9rem !important;
       flex: 0 0 auto !important;
     }
@@ -56,34 +56,34 @@ const mobilePublicCss = `
 
     body.public-site-page div.overflow-x-auto a {
       white-space: nowrap !important;
-      font-size: 0.82rem !important;
-      padding: 0.65rem 1rem !important;
+      font-size: 0.8rem !important;
+      padding: 0.58rem 0.95rem !important;
     }
 
     body.public-site-page .hamza-marquee-track {
       max-width: none !important;
-      font-size: 0.82rem !important;
-      padding-top: 0.65rem !important;
-      padding-bottom: 0.65rem !important;
+      font-size: 0.8rem !important;
+      padding-top: 0.55rem !important;
+      padding-bottom: 0.55rem !important;
     }
 
     body.public-site-page section:first-of-type {
-      padding-top: 1.25rem !important;
-      padding-bottom: 3.75rem !important;
+      padding-top: 0.8rem !important;
+      padding-bottom: 6.25rem !important;
     }
 
     body.public-site-page section:first-of-type img {
-      width: min(42vw, 150px) !important;
-      height: min(42vw, 150px) !important;
-      margin-bottom: 1.35rem !important;
-      border-radius: 1.55rem !important;
+      width: min(34vw, 126px) !important;
+      height: min(34vw, 126px) !important;
+      margin-bottom: 1rem !important;
+      border-radius: 1.35rem !important;
     }
 
     body.public-site-page section:first-of-type h1,
     body.public-site-page h1 {
       max-width: min(92vw, 680px) !important;
-      font-size: clamp(2.45rem, 10.5vw, 3.75rem) !important;
-      line-height: 1.18 !important;
+      font-size: clamp(2.15rem, 8.9vw, 3.15rem) !important;
+      line-height: 1.16 !important;
       letter-spacing: -0.035em !important;
       overflow-wrap: break-word !important;
       word-break: normal !important;
@@ -97,47 +97,53 @@ const mobilePublicCss = `
 
     body.public-site-page section:first-of-type p {
       max-width: 92vw !important;
-      font-size: 1rem !important;
-      line-height: 1.9 !important;
-      margin-top: 1rem !important;
+      font-size: 0.95rem !important;
+      line-height: 1.75 !important;
+      margin-top: 0.85rem !important;
     }
 
     body.public-site-page section:first-of-type .mt-10 {
-      margin-top: 1.75rem !important;
+      margin-top: 1.05rem !important;
+      margin-bottom: 2.5rem !important;
     }
 
     body.public-site-page section:first-of-type button,
     body.public-site-page section:first-of-type a[href="/programs"] {
-      width: min(100%, 280px) !important;
-      padding: 0.95rem 1.5rem !important;
-      font-size: 1rem !important;
+      width: min(100%, 260px) !important;
+      padding: 0.82rem 1.35rem !important;
+      font-size: 0.96rem !important;
     }
 
     body.public-site-page a[href^="https://wa.me"] {
-      bottom: 0.85rem !important;
-      left: 0.85rem !important;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 0.65rem) !important;
+      left: 0.65rem !important;
       z-index: 34 !important;
-      padding: 0.85rem 1rem !important;
-      font-size: 0.9rem !important;
+      padding: 0.72rem 0.85rem !important;
+      font-size: 0.82rem !important;
     }
 
     body.public-site-page div.fixed.bottom-4.right-4 {
-      bottom: 0.85rem !important;
-      right: 0.85rem !important;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 0.65rem) !important;
+      right: 0.65rem !important;
       z-index: 35 !important;
     }
 
     body.public-site-page div.fixed.bottom-4.right-4 > button {
-      padding: 0.85rem 1rem !important;
-      font-size: 0.9rem !important;
+      padding: 0.72rem 0.85rem !important;
+      font-size: 0.82rem !important;
     }
   }
 
   @media (max-width: 380px) {
     body.public-site-page section:first-of-type h1,
     body.public-site-page h1 {
-      font-size: clamp(2.2rem, 10vw, 3.25rem) !important;
-      line-height: 1.16 !important;
+      font-size: clamp(2rem, 8.7vw, 2.85rem) !important;
+      line-height: 1.15 !important;
+    }
+
+    body.public-site-page section:first-of-type button,
+    body.public-site-page section:first-of-type a[href="/programs"] {
+      width: min(100%, 240px) !important;
     }
   }
 `;
@@ -153,6 +159,8 @@ export default function PublicDesktopEnhancer() {
       style.id = "hamza-public-mobile-responsive-fix";
       style.textContent = mobilePublicCss;
       document.head.appendChild(style);
+    } else {
+      style.textContent = mobilePublicCss;
     }
   }, []);
 
