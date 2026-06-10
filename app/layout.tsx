@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import PublicQuickNav from "@/components/PublicQuickNav";
 import PublicDesktopEnhancer from "@/components/PublicDesktopEnhancer";
 import VisualBackgroundPresets from "@/components/VisualBackgroundPresets";
+import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
 import "./globals.css";
 
 const siteUrl =
@@ -105,6 +106,7 @@ export default function RootLayout({
             __html: JSON.stringify(organizationJsonLd),
           }}
         />
+        <AuthRecoveryRedirect />
         <PublicDesktopEnhancer />
         <VisualBackgroundPresets />
         {children}
