@@ -5,7 +5,7 @@ import VisualBackgroundPresets from "@/components/VisualBackgroundPresets";
 import "./globals.css";
 
 const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://hamza-agency.vercel.app";
+  process.env.NEXT_PUBLIC_SITE_URL || "https://hamza-agency.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
