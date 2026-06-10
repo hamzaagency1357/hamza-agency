@@ -15,6 +15,7 @@ const publicRoutes = [
   "/services",
   "/digital-services",
   "/service-request",
+  "/service-status",
   "/jobs",
   "/reviews",
   "/success-stories",
