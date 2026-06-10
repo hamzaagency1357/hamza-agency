@@ -49,6 +49,7 @@ const adminChecks: CheckItem[] = [
   { label: "طلبات الخدمات", href: "/admin/service-requests" },
   { label: "البرامج", href: "/admin/programs" },
   { label: "الصفحات", href: "/admin/pages" },
+  { label: "الأقسام", href: "/admin/sections" },
   { label: "الوسائط", href: "/admin/media" },
   { label: "الإعلانات", href: "/admin/announcements" },
   { label: "الإعدادات", href: "/admin/settings" },
@@ -57,6 +58,13 @@ const adminChecks: CheckItem[] = [
   { label: "قصص النجاح", href: "/admin/success-stories" },
   { label: "الشركاء", href: "/admin/partners" },
   { label: "المعرض", href: "/admin/gallery" },
+  { label: "التنبيهات", href: "/admin/notifications" },
+  { label: "التحليلات", href: "/admin/analytics" },
+  { label: "سجل النشاطات", href: "/admin/activity-logs" },
+  { label: "سلة المحذوفات", href: "/admin/trash" },
+  { label: "النسخ الاحتياطي", href: "/admin/backups" },
+  { label: "الصلاحيات", href: "/admin/permissions" },
+  { label: "فحص الإطلاق", href: "/admin/launch-checklist" },
 ];
 
 const technicalChecks: CheckItem[] = [
