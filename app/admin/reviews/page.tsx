@@ -258,17 +258,25 @@ export default function AdminReviewsPage() {
     if (!supabase) return;
 
     const confirmed = window.confirm(
-      "هل أنت متأكد من حذف هذا التقييم؟ سيتم حذفه نهائياً ولا يمكن التراجع عن هذا الإجراء."
+      "هل تريد إخفاء هذا التقييم وأرشفته؟ لن يتم حذفه نهائياً من قاعدة البيانات."
     );
 
     if (!confirmed) return;
 
     clearMessage();
 
-    const { error } = await supabase.from("reviews").delete().eq("id", reviewId);
+    const { error } = await supabase
+      .from("reviews")
+      .update({
+        status: "hidden",
+        is_visible: false,
+        is_featured: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", reviewId);
 
     if (error) {
-      showMessage("تعذر حذف التقييم. يرجى المحاولة مرة أخرى.", "error");
+      showMessage("تعذر أرشفة التقييم. يرجى المحاولة مرة أخرى.", "error");
       return;
     }
 
@@ -277,7 +285,7 @@ export default function AdminReviewsPage() {
     }
 
     await loadReviews();
-    showMessage("تم حذف التقييم بنجاح.", "success");
+    showMessage("تم إخفاء التقييم وأرشفته بأمان.", "success");
   }
 
   const filteredReviews = useMemo(() => {

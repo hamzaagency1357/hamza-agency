@@ -281,7 +281,7 @@ export default function AdminSuccessStoriesPage() {
     if (!supabase) return;
 
     const confirmed = window.confirm(
-      "هل أنت متأكد من حذف قصة النجاح؟ سيتم حذفها نهائياً ولا يمكن التراجع عن هذا الإجراء بعد الحذف."
+      "هل تريد إخفاء قصة النجاح وأرشفتها؟ لن يتم حذفها نهائياً من قاعدة البيانات."
     );
 
     if (!confirmed) return;
@@ -290,11 +290,16 @@ export default function AdminSuccessStoriesPage() {
 
     const { error } = await supabase
       .from("success_stories")
-      .delete()
+      .update({
+        status: "hidden",
+        is_visible: false,
+        is_featured: false,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", storyId);
 
     if (error) {
-      showMessage("تعذر حذف قصة النجاح. يرجى المحاولة مرة أخرى.", "error");
+      showMessage("تعذر أرشفة قصة النجاح. يرجى المحاولة مرة أخرى.", "error");
       return;
     }
 
@@ -303,7 +308,7 @@ export default function AdminSuccessStoriesPage() {
     }
 
     await loadStories();
-    showMessage("تم حذف قصة النجاح بنجاح.", "success");
+    showMessage("تم إخفاء قصة النجاح وأرشفتها بأمان.", "success");
   }
 
   const filteredStories = useMemo(() => {
