@@ -13,7 +13,18 @@ type Program = {
   is_active: boolean | null;
 };
 
-const fallbackPrograms: Program[] = [
+type ProgramMedia = {
+  id: number;
+  name: string | null;
+  file_url: string | null;
+  file_type: string | null;
+  category: string | null;
+  page_slug: string | null;
+  alt_text: string | null;
+  is_active: boolean | null;
+};
+
+const defaultPrograms: Program[] = [
   {
     id: 1,
     name: "TikTok",
@@ -90,7 +101,7 @@ const platformHighlights = [
 
 async function getPrograms(): Promise<Program[]> {
   if (!supabase) {
-    return fallbackPrograms;
+    return defaultPrograms;
   }
 
   const { data, error } = await supabase
@@ -104,14 +115,82 @@ async function getPrograms(): Promise<Program[]> {
 
   if (error) {
     console.error("Programs load error:", error);
-    return fallbackPrograms;
+    return defaultPrograms;
   }
 
-  return data && data.length > 0 ? data : fallbackPrograms;
+  return data && data.length > 0 ? data : defaultPrograms;
+}
+
+async function getProgramMedia(): Promise<ProgramMedia[]> {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("media")
+    .select("id, name, file_url, file_type, category, page_slug, alt_text, is_active")
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (error || !data) {
+    return [];
+  }
+
+  return (data as ProgramMedia[]).filter((item) => Boolean(item.file_url));
+}
+
+function normalizeKey(value: string | null | undefined) {
+  return (value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function isImageMedia(item: ProgramMedia) {
+  const fileType = (item.file_type || "").toLowerCase();
+  const fileUrl = item.file_url || "";
+
+  return (
+    fileType === "image" ||
+    fileType === "logo" ||
+    fileType.startsWith("image") ||
+    /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileUrl)
+  );
+}
+
+function getProgramLogoUrl(program: Program, mediaItems: ProgramMedia[]) {
+  const slug = normalizeKey(program.slug);
+  const name = normalizeKey(program.name);
+
+  const scoredItems = mediaItems
+    .filter(isImageMedia)
+    .map((item) => {
+      const pageSlug = normalizeKey(item.page_slug);
+      const category = normalizeKey(item.category);
+      const mediaName = normalizeKey(item.name || item.alt_text || "");
+      const combined = `${pageSlug} ${category} ${mediaName}`;
+
+      let score = 0;
+
+      if (pageSlug === slug) score += 10;
+      if (pageSlug === `program-${slug}` || pageSlug === `programs-${slug}`) score += 9;
+      if (combined.includes(slug)) score += 6;
+      if (name && combined.includes(name)) score += 4;
+      if (combined.includes("program-logo") || combined.includes("programs-logo")) score += 4;
+      if (combined.includes("logo")) score += 2;
+      if (combined.includes("program")) score += 1;
+
+      return { item, score };
+    })
+    .filter(({ score }) => score >= 6)
+    .sort((a, b) => b.score - a.score);
+
+  return scoredItems[0]?.item.file_url || null;
 }
 
 export default async function ProgramsPage() {
-  const programs = await getPrograms();
+  const [programs, mediaItems] = await Promise.all([getPrograms(), getProgramMedia()]);
 
   return (
     <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
@@ -150,6 +229,7 @@ export default async function ProgramsPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {programs.map((program) => {
             const visual = getProgramVisual(program.slug, program.name);
+            const logoUrl = getProgramLogoUrl(program, mediaItems);
 
             return (
               <Link
@@ -166,12 +246,22 @@ export default async function ProgramsPage() {
 
                 <div className="mb-6 flex items-center justify-between gap-3">
                   <div
-                    className="flex h-16 w-16 items-center justify-center rounded-2xl text-2xl font-black shadow-[0_0_28px_rgba(168,85,247,0.18)]"
+                    className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl text-2xl font-black shadow-[0_0_28px_rgba(168,85,247,0.18)]"
                     style={{
-                      background: `linear-gradient(135deg, ${visual.accent}, ${visual.secondary})`,
+                      background: logoUrl
+                        ? "rgba(255,255,255,0.06)"
+                        : `linear-gradient(135deg, ${visual.accent}, ${visual.secondary})`,
                     }}
                   >
-                    {visual.icon}
+                    {logoUrl ? (
+                      <img
+                        src={logoUrl}
+                        alt={`${program.name} logo`}
+                        className="h-full w-full object-contain p-2"
+                      />
+                    ) : (
+                      visual.icon
+                    )}
                   </div>
 
                   <span className={getStatusClass(program.status)}>
