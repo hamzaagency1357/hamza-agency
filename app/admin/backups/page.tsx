@@ -10,6 +10,14 @@ type BackupRow = Record<string, unknown>;
 type FilterKey = "all" | "completed" | "pending" | "failed" | "manual" | "auto";
 type Tone = "green" | "blue" | "yellow" | "red" | "purple" | "slate";
 
+type BackupTableResult = {
+  table: string;
+  status: "success" | "error";
+  count: number;
+  rows: Record<string, unknown>[];
+  error: string | null;
+};
+
 const filters: { key: FilterKey; label: string }[] = [
   { key: "all", label: "الكل" },
   { key: "completed", label: "مكتملة" },
@@ -18,6 +26,24 @@ const filters: { key: FilterKey; label: string }[] = [
   { key: "manual", label: "يدوية" },
   { key: "auto", label: "تلقائية" },
 ];
+
+const backupTables = [
+  "settings",
+  "pages",
+  "sections",
+  "programs",
+  "media",
+  "agency_applications",
+  "service_requests",
+  "jobs",
+  "reviews",
+  "success_stories",
+  "partners",
+  "gallery_items",
+  "announcements",
+  "faqs",
+  "knowledge_base",
+] as const;
 
 function getString(row: BackupRow, keys: string[], fallback = "") {
   for (const key of keys) {
@@ -114,6 +140,22 @@ function getDetails(row: BackupRow) {
   return row.details ?? row.metadata ?? row.payload ?? row.description ?? row.notes ?? "";
 }
 
+function downloadJsonFile(fileName: string, payload: Record<string, unknown>) {
+  const json = JSON.stringify(payload, null, 2);
+  const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  return new TextEncoder().encode(json).length;
+}
+
 export default function AdminBackupsPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -122,13 +164,15 @@ export default function AdminBackupsPage() {
   const [adminEmail, setAdminEmail] = useState("");
   const [backups, setBackups] = useState<BackupRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     async function checkAccess() {
-      const access = await requireAdminModuleAccess("dashboard");
+      const access = await requireAdminModuleAccess("backups");
 
       if (!access.isAuthorized || !access.profile) {
         setIsAuthorized(false);
@@ -165,6 +209,7 @@ export default function AdminBackupsPage() {
     }
 
     setError("");
+    setMessage("");
     setIsLoading(true);
 
     const { data, error: backupsError } = await supabase.from("backups").select("*").limit(120);
@@ -181,6 +226,117 @@ export default function AdminBackupsPage() {
       .sort((first, second) => getTimeValue(second) - getTimeValue(first));
 
     setBackups(sortedBackups);
+  }
+
+  async function saveBackupLog(logPayload: Record<string, unknown>) {
+    if (!supabase) return false;
+
+    const attempts = [
+      logPayload,
+      {
+        name: logPayload.title,
+        status: logPayload.status,
+        source: logPayload.mode,
+        admin_email: logPayload.created_by,
+        size_bytes: logPayload.size_bytes,
+        metadata: logPayload.details,
+        created_at: logPayload.created_at,
+      },
+      {
+        status: logPayload.status,
+        details: logPayload.details,
+        created_at: logPayload.created_at,
+      },
+    ];
+
+    for (const attempt of attempts) {
+      const { error: insertError } = await supabase.from("backups").insert(attempt);
+      if (!insertError) return true;
+    }
+
+    return false;
+  }
+
+  async function createManualBackup() {
+    if (!supabase) {
+      setError("الاتصال بقاعدة البيانات غير مفعل.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "هل تريد إنشاء نسخة JSON احتياطية الآن؟ سيتم تنزيل ملف يحتوي على بيانات الجداول الأساسية المتاحة لهذا الحساب."
+    );
+
+    if (!confirmed) return;
+
+    setError("");
+    setMessage("");
+    setIsCreatingBackup(true);
+
+    const createdAt = new Date().toISOString();
+    const backupCode = `HAMZA-${createdAt.replace(/[-:.TZ]/g, "").slice(0, 14)}`;
+    const results: BackupTableResult[] = [];
+
+    for (const table of backupTables) {
+      const { data, error: tableError } = await supabase.from(table).select("*");
+
+      results.push({
+        table,
+        status: tableError ? "error" : "success",
+        count: tableError ? 0 : (data || []).length,
+        rows: tableError ? [] : ((data || []) as Record<string, unknown>[]),
+        error: tableError?.message || null,
+      });
+    }
+
+    const exportedTables = results.filter((item) => item.status === "success");
+    const failedTables = results.filter((item) => item.status === "error");
+    const totalRows = exportedTables.reduce((sum, item) => sum + item.count, 0);
+    const backupPayload = {
+      backup_code: backupCode,
+      project: "HAMZA AGENCY",
+      created_at: createdAt,
+      created_by: adminEmail,
+      tables_count: exportedTables.length,
+      failed_tables_count: failedTables.length,
+      total_rows: totalRows,
+      tables: results,
+    };
+    const fileName = `hamza-agency-backup-${createdAt.slice(0, 10)}-${backupCode}.json`;
+    const sizeBytes = downloadJsonFile(fileName, backupPayload);
+    const logSaved = await saveBackupLog({
+      backup_code: backupCode,
+      title: `Manual backup ${backupCode}`,
+      file_name: fileName,
+      status: failedTables.length ? "completed_with_warnings" : "completed",
+      mode: "manual",
+      created_by: adminEmail,
+      size_bytes: sizeBytes,
+      details: {
+        tables: exportedTables.map((item) => ({ table: item.table, count: item.count })),
+        failed_tables: failedTables.map((item) => ({ table: item.table, error: item.error })),
+        total_rows: totalRows,
+      },
+      created_at: createdAt,
+    });
+
+    await supabase.from("activity_logs").insert({
+      admin_email: adminEmail,
+      action: "create_manual_backup",
+      entity_type: "backups",
+      entity_id: backupCode,
+      old_data: "",
+      new_data: JSON.stringify({ backupCode, fileName, sizeBytes, totalRows }),
+      ip_address: "",
+    });
+
+    setIsCreatingBackup(false);
+    await loadBackups();
+    setMessage(
+      logSaved
+        ? "تم إنشاء وتحميل النسخة الاحتياطية وتسجيلها في سجل النسخ."
+        : "تم إنشاء وتحميل النسخة الاحتياطية، لكن تعذر تسجيلها داخل جدول backups."
+    );
   }
 
   const filteredBackups = useMemo(() => {
@@ -245,14 +401,21 @@ export default function AdminBackupsPage() {
             </div>
             <h1 className="text-4xl font-black md:text-5xl">Backup System</h1>
             <p className="mt-3 max-w-3xl leading-8 text-white/55">
-              عرض سجلات النسخ الاحتياطي الخاصة بالنظام. هذه الصفحة للقراءة والمتابعة فقط حالياً.
+              إنشاء نسخة JSON احتياطية للجداول الأساسية، مع حفظ سجل العملية داخل لوحة الإدارة.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
             <button
+              onClick={createManualBackup}
+              disabled={isCreatingBackup || isLoading}
+              className="rounded-full bg-gradient-to-r from-yellow-500 to-emerald-600 px-6 py-3 font-black text-black shadow-[0_0_30px_rgba(250,204,21,0.22)] disabled:opacity-60"
+            >
+              {isCreatingBackup ? "جاري إنشاء النسخة..." : "إنشاء Backup JSON"}
+            </button>
+            <button
               onClick={loadBackups}
-              disabled={isLoading}
+              disabled={isLoading || isCreatingBackup}
               className="rounded-full bg-gradient-to-r from-emerald-600 to-cyan-600 px-6 py-3 font-black shadow-[0_0_30px_rgba(16,185,129,0.22)] disabled:opacity-60"
             >
               {isLoading ? "جاري التحديث..." : "تحديث السجلات"}
@@ -267,11 +430,12 @@ export default function AdminBackupsPage() {
           حساب الإدارة: <span className="text-white">{adminEmail}</span>
         </div>
 
-        <div className="mb-6 rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-5 leading-8 text-yellow-50/85">
-          إنشاء النسخ الاحتياطية والاسترجاع غير مفعلين حالياً. هذه النسخة مخصصة لعرض سجلات النسخ فقط.
+        <div className="mb-6 rounded-3xl border border-green-400/20 bg-green-500/10 p-5 leading-8 text-green-50/85">
+          إنشاء النسخ الاحتياطية اليدوية مفعل الآن. الملف يتم تنزيله مباشرة بصيغة JSON، ويتم تسجيل العملية في جدول backups عندما تسمح بنية الجدول بذلك.
         </div>
 
         {error && <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">{error}</div>}
+        {message && <div className="mb-6 rounded-3xl border border-green-400/25 bg-green-500/10 p-5 text-green-100">{message}</div>}
 
         <div className="mb-8 grid gap-4 md:grid-cols-4">
           <StatCard label="مكتملة" value={completedCount} tone="green" />
