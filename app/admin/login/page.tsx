@@ -64,23 +64,30 @@ export default function AdminLoginPage() {
 
     setIsSendingReset(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
 
-    setIsSendingReset(false);
+      if (error) {
+        const technicalMessage = error.message || "خطأ غير معروف من Supabase";
 
-    if (error) {
-      if (error.message.toLowerCase().includes("rate limit")) {
-        setError("تم إرسال روابط كثيرة خلال وقت قصير. انتظر 30 إلى 60 دقيقة ثم حاول مرة واحدة فقط.");
+        if (technicalMessage.toLowerCase().includes("rate limit")) {
+          setError(`تم إرسال روابط كثيرة خلال وقت قصير. انتظر 60 إلى 90 دقيقة ثم حاول مرة واحدة فقط. سبب Supabase: ${technicalMessage}`);
+          return;
+        }
+
+        setError(`تعذر إرسال رابط استعادة كلمة المرور. سبب Supabase: ${technicalMessage}`);
         return;
       }
 
-      setError("تعذر إرسال رابط استعادة كلمة المرور. تأكد من البريد أو حاول لاحقاً.");
-      return;
+      setResetMessage("تم إرسال رابط إعادة تعيين كلمة المرور إلى البريد. افتح الإيميل واتبع الرابط.");
+    } catch (error) {
+      const technicalMessage = error instanceof Error ? error.message : "خطأ غير معروف";
+      setError(`تعذر الاتصال بـ Supabase لإرسال رابط الاستعادة. السبب التقني: ${technicalMessage}`);
+    } finally {
+      setIsSendingReset(false);
     }
-
-    setResetMessage("تم إرسال رابط إعادة تعيين كلمة المرور إلى البريد. افتح الإيميل واتبع الرابط.");
   }
 
   return (
