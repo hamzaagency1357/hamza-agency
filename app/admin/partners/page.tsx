@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
 
@@ -21,6 +21,17 @@ type Partner = {
   sort_order: number | null;
   created_at: string | null;
   updated_at: string | null;
+};
+
+type MediaOption = {
+  id: number;
+  name: string | null;
+  file_url: string | null;
+  file_type: string | null;
+  category: string | null;
+  alt_text: string | null;
+  page_slug: string | null;
+  is_active: boolean | null;
 };
 
 type AdminProfile = {
@@ -65,12 +76,47 @@ const statusOptions = [
   { value: "hidden", label: "مخفي" },
 ];
 
+const inputClassName =
+  "w-full rounded-3xl border border-white/10 bg-black/30 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-purple-300/50";
+
+function isLogoMedia(item: MediaOption) {
+  const fileType = (item.file_type || "").toLowerCase();
+  const category = (item.category || "").toLowerCase();
+  const pageSlug = (item.page_slug || "").toLowerCase();
+  const url = item.file_url || "";
+
+  if (!item.is_active || !url) return false;
+
+  const isImageUrl = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(url);
+  const isImageType = fileType === "image" || fileType === "logo" || fileType.startsWith("image");
+  const isLogoContext =
+    category.includes("logo") ||
+    category.includes("partner") ||
+    category.includes("program") ||
+    pageSlug.includes("partner") ||
+    pageSlug.includes("program");
+
+  return isImageType || isImageUrl || isLogoContext;
+}
+
+function generateSlug(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 export default function AdminPartnersPage() {
   const [checking, setChecking] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
 
   const [partners, setPartners] = useState<Partner[]>([]);
+  const [mediaOptions, setMediaOptions] = useState<MediaOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -81,9 +127,7 @@ export default function AdminPartnersPage() {
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
 
   const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState<"success" | "error" | "info">(
-    "info"
-  );
+  const [messageType, setMessageType] = useState<"success" | "error" | "info">("info");
 
   useEffect(() => {
     initializeAdminPage();
@@ -121,7 +165,7 @@ export default function AdminPartnersPage() {
         is_active: access.profile.is_active,
       });
       setAuthorized(true);
-      await loadPartners();
+      await Promise.all([loadPartners(), loadMediaOptions()]);
     } catch {
       setAuthorized(false);
       setMessageType("error");
@@ -158,6 +202,28 @@ export default function AdminPartnersPage() {
     }
   }
 
+  async function loadMediaOptions() {
+    if (!supabase) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("media")
+        .select("id, name, file_url, file_type, category, alt_text, page_slug, is_active")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(80);
+
+      if (error || !data) {
+        setMediaOptions([]);
+        return;
+      }
+
+      setMediaOptions((data as MediaOption[]).filter(isLogoMedia));
+    } catch {
+      setMediaOptions([]);
+    }
+  }
+
   const filteredPartners = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
@@ -168,8 +234,7 @@ export default function AdminPartnersPage() {
         partner.slug?.toLowerCase().includes(normalizedSearch) ||
         partner.category?.toLowerCase().includes(normalizedSearch);
 
-      const matchesStatus =
-        statusFilter === "all" || partner.status === statusFilter;
+      const matchesStatus = statusFilter === "all" || partner.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -188,35 +253,15 @@ export default function AdminPartnersPage() {
     return { total, visible, featured, hidden };
   }, [partners]);
 
-  function updateForm<K extends keyof PartnerForm>(
-    key: K,
-    value: PartnerForm[K]
-  ) {
-    setForm((current) => ({
-      ...current,
-      [key]: value,
-    }));
-  }
-
-  function generateSlug(value: string) {
-    return value
-      .trim()
-      .toLowerCase()
-      .replace(/&/g, "and")
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
+  function updateForm<K extends keyof PartnerForm>(key: K, value: PartnerForm[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
   }
 
   function handleNameChange(value: string) {
     setForm((current) => ({
       ...current,
       name: value,
-      slug:
-        editingPartner || current.slug.trim()
-          ? current.slug
-          : generateSlug(value),
+      slug: editingPartner || current.slug.trim() ? current.slug : generateSlug(value),
     }));
   }
 
@@ -245,12 +290,10 @@ export default function AdminPartnersPage() {
     setEditingPartner(null);
     setForm(emptyForm);
 
-    if (clearMessage) {
-      setMessage("");
-    }
+    if (clearMessage) setMessage("");
   }
 
-  async function savePartner(event: React.FormEvent<HTMLFormElement>) {
+  async function savePartner(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!supabase || saving) return;
@@ -299,10 +342,7 @@ export default function AdminPartnersPage() {
       let successText = "";
 
       if (editingPartner) {
-        const { error } = await supabase
-          .from("partners")
-          .update(payload)
-          .eq("id", editingPartner.id);
+        const { error } = await supabase.from("partners").update(payload).eq("id", editingPartner.id);
 
         if (error) {
           setMessageType("error");
@@ -345,11 +385,7 @@ export default function AdminPartnersPage() {
     try {
       const { error } = await supabase
         .from("partners")
-        .update({
-          is_visible: visible,
-          status: nextStatus,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ is_visible: visible, status: nextStatus, updated_at: new Date().toISOString() })
         .eq("id", partner.id);
 
       if (error) {
@@ -375,10 +411,7 @@ export default function AdminPartnersPage() {
     try {
       const { error } = await supabase
         .from("partners")
-        .update({
-          is_featured: nextValue,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ is_featured: nextValue, updated_at: new Date().toISOString() })
         .eq("id", partner.id);
 
       if (error) {
@@ -396,11 +429,11 @@ export default function AdminPartnersPage() {
     }
   }
 
-  async function deletePartner(partner: Partner) {
+  async function archivePartner(partner: Partner) {
     if (!supabase) return;
 
     const confirmed = window.confirm(
-      `هل أنت متأكد من حذف ${partner.name}؟ سيتم حذف هذا العنصر نهائياً ولا يمكن التراجع عن هذا الإجراء.`
+      `هل تريد حذف ${partner.name} من الواجهة؟ سيتم إخفاؤه وأرشفته بدون مسح بياناته نهائياً.`
     );
 
     if (!confirmed) return;
@@ -408,25 +441,30 @@ export default function AdminPartnersPage() {
     try {
       const { error } = await supabase
         .from("partners")
-        .delete()
+        .update({
+          name: `محذوف - ${partner.name}`,
+          status: "hidden",
+          is_visible: false,
+          is_featured: false,
+          sort_order: 9999,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", partner.id);
 
       if (error) {
         setMessageType("error");
-        setMessage("تعذر حذف الشريك أو البرنامج.");
+        setMessage("تعذر حذف الشريك أو البرنامج بشكل آمن.");
         return;
       }
 
-      if (editingPartner?.id === partner.id) {
-        resetForm();
-      }
+      if (editingPartner?.id === partner.id) resetForm();
 
       setMessageType("success");
-      setMessage("تم حذف الشريك أو البرنامج بنجاح.");
+      setMessage("تم حذف الشريك أو البرنامج من الواجهة وأرشفته بأمان.");
       await loadPartners();
     } catch {
       setMessageType("error");
-      setMessage("حدث خطأ أثناء حذف الشريك أو البرنامج.");
+      setMessage("حدث خطأ أثناء حذف الشريك أو البرنامج بشكل آمن.");
     }
   }
 
@@ -435,9 +473,7 @@ export default function AdminPartnersPage() {
   }
 
   function getPublicState(partner: Partner) {
-    return partner.is_visible !== false && partner.status === "published"
-      ? "ظاهر للعامة"
-      : "غير ظاهر";
+    return partner.is_visible !== false && partner.status === "published" ? "ظاهر للعامة" : "غير ظاهر";
   }
 
   function getPartnerLink(partner: Partner) {
@@ -446,10 +482,7 @@ export default function AdminPartnersPage() {
 
   if (checking) {
     return (
-      <main
-        dir="rtl"
-        className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white"
-      >
+      <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white">
         <div className="rounded-[2rem] border border-purple-400/20 bg-white/[0.04] p-8 text-center shadow-2xl backdrop-blur">
           <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-purple-300/20 border-t-purple-300" />
           <h1 className="text-2xl font-black">جاري التحقق من صلاحيات الإدارة</h1>
@@ -461,19 +494,11 @@ export default function AdminPartnersPage() {
 
   if (!authorized) {
     return (
-      <main
-        dir="rtl"
-        className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white"
-      >
+      <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white">
         <div className="max-w-xl rounded-[2rem] border border-red-400/20 bg-red-500/10 p-8 text-center shadow-2xl backdrop-blur">
           <h1 className="text-3xl font-black text-red-100">غير مصرح بالدخول</h1>
-          <p className="mt-4 leading-8 text-white/70">
-            {message || "يرجى تسجيل الدخول بحساب إداري مخول للوصول إلى هذه الصفحة."}
-          </p>
-          <Link
-            href="/admin/login"
-            className="mt-7 inline-flex rounded-full bg-purple-600 px-8 py-3 font-black text-white"
-          >
+          <p className="mt-4 leading-8 text-white/70">{message || "يرجى تسجيل الدخول بحساب إداري مخول للوصول إلى هذه الصفحة."}</p>
+          <Link href="/admin/login" className="mt-7 inline-flex rounded-full bg-purple-600 px-8 py-3 font-black text-white">
             الانتقال إلى تسجيل الدخول
           </Link>
         </div>
@@ -482,10 +507,7 @@ export default function AdminPartnersPage() {
   }
 
   return (
-    <main
-      dir="rtl"
-      className="relative min-h-screen overflow-hidden bg-[#070009] px-4 py-8 text-white md:px-8"
-    >
+    <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] px-4 py-8 text-white md:px-8">
       <AdminBackground />
 
       {message && (
@@ -508,13 +530,9 @@ export default function AdminPartnersPage() {
             <Link href="/admin" className="text-sm font-bold text-purple-200">
               ← العودة إلى لوحة التحكم
             </Link>
-            <h1 className="mt-4 text-4xl font-black md:text-5xl">
-              إدارة الشركاء والبرامج
-            </h1>
+            <h1 className="mt-4 text-4xl font-black md:text-5xl">إدارة الشركاء والبرامج</h1>
             <p className="mt-3 max-w-3xl leading-8 text-white/60">
-              تحكم بالبرامج المتعاقد معها والشركاء الظاهرين في صفحة
-              “شركاؤنا وبرامجنا”، مع إمكانية الترتيب، الإظهار، الإخفاء،
-              وتحديث الروابط والشعارات.
+              تحكم بالبرامج المتعاقد معها والشركاء الظاهرين في صفحة “شركاؤنا وبرامجنا”، مع إمكانية الترتيب، الإظهار، الإخفاء، وتحديث الروابط والشعارات.
             </p>
           </div>
 
@@ -549,9 +567,7 @@ export default function AdminPartnersPage() {
         <section className="mb-10 rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur">
           <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-2xl font-black">
-                {editingPartner ? "تعديل شريك أو برنامج" : "إضافة شريك أو برنامج"}
-              </h2>
+              <h2 className="text-2xl font-black">{editingPartner ? "تعديل شريك أو برنامج" : "إضافة شريك أو برنامج"}</h2>
               <p className="mt-2 text-sm leading-7 text-white/55">
                 البيانات التي تحفظ هنا تظهر في صفحة الشركاء العامة حسب حالة النشر والظهور.
               </p>
@@ -571,88 +587,83 @@ export default function AdminPartnersPage() {
           <form onSubmit={savePartner} className="grid gap-5">
             <div className="grid gap-5 md:grid-cols-2">
               <Field label="اسم الشريك أو البرنامج">
-                <input
-                  value={form.name}
-                  onChange={(event) => handleNameChange(event.target.value)}
-                  className={inputClassName}
-                  placeholder="مثال: TikTok"
-                />
+                <input value={form.name} onChange={(event) => handleNameChange(event.target.value)} className={inputClassName} placeholder="مثال: TikTok" />
               </Field>
 
               <Field label="الرابط التعريفي Slug">
-                <input
-                  value={form.slug}
-                  onChange={(event) => updateForm("slug", generateSlug(event.target.value))}
-                  className={inputClassName}
-                  placeholder="مثال: tiktok"
-                  dir="ltr"
-                />
+                <input value={form.slug} onChange={(event) => updateForm("slug", generateSlug(event.target.value))} className={inputClassName} placeholder="مثال: tiktok" dir="ltr" />
               </Field>
 
               <Field label="التصنيف">
-                <input
-                  value={form.category}
-                  onChange={(event) => updateForm("category", event.target.value)}
-                  className={inputClassName}
-                  placeholder="مثال: صناعة المحتوى والبث المباشر"
-                />
+                <input value={form.category} onChange={(event) => updateForm("category", event.target.value)} className={inputClassName} placeholder="مثال: صناعة المحتوى والبث المباشر" />
               </Field>
 
               <Field label="الشارة">
-                <input
-                  value={form.badge}
-                  onChange={(event) => updateForm("badge", event.target.value)}
-                  className={inputClassName}
-                  placeholder="مثال: اتفاق تعاون"
-                />
+                <input value={form.badge} onChange={(event) => updateForm("badge", event.target.value)} className={inputClassName} placeholder="مثال: اتفاق تعاون" />
               </Field>
 
               <Field label="رابط صفحة البرنامج">
-                <input
-                  value={form.detail_url}
-                  onChange={(event) => updateForm("detail_url", event.target.value)}
-                  className={inputClassName}
-                  placeholder="/programs/tiktok"
-                  dir="ltr"
-                />
+                <input value={form.detail_url} onChange={(event) => updateForm("detail_url", event.target.value)} className={inputClassName} placeholder="/programs/tiktok" dir="ltr" />
               </Field>
 
-              <Field label="رابط الشعار">
-                <input
-                  value={form.logo_url}
-                  onChange={(event) => updateForm("logo_url", event.target.value)}
-                  className={inputClassName}
-                  placeholder="سيتم ربط Media Library لاحقاً"
-                  dir="ltr"
-                />
+              <Field label="شعار الشريك من Media Library">
+                <div className="grid gap-3">
+                  <input
+                    value={form.logo_url}
+                    onChange={(event) => updateForm("logo_url", event.target.value)}
+                    className={inputClassName}
+                    placeholder="اختر من مكتبة الوسائط أو الصق رابط الشعار"
+                    dir="ltr"
+                  />
+
+                  <select
+                    value=""
+                    onChange={(event) => {
+                      if (event.target.value) updateForm("logo_url", event.target.value);
+                    }}
+                    className={inputClassName}
+                  >
+                    <option value="" className="bg-black">
+                      اختر شعاراً من Media Library
+                    </option>
+                    {mediaOptions.map((item) => (
+                      <option key={item.id} value={item.file_url || ""} className="bg-black">
+                        {item.name || item.alt_text || item.file_url}
+                      </option>
+                    ))}
+                  </select>
+
+                  {form.logo_url ? (
+                    <div className="flex items-center gap-3 rounded-3xl border border-white/10 bg-black/25 p-3">
+                      <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-purple-400/20 bg-purple-500/10">
+                        <img src={form.logo_url} alt="معاينة الشعار" className="h-full w-full object-contain" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => updateForm("logo_url", "")}
+                        className="rounded-full border border-red-400/20 bg-red-500/10 px-4 py-2 text-sm font-black text-red-100"
+                      >
+                        إزالة الشعار
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs leading-6 text-white/40">
+                      تظهر هنا الصور والشعارات المفعّلة من جدول media. يبقى اللصق اليدوي متاحاً.
+                    </p>
+                  )}
+                </div>
               </Field>
 
               <Field label="رابط خارجي اختياري">
-                <input
-                  value={form.website_url}
-                  onChange={(event) => updateForm("website_url", event.target.value)}
-                  className={inputClassName}
-                  placeholder="https://example.com"
-                  dir="ltr"
-                />
+                <input value={form.website_url} onChange={(event) => updateForm("website_url", event.target.value)} className={inputClassName} placeholder="https://example.com" dir="ltr" />
               </Field>
 
               <Field label="ترتيب الظهور">
-                <input
-                  value={form.sort_order}
-                  onChange={(event) => updateForm("sort_order", event.target.value)}
-                  className={inputClassName}
-                  type="number"
-                  min="0"
-                />
+                <input value={form.sort_order} onChange={(event) => updateForm("sort_order", event.target.value)} className={inputClassName} type="number" min="0" />
               </Field>
 
               <Field label="حالة النشر">
-                <select
-                  value={form.status}
-                  onChange={(event) => updateForm("status", event.target.value)}
-                  className={inputClassName}
-                >
+                <select value={form.status} onChange={(event) => updateForm("status", event.target.value)} className={inputClassName}>
                   {statusOptions.map((option) => (
                     <option key={option.value} value={option.value} className="bg-black">
                       {option.label}
@@ -664,53 +675,26 @@ export default function AdminPartnersPage() {
               <div className="grid gap-3 rounded-3xl border border-white/10 bg-black/25 p-4">
                 <label className="flex items-center justify-between gap-4">
                   <span className="font-black text-white/75">ظاهر للعامة</span>
-                  <input
-                    type="checkbox"
-                    checked={form.is_visible}
-                    onChange={(event) => updateForm("is_visible", event.target.checked)}
-                    className="h-5 w-5"
-                  />
+                  <input type="checkbox" checked={form.is_visible} onChange={(event) => updateForm("is_visible", event.target.checked)} className="h-5 w-5" />
                 </label>
 
                 <label className="flex items-center justify-between gap-4">
                   <span className="font-black text-white/75">برنامج مميز</span>
-                  <input
-                    type="checkbox"
-                    checked={form.is_featured}
-                    onChange={(event) => updateForm("is_featured", event.target.checked)}
-                    className="h-5 w-5"
-                  />
+                  <input type="checkbox" checked={form.is_featured} onChange={(event) => updateForm("is_featured", event.target.checked)} className="h-5 w-5" />
                 </label>
               </div>
             </div>
 
             <Field label="الوصف الاحترافي">
-              <textarea
-                value={form.description}
-                onChange={(event) => updateForm("description", event.target.value)}
-                className={`${inputClassName} min-h-32 resize-y leading-8`}
-                placeholder="اكتب وصفاً واضحاً ومناسباً للظهور على الموقع العام."
-              />
+              <textarea value={form.description} onChange={(event) => updateForm("description", event.target.value)} className={`${inputClassName} min-h-32 resize-y leading-8`} placeholder="اكتب وصفاً واضحاً ومناسباً للظهور على الموقع العام." />
             </Field>
 
             <div className="flex flex-col gap-3 md:flex-row">
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-full bg-purple-600 px-8 py-4 font-black text-white shadow-2xl disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {saving
-                  ? "جاري الحفظ..."
-                  : editingPartner
-                    ? "حفظ التعديلات"
-                    : "إضافة الشريك أو البرنامج"}
+              <button type="submit" disabled={saving} className="rounded-full bg-purple-600 px-8 py-4 font-black text-white shadow-2xl disabled:cursor-not-allowed disabled:opacity-60">
+                {saving ? "جاري الحفظ..." : editingPartner ? "حفظ التعديلات" : "إضافة الشريك أو البرنامج"}
               </button>
 
-              <button
-                type="button"
-                onClick={() => resetForm()}
-                className="rounded-full border border-white/10 bg-white/[0.05] px-8 py-4 font-black text-white/75"
-              >
+              <button type="button" onClick={() => resetForm()} className="rounded-full border border-white/10 bg-white/[0.05] px-8 py-4 font-black text-white/75">
                 تفريغ النموذج
               </button>
             </div>
@@ -721,27 +705,14 @@ export default function AdminPartnersPage() {
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h2 className="text-2xl font-black">قائمة الشركاء والبرامج</h2>
-              <p className="mt-2 text-sm leading-7 text-white/55">
-                يمكنك البحث والتصفية ثم تعديل أي عنصر من القائمة.
-              </p>
+              <p className="mt-2 text-sm leading-7 text-white/55">يمكنك البحث والتصفية ثم تعديل أي عنصر من القائمة.</p>
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                className={inputClassName}
-                placeholder="بحث بالاسم أو التصنيف"
-              />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} className={inputClassName} placeholder="بحث بالاسم أو التصنيف" />
 
-              <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-                className={inputClassName}
-              >
-                <option value="all" className="bg-black">
-                  كل الحالات
-                </option>
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={inputClassName}>
+                <option value="all" className="bg-black">كل الحالات</option>
                 {statusOptions.map((option) => (
                   <option key={option.value} value={option.value} className="bg-black">
                     {option.label}
@@ -752,23 +723,16 @@ export default function AdminPartnersPage() {
           </div>
 
           {loading ? (
-            <div className="rounded-3xl border border-white/10 bg-black/25 p-8 text-center text-white/60">
-              جاري تحميل البيانات...
-            </div>
+            <div className="rounded-3xl border border-white/10 bg-black/25 p-8 text-center text-white/60">جاري تحميل البيانات...</div>
           ) : filteredPartners.length === 0 ? (
             <div className="rounded-3xl border border-white/10 bg-black/25 p-8 text-center">
               <h3 className="text-xl font-black">لا توجد نتائج مطابقة</h3>
-              <p className="mt-3 text-white/55">
-                جرّب تغيير كلمات البحث أو حالة التصفية.
-              </p>
+              <p className="mt-3 text-white/55">جرّب تغيير كلمات البحث أو حالة التصفية.</p>
             </div>
           ) : (
             <div className="grid gap-5">
               {filteredPartners.map((partner) => (
-                <article
-                  key={partner.id}
-                  className="rounded-[2rem] border border-white/10 bg-black/25 p-5"
-                >
+                <article key={partner.id} className="rounded-[2rem] border border-white/10 bg-black/25 p-5">
                   <div className="grid gap-5 lg:grid-cols-[1fr_260px]">
                     <div>
                       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -781,68 +745,42 @@ export default function AdminPartnersPage() {
                       <div className="flex items-start gap-4">
                         <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-purple-400/20 bg-purple-500/10">
                           {partner.logo_url ? (
-                            <img
-                              src={partner.logo_url}
-                              alt={partner.name}
-                              className="h-full w-full object-cover"
-                            />
+                            <img src={partner.logo_url} alt={partner.name} className="h-full w-full object-cover" />
                           ) : (
-                            <span className="text-xl font-black text-yellow-100">
-                              {partner.name.slice(0, 1)}
-                            </span>
+                            <span className="text-xl font-black text-yellow-100">{partner.name.slice(0, 1)}</span>
                           )}
                         </div>
 
                         <div>
                           <h3 className="text-2xl font-black">{partner.name}</h3>
-                          <p className="mt-1 text-sm font-bold text-yellow-100/80">
-                            {partner.category || "برنامج وشريك تعاون"}
-                          </p>
-                          <p className="mt-4 leading-8 text-white/65">
-                            {partner.description}
-                          </p>
+                          <p className="mt-1 text-sm font-bold text-yellow-100/80">{partner.category || "برنامج وشريك تعاون"}</p>
+                          <p className="mt-4 leading-8 text-white/65">{partner.description}</p>
                         </div>
                       </div>
                     </div>
 
                     <div className="grid gap-3">
-                      <Link
-                        href={getPartnerLink(partner)}
-                        className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-center text-sm font-black text-white/75"
-                      >
+                      <Link href={getPartnerLink(partner)} className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-center text-sm font-black text-white/75">
                         فتح الصفحة العامة
                       </Link>
 
-                      <button
-                        onClick={() => startEdit(partner)}
-                        className="rounded-2xl border border-purple-400/20 bg-purple-500/10 px-4 py-3 text-sm font-black text-purple-100"
-                      >
+                      <button onClick={() => startEdit(partner)} className="rounded-2xl border border-purple-400/20 bg-purple-500/10 px-4 py-3 text-sm font-black text-purple-100">
                         تعديل
                       </button>
 
-                      <button
-                        onClick={() => toggleFeatured(partner)}
-                        className="rounded-2xl border border-yellow-400/20 bg-yellow-500/10 px-4 py-3 text-sm font-black text-yellow-100"
-                      >
+                      <button onClick={() => toggleFeatured(partner)} className="rounded-2xl border border-yellow-400/20 bg-yellow-500/10 px-4 py-3 text-sm font-black text-yellow-100">
                         {partner.is_featured ? "إلغاء التمييز" : "تمييز"}
                       </button>
 
                       <button
-                        onClick={() =>
-                          updatePartnerVisibility(partner, partner.is_visible === false || partner.status === "hidden")
-                        }
+                        onClick={() => updatePartnerVisibility(partner, partner.is_visible === false || partner.status === "hidden")}
                         className="rounded-2xl border border-blue-400/20 bg-blue-500/10 px-4 py-3 text-sm font-black text-blue-100"
                       >
-                        {partner.is_visible === false || partner.status === "hidden"
-                          ? "إظهار"
-                          : "إخفاء"}
+                        {partner.is_visible === false || partner.status === "hidden" ? "إظهار" : "إخفاء"}
                       </button>
 
-                      <button
-                        onClick={() => deletePartner(partner)}
-                        className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-black text-red-100"
-                      >
-                        حذف
+                      <button onClick={() => archivePartner(partner)} className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-black text-red-100">
+                        حذف آمن
                       </button>
                     </div>
                   </div>
@@ -856,16 +794,7 @@ export default function AdminPartnersPage() {
   );
 }
 
-const inputClassName =
-  "w-full rounded-3xl border border-white/10 bg-black/30 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-purple-300/50";
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
       <span className="mb-3 block text-sm font-black text-white/70">{label}</span>
@@ -883,7 +812,7 @@ function StatCard({ label, value }: { label: string; value: number }) {
   );
 }
 
-function Badge({ children }: { children: React.ReactNode }) {
+function Badge({ children }: { children: ReactNode }) {
   return (
     <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-black text-white/70">
       {children}
