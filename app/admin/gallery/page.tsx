@@ -28,6 +28,17 @@ type GalleryItem = {
   updated_at: string | null;
 };
 
+type MediaOption = {
+  id: number;
+  name: string | null;
+  file_url: string | null;
+  file_type: string | null;
+  category: string | null;
+  alt_text: string | null;
+  page_slug: string | null;
+  is_active: boolean | null;
+};
+
 type AdminProfile = {
   email: string;
   role: string;
@@ -96,12 +107,25 @@ const effectOptions = [
 const inputClassName =
   "w-full rounded-3xl border border-white/10 bg-black/30 p-4 text-white outline-none transition placeholder:text-white/30 focus:border-purple-300/50";
 
+function isMediaPickerOption(item: MediaOption) {
+  const url = item.file_url || "";
+  const fileType = (item.file_type || "").toLowerCase();
+  const isRealUrl = url.startsWith("http") || url.startsWith("/");
+  const isAllowedType = ["image", "logo", "video", "background_video"].includes(fileType);
+  return item.is_active !== false && isRealUrl && isAllowedType;
+}
+
+function isVideoMedia(item: MediaOption) {
+  return item.file_type === "video" || item.file_type === "background_video";
+}
+
 export default function AdminGalleryPage() {
   const [checking, setChecking] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
 
   const [items, setItems] = useState<GalleryItem[]>([]);
+  const [mediaOptions, setMediaOptions] = useState<MediaOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -113,9 +137,7 @@ export default function AdminGalleryPage() {
   const [editingItem, setEditingItem] = useState<GalleryItem | null>(null);
 
   const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState<"success" | "error" | "info">(
-    "info"
-  );
+  const [messageType, setMessageType] = useState<"success" | "error" | "info">("info");
 
   useEffect(() => {
     initializeAdminPage();
@@ -153,7 +175,7 @@ export default function AdminGalleryPage() {
         is_active: access.profile.is_active,
       });
       setAuthorized(true);
-      await loadItems();
+      await Promise.all([loadItems(), loadMediaOptions()]);
     } catch {
       setAuthorized(false);
       setMessageType("error");
@@ -190,6 +212,28 @@ export default function AdminGalleryPage() {
     }
   }
 
+  async function loadMediaOptions() {
+    if (!supabase) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("media")
+        .select("id, name, file_url, file_type, category, alt_text, page_slug, is_active")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error || !data) {
+        setMediaOptions([]);
+        return;
+      }
+
+      setMediaOptions((data as MediaOption[]).filter(isMediaPickerOption));
+    } catch {
+      setMediaOptions([]);
+    }
+  }
+
   const filteredItems = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
@@ -200,11 +244,8 @@ export default function AdminGalleryPage() {
         item.slug?.toLowerCase().includes(normalizedSearch) ||
         item.category?.toLowerCase().includes(normalizedSearch);
 
-      const matchesStatus =
-        statusFilter === "all" || item.status === statusFilter;
-
-      const matchesMedia =
-        mediaFilter === "all" || item.media_type === mediaFilter;
+      const matchesStatus = statusFilter === "all" || item.status === statusFilter;
+      const matchesMedia = mediaFilter === "all" || item.media_type === mediaFilter;
 
       return matchesSearch && matchesStatus && matchesMedia;
     });
@@ -223,14 +264,8 @@ export default function AdminGalleryPage() {
     return { total, visible, featured, hidden };
   }, [items]);
 
-  function updateForm<K extends keyof GalleryForm>(
-    key: K,
-    value: GalleryForm[K]
-  ) {
-    setForm((current) => ({
-      ...current,
-      [key]: value,
-    }));
+  function updateForm<K extends keyof GalleryForm>(key: K, value: GalleryForm[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
   }
 
   function generateSlug(value: string) {
@@ -248,10 +283,34 @@ export default function AdminGalleryPage() {
     setForm((current) => ({
       ...current,
       title: value,
-      slug:
-        editingItem || current.slug.trim()
-          ? current.slug
-          : generateSlug(value),
+      slug: editingItem || current.slug.trim() ? current.slug : generateSlug(value),
+    }));
+  }
+
+  function chooseMediaOption(item: MediaOption, target: "media" | "thumbnail") {
+    const url = item.file_url || "";
+    if (!url) return;
+
+    if (target === "thumbnail") {
+      setForm((current) => ({
+        ...current,
+        thumbnail_url: url,
+        alt_text: current.alt_text || item.alt_text || item.name || "",
+      }));
+      return;
+    }
+
+    const nextMediaType = isVideoMedia(item) ? "video" : "image";
+
+    setForm((current) => ({
+      ...current,
+      media_type: nextMediaType,
+      media_url: url,
+      thumbnail_url: nextMediaType === "image" ? url : current.thumbnail_url,
+      title: current.title || item.name || "",
+      slug: current.slug || generateSlug(item.name || "gallery-item"),
+      category: current.category || item.category || "معرض الوكالة",
+      alt_text: current.alt_text || item.alt_text || item.name || "",
     }));
   }
 
@@ -283,10 +342,7 @@ export default function AdminGalleryPage() {
   function resetForm(clearMessage = true) {
     setEditingItem(null);
     setForm(emptyForm);
-
-    if (clearMessage) {
-      setMessage("");
-    }
+    if (clearMessage) setMessage("");
   }
 
   async function saveItem(event: FormEvent<HTMLFormElement>) {
@@ -317,13 +373,13 @@ export default function AdminGalleryPage() {
 
     if (form.media_type === "image" && !form.media_url.trim()) {
       setMessageType("error");
-      setMessage("يرجى إدخال رابط الصورة عند اختيار نوع صورة.");
+      setMessage("يرجى إدخال رابط الصورة أو اختيار صورة من Media Library.");
       return;
     }
 
     if (form.media_type === "video" && !form.media_url.trim()) {
       setMessageType("error");
-      setMessage("يرجى إدخال رابط الفيديو عند اختيار نوع فيديو.");
+      setMessage("يرجى إدخال رابط الفيديو أو اختيار فيديو من Media Library.");
       return;
     }
 
@@ -359,10 +415,7 @@ export default function AdminGalleryPage() {
       sort_order: Number.parseInt(form.sort_order, 10) || 10,
       metadata: {
         managed_from: "admin_gallery",
-        performance_note:
-          form.media_type === "effect"
-            ? "code_visual"
-            : "media_with_cover",
+        performance_note: form.media_type === "effect" ? "code_visual" : "media_with_cover",
       },
       updated_at: new Date().toISOString(),
     };
@@ -371,10 +424,7 @@ export default function AdminGalleryPage() {
       let successText = "";
 
       if (editingItem) {
-        const { error } = await supabase
-          .from("gallery_items")
-          .update(payload)
-          .eq("id", editingItem.id);
+        const { error } = await supabase.from("gallery_items").update(payload).eq("id", editingItem.id);
 
         if (error) {
           setMessageType("error");
@@ -417,11 +467,7 @@ export default function AdminGalleryPage() {
     try {
       const { error } = await supabase
         .from("gallery_items")
-        .update({
-          is_visible: visible,
-          status: nextStatus,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ is_visible: visible, status: nextStatus, updated_at: new Date().toISOString() })
         .eq("id", item.id);
 
       if (error) {
@@ -447,10 +493,7 @@ export default function AdminGalleryPage() {
     try {
       const { error } = await supabase
         .from("gallery_items")
-        .update({
-          is_featured: nextValue,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ is_featured: nextValue, updated_at: new Date().toISOString() })
         .eq("id", item.id);
 
       if (error) {
@@ -468,11 +511,11 @@ export default function AdminGalleryPage() {
     }
   }
 
-  async function deleteItem(item: GalleryItem) {
+  async function archiveItem(item: GalleryItem) {
     if (!supabase) return;
 
     const confirmed = window.confirm(
-      `هل أنت متأكد من حذف ${item.title}؟ سيتم حذف هذا العنصر نهائياً ولا يمكن التراجع عن هذا الإجراء.`
+      `هل تريد حذف ${item.title} من الواجهة؟ سيتم إخفاؤه وأرشفته بدون مسح نهائي.`
     );
 
     if (!confirmed) return;
@@ -480,25 +523,30 @@ export default function AdminGalleryPage() {
     try {
       const { error } = await supabase
         .from("gallery_items")
-        .delete()
+        .update({
+          title: item.title?.startsWith("محذوف -") ? item.title : `محذوف - ${item.title}`,
+          status: "hidden",
+          is_visible: false,
+          is_featured: false,
+          sort_order: 9999,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", item.id);
 
       if (error) {
         setMessageType("error");
-        setMessage("تعذر حذف عنصر المعرض.");
+        setMessage("تعذر حذف عنصر المعرض بشكل آمن.");
         return;
       }
 
-      if (editingItem?.id === item.id) {
-        resetForm(false);
-      }
+      if (editingItem?.id === item.id) resetForm(false);
 
       setMessageType("success");
-      setMessage("تم حذف عنصر المعرض بنجاح.");
+      setMessage("تم إخفاء عنصر المعرض وأرشفته بأمان.");
       await loadItems();
     } catch {
       setMessageType("error");
-      setMessage("حدث خطأ أثناء حذف عنصر المعرض.");
+      setMessage("حدث خطأ أثناء حذف عنصر المعرض بشكل آمن.");
     }
   }
 
@@ -511,17 +559,12 @@ export default function AdminGalleryPage() {
   }
 
   function getPublicState(item: GalleryItem) {
-    return item.is_visible !== false && item.status === "published"
-      ? "ظاهر للعامة"
-      : "غير ظاهر";
+    return item.is_visible !== false && item.status === "published" ? "ظاهر للعامة" : "غير ظاهر";
   }
 
   if (checking) {
     return (
-      <main
-        dir="rtl"
-        className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white"
-      >
+      <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white">
         <div className="rounded-[2rem] border border-purple-400/20 bg-white/[0.04] p-8 text-center shadow-2xl backdrop-blur">
           <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-purple-300/20 border-t-purple-300" />
           <h1 className="text-2xl font-black">جاري التحقق من صلاحيات الإدارة</h1>
@@ -533,19 +576,13 @@ export default function AdminGalleryPage() {
 
   if (!authorized) {
     return (
-      <main
-        dir="rtl"
-        className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white"
-      >
+      <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white">
         <div className="max-w-xl rounded-[2rem] border border-red-400/20 bg-red-500/10 p-8 text-center shadow-2xl backdrop-blur">
           <h1 className="text-3xl font-black text-red-100">غير مصرح بالدخول</h1>
           <p className="mt-4 leading-8 text-white/70">
             {message || "يرجى تسجيل الدخول بحساب إداري مخول للوصول إلى هذه الصفحة."}
           </p>
-          <Link
-            href="/admin/login"
-            className="mt-7 inline-flex rounded-full bg-purple-600 px-8 py-3 font-black text-white"
-          >
+          <Link href="/admin/login" className="mt-7 inline-flex rounded-full bg-purple-600 px-8 py-3 font-black text-white">
             الانتقال إلى تسجيل الدخول
           </Link>
         </div>
@@ -554,10 +591,7 @@ export default function AdminGalleryPage() {
   }
 
   return (
-    <main
-      dir="rtl"
-      className="relative min-h-screen overflow-hidden bg-[#070009] px-4 py-8 text-white md:px-8"
-    >
+    <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] px-4 py-8 text-white md:px-8">
       <AdminBackground />
 
       {message && (
@@ -580,12 +614,9 @@ export default function AdminGalleryPage() {
             <Link href="/admin" className="text-sm font-bold text-purple-200">
               ← العودة إلى لوحة التحكم
             </Link>
-            <h1 className="mt-4 text-4xl font-black md:text-5xl">
-              إدارة معرض الوكالة
-            </h1>
+            <h1 className="mt-4 text-4xl font-black md:text-5xl">إدارة معرض الوكالة</h1>
             <p className="mt-3 max-w-3xl leading-8 text-white/60">
-              تحكم بالعناصر الظاهرة في صفحة المعرض، مع إمكانية إضافة مؤثرات
-              بصرية، صور، فيديوهات، روابط خارجية، صور غلاف، وترتيب الظهور.
+              تحكم بالعناصر الظاهرة في صفحة المعرض، مع إمكانية إضافة مؤثرات بصرية، صور، فيديوهات، روابط خارجية، صور غلاف، وترتيب الظهور.
             </p>
           </div>
 
@@ -606,12 +637,9 @@ export default function AdminGalleryPage() {
         <section className="mb-10 rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur">
           <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-2xl font-black">
-                {editingItem ? "تعديل عنصر في المعرض" : "إضافة عنصر للمعرض"}
-              </h2>
+              <h2 className="text-2xl font-black">{editingItem ? "تعديل عنصر في المعرض" : "إضافة عنصر للمعرض"}</h2>
               <p className="mt-2 text-sm leading-7 text-white/55">
-                اختر نوع العنصر المناسب، واحرص على استخدام روابط صور وفيديوهات
-                محسّنة مع صورة غلاف عند الحاجة.
+                اختر نوع العنصر المناسب، ويمكنك اختيار الصور والفيديوهات وصور الغلاف مباشرة من Media Library.
               </p>
             </div>
 
@@ -629,39 +657,19 @@ export default function AdminGalleryPage() {
           <form onSubmit={saveItem} className="grid gap-5">
             <div className="grid gap-5 md:grid-cols-2">
               <Field label="عنوان العنصر">
-                <input
-                  value={form.title}
-                  onChange={(event) => handleTitleChange(event.target.value)}
-                  className={inputClassName}
-                  placeholder="مثال: هوية وكالة حمزة"
-                />
+                <input value={form.title} onChange={(event) => handleTitleChange(event.target.value)} className={inputClassName} placeholder="مثال: هوية وكالة حمزة" />
               </Field>
 
               <Field label="الرابط التعريفي Slug">
-                <input
-                  value={form.slug}
-                  onChange={(event) => updateForm("slug", generateSlug(event.target.value))}
-                  className={inputClassName}
-                  placeholder="مثال: hamza-agency-identity"
-                  dir="ltr"
-                />
+                <input value={form.slug} onChange={(event) => updateForm("slug", generateSlug(event.target.value))} className={inputClassName} placeholder="مثال: hamza-agency-identity" dir="ltr" />
               </Field>
 
               <Field label="التصنيف">
-                <input
-                  value={form.category}
-                  onChange={(event) => updateForm("category", event.target.value)}
-                  className={inputClassName}
-                  placeholder="مثال: هوية الوكالة"
-                />
+                <input value={form.category} onChange={(event) => updateForm("category", event.target.value)} className={inputClassName} placeholder="مثال: هوية الوكالة" />
               </Field>
 
               <Field label="نوع العنصر">
-                <select
-                  value={form.media_type}
-                  onChange={(event) => updateForm("media_type", event.target.value)}
-                  className={inputClassName}
-                >
+                <select value={form.media_type} onChange={(event) => updateForm("media_type", event.target.value)} className={inputClassName}>
                   {mediaTypeOptions.map((option) => (
                     <option key={option.value} value={option.value} className="bg-black">
                       {option.label}
@@ -672,11 +680,7 @@ export default function AdminGalleryPage() {
 
               {form.media_type === "effect" && (
                 <Field label="نوع المؤثر البصري">
-                  <select
-                    value={form.effect_type}
-                    onChange={(event) => updateForm("effect_type", event.target.value)}
-                    className={inputClassName}
-                  >
+                  <select value={form.effect_type} onChange={(event) => updateForm("effect_type", event.target.value)} className={inputClassName}>
                     {effectOptions.map((option) => (
                       <option key={option.value} value={option.value} className="bg-black">
                         {option.label}
@@ -687,85 +691,75 @@ export default function AdminGalleryPage() {
               )}
 
               {form.media_type !== "effect" && (
-                <Field label="رابط الوسائط">
-                  <input
-                    value={form.media_url}
-                    onChange={(event) => updateForm("media_url", event.target.value)}
-                    className={inputClassName}
-                    placeholder="رابط الصورة أو الفيديو"
-                    dir="ltr"
-                  />
+                <Field label="رابط الوسائط من Media Library أو رابط يدوي">
+                  <div className="grid gap-3">
+                    <input value={form.media_url} onChange={(event) => updateForm("media_url", event.target.value)} className={inputClassName} placeholder="رابط الصورة أو الفيديو" dir="ltr" />
+                    <select
+                      value=""
+                      onChange={(event) => {
+                        const selected = mediaOptions.find((item) => String(item.id) === event.target.value);
+                        if (selected) chooseMediaOption(selected, "media");
+                      }}
+                      className={inputClassName}
+                    >
+                      <option value="" className="bg-black">اختر وسائط من Media Library</option>
+                      {mediaOptions.map((item) => (
+                        <option key={item.id} value={item.id} className="bg-black">
+                          {item.name || item.alt_text || item.file_url} · {item.file_type || "media"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </Field>
               )}
 
               {(form.media_type === "video" || form.media_type === "external_video") && (
-                <Field label="رابط صورة الغلاف">
-                  <input
-                    value={form.thumbnail_url}
-                    onChange={(event) => updateForm("thumbnail_url", event.target.value)}
-                    className={inputClassName}
-                    placeholder="رابط صورة غلاف خفيفة"
-                    dir="ltr"
-                  />
+                <Field label="رابط صورة الغلاف من Media Library أو رابط يدوي">
+                  <div className="grid gap-3">
+                    <input value={form.thumbnail_url} onChange={(event) => updateForm("thumbnail_url", event.target.value)} className={inputClassName} placeholder="رابط صورة غلاف خفيفة" dir="ltr" />
+                    <select
+                      value=""
+                      onChange={(event) => {
+                        const selected = mediaOptions.find((item) => String(item.id) === event.target.value);
+                        if (selected) chooseMediaOption(selected, "thumbnail");
+                      }}
+                      className={inputClassName}
+                    >
+                      <option value="" className="bg-black">اختر صورة غلاف من Media Library</option>
+                      {mediaOptions.filter((item) => !isVideoMedia(item)).map((item) => (
+                        <option key={item.id} value={item.id} className="bg-black">
+                          {item.name || item.alt_text || item.file_url}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </Field>
               )}
 
               {form.media_type === "external_video" && (
                 <Field label="رابط الفيديو الخارجي">
-                  <input
-                    value={form.external_url}
-                    onChange={(event) => updateForm("external_url", event.target.value)}
-                    className={inputClassName}
-                    placeholder="https://..."
-                    dir="ltr"
-                  />
+                  <input value={form.external_url} onChange={(event) => updateForm("external_url", event.target.value)} className={inputClassName} placeholder="https://..." dir="ltr" />
                 </Field>
               )}
 
               <Field label="النص البديل للصورة">
-                <input
-                  value={form.alt_text}
-                  onChange={(event) => updateForm("alt_text", event.target.value)}
-                  className={inputClassName}
-                  placeholder="وصف مختصر مناسب للوسائط"
-                />
+                <input value={form.alt_text} onChange={(event) => updateForm("alt_text", event.target.value)} className={inputClassName} placeholder="وصف مختصر مناسب للوسائط" />
               </Field>
 
               <Field label="نص الزر">
-                <input
-                  value={form.button_label}
-                  onChange={(event) => updateForm("button_label", event.target.value)}
-                  className={inputClassName}
-                  placeholder="مثال: تصفح البرامج"
-                />
+                <input value={form.button_label} onChange={(event) => updateForm("button_label", event.target.value)} className={inputClassName} placeholder="مثال: تصفح البرامج" />
               </Field>
 
               <Field label="رابط الزر">
-                <input
-                  value={form.button_url}
-                  onChange={(event) => updateForm("button_url", event.target.value)}
-                  className={inputClassName}
-                  placeholder="/programs"
-                  dir="ltr"
-                />
+                <input value={form.button_url} onChange={(event) => updateForm("button_url", event.target.value)} className={inputClassName} placeholder="/programs" dir="ltr" />
               </Field>
 
               <Field label="ترتيب الظهور">
-                <input
-                  value={form.sort_order}
-                  onChange={(event) => updateForm("sort_order", event.target.value)}
-                  className={inputClassName}
-                  type="number"
-                  min="0"
-                />
+                <input value={form.sort_order} onChange={(event) => updateForm("sort_order", event.target.value)} className={inputClassName} type="number" min="0" />
               </Field>
 
               <Field label="حالة النشر">
-                <select
-                  value={form.status}
-                  onChange={(event) => updateForm("status", event.target.value)}
-                  className={inputClassName}
-                >
+                <select value={form.status} onChange={(event) => updateForm("status", event.target.value)} className={inputClassName}>
                   {statusOptions.map((option) => (
                     <option key={option.value} value={option.value} className="bg-black">
                       {option.label}
@@ -777,53 +771,36 @@ export default function AdminGalleryPage() {
               <div className="grid gap-3 rounded-3xl border border-white/10 bg-black/25 p-4">
                 <label className="flex items-center justify-between gap-4">
                   <span className="font-black text-white/75">ظاهر للعامة</span>
-                  <input
-                    type="checkbox"
-                    checked={form.is_visible}
-                    onChange={(event) => updateForm("is_visible", event.target.checked)}
-                    className="h-5 w-5"
-                  />
+                  <input type="checkbox" checked={form.is_visible} onChange={(event) => updateForm("is_visible", event.target.checked)} className="h-5 w-5" />
                 </label>
 
                 <label className="flex items-center justify-between gap-4">
                   <span className="font-black text-white/75">عنصر مميز</span>
-                  <input
-                    type="checkbox"
-                    checked={form.is_featured}
-                    onChange={(event) => updateForm("is_featured", event.target.checked)}
-                    className="h-5 w-5"
-                  />
+                  <input type="checkbox" checked={form.is_featured} onChange={(event) => updateForm("is_featured", event.target.checked)} className="h-5 w-5" />
                 </label>
               </div>
             </div>
 
+            {(form.media_url || form.thumbnail_url) && (
+              <div className="rounded-3xl border border-purple-400/20 bg-purple-500/10 p-4">
+                <div className="mb-3 text-sm font-black text-purple-100">معاينة الوسائط المختارة</div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {form.media_url && <PreviewUrl url={form.media_url} label="الوسيط الأساسي" />}
+                  {form.thumbnail_url && <PreviewUrl url={form.thumbnail_url} label="صورة الغلاف" />}
+                </div>
+              </div>
+            )}
+
             <Field label="الوصف الظاهر للزائر">
-              <textarea
-                value={form.description}
-                onChange={(event) => updateForm("description", event.target.value)}
-                className={`${inputClassName} min-h-32 resize-y leading-8`}
-                placeholder="اكتب وصفاً تسويقياً مناسباً للظهور في صفحة المعرض."
-              />
+              <textarea value={form.description} onChange={(event) => updateForm("description", event.target.value)} className={`${inputClassName} min-h-32 resize-y leading-8`} placeholder="اكتب وصفاً تسويقياً مناسباً للظهور في صفحة المعرض." />
             </Field>
 
             <div className="flex flex-col gap-3 md:flex-row">
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-full bg-purple-600 px-8 py-4 font-black text-white shadow-2xl disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {saving
-                  ? "جاري الحفظ..."
-                  : editingItem
-                    ? "حفظ التعديلات"
-                    : "إضافة عنصر المعرض"}
+              <button type="submit" disabled={saving} className="rounded-full bg-purple-600 px-8 py-4 font-black text-white shadow-2xl disabled:cursor-not-allowed disabled:opacity-60">
+                {saving ? "جاري الحفظ..." : editingItem ? "حفظ التعديلات" : "إضافة عنصر المعرض"}
               </button>
 
-              <button
-                type="button"
-                onClick={() => resetForm()}
-                className="rounded-full border border-white/10 bg-white/[0.05] px-8 py-4 font-black text-white/75"
-              >
+              <button type="button" onClick={() => resetForm()} className="rounded-full border border-white/10 bg-white/[0.05] px-8 py-4 font-black text-white/75">
                 تفريغ النموذج
               </button>
             </div>
@@ -834,69 +811,39 @@ export default function AdminGalleryPage() {
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h2 className="text-2xl font-black">قائمة عناصر المعرض</h2>
-              <p className="mt-2 text-sm leading-7 text-white/55">
-                يمكنك البحث والتصفية ثم تعديل أي عنصر من القائمة.
-              </p>
+              <p className="mt-2 text-sm leading-7 text-white/55">يمكنك البحث والتصفية ثم تعديل أي عنصر من القائمة.</p>
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                className={inputClassName}
-                placeholder="بحث بالعنوان أو التصنيف"
-              />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} className={inputClassName} placeholder="بحث بالعنوان أو التصنيف" />
 
-              <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-                className={inputClassName}
-              >
-                <option value="all" className="bg-black">
-                  كل الحالات
-                </option>
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={inputClassName}>
+                <option value="all" className="bg-black">كل الحالات</option>
                 {statusOptions.map((option) => (
-                  <option key={option.value} value={option.value} className="bg-black">
-                    {option.label}
-                  </option>
+                  <option key={option.value} value={option.value} className="bg-black">{option.label}</option>
                 ))}
               </select>
 
-              <select
-                value={mediaFilter}
-                onChange={(event) => setMediaFilter(event.target.value)}
-                className={inputClassName}
-              >
-                <option value="all" className="bg-black">
-                  كل الأنواع
-                </option>
+              <select value={mediaFilter} onChange={(event) => setMediaFilter(event.target.value)} className={inputClassName}>
+                <option value="all" className="bg-black">كل الأنواع</option>
                 {mediaTypeOptions.map((option) => (
-                  <option key={option.value} value={option.value} className="bg-black">
-                    {option.label}
-                  </option>
+                  <option key={option.value} value={option.value} className="bg-black">{option.label}</option>
                 ))}
               </select>
             </div>
           </div>
 
           {loading ? (
-            <div className="rounded-3xl border border-white/10 bg-black/25 p-8 text-center text-white/60">
-              جاري تحميل البيانات...
-            </div>
+            <div className="rounded-3xl border border-white/10 bg-black/25 p-8 text-center text-white/60">جاري تحميل البيانات...</div>
           ) : filteredItems.length === 0 ? (
             <div className="rounded-3xl border border-white/10 bg-black/25 p-8 text-center">
               <h3 className="text-xl font-black">لا توجد نتائج مطابقة</h3>
-              <p className="mt-3 text-white/55">
-                جرّب تغيير كلمات البحث أو حالة التصفية.
-              </p>
+              <p className="mt-3 text-white/55">جرّب تغيير كلمات البحث أو حالة التصفية.</p>
             </div>
           ) : (
             <div className="grid gap-5">
               {filteredItems.map((item) => (
-                <article
-                  key={item.id}
-                  className="rounded-[2rem] border border-white/10 bg-black/25 p-5"
-                >
+                <article key={item.id} className="rounded-[2rem] border border-white/10 bg-black/25 p-5">
                   <div className="grid gap-5 lg:grid-cols-[1fr_260px]">
                     <div>
                       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -912,54 +859,29 @@ export default function AdminGalleryPage() {
 
                         <div>
                           <h3 className="text-2xl font-black">{item.title}</h3>
-                          <p className="mt-1 text-sm font-bold text-yellow-100/80">
-                            {item.category || "معرض الوكالة"}
-                          </p>
-                          <p className="mt-4 leading-8 text-white/65">
-                            {item.description}
-                          </p>
+                          <p className="mt-1 text-sm font-bold text-yellow-100/80">{item.category || "معرض الوكالة"}</p>
+                          <p className="mt-4 leading-8 text-white/65">{item.description}</p>
                         </div>
                       </div>
                     </div>
 
                     <div className="grid gap-3">
-                      <Link
-                        href="/gallery"
-                        className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-center text-sm font-black text-white/75"
-                      >
+                      <Link href="/gallery" className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-center text-sm font-black text-white/75">
                         فتح صفحة المعرض
                       </Link>
 
-                      <button
-                        onClick={() => startEdit(item)}
-                        className="rounded-2xl border border-purple-400/20 bg-purple-500/10 px-4 py-3 text-sm font-black text-purple-100"
-                      >
-                        تعديل
-                      </button>
+                      <button onClick={() => startEdit(item)} className="rounded-2xl border border-purple-400/20 bg-purple-500/10 px-4 py-3 text-sm font-black text-purple-100">تعديل</button>
 
-                      <button
-                        onClick={() => toggleFeatured(item)}
-                        className="rounded-2xl border border-yellow-400/20 bg-yellow-500/10 px-4 py-3 text-sm font-black text-yellow-100"
-                      >
+                      <button onClick={() => toggleFeatured(item)} className="rounded-2xl border border-yellow-400/20 bg-yellow-500/10 px-4 py-3 text-sm font-black text-yellow-100">
                         {item.is_featured ? "إلغاء التمييز" : "تمييز"}
                       </button>
 
-                      <button
-                        onClick={() =>
-                          updateVisibility(item, item.is_visible === false || item.status === "hidden")
-                        }
-                        className="rounded-2xl border border-blue-400/20 bg-blue-500/10 px-4 py-3 text-sm font-black text-blue-100"
-                      >
-                        {item.is_visible === false || item.status === "hidden"
-                          ? "إظهار"
-                          : "إخفاء"}
+                      <button onClick={() => updateVisibility(item, item.is_visible === false || item.status === "hidden")} className="rounded-2xl border border-blue-400/20 bg-blue-500/10 px-4 py-3 text-sm font-black text-blue-100">
+                        {item.is_visible === false || item.status === "hidden" ? "إظهار" : "إخفاء"}
                       </button>
 
-                      <button
-                        onClick={() => deleteItem(item)}
-                        className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-black text-red-100"
-                      >
-                        حذف
+                      <button onClick={() => archiveItem(item)} className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-black text-red-100">
+                        حذف آمن
                       </button>
                     </div>
                   </div>
@@ -975,22 +897,12 @@ export default function AdminGalleryPage() {
 
 function PreviewBox({ item }: { item: GalleryItem }) {
   const label =
-    item.media_type === "image"
-      ? "صورة"
-      : item.media_type === "video"
-        ? "فيديو"
-        : item.media_type === "external_video"
-          ? "رابط"
-          : "مؤثر";
+    item.media_type === "image" ? "صورة" : item.media_type === "video" ? "فيديو" : item.media_type === "external_video" ? "رابط" : "مؤثر";
 
   if (item.thumbnail_url || item.media_url) {
     return (
       <div className="h-24 w-24 shrink-0 overflow-hidden rounded-3xl border border-purple-400/20 bg-purple-500/10">
-        <img
-          src={item.thumbnail_url || item.media_url || ""}
-          alt={item.alt_text || item.title || "عنصر من المعرض"}
-          className="h-full w-full object-cover"
-        />
+        <img src={item.thumbnail_url || item.media_url || ""} alt={item.alt_text || item.title || "عنصر من المعرض"} className="h-full w-full object-cover" />
       </div>
     );
   }
@@ -998,6 +910,21 @@ function PreviewBox({ item }: { item: GalleryItem }) {
   return (
     <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-3xl border border-purple-400/20 bg-purple-500/10 text-sm font-black text-yellow-100">
       {label}
+    </div>
+  );
+}
+
+function PreviewUrl({ url, label }: { url: string; label: string }) {
+  const isVideo = /\.(mp4|webm|mov|m4v)$/i.test(url);
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/35 p-3">
+      <div className="mb-2 text-xs font-black text-white/50">{label}</div>
+      {isVideo ? (
+        <video src={url} controls className="h-40 w-full rounded-xl object-contain" />
+      ) : (
+        <img src={url} alt={label} className="h-40 w-full rounded-xl object-contain" />
+      )}
     </div>
   );
 }
@@ -1022,9 +949,7 @@ function StatCard({ label, value }: { label: string; value: number }) {
 
 function Badge({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-black text-white/70">
-      {children}
-    </span>
+    <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-black text-white/70">{children}</span>
   );
 }
 
