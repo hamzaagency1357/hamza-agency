@@ -126,6 +126,14 @@ function getRecordId(item: TrashItem) {
   return getString(item, ["record_id", "entity_id", "item_id", "target_id", "original_id", "id"], "غير متوفر");
 }
 
+function getOriginalRecordId(item: TrashItem) {
+  return getString(item, ["record_id", "entity_id", "item_id", "target_id", "original_id"], "");
+}
+
+function getTrashRowId(item: TrashItem) {
+  return getString(item, ["id"], "");
+}
+
 function getDeletedBy(item: TrashItem) {
   return getString(
     item,
@@ -148,6 +156,93 @@ function getPayload(item: TrashItem) {
   return item.data ?? item.payload ?? item.item_data ?? item.original_data ?? item.metadata ?? item.details ?? "";
 }
 
+function parsePayload(payload: unknown): Record<string, unknown> | null {
+  if (!payload) return null;
+
+  if (typeof payload === "object" && !Array.isArray(payload)) {
+    return payload as Record<string, unknown>;
+  }
+
+  if (typeof payload === "string") {
+    try {
+      const parsed = JSON.parse(payload);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+function getRestorableTableName(item: TrashItem) {
+  const entity = getEntityType(item).trim();
+
+  const supportedTables: Record<string, string> = {
+    agency_applications: "agency_applications",
+    service_requests: "service_requests",
+    programs: "programs",
+    program_pages: "program_pages",
+    pages: "pages",
+    sections: "sections",
+    media: "media",
+    announcements: "announcements",
+    jobs: "jobs",
+    job_applications: "job_applications",
+    reviews: "reviews",
+    success_stories: "success_stories",
+    partners: "partners",
+    gallery_items: "gallery_items",
+    faqs: "faqs",
+    knowledge_base: "knowledge_base",
+  };
+
+  return supportedTables[entity] || "";
+}
+
+function buildRestorePayload(item: TrashItem) {
+  const payload = parsePayload(getPayload(item)) || {};
+  const originalRecordId = getOriginalRecordId(item);
+  const restorePayload: Record<string, unknown> = { ...payload };
+
+  [
+    "deleted_at",
+    "deleted_by",
+    "restored_at",
+    "restored_by",
+    "trash_id",
+    "entity_type",
+    "table_name",
+    "item_type",
+    "payload",
+    "data",
+    "metadata",
+    "details",
+  ].forEach((key) => {
+    delete restorePayload[key];
+  });
+
+  if (originalRecordId && !restorePayload.id) {
+    const numericId = Number(originalRecordId);
+    restorePayload.id = Number.isNaN(numericId) ? originalRecordId : numericId;
+  }
+
+  if ("is_active" in restorePayload) restorePayload.is_active = true;
+  if ("is_visible" in restorePayload) restorePayload.is_visible = true;
+
+  if (restorePayload.status === "deleted" || restorePayload.status === "archived") {
+    restorePayload.status = "published";
+  }
+
+  if ("updated_at" in restorePayload) {
+    restorePayload.updated_at = new Date().toISOString();
+  }
+
+  return restorePayload;
+}
+
 export default function AdminTrashPage() {
   const router = useRouter();
 
@@ -158,12 +253,14 @@ export default function AdminTrashPage() {
   const [items, setItems] = useState<TrashItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [restoringId, setRestoringId] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     async function checkAccess() {
-      const access = await requireAdminModuleAccess("dashboard");
+      const access = await requireAdminModuleAccess("trash");
 
       if (!access.isAuthorized || !access.profile) {
         setIsAuthorized(false);
@@ -200,6 +297,7 @@ export default function AdminTrashPage() {
     }
 
     setError("");
+    setMessage("");
     setIsLoading(true);
 
     const { data, error: trashError } = await supabase
@@ -219,6 +317,77 @@ export default function AdminTrashPage() {
       .sort((first, second) => getTimeValue(second) - getTimeValue(first));
 
     setItems(sortedItems);
+  }
+
+  async function restoreTrashItem(item: TrashItem) {
+    if (!supabase) {
+      setError("الاتصال بقاعدة البيانات غير مفعل.");
+      return;
+    }
+
+    const tableName = getRestorableTableName(item);
+    const trashRowId = getTrashRowId(item);
+    const originalRecordId = getOriginalRecordId(item);
+    const restoreKey = trashRowId || originalRecordId || getRecordId(item);
+    const restorePayload = buildRestorePayload(item);
+
+    if (!tableName) {
+      setError("هذا النوع من العناصر غير مدعوم للاسترجاع الآمن حالياً.");
+      return;
+    }
+
+    if (!restorePayload.id) {
+      setError("لا يمكن الاسترجاع لأن رقم العنصر الأصلي غير واضح داخل سجل السلة.");
+      return;
+    }
+
+    const confirmed = window.confirm(`هل تريد استرجاع هذا العنصر إلى جدول ${tableName}؟`);
+
+    if (!confirmed) return;
+
+    setError("");
+    setMessage("");
+    setRestoringId(restoreKey);
+
+    const { error: restoreError } = await supabase
+      .from(tableName)
+      .upsert(restorePayload);
+
+    if (restoreError) {
+      setRestoringId("");
+      setError(`تعذر استرجاع العنصر: ${restoreError.message}`);
+      return;
+    }
+
+    if (trashRowId) {
+      const { error: removeTrashError } = await supabase
+        .from("trash_items")
+        .delete()
+        .eq("id", trashRowId);
+
+      if (removeTrashError) {
+        setRestoringId("");
+        setError(
+          "تم استرجاع العنصر، لكن تعذر حذف سجل السلة. يمكنك تحديث الصفحة أو حذفه لاحقاً من Supabase."
+        );
+        await loadTrashItems();
+        return;
+      }
+    }
+
+    await supabase.from("activity_logs").insert({
+      admin_email: adminEmail,
+      action: "restore_trash_item",
+      entity_type: tableName,
+      entity_id: String(restorePayload.id),
+      old_data: JSON.stringify(item),
+      new_data: JSON.stringify(restorePayload),
+      ip_address: "",
+    });
+
+    setRestoringId("");
+    await loadTrashItems();
+    setMessage("تم استرجاع العنصر بنجاح وحذف سجلّه من السلة.");
   }
 
   const filteredItems = useMemo(() => {
@@ -287,7 +456,7 @@ export default function AdminTrashPage() {
             </div>
             <h1 className="text-4xl font-black md:text-5xl">Trash System</h1>
             <p className="mt-3 max-w-3xl leading-8 text-white/55">
-              عرض العناصر التي تم نقلها إلى سلة المحذوفات. هذه الصفحة للقراءة والمتابعة فقط حالياً.
+              عرض العناصر التي تم نقلها إلى سلة المحذوفات مع إمكانية الاسترجاع الآمن للعناصر المدعومة.
             </p>
           </div>
 
@@ -312,13 +481,19 @@ export default function AdminTrashPage() {
           حساب الإدارة: <span className="text-white">{adminEmail}</span>
         </div>
 
-        <div className="mb-6 rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-5 leading-8 text-yellow-50/85">
-          الاسترجاع والحذف النهائي غير مفعلين حالياً. هذه النسخة مخصصة لعرض العناصر المحذوفة فقط.
+        <div className="mb-6 rounded-3xl border border-green-400/20 bg-green-500/10 p-5 leading-8 text-green-50/85">
+          الاسترجاع الآمن مفعل الآن للعناصر التي تحتوي على بياناتها الأصلية داخل سجل السلة.
         </div>
 
         {error && (
           <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">
             {error}
+          </div>
+        )}
+
+        {message && (
+          <div className="mb-6 rounded-3xl border border-green-400/25 bg-green-500/10 p-5 text-green-100">
+            {message}
           </div>
         )}
 
@@ -360,6 +535,7 @@ export default function AdminTrashPage() {
           {filteredItems.map((item, index) => {
             const category = getCategory(item);
             const payload = getPayload(item);
+            const restoreKey = getTrashRowId(item) || getOriginalRecordId(item) || getRecordId(item) || String(index);
 
             return (
               <article
@@ -389,8 +565,19 @@ export default function AdminTrashPage() {
                     )}
                   </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white/55">
-                    {filters.find((entry) => entry.key === category)?.label || "أخرى"}
+                  <div className="flex w-full flex-col gap-3 lg:w-56">
+                    <button
+                      type="button"
+                      onClick={() => restoreTrashItem(item)}
+                      disabled={Boolean(restoringId)}
+                      className="rounded-2xl border border-green-400/25 bg-green-500/10 px-4 py-3 text-sm font-black text-green-100 transition hover:bg-green-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {restoringId === restoreKey ? "جاري الاسترجاع..." : "استرجاع العنصر"}
+                    </button>
+
+                    <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-center text-sm text-white/55">
+                      {filters.find((entry) => entry.key === category)?.label || "أخرى"}
+                    </div>
                   </div>
                 </div>
               </article>
