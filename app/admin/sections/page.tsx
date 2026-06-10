@@ -81,6 +81,10 @@ function getPageTitle(pages: PageRow[], pageId: number | null) {
   return page?.title || page?.slug || "غير مرتبطة بصفحة";
 }
 
+function isArchivedSection(section: SectionRow) {
+  return Boolean(section.section_key?.startsWith("archived-") || section.title?.startsWith("محذوف -"));
+}
+
 export default function AdminSectionsPage() {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
@@ -156,8 +160,9 @@ export default function AdminSectionsPage() {
     });
   }, [sections, pages, search, pageFilter]);
 
-  const visibleCount = sections.filter((section) => section.is_visible !== false).length;
-  const hiddenCount = sections.filter((section) => section.is_visible === false).length;
+  const visibleCount = sections.filter((section) => section.is_visible !== false && !isArchivedSection(section)).length;
+  const hiddenCount = sections.filter((section) => section.is_visible === false && !isArchivedSection(section)).length;
+  const archivedCount = sections.filter((section) => isArchivedSection(section)).length;
 
   function updateField(key: keyof SectionForm, value: string | boolean) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -280,6 +285,50 @@ export default function AdminSectionsPage() {
     await loadData();
   }
 
+  async function archiveSection(section: SectionRow) {
+    if (!supabase) return;
+
+    const sectionTitle = section.title || section.section_key || `قسم رقم ${section.id}`;
+    const confirmed = window.confirm(
+      `هل تريد حذف القسم "${sectionTitle}" من الصفحة؟\n\nسيتم إخفاؤه وأرشفته بدون مسح بياناته من قاعدة البيانات.`
+    );
+
+    if (!confirmed) return;
+
+    setMessage("");
+    setError("");
+
+    const payload = {
+      title: `محذوف - ${sectionTitle}`,
+      section_key: `archived-${section.id}-${section.section_key || "section"}`,
+      is_visible: false,
+      sort_order: 9999,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from("sections").update(payload).eq("id", section.id);
+
+    if (error) {
+      setError("فشل حذف القسم بشكل آمن. تحقق من صلاحيات جدول sections.");
+      return;
+    }
+
+    await logActivity(
+      "archive_section",
+      "sections",
+      String(section.id),
+      JSON.stringify(section),
+      JSON.stringify(payload)
+    );
+
+    if (editingSection?.id === section.id) {
+      clearForm();
+    }
+
+    setMessage("تم حذف القسم من الواجهة وأرشفته بأمان.");
+    await loadData();
+  }
+
   async function logActivity(action: string, entityType: string, entityId: string, oldData: string, newData: string) {
     if (!supabase) return;
     await supabase.from("activity_logs").insert({
@@ -340,10 +389,11 @@ export default function AdminSectionsPage() {
           </div>
         </section>
 
-        <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard title="كل الأقسام" value={sections.length} tone="purple" />
           <StatCard title="ظاهرة" value={visibleCount} tone="green" />
           <StatCard title="مخفية" value={hiddenCount} tone="yellow" />
+          <StatCard title="محذوفة بأمان" value={archivedCount} tone="red" />
           <StatCard title="الصفحات" value={pages.length} tone="blue" />
         </section>
 
@@ -451,26 +501,35 @@ export default function AdminSectionsPage() {
                 {filteredSections.length === 0 ? (
                   <tr><td colSpan={7} className="p-8 text-center text-white/50">لا توجد أقسام مطابقة.</td></tr>
                 ) : (
-                  filteredSections.map((section) => (
-                    <tr key={section.id} className="border-b border-white/5 align-top last:border-b-0">
-                      <td className="p-4">
-                        <div className="font-black text-white">{section.title || "بدون عنوان"}</div>
-                        <div className="mt-1 font-mono text-xs text-purple-200" dir="ltr">{section.section_key || "-"}</div>
-                        <div className="mt-2 max-w-sm text-sm leading-6 text-white/45">{section.subtitle || section.content || "لا يوجد محتوى بعد."}</div>
-                      </td>
-                      <td className="p-4 text-white/70">{getPageTitle(pages, section.page_id)}</td>
-                      <td className="p-4 text-sm text-white/60">{section.section_type || "content"}</td>
-                      <td className="p-4"><StatusBadge active={section.is_visible !== false} /></td>
-                      <td className="p-4 text-white/70">{section.sort_order || 1}</td>
-                      <td className="p-4 text-sm text-white/45">{formatDate(section.updated_at || section.created_at)}</td>
-                      <td className="p-4">
-                        <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={() => editSection(section)} className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-sm font-bold text-purple-100">تعديل</button>
-                          <button type="button" onClick={() => toggleSection(section)} className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm font-bold text-yellow-100">{section.is_visible !== false ? "إخفاء" : "إظهار"}</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  filteredSections.map((section) => {
+                    const archived = isArchivedSection(section);
+
+                    return (
+                      <tr key={section.id} className="border-b border-white/5 align-top last:border-b-0">
+                        <td className="p-4">
+                          <div className="font-black text-white">{section.title || "بدون عنوان"}</div>
+                          <div className="mt-1 font-mono text-xs text-purple-200" dir="ltr">{section.section_key || "-"}</div>
+                          <div className="mt-2 max-w-sm text-sm leading-6 text-white/45">{section.subtitle || section.content || "لا يوجد محتوى بعد."}</div>
+                        </td>
+                        <td className="p-4 text-white/70">{getPageTitle(pages, section.page_id)}</td>
+                        <td className="p-4 text-sm text-white/60">{section.section_type || "content"}</td>
+                        <td className="p-4">{archived ? <ArchivedBadge /> : <StatusBadge active={section.is_visible !== false} />}</td>
+                        <td className="p-4 text-white/70">{section.sort_order || 1}</td>
+                        <td className="p-4 text-sm text-white/45">{formatDate(section.updated_at || section.created_at)}</td>
+                        <td className="p-4">
+                          <div className="flex flex-wrap gap-2">
+                            <button type="button" onClick={() => editSection(section)} className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-sm font-bold text-purple-100">تعديل</button>
+                            {!archived && (
+                              <>
+                                <button type="button" onClick={() => toggleSection(section)} className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm font-bold text-yellow-100">{section.is_visible !== false ? "إخفاء" : "إظهار"}</button>
+                                <button type="button" onClick={() => archiveSection(section)} className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-bold text-red-100">حذف آمن</button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -517,7 +576,9 @@ function StatCard({ title, value, tone }: { title: string; value: number; tone: 
         ? "border-yellow-400/20 bg-yellow-500/10 text-yellow-100"
         : tone === "blue"
           ? "border-blue-400/20 bg-blue-500/10 text-blue-100"
-          : "border-purple-400/20 bg-purple-500/10 text-purple-100";
+          : tone === "red"
+            ? "border-red-400/20 bg-red-500/10 text-red-100"
+            : "border-purple-400/20 bg-purple-500/10 text-purple-100";
 
   return (
     <div className={`rounded-3xl border p-5 ${toneClass}`}>
@@ -532,5 +593,11 @@ function StatusBadge({ active }: { active: boolean }) {
     <span className="inline-flex rounded-full border border-green-400/25 bg-green-500/10 px-3 py-1 text-xs font-bold text-green-100">ظاهر</span>
   ) : (
     <span className="inline-flex rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-xs font-bold text-white/55">مخفي</span>
+  );
+}
+
+function ArchivedBadge() {
+  return (
+    <span className="inline-flex rounded-full border border-red-400/25 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-100">محذوف بأمان</span>
   );
 }
