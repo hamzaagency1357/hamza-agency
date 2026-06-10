@@ -26,6 +26,17 @@ type SuccessStory = {
   updated_at: string | null;
 };
 
+type MediaPickerItem = {
+  id: number;
+  name: string | null;
+  file_url: string | null;
+  file_type: string | null;
+  category: string | null;
+  alt_text: string | null;
+  page_slug: string | null;
+  is_active: boolean | null;
+};
+
 type StoryForm = {
   title: string;
   personName: string;
@@ -60,11 +71,28 @@ const statusOptions = [
   { value: "hidden", label: "مخفي" },
 ];
 
+function isSelectableMedia(item: MediaPickerItem) {
+  const fileType = (item.file_type || "").toLowerCase();
+  const fileUrl = item.file_url || "";
+
+  return (
+    Boolean(fileUrl) &&
+    (
+      fileType === "image" ||
+      fileType === "logo" ||
+      fileType === "icon" ||
+      fileType.startsWith("image") ||
+      /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileUrl)
+    )
+  );
+}
+
 export default function AdminSuccessStoriesPage() {
   const [adminStatus, setAdminStatus] = useState<AdminStatus>("checking");
   const [adminEmail, setAdminEmail] = useState("");
 
   const [stories, setStories] = useState<SuccessStory[]>([]);
+  const [mediaItems, setMediaItems] = useState<MediaPickerItem[]>([]);
   const [form, setForm] = useState<StoryForm>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
 
@@ -115,7 +143,7 @@ export default function AdminSuccessStoriesPage() {
 
     setAdminEmail(access.profile.email || access.user?.email || "");
     setAdminStatus("authorized");
-    await loadStories();
+    await Promise.all([loadStories(), loadMediaItems()]);
     setIsLoading(false);
   }
 
@@ -140,6 +168,21 @@ export default function AdminSuccessStoriesPage() {
     }
 
     setStories((data || []) as SuccessStory[]);
+  }
+
+  async function loadMediaItems() {
+    if (!supabase) return;
+
+    const { data, error } = await supabase
+      .from("media")
+      .select("id, name, file_url, file_type, category, alt_text, page_slug, is_active")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (error || !data) return;
+
+    setMediaItems(((data || []) as MediaPickerItem[]).filter(isSelectableMedia));
   }
 
   function updateForm(key: keyof StoryForm, value: string | boolean) {
@@ -399,7 +442,7 @@ export default function AdminSuccessStoriesPage() {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={async () => {
-                  await loadStories();
+                  await Promise.all([loadStories(), loadMediaItems()]);
                   showMessage("تم تحديث بيانات قصص النجاح بنجاح.", "success");
                 }}
                 className="rounded-2xl border border-white/10 bg-white/[0.05] px-5 py-3 text-sm font-bold text-white/75"
@@ -484,13 +527,44 @@ export default function AdminSuccessStoriesPage() {
                 />
               </Field>
 
-              <Field label="رابط صورة القصة - اختياري">
-                <input
-                  value={form.imageUrl}
-                  onChange={(event) => updateForm("imageUrl", event.target.value)}
-                  placeholder="https://..."
-                  className={inputClassName}
-                />
+              <Field label="صورة قصة النجاح - اختياري">
+                <div className="space-y-3">
+                  <input
+                    value={form.imageUrl}
+                    onChange={(event) => updateForm("imageUrl", event.target.value)}
+                    placeholder="https://..."
+                    className={inputClassName}
+                  />
+
+                  <select
+                    value=""
+                    onChange={(event) => {
+                      if (event.target.value) {
+                        updateForm("imageUrl", event.target.value);
+                        showMessage("تم اختيار صورة القصة من مكتبة الوسائط.", "success");
+                      }
+                    }}
+                    className={inputClassName}
+                  >
+                    <option value="">اختيار صورة من مكتبة الوسائط</option>
+                    {mediaItems.map((item) => (
+                      <option key={item.id} value={item.file_url || ""}>
+                        {item.name || item.alt_text || item.file_url}
+                      </option>
+                    ))}
+                  </select>
+
+                  {form.imageUrl && (
+                    <a
+                      href={form.imageUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex rounded-full border border-purple-400/25 bg-purple-500/10 px-4 py-2 text-xs font-bold text-purple-100"
+                    >
+                      فتح الصورة المختارة
+                    </a>
+                  )}
+                </div>
               </Field>
 
               <Field label="حالة النشر">
