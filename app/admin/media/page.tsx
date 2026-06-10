@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
@@ -31,7 +31,7 @@ type MediaForm = {
 };
 
 const MEDIA_BUCKET = "media-library";
-const MAX_UPLOAD_SIZE = 80 * 1024 * 1024;
+const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
 
 const emptyForm: MediaForm = {
   name: "",
@@ -42,6 +42,14 @@ const emptyForm: MediaForm = {
   page_slug: "",
   is_active: true,
 };
+
+const programSlugOptions = [
+  { slug: "tiktok", label: "TikTok" },
+  { slug: "bigo-live", label: "BIGO LIVE" },
+  { slug: "yaahlan", label: "Yaahlan" },
+  { slug: "xena", label: "Xena" },
+  { slug: "catchii", label: "Catchii" },
+];
 
 const defaultMedia = [
   {
@@ -103,7 +111,8 @@ const fileTypeLabels: Record<string, string> = {
 
 const categoryLabels: Record<string, string> = {
   general: "عام",
-  logo: "الشعارات",
+  logo: "الشعارات العامة",
+  "program-logo": "شعارات البرامج",
   background: "الخلفيات",
   section_visual: "صور الأقسام",
   programs: "البرامج",
@@ -248,6 +257,17 @@ export default function AdminMediaPage() {
     }));
   }
 
+  function applyProgramLogoPreset(slug: string, label: string) {
+    setForm((current) => ({
+      ...current,
+      file_type: "logo",
+      category: "program-logo",
+      page_slug: slug,
+      name: current.name || `${label} Logo`,
+      alt_text: current.alt_text || `شعار برنامج ${label}`,
+    }));
+  }
+
   function clearForm() {
     setSelectedMedia(null);
     setSelectedFile(null);
@@ -290,7 +310,7 @@ export default function AdminMediaPage() {
 
     if (file.size > MAX_UPLOAD_SIZE) {
       setSelectedFile(null);
-      showError("حجم الملف كبير. الحد الحالي 80MB للرفع من لوحة التحكم.");
+      showError("حجم الملف كبير. الحد الحالي 50MB للرفع من لوحة التحكم.");
       return;
     }
 
@@ -300,7 +320,7 @@ export default function AdminMediaPage() {
     setForm((current) => ({
       ...current,
       name: current.name || cleanNameFromFile(file.name),
-      file_type: detectedType,
+      file_type: current.category === "program-logo" ? "logo" : detectedType,
       category: detectedCategory,
       alt_text: current.alt_text || cleanNameFromFile(file.name),
     }));
@@ -372,7 +392,7 @@ export default function AdminMediaPage() {
     await loadMedia();
   }
 
-  async function saveMedia(event: React.FormEvent) {
+  async function saveMedia(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!supabase) return;
@@ -449,10 +469,7 @@ export default function AdminMediaPage() {
 
     const { error } = await supabase
       .from("media")
-      .update({
-        is_active: nextValue,
-        updated_at: new Date().toISOString(),
-      })
+      .update({ is_active: nextValue, updated_at: new Date().toISOString() })
       .eq("id", item.id);
 
     if (error) {
@@ -472,11 +489,11 @@ export default function AdminMediaPage() {
     await loadMedia();
   }
 
-  async function removeMedia(item: MediaItem) {
+  async function archiveMedia(item: MediaItem) {
     if (!supabase) return;
 
     const confirmed = window.confirm(
-      `هل أنت متأكد من حذف الوسيط: ${item.name || "بدون اسم"}؟`
+      `هل تريد حذف الوسيط من الواجهة: ${item.name || "بدون اسم"}؟ سيتم تعطيله وأرشفته بدون مسح نهائي.`
     );
 
     if (!confirmed) return;
@@ -484,52 +501,50 @@ export default function AdminMediaPage() {
     setMessage("");
     setError("");
 
-    const operationName = "de" + "lete";
-    const result = await (supabase.from("media") as unknown as Record<string, () => any>)[
-      operationName
-    ]().eq("id", item.id);
+    const archivePayload = {
+      is_active: false,
+      category: item.category ? `${item.category}-archived` : "archived",
+      updated_at: new Date().toISOString(),
+    };
+
+    const result = await supabase.from("media").update(archivePayload).eq("id", item.id);
 
     if (result.error) {
-      showError("فشل حذف الوسيط. تحقق من صلاحيات جدول media.");
+      showError("فشل أرشفة الوسيط. تحقق من صلاحيات جدول media.");
       return;
     }
 
     await logActivity(
-      "remove_media",
+      "archive_media",
       "media",
       String(item.id),
       JSON.stringify(item),
-      ""
+      JSON.stringify(archivePayload)
     );
 
-    if (selectedMedia?.id === item.id) {
-      clearForm();
-    }
+    if (selectedMedia?.id === item.id) clearForm();
 
-    showSuccess("تم حذف الوسيط من مكتبة الوسائط بنجاح.");
+    showSuccess("تم تعطيل الوسيط وأرشفته بأمان.");
     await loadMedia();
   }
 
   function copyUrl(url: string | null) {
     if (!url) return;
     navigator.clipboard.writeText(url);
-    alert("تم نسخ الرابط");
+    showSuccess("تم نسخ رابط الوسيط.");
   }
 
   function canPreviewImage(item: MediaItem) {
     const url = item.file_url || "";
     return (
-      item.file_type === "image" ||
-      item.file_type === "logo" ||
-      item.file_type === "icon"
+      item.file_type === "image" || item.file_type === "logo" || item.file_type === "icon"
     ) && (url.startsWith("http") || url.startsWith("/"));
   }
 
   function canPreviewVideo(item: MediaItem) {
     const url = item.file_url || "";
     return (
-      item.file_type === "video" ||
-      item.file_type === "background_video"
+      item.file_type === "video" || item.file_type === "background_video"
     ) && (url.startsWith("http") || url.startsWith("/"));
   }
 
@@ -566,10 +581,7 @@ export default function AdminMediaPage() {
 
   if (isCheckingAuth) {
     return (
-      <main
-        dir="rtl"
-        className="flex min-h-screen items-center justify-center bg-[#070009] text-white"
-      >
+      <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#070009] text-white">
         جاري التحقق من صلاحية الدخول...
       </main>
     );
@@ -577,10 +589,7 @@ export default function AdminMediaPage() {
 
   if (!isAuthorized) {
     return (
-      <main
-        dir="rtl"
-        className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white"
-      >
+      <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white">
         <div className="max-w-xl rounded-3xl border border-red-400/25 bg-red-500/10 p-8 text-center backdrop-blur">
           <div className="text-3xl font-black text-red-100">غير مصرح بالدخول</div>
           <p className="mt-4 leading-8 text-white/65">
@@ -591,10 +600,7 @@ export default function AdminMediaPage() {
               {error}
             </div>
           )}
-          <Link
-            href="/admin/login"
-            className="mt-6 inline-flex rounded-full bg-purple-600 px-7 py-4 font-black text-white"
-          >
+          <Link href="/admin/login" className="mt-6 inline-flex rounded-full bg-purple-600 px-7 py-4 font-black text-white">
             تسجيل الدخول
           </Link>
         </div>
@@ -612,22 +618,15 @@ export default function AdminMediaPage() {
             <p className="mb-2 text-sm text-purple-200">Core CMS Foundation</p>
             <h1 className="text-4xl font-black">مكتبة الوسائط</h1>
             <p className="mt-3 max-w-3xl leading-8 text-white/60">
-              إدارة ورفع الصور، الفيديوهات، الشعارات، الخلفيات، والملفات من لوحة
-              التحكم وربطها لاحقاً بصفحات وبرامج الموقع.
+              إدارة ورفع الصور، الفيديوهات، الشعارات، الخلفيات، والملفات من لوحة التحكم وربطها بصفحات وبرامج الموقع.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/admin"
-              className="rounded-2xl border border-white/15 px-4 py-3 text-white/80"
-            >
+            <Link href="/admin" className="rounded-2xl border border-white/15 px-4 py-3 text-white/80">
               العودة للوحة التحكم
             </Link>
-            <button
-              onClick={logout}
-              className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-200"
-            >
+            <button onClick={logout} className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-200">
               تسجيل الخروج
             </button>
           </div>
@@ -645,8 +644,7 @@ export default function AdminMediaPage() {
             <div>
               <h2 className="text-3xl font-black">وسائط افتراضية احترافية</h2>
               <p className="mt-2 leading-8 text-white/60">
-                هذه السجلات تدعم الخلفيات والهوية البصرية الحالية، ويمكن استبدالها
-                في أي وقت بملفات حقيقية من مكتبة الوسائط.
+                هذه السجلات تدعم الخلفيات والهوية البصرية الحالية، ويمكن استبدالها في أي وقت بملفات حقيقية من مكتبة الوسائط.
               </p>
             </div>
 
@@ -674,27 +672,15 @@ export default function AdminMediaPage() {
           )}
         </div>
 
-        <form
-          ref={formRef}
-          onSubmit={saveMedia}
-          className="mb-8 scroll-mt-24 rounded-[2rem] border border-purple-500/20 bg-black/35 p-6"
-        >
+        <form ref={formRef} onSubmit={saveMedia} className="mb-8 scroll-mt-24 rounded-[2rem] border border-purple-500/20 bg-black/35 p-6">
           <div className="mb-6 flex flex-col justify-between gap-3 md:flex-row md:items-center">
             <div>
-              <h2 className="text-3xl font-black">
-                {selectedMedia ? "تعديل وسيط" : "رفع وسيط جديد"}
-              </h2>
-              <p className="mt-2 text-white/55">
-                يمكنك رفع ملف من جهازك أو استخدام رابط خارجي جاهز.
-              </p>
+              <h2 className="text-3xl font-black">{selectedMedia ? "تعديل وسيط" : "رفع وسيط جديد"}</h2>
+              <p className="mt-2 text-white/55">يمكنك رفع ملف من جهازك أو استخدام رابط خارجي جاهز.</p>
             </div>
 
             {selectedMedia && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="rounded-xl border border-white/15 px-4 py-2 text-white/70"
-              >
+              <button type="button" onClick={resetForm} className="rounded-xl border border-white/15 px-4 py-2 text-white/70">
                 إلغاء التعديل
               </button>
             )}
@@ -715,15 +701,36 @@ export default function AdminMediaPage() {
                 onChange={(event) => handleFileSelect(event.target.files?.[0] || null)}
               />
               <div className="text-2xl font-black text-purple-100">اختيار ملف من الجهاز</div>
-              <div className="mt-2 text-sm text-white/55">
-                صور، فيديوهات، شعارات، وملفات حتى 80MB
-              </div>
+              <div className="mt-2 text-sm text-white/55">صور، فيديوهات، شعارات، وملفات حتى 50MB</div>
               {selectedFile && (
                 <div className="mt-4 rounded-2xl border border-green-400/25 bg-green-500/10 p-3 text-green-100">
                   الملف المختار: {selectedFile.name}
                 </div>
               )}
             </label>
+          </div>
+
+          <div className="mb-5 rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-5">
+            <h3 className="text-xl font-black text-yellow-100">وسم سريع لشعارات البرامج</h3>
+            <p className="mt-2 text-sm leading-7 text-white/60">
+              اختر البرنامج هنا قبل الحفظ ليظهر شعاره تلقائياً في صفحة البرامج العامة.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {programSlugOptions.map((program) => (
+                <button
+                  key={program.slug}
+                  type="button"
+                  onClick={() => applyProgramLogoPreset(program.slug, program.label)}
+                  className={`rounded-full border px-4 py-2 text-sm font-black ${
+                    form.page_slug === program.slug && form.category === "program-logo"
+                      ? "border-yellow-300 bg-yellow-400/20 text-yellow-100"
+                      : "border-white/10 bg-white/[0.04] text-white/70"
+                  }`}
+                >
+                  {program.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -765,19 +772,20 @@ export default function AdminMediaPage() {
               ))}
             </select>
 
-            <input
-              value={form.page_slug}
-              onChange={(e) => updateField("page_slug", e.target.value)}
-              placeholder="page_slug مثال: home أو programs أو global"
-              className="rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
-            />
+            <div className="grid gap-2">
+              <input
+                value={form.page_slug}
+                onChange={(e) => updateField("page_slug", e.target.value)}
+                placeholder="page_slug مثال: tiktok أو bigo-live"
+                className="rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
+              />
+              <p className="text-xs leading-6 text-white/45">
+                لشعارات البرامج استخدم: tiktok / bigo-live / yaahlan / xena / catchii.
+              </p>
+            </div>
 
             <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-4">
-              <input
-                type="checkbox"
-                checked={form.is_active}
-                onChange={(e) => updateField("is_active", e.target.checked)}
-              />
+              <input type="checkbox" checked={form.is_active} onChange={(e) => updateField("is_active", e.target.checked)} />
               مفعّل
             </label>
 
@@ -794,11 +802,7 @@ export default function AdminMediaPage() {
             disabled={isSaving}
             className="mt-6 rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 font-black disabled:opacity-60"
           >
-            {isSaving
-              ? "جارٍ الحفظ..."
-              : selectedMedia
-                ? "حفظ التعديل"
-                : "رفع وحفظ الوسيط"}
+            {isSaving ? "جارٍ الحفظ..." : selectedMedia ? "حفظ التعديل" : "رفع وحفظ الوسيط"}
           </button>
         </form>
 
@@ -806,9 +810,7 @@ export default function AdminMediaPage() {
           <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
               <h2 className="text-3xl font-black">قائمة الوسائط</h2>
-              <p className="mt-2 text-white/55">
-                كل وسيط يمكن استخدامه في الصفحات، البرامج، الخلفيات، والهوية.
-              </p>
+              <p className="mt-2 text-white/55">كل وسيط يمكن استخدامه في الصفحات، البرامج، الخلفيات، والهوية.</p>
             </div>
 
             <input
@@ -830,29 +832,20 @@ export default function AdminMediaPage() {
                     : "border-white/10 bg-white/[0.04] text-white/65"
                 }`}
               >
-                {category === "all"
-                  ? "الكل"
-                  : categoryLabels[category] || category}
+                {category === "all" ? "الكل" : categoryLabels[category] || category}
               </button>
             ))}
           </div>
 
           {filteredMedia.length === 0 ? (
-            <div className="rounded-3xl border border-yellow-500/30 bg-yellow-500/10 p-6 text-yellow-100">
-              لا توجد وسائط مطابقة حالياً.
-            </div>
+            <div className="rounded-3xl border border-yellow-500/30 bg-yellow-500/10 p-6 text-yellow-100">لا توجد وسائط مطابقة حالياً.</div>
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
               {filteredMedia.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-3xl border border-white/10 bg-white/[0.03] p-5"
-                >
+                <div key={item.id} className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
                   <div className="mb-4 flex items-start justify-between gap-4">
                     <div>
-                      <div className="text-sm text-purple-200">
-                        {categoryLabels[item.category || "general"] || item.category || "عام"}
-                      </div>
+                      <div className="text-sm text-purple-200">{categoryLabels[item.category || "general"] || item.category || "عام"}</div>
                       <h3 className="mt-1 text-2xl font-black">{item.name}</h3>
                       <p className="mt-2 text-sm text-white/45">
                         {fileTypeLabels[item.file_type || "image"] || item.file_type}
@@ -874,74 +867,43 @@ export default function AdminMediaPage() {
 
                   <div className="mb-4 overflow-hidden rounded-2xl border border-white/10 bg-black/50">
                     {canPreviewImage(item) ? (
-                      <img
-                        src={item.file_url || ""}
-                        alt={item.alt_text || item.name || "media"}
-                        className="h-72 w-full object-contain p-2"
-                      />
+                      <img src={item.file_url || ""} alt={item.alt_text || item.name || "media"} className="h-72 w-full object-contain p-2" />
                     ) : canPreviewVideo(item) ? (
-                      <video
-                        src={item.file_url || ""}
-                        className="h-72 w-full object-contain p-2"
-                        controls
-                      />
+                      <video src={item.file_url || ""} className="h-72 w-full object-contain p-2" controls />
                     ) : (
                       <div className="flex h-56 flex-col items-center justify-center p-6 text-center">
                         <div className="mb-3 text-5xl">◇</div>
                         <div className="text-lg font-bold text-purple-100">
-                          {item.file_type === "generated_background"
-                            ? "خلفية برمجية"
-                            : "ملف بدون معاينة مباشرة"}
+                          {item.file_type === "generated_background" ? "خلفية برمجية" : "ملف بدون معاينة مباشرة"}
                         </div>
-                        <p className="mt-2 break-all text-sm text-white/45">
-                          {item.file_url}
-                        </p>
+                        <p className="mt-2 break-all text-sm text-white/45">{item.file_url}</p>
                       </div>
                     )}
                   </div>
 
                   {canOpenMedia(item) && (
-                    <a
-                      href={item.file_url || "#"}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mb-4 inline-flex rounded-xl border border-white/15 px-4 py-2 text-sm text-white/75"
-                    >
+                    <a href={item.file_url || "#"} target="_blank" rel="noreferrer" className="mb-4 inline-flex rounded-xl border border-white/15 px-4 py-2 text-sm text-white/75">
                       فتح الملف كاملاً
                     </a>
                   )}
 
-                  <p className="mb-4 min-h-12 leading-7 text-white/60">
-                    {item.alt_text || "لا يوجد وصف لهذا الوسيط."}
-                  </p>
+                  <p className="mb-4 min-h-12 leading-7 text-white/60">{item.alt_text || "لا يوجد وصف لهذا الوسيط."}</p>
 
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => editMedia(item)}
-                      className="rounded-xl border border-purple-500/30 px-4 py-2 text-sm"
-                    >
+                    <button onClick={() => editMedia(item)} className="rounded-xl border border-purple-500/30 px-4 py-2 text-sm">
                       تعديل
                     </button>
 
-                    <button
-                      onClick={() => toggleMedia(item)}
-                      className="rounded-xl border border-yellow-500/30 px-4 py-2 text-sm text-yellow-100"
-                    >
+                    <button onClick={() => toggleMedia(item)} className="rounded-xl border border-yellow-500/30 px-4 py-2 text-sm text-yellow-100">
                       {item.is_active !== false ? "تعطيل" : "تفعيل"}
                     </button>
 
-                    <button
-                      onClick={() => copyUrl(item.file_url)}
-                      className="rounded-xl border border-green-500/30 px-4 py-2 text-sm text-green-100"
-                    >
+                    <button onClick={() => copyUrl(item.file_url)} className="rounded-xl border border-green-500/30 px-4 py-2 text-sm text-green-100">
                       نسخ الرابط
                     </button>
 
-                    <button
-                      onClick={() => removeMedia(item)}
-                      className="rounded-xl border border-red-500/30 px-4 py-2 text-sm text-red-100"
-                    >
-                      حذف
+                    <button onClick={() => archiveMedia(item)} className="rounded-xl border border-red-500/30 px-4 py-2 text-sm text-red-100">
+                      حذف آمن
                     </button>
                   </div>
                 </div>
