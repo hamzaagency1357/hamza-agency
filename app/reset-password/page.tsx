@@ -6,6 +6,22 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type PageStatus = "checking" | "ready" | "success" | "error";
 
+function getHashParams() {
+  const rawHash = window.location.hash.replace(/^#/, "");
+  const paramsPart = rawHash.includes("?")
+    ? (rawHash.split("?").pop() ?? "")
+    : rawHash;
+
+  return new URLSearchParams(paramsPart);
+}
+
+function getAuthParam(name: string) {
+  const url = new URL(window.location.href);
+  const hashParams = getHashParams();
+
+  return url.searchParams.get(name) ?? hashParams.get(name);
+}
+
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -14,47 +30,105 @@ export default function ResetPasswordPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    async function prepareRecoverySession() {
-      if (!isSupabaseConfigured || !supabase) {
-        setStatus("error");
-        setMessage("Supabase غير متصل حالياً.");
-        return;
-      }
+    let isMounted = true;
 
-      const hash = window.location.hash;
-
-      if (!hash) {
-        setStatus("error");
-        setMessage("رابط إعادة تعيين كلمة المرور غير مكتمل. أرسل رابطاً جديداً من Supabase.");
-        return;
-      }
-
-      const params = new URLSearchParams(hash.replace(/^#/, ""));
-      const accessToken = params.get("access_token");
-      const refreshToken = params.get("refresh_token");
-
-      if (!accessToken || !refreshToken) {
-        setStatus("error");
-        setMessage("رابط إعادة تعيين كلمة المرور منتهي أو غير صالح. أرسل رابطاً جديداً.");
-        return;
-      }
-
-      const { error } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-
-      if (error) {
-        setStatus("error");
-        setMessage("تعذر تفعيل جلسة إعادة التعيين. أرسل رابطاً جديداً وجرب مرة أخرى.");
-        return;
-      }
+    function markReady() {
+      if (!isMounted) return;
 
       setStatus("ready");
       setMessage("اكتب كلمة مرور جديدة لحساب الإدارة.");
+      window.history.replaceState(null, "", "/reset-password");
+    }
+
+    function markError(text: string) {
+      if (!isMounted) return;
+
+      setStatus("error");
+      setMessage(text);
+    }
+
+    async function prepareRecoverySession() {
+      if (!isSupabaseConfigured || !supabase) {
+        markError("Supabase غير متصل حالياً.");
+        return;
+      }
+
+      const authListener = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === "PASSWORD_RECOVERY" && session) {
+          markReady();
+        }
+      });
+
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
+        const { data: currentSessionData } = await supabase.auth.getSession();
+
+        if (currentSessionData.session) {
+          markReady();
+          return;
+        }
+
+        const urlError = getAuthParam("error_description") ?? getAuthParam("error");
+
+        if (urlError) {
+          markError(`رابط إعادة التعيين غير صالح من Supabase: ${decodeURIComponent(urlError)}`);
+          return;
+        }
+
+        const code = getAuthParam("code");
+
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+          if (error) {
+            markError(`تعذر تفعيل رابط إعادة التعيين من Supabase: ${error.message}`);
+            return;
+          }
+
+          markReady();
+          return;
+        }
+
+        const accessToken = getAuthParam("access_token");
+        const refreshToken = getAuthParam("refresh_token");
+
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (error) {
+            const { data: sessionAfterError } = await supabase.auth.getSession();
+
+            if (sessionAfterError.session) {
+              markReady();
+              return;
+            }
+
+            markError(`تعذر تفعيل جلسة إعادة التعيين من Supabase: ${error.message}`);
+            return;
+          }
+
+          markReady();
+          return;
+        }
+
+        markError("رابط إعادة تعيين كلمة المرور غير مكتمل أو انتهت صلاحيته. أرسل رابطاً جديداً من Supabase Authentication.");
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "خطأ غير معروف";
+        markError(`حدث خطأ أثناء تفعيل رابط إعادة التعيين: ${errorMessage}`);
+      } finally {
+        authListener.data.subscription.unsubscribe();
+      }
     }
 
     prepareRecoverySession();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -84,7 +158,7 @@ export default function ResetPasswordPage() {
 
     if (error) {
       setStatus("error");
-      setMessage("لم يتم حفظ كلمة المرور الجديدة. أرسل رابطاً جديداً وجرب مرة أخرى.");
+      setMessage(`لم يتم حفظ كلمة المرور الجديدة: ${error.message}`);
       return;
     }
 
