@@ -261,7 +261,13 @@ export async function requireAdminModuleAccess(
     return result;
   }
 
-  if (!canAccessAdminModule(result.profile.role, module)) {
+  const canViewModule = await canUseAdminModulePermission(
+    result.profile,
+    module,
+    "can_view"
+  );
+
+  if (!canViewModule) {
     return {
       ...result,
       isAuthorized: false,
