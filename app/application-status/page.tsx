@@ -67,8 +67,23 @@ const statusContent: Record<
   },
 };
 
+const privacyNotes = [
+  "تستخدم الصفحة رقم الواتساب فقط للبحث عن آخر طلب مرتبط به.",
+  "لا تعرض الصفحة الاسم الكامل أو الملاحظات أو الخبرات السابقة أو أي تفاصيل شخصية كاملة.",
+  "للدقة، أدخل نفس رقم الواتساب الذي استخدمته عند إرسال طلب الانضمام.",
+  "في مرحلة لاحقة يمكن تحسين التتبع ليصبح عبر كود طلب خاص بدلاً من الرقم فقط.",
+];
+
 function normalizeDigits(value: string) {
   return value.replace(/[^0-9]/g, "");
+}
+
+function maskWhatsapp(value: string | null) {
+  const digits = normalizeDigits(value || "");
+
+  if (digits.length < 4) return "غير معروض";
+
+  return `•••• ${digits.slice(-4)}`;
 }
 
 function getStatusInfo(status: string | null) {
@@ -111,8 +126,8 @@ export default function ApplicationStatusPage() {
 
     const cleanedWhatsapp = normalizeDigits(whatsapp);
 
-    if (!cleanedWhatsapp || cleanedWhatsapp.length < 6) {
-      setMessage("يرجى إدخال رقم واتساب صحيح للبحث عن حالة الطلب.");
+    if (!cleanedWhatsapp || cleanedWhatsapp.length < 8) {
+      setMessage("يرجى إدخال رقم واتساب صحيح لا يقل عن 8 أرقام للبحث عن حالة الطلب.");
       return;
     }
 
@@ -207,6 +222,8 @@ export default function ApplicationStatusPage() {
               value={whatsapp}
               onChange={(event) => setWhatsapp(event.target.value)}
               placeholder="مثال: +905011730377"
+              inputMode="tel"
+              autoComplete="tel"
               className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition placeholder:text-white/35 focus:border-purple-400/60"
             />
 
@@ -224,9 +241,14 @@ export default function ApplicationStatusPage() {
               </div>
             )}
 
-            <p className="mt-5 text-sm leading-7 text-white/45">
-              لحماية الخصوصية، تعرض هذه الصفحة حالة الطلب فقط ولا تعرض التفاصيل الشخصية الكاملة.
-            </p>
+            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <h2 className="text-sm font-black text-white/80">خصوصية التتبع</h2>
+              <div className="mt-3 grid gap-2 text-sm leading-7 text-white/48">
+                {privacyNotes.map((note) => (
+                  <p key={note}>{note}</p>
+                ))}
+              </div>
+            </div>
           </form>
 
           <aside className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur">
@@ -249,6 +271,8 @@ export default function ApplicationStatusPage() {
                 <div className="grid gap-3 sm:grid-cols-2">
                   <InfoBox label="المنصة" value={application.platform || "غير محدد"} />
                   <InfoBox label="تاريخ الطلب" value={formatDate(application.created_at)} />
+                  <InfoBox label="رقم البحث" value={maskWhatsapp(application.whatsapp)} />
+                  <InfoBox label="طريقة المتابعة" value="واتساب رسمي" />
                 </div>
 
                 <a
