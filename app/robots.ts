@@ -1,7 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://hamza-agency.com";
+const siteUrl = "https://hamza-agency.com";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -9,10 +8,17 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/admin", "/admin/", "/admin/login", "/api/"],
+        disallow: [
+          "/admin",
+          "/admin/",
+          "/admin/login",
+          "/api/",
+          "/service-status",
+          "/application-status",
+        ],
       },
     ],
     sitemap: `${siteUrl}/sitemap.xml`,
-    host: siteUrl,
+    host: "hamza-agency.com",
   };
 }
