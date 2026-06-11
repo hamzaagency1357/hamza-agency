@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import PublicQuickNav from "@/components/PublicQuickNav";
+import AdminQuickNav from "@/components/AdminQuickNav";
 import PublicDesktopEnhancer from "@/components/PublicDesktopEnhancer";
 import VisualBackgroundPresets from "@/components/VisualBackgroundPresets";
 import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
@@ -141,6 +142,7 @@ export default function RootLayout({
         <VisualBackgroundPresets />
         {children}
         <PublicQuickNav />
+        <AdminQuickNav />
       </body>
     </html>
   );
