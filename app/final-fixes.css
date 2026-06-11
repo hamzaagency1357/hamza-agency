@@ -21,7 +21,7 @@ body > div[class^="sticky"] {
   user-select: none;
 }
 
-/* Final launch header cleanup: keep the home hero header focused and move secondary routes to the quick menu/footer. */
+/* Final launch header cleanup: keep the home hero header focused and move secondary routes to the footer. */
 main > nav a[href="/service-status"],
 main > nav a[href="/application-status"],
 main > nav a[href="/jobs"],
@@ -48,8 +48,12 @@ main > div.lg\:hidden a[href="/faq"] {
 
 /* Final launch mode: hide the floating site pages button from public visitors. */
 body > div.fixed.bottom-4.right-4.z-\[35\].print\:hidden,
-body > div[dir="rtl"][class*="bottom-4"][class*="right-4"][class*="z-[35]"] {
+body > div[dir="rtl"][class*="bottom-4"][class*="right-4"][class*="z-[35]"],
+body > div[dir="rtl"][class*="bottom-4"][class*="right-4"]:has(button[aria-label*="قائمة"]),
+body > div[dir="rtl"][class*="bottom-4"][class*="right-4"]:has(button[aria-label*="الموقع"]) {
   display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 /* Remove the long splash overlay in final public mode. */
@@ -122,6 +126,14 @@ main > div.fixed.inset-0.z-50 {
     font-size: 0.76rem !important;
     padding: 0.52rem 0.8rem !important;
     min-width: max-content !important;
+  }
+
+  body.public-site-page .hamza-marquee-track {
+    font-size: 0.76rem !important;
+    line-height: 1.65 !important;
+    padding-top: 0.52rem !important;
+    padding-bottom: 0.52rem !important;
+    max-width: none !important;
   }
 
   body.public-site-page section:first-of-type {
@@ -248,8 +260,7 @@ main > div.fixed.inset-0.z-50 {
   body.public-site-page .premium-gold-soft,
   body.public-site-page .premium-glint,
   body.public-site-page .premium-hero-aura,
-  body.public-site-page .premium-hero-gold,
-  body.public-site-page .hamza-marquee-track {
+  body.public-site-page .premium-hero-gold {
     animation: none !important;
     will-change: auto !important;
   }
@@ -263,6 +274,12 @@ main > div.fixed.inset-0.z-50 {
   body.public-site-page .rounded-\[2\.5rem\] {
     backdrop-filter: blur(8px) !important;
   }
+}
+
+/* Restore announcement marquee only; background animations stay disabled on mobile. */
+body.public-site-page .hamza-marquee-track {
+  animation: hamzaMarquee var(--marquee-duration, 22s) linear infinite !important;
+  will-change: transform !important;
 }
 
 @media (max-width: 380px) {
