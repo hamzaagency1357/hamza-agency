@@ -43,6 +43,12 @@ const statusContent: Record<
       "يقوم فريق الوكالة بمراجعة تفاصيل الخدمة وقد يتم التواصل معك عبر واتساب عند الحاجة.",
     className: "border-yellow-400/30 bg-yellow-500/10 text-yellow-100",
   },
+  contacted: {
+    label: "تم التواصل",
+    description:
+      "تم التواصل معك أو تجهيز الطلب للمتابعة عبر واتساب حسب بيانات الطلب.",
+    className: "border-cyan-400/30 bg-cyan-500/10 text-cyan-100",
+  },
   processing: {
     label: "قيد التنفيذ",
     description:
@@ -71,6 +77,12 @@ const statusContent: Record<
     label: "غير متاح حالياً",
     description:
       "لا يمكن تنفيذ هذا الطلب في الوقت الحالي. يمكنك التواصل مع فريق الوكالة لمعرفة البدائل المناسبة.",
+    className: "border-red-400/30 bg-red-500/10 text-red-100",
+  },
+  canceled: {
+    label: "ملغي",
+    description:
+      "تم إلغاء الطلب أو إيقاف متابعته. يمكنك التواصل معنا عبر واتساب عند الحاجة.",
     className: "border-red-400/30 bg-red-500/10 text-red-100",
   },
   cancelled: {
