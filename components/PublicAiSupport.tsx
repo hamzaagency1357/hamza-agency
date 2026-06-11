@@ -1,0 +1,259 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+
+type KnowledgeRow = Record<string, unknown>;
+type ChatMessage = {
+  role: "assistant" | "user";
+  text: string;
+};
+
+const whatsappNumber = "905011730377";
+const fallbackAnswers = [
+  {
+    keywords: ["انضم", "انضمام", "تقديم", "join", "creator", "agency"],
+    answer:
+      "للانضمام إلى وكالة حمزة، اضغط على زر طلب الانضمام أو افتح صفحة البرامج واختر البرنامج المناسب، ثم املأ بياناتك وسيتم التواصل معك عبر واتساب.",
+  },
+  {
+    keywords: ["خدمة", "طلب", "شحن", "سحب", "service", "topup", "withdrawal"],
+    answer:
+      "لطلب خدمة رقمية أو متابعة شحن/سحب، افتح صفحة طلب خدمة واكتب رقم واتسابك والمنصة والتفاصيل المطلوبة. بعد الإرسال سيظهر لك كود متابعة الطلب.",
+  },
+  {
+    keywords: ["حالة", "تتبع", "متابعة", "status", "track"],
+    answer:
+      "يمكنك تتبع طلب الخدمة من صفحة تتبع طلب خدمة باستخدام كود الطلب، أو تتبع طلب الانضمام من صفحة تتبع طلب الانضمام باستخدام رقم الواتساب.",
+  },
+  {
+    keywords: ["واتساب", "تواصل", "رقم", "whatsapp", "contact"],
+    answer:
+      "يمكنك التواصل مباشرة مع فريق وكالة حمزة عبر واتساب على الرقم +905011730377.",
+  },
+  {
+    keywords: ["تيك", "tiktok", "bigo", "بيجو", "yaahlan", "xena", "catchii"],
+    answer:
+      "البرامج المتاحة حالياً تشمل TikTok وBIGO LIVE وYaahlan وXena وCatchii. يمكنك مراجعة صفحة البرامج لاختيار البرنامج المناسب.",
+  },
+];
+
+function getString(row: KnowledgeRow, keys: string[], fallback = "") {
+  for (const key of keys) {
+    const value = row[key];
+    if (value === null || value === undefined) continue;
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+  }
+
+  return fallback;
+}
+
+function isPublished(row: KnowledgeRow) {
+  const status = getString(row, ["status", "state", "visibility"], "").toLowerCase();
+  if (["published", "active", "visible", "enabled"].includes(status)) return true;
+  if (["draft", "hidden", "inactive", "disabled", "archived"].includes(status)) return false;
+
+  return ["is_visible", "is_published", "published", "is_active"].some((key) => row[key] === true);
+}
+
+function normalizeText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^؀-ۿa-z0-9]+/g, " ")
+    .trim();
+}
+
+function scoreKnowledge(question: string, row: KnowledgeRow) {
+  const questionWords = normalizeText(question)
+    .split(" ")
+    .filter((word) => word.length > 2);
+
+  const title = getString(row, ["title", "question", "name", "headline", "label"], "");
+  const content = getString(row, ["content", "answer", "description", "body", "summary", "text"], "");
+  const category = getString(row, ["category", "type", "section", "module", "group"], "");
+  const searchableText = normalizeText(`${title} ${content} ${category}`);
+
+  return questionWords.reduce((score, word) => {
+    if (searchableText.includes(word)) return score + 1;
+    return score;
+  }, 0);
+}
+
+function getKnowledgeAnswer(question: string, knowledgeRows: KnowledgeRow[]) {
+  const publishedRows = knowledgeRows.filter(isPublished);
+  const rankedRows = publishedRows
+    .map((row) => ({ row, score: scoreKnowledge(question, row) }))
+    .filter((item) => item.score > 0)
+    .sort((first, second) => second.score - first.score);
+
+  const bestMatch = rankedRows[0]?.row;
+  if (!bestMatch) return "";
+
+  return getString(bestMatch, ["answer", "content", "description", "body", "summary", "text"], "");
+}
+
+function getFallbackAnswer(question: string) {
+  const normalizedQuestion = normalizeText(question);
+
+  return fallbackAnswers.find((item) =>
+    item.keywords.some((keyword) => normalizedQuestion.includes(normalizeText(keyword)))
+  )?.answer || "";
+}
+
+export default function PublicAiSupport() {
+  const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      role: "assistant",
+      text: "أهلاً بك في الدعم الذكي لوكالة حمزة. اسألني عن الانضمام، البرامج، طلبات الخدمات، أو طريقة التواصل.",
+    },
+  ]);
+  const [knowledgeRows, setKnowledgeRows] = useState<KnowledgeRow[]>([]);
+  const [isLoadingKnowledge, setIsLoadingKnowledge] = useState(false);
+  const [isAnswering, setIsAnswering] = useState(false);
+
+  useEffect(() => {
+    async function loadKnowledge() {
+      if (!isSupabaseConfigured || !supabase) return;
+
+      setIsLoadingKnowledge(true);
+      const { data } = await supabase.from("knowledge_base").select("*").limit(200);
+      setKnowledgeRows((data || []) as KnowledgeRow[]);
+      setIsLoadingKnowledge(false);
+    }
+
+    loadKnowledge();
+  }, []);
+
+  const whatsappLink = useMemo(() => {
+    const text = encodeURIComponent("مرحباً وكالة حمزة، أحتاج مساعدة من الدعم.");
+    return `https://wa.me/${whatsappNumber}?text=${text}`;
+  }, []);
+
+  if (pathname.startsWith("/admin") || pathname === "/maintenance") return null;
+
+  async function saveUnansweredQuestion(text: string) {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    await supabase.from("ai_unanswered_questions").insert({
+      question: text,
+      status: "new",
+      source: "public_ai_support",
+      created_at: new Date().toISOString(),
+    });
+  }
+
+  async function saveConversation(userMessage: string, assistantReply: string) {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    await supabase.from("ai_conversations").insert({
+      question: userMessage,
+      answer: assistantReply,
+      status: assistantReply ? "answered" : "escalated",
+      source: "public_ai_support",
+      created_at: new Date().toISOString(),
+    });
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const userQuestion = question.trim();
+    if (!userQuestion || isAnswering) return;
+
+    setQuestion("");
+    setIsAnswering(true);
+    setMessages((current) => [...current, { role: "user", text: userQuestion }]);
+
+    const answerFromKnowledge = getKnowledgeAnswer(userQuestion, knowledgeRows);
+    const fallbackAnswer = answerFromKnowledge || getFallbackAnswer(userQuestion);
+    const assistantReply = fallbackAnswer || "لم أجد جواباً مؤكداً من معلومات الوكالة الحالية. تم تسجيل سؤالك للمتابعة، ويمكنك التواصل مباشرة عبر واتساب للحصول على رد أسرع.";
+
+    if (!fallbackAnswer) {
+      await saveUnansweredQuestion(userQuestion);
+    }
+
+    await saveConversation(userQuestion, assistantReply);
+
+    setMessages((current) => [...current, { role: "assistant", text: assistantReply }]);
+    setIsAnswering(false);
+  }
+
+  return (
+    <div dir="rtl" className="fixed bottom-20 right-4 z-[65] print:hidden md:bottom-24">
+      {isOpen && (
+        <div className="mb-3 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-[2rem] border border-fuchsia-400/25 bg-[#09000f]/95 shadow-[0_0_70px_rgba(168,85,247,0.32)] backdrop-blur-xl">
+          <div className="border-b border-white/10 bg-gradient-to-r from-fuchsia-600/25 to-purple-600/20 p-4">
+            <div className="text-xs font-black uppercase tracking-[0.25em] text-fuchsia-100">AI Support</div>
+            <div className="mt-1 text-lg font-black text-white">الدعم الذكي</div>
+            <p className="mt-2 text-xs leading-6 text-white/55">
+              إجابات آمنة من معلومات وكالة حمزة. للأسئلة الخاصة أو الحساسة استخدم واتساب.
+            </p>
+          </div>
+
+          <div className="max-h-80 space-y-3 overflow-y-auto p-4">
+            {messages.map((message, index) => (
+              <div
+                key={`${message.role}-${index}`}
+                className={`rounded-2xl p-3 text-sm leading-7 ${
+                  message.role === "assistant"
+                    ? "border border-purple-400/20 bg-purple-500/10 text-purple-50"
+                    : "mr-auto max-w-[85%] border border-yellow-400/20 bg-yellow-500/10 text-yellow-50"
+                }`}
+              >
+                {message.text}
+              </div>
+            ))}
+
+            {isLoadingKnowledge && (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-xs text-white/45">
+                جاري تجهيز قاعدة المعرفة...
+              </div>
+            )}
+          </div>
+
+          <form onSubmit={handleSubmit} className="border-t border-white/10 p-3">
+            <textarea
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              placeholder="اكتب سؤالك هنا..."
+              className="min-h-20 w-full resize-none rounded-2xl border border-white/10 bg-black/30 p-3 text-sm leading-7 text-white outline-none placeholder:text-white/35 focus:border-fuchsia-300/50"
+            />
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="submit"
+                disabled={isAnswering}
+                className="rounded-2xl bg-gradient-to-r from-fuchsia-600 to-purple-600 px-4 py-3 text-sm font-black text-white disabled:opacity-60"
+              >
+                {isAnswering ? "جاري الرد..." : "إرسال"}
+              </button>
+
+              <a
+                href={whatsappLink}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-2xl border border-green-400/25 bg-green-500/10 px-4 py-3 text-center text-sm font-black text-green-100"
+              >
+                واتساب
+              </a>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setIsOpen((current) => !current)}
+        aria-label={isOpen ? "إغلاق الدعم الذكي" : "فتح الدعم الذكي"}
+        className="rounded-full border border-fuchsia-300/35 bg-[#12051f]/95 px-5 py-3 text-sm font-black text-fuchsia-100 shadow-[0_0_35px_rgba(168,85,247,0.28)] transition hover:bg-purple-900/90"
+      >
+        {isOpen ? "إغلاق الدعم" : "الدعم الذكي"}
+      </button>
+    </div>
+  );
+}
