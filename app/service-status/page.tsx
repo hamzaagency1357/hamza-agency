@@ -101,6 +101,13 @@ const serviceTypeLabels: Record<string, string> = {
   other: "طلب آخر",
 };
 
+const trackingNotes = [
+  "استخدم كود الطلب كما ظهر بعد الإرسال بدون مسافات إضافية.",
+  "صفحة التتبع تعرض حالة الطلب العامة فقط ولا تعرض تفاصيل حساسة أو بيانات دفع.",
+  "احتفظ بكود الطلب لأن الوكالة قد تطلبه منك عند المتابعة عبر واتساب.",
+  "أي تفاصيل تنفيذ أو تأكيد نهائي يتم عبر القنوات الرسمية وليس من صفحة التتبع وحدها.",
+];
+
 function normalizeRequestCode(value: string) {
   return value.trim().toUpperCase().replace(/\s+/g, "");
 }
@@ -250,6 +257,7 @@ export default function ServiceStatusPage() {
               onChange={(event) => setRequestCode(event.target.value)}
               placeholder="مثال: SR-2026-123456"
               dir="ltr"
+              autoComplete="off"
               className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-left text-white outline-none transition placeholder:text-white/35 focus:border-purple-400/60"
             />
 
@@ -267,9 +275,14 @@ export default function ServiceStatusPage() {
               </div>
             )}
 
-            <p className="mt-5 text-sm leading-7 text-white/45">
-              لحماية الخصوصية، تعرض هذه الصفحة حالة الطلب فقط ولا تعرض تفاصيل شخصية كاملة.
-            </p>
+            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <h2 className="text-sm font-black text-white/80">ملاحظات التتبع والخصوصية</h2>
+              <div className="mt-3 grid gap-2 text-sm leading-7 text-white/48">
+                {trackingNotes.map((note) => (
+                  <p key={note}>{note}</p>
+                ))}
+              </div>
+            </div>
           </form>
 
           <aside className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur">
@@ -307,6 +320,11 @@ export default function ServiceStatusPage() {
                     label="تاريخ الطلب"
                     value={formatDate(serviceRequest.created_at)}
                   />
+                  <InfoBox
+                    label="آخر تحديث"
+                    value={formatDate(serviceRequest.updated_at || serviceRequest.created_at)}
+                  />
+                  <InfoBox label="طريقة المتابعة" value="واتساب رسمي" />
                 </div>
 
                 <a
