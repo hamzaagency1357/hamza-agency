@@ -111,7 +111,7 @@ export default function AdminAiSupportPage() {
 
   useEffect(() => {
     async function checkAccess() {
-      const access = await requireAdminModuleAccess("dashboard");
+      const access = await requireAdminModuleAccess("ai_support");
 
       if (!access.isAuthorized || !access.profile) {
         setIsAuthorized(false);
@@ -259,97 +259,80 @@ export default function AdminAiSupportPage() {
           </div>
         </div>
 
-        <div className="mb-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-sm text-white/55">
-          حساب الإدارة: <span className="text-white">{adminEmail}</span>
-        </div>
+        {error && <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">{error}</div>}
 
-        {error && (
-          <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 leading-8 text-red-100">
-            {error}
-          </div>
-        )}
-
-        <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <StatCard label="المحادثات" value={conversations.length} tone="purple" />
+        <div className="mb-8 grid gap-4 md:grid-cols-3">
+          <StatCard label="إجمالي العناصر" value={allItems.length} tone="purple" />
           <StatCard label="تمت الإجابة" value={answeredCount} tone="green" />
           <StatCard label="غير مجاب" value={unansweredCount} tone="red" />
-          <StatCard label="محول للمتابعة" value={escalatedCount} tone="yellow" />
-          <StatCard label="إجمالي العناصر" value={allItems.length} tone="cyan" />
         </div>
 
-        <section className="mb-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="ابحث في السؤال أو الرد أو الزائر..."
-              className="w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none placeholder:text-white/35 focus:border-fuchsia-300/40"
-            />
-            <select
-              value={filter}
-              onChange={(event) => setFilter(event.target.value as FilterKey)}
-              className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-fuchsia-300/40"
-            >
-              {filters.map((item) => (
-                <option key={item.key} value={item.key} className="bg-[#120018]">
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </section>
-
-        <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-2xl font-black">متابعة الدعم الذكي</h2>
-              <p className="mt-2 text-sm text-white/45">عدد النتائج: {filteredItems.length}</p>
-            </div>
+        <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="flex flex-wrap gap-3">
+            {filters.map((item) => (
+              <FilterButton key={item.key} active={filter === item.key} onClick={() => setFilter(item.key)}>
+                {item.label}
+              </FilterButton>
+            ))}
           </div>
 
-          {filteredItems.length === 0 && (
-            <div className="rounded-3xl border border-white/10 bg-black/25 p-8 text-center text-white/55">
-              لا توجد محادثات أو أسئلة مطابقة حالياً.
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="بحث في الدعم الذكي..."
+            className="w-full rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-white outline-none placeholder:text-white/35 focus:border-fuchsia-300/50"
+          />
+        </div>
+
+        <div className="grid gap-4">
+          {filteredItems.length === 0 && !error && (
+            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center text-white/55">
+              لا توجد عناصر دعم ذكي مطابقة حالياً.
             </div>
           )}
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            {filteredItems.map((item, index) => {
-              const status = item.source === "unanswered" ? "unanswered" : getStatus(item.row);
+          {filteredItems.map((item, index) => {
+            const status = item.source === "unanswered" ? "unanswered" : getStatus(item.row);
+            const answer = getAnswer(item.row);
 
-              return (
-                <article key={`${item.source}-${getRecordId(item.row)}-${index}`} className={`rounded-3xl border p-5 ${toneClass(toneForStatus(status))}`}>
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <div className="mb-3 inline-flex rounded-full border border-white/10 bg-black/20 px-4 py-1 text-sm font-black">
-                        {item.source === "unanswered" ? "غير مجاب" : getStatusLabel(item.row)}
-                      </div>
-                      <h3 className="text-2xl font-black">{getQuestion(item.row)}</h3>
-                      <p className="mt-2 text-sm opacity-75">الزائر: {getVisitor(item.row)}</p>
-                      <p className="mt-1 text-sm opacity-75">المعرّف: {getRecordId(item.row)}</p>
-                    </div>
+            return (
+              <article key={`${item.source}-${getRecordId(item.row)}-${index}`} className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur transition hover:border-fuchsia-400/40 hover:bg-fuchsia-500/10">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <Badge tone={toneForStatus(status)}>{item.source === "unanswered" ? "غير مجاب" : getStatusLabel(item.row)}</Badge>
+                  <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-black text-white/60">
+                    {item.source === "unanswered" ? "سؤال غير مجاب" : "محادثة"}
+                  </span>
+                </div>
 
-                    <div className="text-sm opacity-70 md:text-left">
-                      {formatDate(getCreatedAt(item.row))}
-                    </div>
+                <h2 className="text-2xl font-black leading-9">{getQuestion(item.row)}</h2>
+                <div className="mt-2 grid gap-2 text-sm text-white/55 md:grid-cols-3">
+                  <div>الزائر: <span className="text-white/80">{getVisitor(item.row)}</span></div>
+                  <div>الرقم: <span className="text-white/80" dir="ltr">{getRecordId(item.row)}</span></div>
+                  <div>التاريخ: <span className="text-white/80">{formatDate(getCreatedAt(item.row))}</span></div>
+                </div>
+
+                {answer && (
+                  <div className="mt-4 rounded-2xl border border-green-400/20 bg-green-500/10 p-4 leading-8 text-green-50/90">
+                    {answer}
                   </div>
+                )}
 
-                  {getAnswer(item.row) && (
-                    <p className="mt-4 line-clamp-4 leading-8 opacity-80">
-                      {getAnswer(item.row)}
-                    </p>
-                  )}
-
-                  {!getAnswer(item.row) && item.source !== "unanswered" && (
-                    <pre className="mt-4 max-h-44 overflow-auto whitespace-pre-wrap rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-7 opacity-75">
+                {formatValue(item.row) !== "غير متوفر" && (
+                  <details className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-xs text-white/50">
+                    <summary className="cursor-pointer font-black text-white/70">عرض البيانات الخام</summary>
+                    <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap text-left leading-6" dir="ltr">
                       {formatValue(item.row)}
                     </pre>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        </section>
+                  </details>
+                )}
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="mt-8 rounded-3xl border border-cyan-400/20 bg-cyan-500/10 p-5 leading-8 text-cyan-50/85">
+          الحالات المحولة للمتابعة البشرية: {escalatedCount}. يتم التعامل معها من خلال واتساب أو فريق الإدارة حسب إعدادات الدعم.
+        </div>
       </section>
     </main>
   );
@@ -357,16 +340,26 @@ export default function AdminAiSupportPage() {
 
 function StatCard({ label, value, tone }: { label: string; value: number; tone: Tone }) {
   return (
-    <div className={`rounded-3xl border p-5 ${toneClass(tone)}`}>
+    <div className={`rounded-3xl border p-5 ${toneSoftClasses(tone)}`}>
       <div className="text-sm font-bold opacity-75">{label}</div>
-      <div className="mt-2 text-4xl font-black" dir="ltr">
-        {value}
-      </div>
+      <div className="mt-2 text-4xl font-black" dir="ltr">{value}</div>
     </div>
   );
 }
 
-function toneClass(tone: Tone) {
+function FilterButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} className={active ? "rounded-full bg-fuchsia-600 px-5 py-3 text-sm font-black text-white" : "rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-bold text-white/65"}>
+      {children}
+    </button>
+  );
+}
+
+function Badge({ children, tone }: { children: React.ReactNode; tone: Tone }) {
+  return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${toneSoftClasses(tone)}`}>{children}</span>;
+}
+
+function toneSoftClasses(tone: Tone) {
   const classes: Record<Tone, string> = {
     purple: "border-purple-400/20 bg-purple-500/10 text-purple-100",
     green: "border-green-400/20 bg-green-500/10 text-green-100",
