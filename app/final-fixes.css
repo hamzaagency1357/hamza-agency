@@ -20,3 +20,28 @@ body > div[class^="sticky"] {
 [aria-hidden="true"].hamza-visual-background-presets {
   user-select: none;
 }
+
+/* Final launch header cleanup: keep the home hero header focused and move secondary routes to the quick menu/footer. */
+main > nav a[href="/service-status"],
+main > nav a[href="/application-status"],
+main > nav a[href="/jobs"],
+main > nav a[href="/reviews"],
+main > nav a[href="/success-stories"],
+main > nav a[href="/partners"],
+main > nav a[href="/gallery"],
+main > nav a[href="/knowledge-center"],
+main > nav a[href="/faq"] {
+  display: none !important;
+}
+
+main > div.lg\:hidden a[href="/service-status"],
+main > div.lg\:hidden a[href="/application-status"],
+main > div.lg\:hidden a[href="/jobs"],
+main > div.lg\:hidden a[href="/reviews"],
+main > div.lg\:hidden a[href="/success-stories"],
+main > div.lg\:hidden a[href="/partners"],
+main > div.lg\:hidden a[href="/gallery"],
+main > div.lg\:hidden a[href="/knowledge-center"],
+main > div.lg\:hidden a[href="/faq"] {
+  display: none !important;
+}
