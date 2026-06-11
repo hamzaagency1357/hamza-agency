@@ -6,14 +6,14 @@ import { useEffect, useState } from "react";
 
 const publicLinkGroups = [
   {
-    title: "الصفحات الأساسية",
+    title: "أساسيات الوكالة",
     links: [
       { label: "الرئيسية", href: "/" },
       { label: "البرامج", href: "/programs" },
       { label: "من نحن", href: "/about" },
       { label: "الخدمات", href: "/services" },
       { label: "الخدمات الرقمية", href: "/digital-services" },
-      { label: "اتصل بنا", href: "/contact" },
+      { label: "تواصل معنا", href: "/contact" },
     ],
   },
   {
@@ -37,7 +37,7 @@ const publicLinkGroups = [
     ],
   },
   {
-    title: "الصفحات القانونية",
+    title: "معلومات قانونية",
     links: [
       { label: "سياسة الخصوصية", href: "/privacy-policy" },
       { label: "الشروط والأحكام", href: "/terms-and-conditions" },
@@ -57,7 +57,7 @@ export default function PublicQuickNav() {
 
     if (pathname.startsWith("/admin") || pathname === "/maintenance") return;
 
-    const delay = pathname === "/" ? 3600 : 600;
+    const delay = pathname === "/" ? 6200 : 1200;
     const timer = window.setTimeout(() => setIsVisible(true), delay);
 
     return () => window.clearTimeout(timer);
@@ -74,10 +74,10 @@ export default function PublicQuickNav() {
               HAMZA AGENCY
             </div>
             <div className="mt-1 text-sm font-black text-white">
-              صفحات الموقع
+              قائمة الموقع
             </div>
             <p className="mt-2 text-xs leading-6 text-white/55">
-              مراجعة سريعة لكل الصفحات العامة المهمة بدون الرجوع للرئيسية.
+              تنقل سريع بين أقسام الوكالة، البرامج، الطلبات، وصفحات المعلومات الرسمية.
             </p>
           </div>
 
@@ -89,8 +89,7 @@ export default function PublicQuickNav() {
                 </div>
 
                 {group.links.map((link) => {
-                  const active =
-                    link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
+                  const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
 
                   return (
                     <Link
@@ -119,10 +118,10 @@ export default function PublicQuickNav() {
       <button
         type="button"
         onClick={() => setIsOpen((current) => !current)}
-        aria-label={isOpen ? "إغلاق صفحات الموقع" : "فتح صفحات الموقع"}
-        className="rounded-full border border-yellow-300/35 bg-[#12051f]/95 px-5 py-3 text-sm font-black text-yellow-100 shadow-[0_0_35px_rgba(234,179,8,0.18)] transition hover:bg-purple-900/90"
+        aria-label={isOpen ? "إغلاق قائمة الموقع" : "فتح قائمة الموقع"}
+        className="rounded-full border border-yellow-300/35 bg-[#12051f]/90 px-4 py-3 text-xs font-black text-yellow-100 shadow-[0_0_28px_rgba(234,179,8,0.14)] transition hover:bg-purple-900/90 md:px-5 md:text-sm"
       >
-        {isOpen ? "إغلاق الصفحات" : "صفحات الموقع"}
+        {isOpen ? "إغلاق القائمة" : "القائمة"}
       </button>
     </div>
   );
