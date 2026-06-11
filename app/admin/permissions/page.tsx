@@ -38,6 +38,12 @@ const moduleOptions = [
   { key: "activity_logs", label: "سجل النشاطات" },
   { key: "trash", label: "سلة المحذوفات" },
   { key: "backups", label: "النسخ الاحتياطي" },
+  { key: "version_history", label: "سجل الإصدارات" },
+  { key: "export_center", label: "مركز التصدير" },
+  { key: "audit_mode", label: "وضع التدقيق" },
+  { key: "knowledge_base", label: "قاعدة المعرفة" },
+  { key: "ai_support", label: "الدعم الذكي" },
+  { key: "ai_settings", label: "إعدادات الدعم الذكي" },
   { key: "notifications", label: "الإشعارات" },
   { key: "analytics", label: "التحليلات" },
   { key: "launch_checklist", label: "فحص الإطلاق" },
@@ -180,79 +186,54 @@ export default function AdminPermissionsPage() {
     }
 
     if (permissionsResult.error) {
-      setError("تعذر تحميل صلاحيات الإدارة. يرجى التأكد من إعدادات جدول admin_permissions.");
+      setError("تعذر تحميل الصلاحيات. يرجى التأكد من صلاحيات جدول admin_permissions.");
       return;
     }
 
-    const users = ((usersResult.data || []) as AnyRow[]).slice().sort((a, b) => {
-      const first = getString(a, ["email"]);
-      const second = getString(b, ["email"]);
-      return first.localeCompare(second);
-    });
-
-    const rows = ((permissionsResult.data || []) as AnyRow[]).slice().sort((a, b) => {
-      const emailCompare = getString(a, ["admin_email"]).localeCompare(getString(b, ["admin_email"]));
-      if (emailCompare !== 0) return emailCompare;
-      return getString(a, ["module_key"]).localeCompare(getString(b, ["module_key"]));
-    });
-
-    setAdminUsers(users);
-    setPermissions(rows);
-
-    if (!form.admin_email && users.length > 0) {
-      setForm((current) => ({ ...current, admin_email: getString(users[0], ["email"]) }));
-    }
+    setAdminUsers((usersResult.data || []) as AnyRow[]);
+    setPermissions((permissionsResult.data || []) as AnyRow[]);
   }
 
   const filteredPermissions = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return permissions;
 
-    return permissions.filter((permission) => {
-      const text = [
-        getString(permission, ["admin_email"]),
-        getString(permission, ["module_key"]),
-        getModuleLabel(getString(permission, ["module_key"])),
-        getString(permission, ["notes"]),
+    return permissions.filter((permission) =>
+      [
+        getString(permission, ["admin_email", "email"], ""),
+        getString(permission, ["module_key"], ""),
+        getModuleLabel(getString(permission, ["module_key"], "")),
+        getString(permission, ["notes"], ""),
       ]
         .join(" ")
-        .toLowerCase();
-
-      return text.includes(query);
-    });
+        .toLowerCase()
+        .includes(query)
+    );
   }, [permissions, search]);
 
-  const selectedExistingPermission = useMemo(() => {
-    const email = normalizeEmail(form.admin_email);
-    return permissions.find(
-      (permission) => normalizeEmail(getString(permission, ["admin_email"])) === email && getString(permission, ["module_key"]) === form.module_key
-    );
-  }, [permissions, form.admin_email, form.module_key]);
+  function updateForm<K extends keyof PermissionForm>(key: K, value: PermissionForm[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
 
-  function fillFromExistingIfAvailable(nextEmail: string, nextModule: string) {
-    const existing = permissions.find(
-      (permission) => normalizeEmail(getString(permission, ["admin_email"])) === normalizeEmail(nextEmail) && getString(permission, ["module_key"]) === nextModule
-    );
+  function resetForm() {
+    setForm(emptyForm);
+    setMessage("");
+    setError("");
+  }
 
-    if (existing) {
-      setForm(toForm(existing));
-      return;
-    }
-
-    setForm({ ...emptyForm, admin_email: nextEmail, module_key: nextModule });
+  function editPermission(permission: AnyRow) {
+    setForm(toForm(permission));
+    setMessage("تم تحميل الصلاحية داخل النموذج للتعديل.");
+    setError("");
   }
 
   async function savePermission() {
-    if (!supabase) {
-      setError("الاتصال بقاعدة البيانات غير مفعل.");
-      return;
-    }
+    if (!supabase) return;
 
-    const email = form.admin_email.trim();
-    const moduleKey = form.module_key.trim();
+    const email = normalizeEmail(form.admin_email);
 
-    if (!email || !moduleKey) {
-      setError("اختر حساب الإدارة والقسم قبل الحفظ.");
+    if (!email) {
+      setError("يرجى اختيار أو كتابة بريد المدير.");
       return;
     }
 
@@ -262,7 +243,7 @@ export default function AdminPermissionsPage() {
 
     const payload = {
       admin_email: email,
-      module_key: moduleKey,
+      module_key: form.module_key,
       can_view: form.can_view,
       can_create: form.can_create,
       can_edit: form.can_edit,
@@ -270,30 +251,51 @@ export default function AdminPermissionsPage() {
       can_export: form.can_export,
       can_manage: form.can_manage,
       notes: form.notes.trim() || null,
-      updated_by: adminEmail || null,
+      updated_at: new Date().toISOString(),
     };
 
-    const existing = selectedExistingPermission;
-    const existingId = existing ? getString(existing, ["id"]) : "";
-
-    const result = existingId
-      ? await supabase.from("admin_permissions").update(payload).eq("id", existingId)
-      : await supabase.from("admin_permissions").insert({ ...payload, created_by: adminEmail || null });
+    const { error: saveError } = await supabase
+      .from("admin_permissions")
+      .upsert(payload, { onConflict: "admin_email,module_key" });
 
     setIsSaving(false);
 
-    if (result.error) {
-      setError("تعذر حفظ الصلاحيات. تأكد أن الحساب الحالي Super Admin وأن السجل غير مكرر.");
+    if (saveError) {
+      setError(`تعذر حفظ الصلاحية: ${saveError.message}`);
       return;
     }
 
-    setMessage(existingId ? "تم تحديث الصلاحيات بنجاح." : "تم إنشاء الصلاحيات بنجاح.");
+    setMessage("تم حفظ الصلاحية بنجاح.");
     await loadData();
   }
 
-  function editPermission(permission: AnyRow) {
-    setForm(toForm(permission));
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  async function deletePermission(permission: AnyRow) {
+    if (!supabase) return;
+
+    const email = getString(permission, ["admin_email", "email"], "");
+    const moduleKey = getString(permission, ["module_key"], "");
+
+    if (!email || !moduleKey) {
+      setError("تعذر تحديد الصلاحية المطلوبة للحذف.");
+      return;
+    }
+
+    setError("");
+    setMessage("");
+
+    const { error: deleteError } = await supabase
+      .from("admin_permissions")
+      .delete()
+      .eq("admin_email", email)
+      .eq("module_key", moduleKey);
+
+    if (deleteError) {
+      setError(`تعذر حذف الصلاحية: ${deleteError.message}`);
+      return;
+    }
+
+    setMessage("تم حذف الصلاحية بنجاح.");
+    await loadData();
   }
 
   if (isCheckingAuth) {
@@ -308,234 +310,227 @@ export default function AdminPermissionsPage() {
 
   if (isForbidden) {
     return (
-      <main dir="rtl" className="min-h-screen bg-[#070009] p-5 pb-40 text-white md:p-8 md:pb-10">
-        <section className="mx-auto max-w-4xl rounded-[2rem] border border-red-400/25 bg-red-500/10 p-8 text-center">
-          <div className="text-sm font-black tracking-[0.25em] text-red-100">صلاحيات محدودة</div>
-          <h1 className="mt-3 text-3xl font-black">إدارة الصلاحيات مخصصة للسوبر أدمن فقط</h1>
-          <p className="mt-4 leading-8 text-white/60">هذه الصفحة تتحكم بصلاحيات المدراء، لذلك لا تظهر إلا لحساب السوبر أدمن.</p>
-          <p className="mt-3 text-sm text-white/45">الحساب: {adminEmail}</p>
-          <Link href="/admin" className="mt-6 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-6 py-3 font-bold text-white/75">
-            العودة إلى لوحة التحكم
+      <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#070009] p-6 text-white">
+        <div className="max-w-xl rounded-3xl border border-red-400/25 bg-red-500/10 p-8 text-center">
+          <h1 className="text-3xl font-black text-red-100">غير مصرح بالدخول</h1>
+          <p className="mt-4 leading-8 text-white/65">
+            إدارة الصلاحيات متاحة فقط للمدير الأعلى.
+          </p>
+          <Link href="/admin" className="mt-6 inline-flex rounded-full bg-purple-600 px-7 py-4 font-black text-white">
+            العودة للوحة التحكم
           </Link>
-        </section>
+        </div>
       </main>
     );
   }
 
-  if (!isAuthorized) return null;
-
   return (
-    <main dir="rtl" className="min-h-screen bg-[#070009] p-5 pb-40 text-white md:p-8 md:pb-10">
-      <section className="mx-auto max-w-7xl">
-        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <main dir="rtl" className="min-h-screen bg-[#070009] p-6 text-white">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.28),transparent_44%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,8,60,0.32),rgba(7,0,9,0.96))]" />
+      </div>
+
+      <section className="relative z-10 mx-auto max-w-7xl">
+        <nav className="mb-8 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="mb-3 inline-flex rounded-full border border-purple-400/25 bg-purple-500/10 px-5 py-2 text-sm font-bold text-purple-100">
-              الصلاحيات المتقدمة
-            </div>
-            <h1 className="text-4xl font-black md:text-5xl">Admin Permissions</h1>
-            <p className="mt-3 max-w-3xl leading-8 text-white/55">
-              إدارة أولية لصلاحيات المدراء حسب القسم. هذه المرحلة تؤسس النظام بدون تغيير سلوك الحماية الحالي في باقي الصفحات.
-            </p>
+            <div className="text-sm text-purple-200">HAMZA AGENCY Admin</div>
+            <h1 className="mt-2 text-3xl font-black">إدارة صلاحيات المدراء</h1>
+            <p className="mt-2 text-sm text-white/50">{adminEmail}</p>
           </div>
 
           <div className="flex flex-wrap gap-3">
             <button
-              type="button"
               onClick={loadData}
-              disabled={isLoading}
-              className="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-6 py-3 font-black shadow-[0_0_30px_rgba(168,85,247,0.22)] disabled:opacity-60"
+              className="rounded-full border border-purple-400/25 bg-purple-500/10 px-5 py-3 font-bold text-purple-100 transition hover:bg-purple-500/20"
             >
-              {isLoading ? "جاري التحديث..." : "تحديث البيانات"}
+              تحديث البيانات
             </button>
-            <Link href="/admin" className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">
-              لوحة التحكم
+            <button
+              onClick={resetForm}
+              className="rounded-full border border-yellow-400/25 bg-yellow-500/10 px-5 py-3 font-bold text-yellow-100 transition hover:bg-yellow-500/20"
+            >
+              صلاحية جديدة
+            </button>
+            <Link href="/admin" className="rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 font-bold text-white/75 transition hover:text-white">
+              العودة للوحة التحكم
             </Link>
           </div>
-        </div>
+        </nav>
 
-        <div className="mb-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-sm text-white/55">
-          حساب السوبر أدمن: <span className="text-white">{adminEmail}</span>
-        </div>
-
-        <div className="mb-6 rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-5 leading-8 text-yellow-50/85">
-          هذه الصفحة تحفظ الصلاحيات في قاعدة البيانات فقط. تطبيق الصلاحيات على كل الأقسام سيتم تدريجياً في مرحلة الربط المتقدم.
-        </div>
-
-        {message && <div className="mb-6 rounded-3xl border border-green-400/25 bg-green-500/10 p-5 text-green-100">{message}</div>}
-        {error && <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">{error}</div>}
-
-        <section className="mb-8 rounded-[2rem] border border-purple-400/20 bg-purple-500/[0.05] p-5 md:p-6">
-          <div className="mb-5 flex flex-col gap-2">
-            <h2 className="text-2xl font-black">إضافة أو تعديل صلاحية</h2>
-            <p className="text-sm leading-7 text-white/50">اختر حساب المدير والقسم، ثم حدد الصلاحيات المطلوبة واحفظها.</p>
+        {error && (
+          <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-center font-bold text-red-100">
+            {error}
           </div>
+        )}
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-white/70">حساب الإدارة</span>
-              <select
-                value={form.admin_email}
-                onChange={(event) => fillFromExistingIfAvailable(event.target.value, form.module_key)}
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none focus:border-purple-300/50"
-              >
-                <option value="">اختر حساباً</option>
-                {adminUsers.map((user) => {
-                  const email = getString(user, ["email"]);
-                  const role = getString(user, ["role"], "admin");
-                  return (
-                    <option key={email} value={email}>
-                      {email} — {role}
+        {message && (
+          <div className="mb-6 rounded-3xl border border-green-400/25 bg-green-500/10 p-5 text-center font-bold text-green-100">
+            {message}
+          </div>
+        )}
+
+        <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+          <section className="rounded-[2rem] border border-white/10 bg-black/25 p-5 backdrop-blur">
+            <h2 className="text-2xl font-black">نموذج الصلاحية</h2>
+            <p className="mt-2 text-sm leading-7 text-white/50">
+              اختر المدير والقسم ثم حدد الصلاحيات المناسبة. الصلاحيات تحفظ حسب البريد والقسم.
+            </p>
+
+            <div className="mt-6 grid gap-5">
+              <label className="grid gap-2">
+                <span className="text-sm font-black text-white/70">بريد المدير</span>
+                <input
+                  list="admin-users-list"
+                  value={form.admin_email}
+                  onChange={(event) => updateForm("admin_email", event.target.value)}
+                  placeholder="admin@example.com"
+                  className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 outline-none transition focus:border-purple-400/70"
+                  dir="ltr"
+                />
+                <datalist id="admin-users-list">
+                  {adminUsers.map((user) => {
+                    const email = getString(user, ["email", "admin_email"], "");
+                    return email ? <option key={email} value={email} /> : null;
+                  })}
+                </datalist>
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-black text-white/70">القسم</span>
+                <select
+                  value={form.module_key}
+                  onChange={(event) => updateForm("module_key", event.target.value)}
+                  className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 outline-none transition focus:border-purple-400/70"
+                >
+                  {moduleOptions.map((module) => (
+                    <option key={module.key} value={module.key}>
+                      {module.label} — {module.key}
                     </option>
-                  );
-                })}
-              </select>
-            </label>
+                  ))}
+                </select>
+              </label>
 
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-white/70">القسم</span>
-              <select
-                value={form.module_key}
-                onChange={(event) => fillFromExistingIfAvailable(form.admin_email, event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none focus:border-purple-300/50"
-              >
-                {moduleOptions.map((module) => (
-                  <option key={module.key} value={module.key}>
-                    {module.label} — {module.key}
-                  </option>
+              <div className="grid gap-3 md:grid-cols-2">
+                {permissionFields.map((field) => (
+                  <label key={field.key} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={form[field.key]}
+                        onChange={(event) => updateForm(field.key, event.target.checked)}
+                        className="h-5 w-5 accent-purple-500"
+                      />
+                      <span className="font-black">{field.label}</span>
+                    </div>
+                    <p className="mt-2 text-xs leading-6 text-white/45">{field.description}</p>
+                  </label>
                 ))}
-              </select>
-            </label>
-          </div>
+              </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {permissionFields.map((field) => (
+              <label className="grid gap-2">
+                <span className="text-sm font-black text-white/70">ملاحظات</span>
+                <textarea
+                  value={form.notes}
+                  onChange={(event) => updateForm("notes", event.target.value)}
+                  placeholder="ملاحظات داخلية اختيارية..."
+                  className="min-h-28 resize-none rounded-2xl border border-white/10 bg-black/30 px-5 py-4 outline-none transition focus:border-purple-400/70"
+                />
+              </label>
+
               <button
-                key={field.key}
-                type="button"
-                onClick={() => setForm((current) => ({ ...current, [field.key]: !current[field.key] }))}
-                className={`rounded-2xl border p-4 text-right transition ${
-                  form[field.key]
-                    ? "border-purple-300/45 bg-purple-500/20 text-white"
-                    : "border-white/10 bg-white/[0.04] text-white/55 hover:border-purple-300/35"
-                }`}
+                disabled={isSaving}
+                onClick={savePermission}
+                className="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 text-lg font-black shadow-[0_0_35px_rgba(168,85,247,0.24)] transition hover:scale-[1.01] disabled:opacity-60"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-lg font-black">{field.label}</span>
-                  <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-bold">
-                    {form[field.key] ? "مفعلة" : "متوقفة"}
-                  </span>
-                </div>
-                <p className="mt-2 text-sm leading-6 opacity-70">{field.description}</p>
+                {isSaving ? "جارٍ الحفظ..." : "حفظ الصلاحية"}
               </button>
-            ))}
-          </div>
-
-          <label className="mt-5 block">
-            <span className="mb-2 block text-sm font-bold text-white/70">ملاحظات داخلية</span>
-            <textarea
-              value={form.notes}
-              onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
-              rows={3}
-              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-purple-300/50"
-              placeholder="مثال: صلاحية مؤقتة لنائب السوبر أدمن..."
-            />
-          </label>
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={savePermission}
-              disabled={isSaving}
-              className="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-7 py-3 font-black text-white disabled:opacity-60"
-            >
-              {isSaving ? "جاري الحفظ..." : selectedExistingPermission ? "تحديث الصلاحية" : "حفظ صلاحية جديدة"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setForm({ ...emptyForm, admin_email: form.admin_email })}
-              className="rounded-full border border-white/10 bg-white/[0.04] px-7 py-3 font-bold text-white/70"
-            >
-              تفريغ النموذج
-            </button>
-          </div>
-        </section>
-
-        <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 md:p-6">
-          <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-2xl font-black">سجلات الصلاحيات</h2>
-              <p className="mt-2 text-sm text-white/50">عدد السجلات: {permissions.length}</p>
             </div>
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="بحث بالإيميل أو القسم..."
-              className="w-full rounded-full border border-white/10 bg-black/30 px-5 py-3 text-white outline-none placeholder:text-white/35 focus:border-purple-300/50 md:max-w-sm"
-            />
-          </div>
+          </section>
 
-          <div className="grid gap-4">
-            {filteredPermissions.length === 0 && (
-              <div className="rounded-3xl border border-white/10 bg-black/20 p-8 text-center text-white/55">
+          <section className="rounded-[2rem] border border-white/10 bg-black/25 p-5 backdrop-blur">
+            <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-2xl font-black">الصلاحيات الحالية</h2>
+                <p className="mt-2 text-sm text-white/50">عدد السجلات: {filteredPermissions.length}</p>
+              </div>
+
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="بحث بالبريد أو القسم..."
+                className="rounded-2xl border border-white/10 bg-black/30 px-5 py-3 outline-none transition focus:border-purple-400/70"
+              />
+            </div>
+
+            {isLoading ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center text-white/60">
+                جاري تحميل الصلاحيات...
+              </div>
+            ) : filteredPermissions.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center text-white/60">
                 لا توجد صلاحيات مطابقة حالياً.
               </div>
-            )}
+            ) : (
+              <div className="space-y-4">
+                {filteredPermissions.map((permission) => {
+                  const email = getString(permission, ["admin_email", "email"], "");
+                  const moduleKey = getString(permission, ["module_key"], "");
+                  const key = `${email}-${moduleKey}`;
 
-            {filteredPermissions.map((permission, index) => {
-              const moduleKey = getString(permission, ["module_key"], "dashboard");
-              const rowEmail = getString(permission, ["admin_email"], "غير محدد");
-              const updatedAt = getString(permission, ["updated_at", "created_at"], "");
+                  return (
+                    <div key={key} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <div className="font-black text-yellow-100" dir="ltr">{email}</div>
+                          <div className="mt-2 text-sm text-white/65">
+                            {getModuleLabel(moduleKey)}
+                            <span className="mr-2 text-white/35" dir="ltr">{moduleKey}</span>
+                          </div>
+                          <div className="mt-2 text-xs text-white/40">
+                            آخر تحديث: {formatDate(getString(permission, ["updated_at", "created_at"], ""))}
+                          </div>
+                        </div>
 
-              return (
-                <article key={getString(permission, ["id"], String(index))} className="rounded-3xl border border-white/10 bg-black/25 p-5">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-2 flex flex-wrap gap-2">
-                        <span className="rounded-full border border-purple-400/25 bg-purple-500/10 px-3 py-1 text-xs font-black text-purple-100">
-                          {getModuleLabel(moduleKey)}
-                        </span>
-                        <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-bold text-white/55" dir="ltr">
-                          {moduleKey}
-                        </span>
-                      </div>
-                      <h3 className="text-xl font-black" dir="ltr">{rowEmail}</h3>
-                      <p className="mt-2 text-sm text-white/45">آخر تحديث: {formatDate(updatedAt)}</p>
-
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {permissionFields.map((field) => (
-                          <span
-                            key={field.key}
-                            className={`rounded-full border px-3 py-1 text-xs font-bold ${
-                              getBoolean(permission, field.key)
-                                ? "border-green-400/25 bg-green-500/10 text-green-100"
-                                : "border-white/10 bg-white/[0.03] text-white/35"
-                            }`}
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => editPermission(permission)}
+                            className="rounded-full border border-purple-400/25 bg-purple-500/10 px-4 py-2 text-sm font-bold text-purple-100"
                           >
-                            {field.label}
-                          </span>
+                            تعديل
+                          </button>
+                          <button
+                            onClick={() => deletePermission(permission)}
+                            className="rounded-full border border-red-400/25 bg-red-500/10 px-4 py-2 text-sm font-bold text-red-100"
+                          >
+                            حذف
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {permissionFields.map((field) => (
+                          <div key={field.key} className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm">
+                            <span className="font-bold text-white/70">{field.label}: </span>
+                            <span className={getBoolean(permission, field.key) ? "text-green-200" : "text-white/35"}>
+                              {getBoolean(permission, field.key) ? "مسموح" : "غير مفعل"}
+                            </span>
+                          </div>
                         ))}
                       </div>
 
-                      {getString(permission, ["notes"]) && (
-                        <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-7 text-white/60">
-                          {getString(permission, ["notes"])}
+                      {getString(permission, ["notes"], "") && (
+                        <p className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-3 text-sm leading-7 text-white/60">
+                          {getString(permission, ["notes"], "")}
                         </p>
                       )}
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => editPermission(permission)}
-                      className="rounded-full border border-purple-300/30 bg-purple-500/10 px-5 py-3 text-sm font-black text-purple-100"
-                    >
-                      تعديل
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
       </section>
     </main>
   );
