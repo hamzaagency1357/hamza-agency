@@ -1,0 +1,22 @@
+/* Final QA safety fixes for global floating widgets and visual layers. */
+body > div.fixed,
+body > div[class*=" fixed"],
+body > div[class^="fixed"] {
+  position: fixed !important;
+}
+
+body > div.sticky,
+body > div[class*=" sticky"],
+body > div[class^="sticky"] {
+  position: sticky !important;
+}
+
+.hamza-final-polish,
+.hamza-visual-background-presets {
+  pointer-events: none !important;
+}
+
+[aria-hidden="true"].hamza-final-polish,
+[aria-hidden="true"].hamza-visual-background-presets {
+  user-select: none;
+}
