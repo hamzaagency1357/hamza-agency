@@ -34,6 +34,7 @@ const publicLinkGroups = [
       { label: "المعرض", href: "/gallery" },
       { label: "مركز المعرفة", href: "/knowledge-center" },
       { label: "الأسئلة الشائعة", href: "/faq" },
+      { label: "AI Support", href: "/ai-support" },
     ],
   },
   {
