@@ -176,7 +176,7 @@ export default function HomePage() {
   });
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 3000);
+    const timer = setTimeout(() => setShowSplash(false), 1600);
     return () => clearTimeout(timer);
   }, []);
 
@@ -446,20 +446,6 @@ export default function HomePage() {
     }, 3500);
   };
 
-  if (showSplash) {
-    return (
-      <main className="fixed inset-0 z-50 flex items-center justify-center bg-black">
-        <div className="absolute h-72 w-72 rounded-full bg-purple-700/30 blur-3xl" />
-        <div className="absolute h-96 w-96 animate-pulse rounded-full border border-purple-500/20" />
-        <img
-          src={logoUrl}
-          alt={publicSettings.englishName}
-          className="relative h-36 w-36 rounded-3xl object-cover shadow-[0_0_90px_rgba(168,85,247,0.7)]"
-        />
-      </main>
-    );
-  }
-
   return (
     <main
       dir="rtl"
@@ -468,6 +454,23 @@ export default function HomePage() {
     >
       <SiteAnimationStyles />
       <PublicBackground media={homeBackgroundMedia} />
+
+      {showSplash && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 transition-opacity duration-500">
+          <div className="absolute h-72 w-72 rounded-full bg-purple-700/30 blur-3xl" />
+          <div className="absolute h-96 w-96 animate-pulse rounded-full border border-purple-500/20" />
+          <div className="relative text-center">
+            <img
+              src={logoUrl}
+              alt={publicSettings.englishName}
+              className="mx-auto h-36 w-36 rounded-3xl object-cover shadow-[0_0_90px_rgba(168,85,247,0.7)]"
+            />
+            <p className="mt-5 text-sm font-black uppercase tracking-[0.35em] text-purple-100/75" dir="ltr">
+              HAMZA AGENCY
+            </p>
+          </div>
+        </div>
+      )}
 
       {publicSettings.announcementPosition === "top" && activeAnnouncement && (
         <AnnouncementBar
