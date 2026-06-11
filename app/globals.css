@@ -31,6 +31,15 @@ body {
   overscroll-behavior-x: none;
 }
 
+body > main,
+body > header,
+body > footer,
+body > section,
+body > div:not(.hamza-visual-background-presets):not(.hamza-final-polish) {
+  position: relative;
+  z-index: 5;
+}
+
 .public-site-page {
   background:
     radial-gradient(circle at 50% -8%, rgba(216, 180, 254, 0.32), transparent 30%),
@@ -77,6 +86,21 @@ body {
   -webkit-background-clip: text !important;
   background-clip: text !important;
   color: transparent !important;
+}
+
+.public-site-page .rounded-3xl,
+.public-site-page .rounded-\[2rem\],
+.public-site-page .rounded-\[2\.5rem\] {
+  backdrop-filter: blur(14px);
+}
+
+.public-site-page a:focus-visible,
+.public-site-page button:focus-visible,
+.public-site-page input:focus-visible,
+.public-site-page textarea:focus-visible,
+.public-site-page select:focus-visible {
+  outline: 2px solid rgba(250, 204, 21, 0.85);
+  outline-offset: 4px;
 }
 
 body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black {
