@@ -107,7 +107,7 @@ export default function AdminAiSettingsPage() {
 
   useEffect(() => {
     async function checkAccess() {
-      const access = await requireAdminModuleAccess("dashboard");
+      const access = await requireAdminModuleAccess("ai_settings");
 
       if (!access.isAuthorized || !access.profile) {
         setIsAuthorized(false);
