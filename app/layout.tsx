@@ -52,11 +52,6 @@ export const metadata: Metadata = {
   ],
   alternates: {
     canonical: siteUrl,
-    languages: {
-      ar: siteUrl,
-      en: siteUrl,
-      tr: siteUrl,
-    },
   },
   openGraph: {
     title: siteName,
@@ -64,7 +59,6 @@ export const metadata: Metadata = {
     url: siteUrl,
     siteName: "Hamza Agency",
     locale: "ar_TR",
-    alternateLocale: ["en_US", "tr_TR"],
     type: "website",
     images: [
       {
@@ -123,7 +117,7 @@ export default function RootLayout({
     logo: `${siteUrl}/Logo%20hamza%20agency.jpg`,
     description: siteDescription,
     areaServed: ["TR", "SA", "AE", "KW", "QA", "BH", "OM", "IQ", "SY", "JO", "LB", "EG"],
-    availableLanguage: ["Arabic", "English", "Turkish"],
+    availableLanguage: ["Arabic"],
     knowsAbout: [
       "Live streaming creator management",
       "TikTok creator agency",
