@@ -355,7 +355,7 @@ export default function HomePage() {
       primaryColor: getSetting(["primary_color"], "#7c3aed"),
       secondaryColor: getSetting(["secondary_color"], "#d4af37"),
       heroTitle: getSetting(["home_hero_title", "hero_title"], "وكالة حمزة لإدارة وتطوير"),
-      heroHighlight: getSetting(["home_hero_highlight", "hero_highlight"], "صناع المحتوى"),
+      heroHighlight: "وكالة حمزة",
       heroDescription: getSetting(
         ["home_hero_description", "hero_description", "site_description", "site_tagline_ar"],
         "نساعد صناع المحتوى على النمو وتحقيق الأرباح على منصات البث المباشر والتواصل الاجتماعي من خلال إدارة احترافية، دعم يومي، وفرص حقيقية للتطور."
