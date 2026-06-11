@@ -5,21 +5,24 @@ import VisualBackgroundPresets from "@/components/VisualBackgroundPresets";
 import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
 import "./globals.css";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://hamza-agency.com";
+const siteUrl = "https://hamza-agency.com";
+const siteName = "Hamza Agency | وكالة حمزة";
+const siteDescription =
+  "وكالة حمزة — وكالة رقمية فاخرة لإدارة وتوظيف ودعم صناع المحتوى على TikTok وBIGO LIVE ومنصات البث المباشر والخدمات الرقمية.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Hamza Agency | وكالة حمزة",
+    default: siteName,
     template: "%s | Hamza Agency",
   },
-  description:
-    "وكالة حمزة — وكالة رقمية فاخرة لإدارة وتوظيف صناع المحتوى على منصات البث المباشر.",
+  description: siteDescription,
   applicationName: "Hamza Agency",
   generator: "Next.js",
   creator: "HAMZA AGENCY",
   publisher: "HAMZA AGENCY",
+  authors: [{ name: "HAMZA AGENCY", url: siteUrl }],
+  category: "Live Streaming Agency",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/Logo%20hamza%20agency.jpg",
@@ -29,21 +32,34 @@ export const metadata: Metadata = {
   keywords: [
     "وكالة حمزة",
     "Hamza Agency",
+    "hamza-agency.com",
+    "وكالة بث مباشر",
     "وكالة صناع المحتوى",
+    "وكالة توظيف صناع المحتوى",
+    "وكالة تيك توك",
+    "وكالة بيجو لايف",
     "TikTok Agency",
     "BIGO LIVE Agency",
+    "Live Streaming Agency",
+    "Content Creators Agency",
     "منصات البث المباشر",
+    "الخدمات الرقمية",
   ],
   alternates: {
     canonical: siteUrl,
+    languages: {
+      ar: siteUrl,
+      en: `${siteUrl}/en`,
+      tr: `${siteUrl}/tr`,
+    },
   },
   openGraph: {
-    title: "Hamza Agency | وكالة حمزة",
-    description:
-      "وكالة رقمية فاخرة لإدارة وتوظيف صناع المحتوى على منصات البث المباشر.",
+    title: siteName,
+    description: siteDescription,
     url: siteUrl,
     siteName: "Hamza Agency",
     locale: "ar_TR",
+    alternateLocale: ["en_US", "tr_TR"],
     type: "website",
     images: [
       {
@@ -56,14 +72,20 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Hamza Agency | وكالة حمزة",
-    description:
-      "وكالة رقمية فاخرة لإدارة وتوظيف صناع المحتوى على منصات البث المباشر.",
+    title: siteName,
+    description: siteDescription,
     images: ["/Logo%20hamza%20agency.jpg"],
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
   formatDetection: {
     email: false,
@@ -91,10 +113,18 @@ export default function RootLayout({
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "HAMZA AGENCY",
-    alternateName: "وكالة حمزة",
+    alternateName: ["وكالة حمزة", "Hamza Agency"],
     url: siteUrl,
-    description:
-      "وكالة احترافية لإدارة وتوظيف ودعم صناع المحتوى على منصات البث المباشر والتواصل الاجتماعي.",
+    logo: `${siteUrl}/Logo%20hamza%20agency.jpg`,
+    description: siteDescription,
+    areaServed: ["TR", "SA", "AE", "KW", "QA", "BH", "OM", "IQ", "SY", "JO", "LB", "EG"],
+    knowsAbout: [
+      "Live streaming creator management",
+      "TikTok creator agency",
+      "BIGO LIVE creator agency",
+      "Digital services",
+      "Social media solutions",
+    ],
   };
 
   return (
