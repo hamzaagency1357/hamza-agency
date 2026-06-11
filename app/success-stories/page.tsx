@@ -119,6 +119,7 @@ export default async function SuccessStoriesPage() {
   const stories = await getSuccessStories();
   const featuredStories = stories.filter((story) => story.is_featured);
   const regularStories = stories.filter((story) => !story.is_featured);
+  const isUsingDefaultStories = stories.every((story) => story.created_at === null);
 
   return (
     <main
@@ -134,13 +135,13 @@ export default async function SuccessStoriesPage() {
 
         <header className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 text-center shadow-[0_0_55px_rgba(168,85,247,0.14)] backdrop-blur md:p-10">
           <div className="mx-auto mb-5 inline-flex rounded-full border border-yellow-400/25 bg-yellow-500/10 px-5 py-2 text-sm font-bold text-yellow-100">
-            HAMZA AGENCY Success Stories
+            HAMZA AGENCY Success Paths
           </div>
 
           <h1 className="text-5xl font-black leading-tight md:text-7xl">
-            قصص نجاح وكالة حمزة
+            قصص ومسارات وكالة حمزة
             <span className="block bg-gradient-to-r from-yellow-300 via-white to-purple-300 bg-clip-text text-transparent">
-              مسارات عمل واضحة ونتائج منظمة
+              طريقة عمل واضحة ونتائج منظمة
             </span>
           </h1>
 
@@ -149,10 +150,16 @@ export default async function SuccessStoriesPage() {
             المحتوى والعملاء، من التقديم الأول إلى المتابعة والتنظيم واختيار
             البرنامج المناسب.
           </p>
+
+          {isUsingDefaultStories && (
+            <div className="mx-auto mt-6 max-w-4xl rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-5 text-sm leading-7 text-yellow-50/80">
+              ملاحظة شفافة: المحتوى الظاهر حالياً يشرح مسارات عمل عامة داخل الوكالة. عند اعتماد قصص منشورة من لوحة الإدارة سيتم عرضها هنا بدلاً من هذه النماذج.
+            </div>
+          )}
         </header>
 
         <div className="mt-10 grid gap-5 md:grid-cols-3">
-          <StatCard title="نماذج نجاح" value={`${stories.length}+`} />
+          <StatCard title={isUsingDefaultStories ? "مسارات معروضة" : "قصص منشورة"} value={`${stories.length}+`} />
           <StatCard title="برامج وخدمات" value="5+" />
           <StatCard title="متابعة مباشرة" value="واتساب" />
         </div>
@@ -161,7 +168,7 @@ export default async function SuccessStoriesPage() {
           <section className="mt-14">
             <div className="mb-6">
               <div className="mb-3 inline-flex rounded-full border border-yellow-400/20 bg-yellow-500/10 px-4 py-2 text-sm font-black text-yellow-100">
-                قصص مميزة
+                مسارات مميزة
               </div>
 
               <h2 className="text-4xl font-black">نماذج بارزة</h2>
@@ -184,7 +191,7 @@ export default async function SuccessStoriesPage() {
           <section className="mt-14">
             <div className="mb-6">
               <div className="mb-3 inline-flex rounded-full border border-purple-400/20 bg-purple-500/10 px-4 py-2 text-sm font-black text-purple-100">
-                قصص إضافية
+                مسارات إضافية
               </div>
 
               <h2 className="text-4xl font-black">تجارب ومسارات أخرى</h2>
@@ -267,7 +274,7 @@ function StoryCard({
 
         {featured && (
           <div className="absolute right-4 top-4 rounded-full border border-yellow-300/25 bg-yellow-500/20 px-4 py-2 text-xs font-black text-yellow-100 backdrop-blur">
-            قصة مميزة
+            مسار مميز
           </div>
         )}
       </div>
@@ -279,7 +286,7 @@ function StoryCard({
         </div>
 
         <h3 className="text-2xl font-black leading-9">
-          {story.title || "قصة نجاح"}
+          {story.title || "مسار عمل"}
         </h3>
 
         <p className="mt-3 text-sm font-bold text-white/50">
@@ -288,7 +295,7 @@ function StoryCard({
 
         {story.result_summary && (
           <div className="mt-5 rounded-2xl border border-green-400/20 bg-green-500/10 p-4 text-green-100">
-            <div className="mb-2 text-sm font-black">النتيجة</div>
+            <div className="mb-2 text-sm font-black">النتيجة المنظمة</div>
             <p className="leading-7 text-white/70">{story.result_summary}</p>
           </div>
         )}
