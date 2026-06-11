@@ -48,11 +48,6 @@ export const metadata: Metadata = {
   ],
   alternates: {
     canonical: siteUrl,
-    languages: {
-      ar: siteUrl,
-      en: `${siteUrl}/en`,
-      tr: `${siteUrl}/tr`,
-    },
   },
   openGraph: {
     title: siteName,
@@ -60,7 +55,6 @@ export const metadata: Metadata = {
     url: siteUrl,
     siteName: "Hamza Agency",
     locale: "ar_TR",
-    alternateLocale: ["en_US", "tr_TR"],
     type: "website",
     images: [
       {
