@@ -27,27 +27,27 @@ const serviceTypes: { value: ServiceType; label: string; hint: string }[] = [
   {
     value: "platform_topup",
     label: "شحن منصة",
-    hint: "مثل شحن ألماس أو رصيد داخل منصة بث مباشر.",
+    hint: "مثل شحن ألماس أو رصيد داخل منصة بث مباشر. لا ترسل كلمة مرور أو رمز تحقق.",
   },
   {
     value: "withdrawal",
     label: "سحب أرباح",
-    hint: "طلب متابعة سحب أرباح من منصة أو برنامج.",
+    hint: "طلب متابعة سحب أرباح من منصة أو برنامج. سيتم تأكيد التفاصيل عبر واتساب قبل أي متابعة.",
   },
   {
     value: "digital_service",
     label: "خدمة رقمية",
-    hint: "أي خدمة رقمية مرتبطة بالحسابات أو المنصات.",
+    hint: "أي خدمة رقمية مرتبطة بالحسابات أو المنصات بدون مشاركة بيانات دخول حساسة.",
   },
   {
     value: "technical_support",
     label: "دعم فني",
-    hint: "مشكلة تقنية أو متابعة حساب أو منصة.",
+    hint: "مشكلة تقنية أو متابعة حساب أو منصة. اشرح المشكلة بدون إرسال كلمات مرور أو أكواد تحقق.",
   },
   {
     value: "other",
     label: "طلب آخر",
-    hint: "اكتب تفاصيل الطلب في الملاحظات.",
+    hint: "اكتب تفاصيل الطلب في الملاحظات مع تجنب أي معلومات حساسة غير مطلوبة.",
   },
 ];
 
@@ -60,6 +60,13 @@ const platforms = [
   "منصة أخرى",
 ];
 
+const safetyNotes = [
+  "لا ترسل كلمة مرور حسابك أو رمز التحقق أو أي بيانات دخول حساسة.",
+  "اكتب معرف الحساب أو اسم المستخدم فقط إذا كان ضرورياً لفهم الطلب.",
+  "احتفظ بكود الطلب بعد الإرسال لأنه يستخدم في صفحة تتبع طلب الخدمة.",
+  "لا يوجد دفع إلكتروني مباشر داخل هذه الصفحة؛ يتم تأكيد التفاصيل عبر واتساب أولاً.",
+];
+
 const initialFormState: FormState = {
   fullName: "",
   country: "",
@@ -70,6 +77,10 @@ const initialFormState: FormState = {
   requestedAmount: "",
   notes: "",
 };
+
+function normalizeDigits(value: string) {
+  return value.replace(/[^0-9]/g, "");
+}
 
 export default function ServiceRequestPage() {
   const [form, setForm] = useState<FormState>(initialFormState);
@@ -101,13 +112,15 @@ export default function ServiceRequestPage() {
     setMessage("");
     setSuccessCode("");
 
+    const cleanedWhatsapp = normalizeDigits(form.whatsapp);
+
     if (!form.fullName.trim()) {
       setMessage("يرجى كتابة الاسم الكامل.");
       return;
     }
 
-    if (!form.whatsapp.trim()) {
-      setMessage("يرجى كتابة رقم الواتساب.");
+    if (!cleanedWhatsapp || cleanedWhatsapp.length < 8) {
+      setMessage("يرجى كتابة رقم واتساب صحيح لا يقل عن 8 أرقام.");
       return;
     }
 
@@ -150,7 +163,7 @@ export default function ServiceRequestPage() {
 
     setSuccessCode(requestCode);
     setMessage(
-      "تم استلام طلبك بنجاح. سيقوم فريق وكالة حمزة بمراجعة الطلب والتواصل معك عبر واتساب."
+      "تم استلام طلبك بنجاح. احتفظ بكود الطلب لاستخدامه في صفحة التتبع، وسيقوم فريق وكالة حمزة بمراجعة الطلب والتواصل معك عبر واتساب."
     );
 
     setForm(initialFormState);
@@ -209,6 +222,7 @@ export default function ServiceRequestPage() {
                     updateField("fullName", event.target.value)
                   }
                   placeholder="اكتب اسمك الكامل"
+                  autoComplete="name"
                   className={inputClassName}
                 />
               </Field>
@@ -220,6 +234,7 @@ export default function ServiceRequestPage() {
                     updateField("country", event.target.value)
                   }
                   placeholder="مثال: تركيا"
+                  autoComplete="country-name"
                   className={inputClassName}
                 />
               </Field>
@@ -231,6 +246,8 @@ export default function ServiceRequestPage() {
                     updateField("whatsapp", event.target.value)
                   }
                   placeholder="+905011730377"
+                  inputMode="tel"
+                  autoComplete="tel"
                   className={inputClassName}
                 />
               </Field>
@@ -274,6 +291,7 @@ export default function ServiceRequestPage() {
                     updateField("accountIdentifier", event.target.value)
                   }
                   placeholder="اكتب ID الحساب أو اسم المستخدم"
+                  autoComplete="off"
                   className={inputClassName}
                 />
               </Field>
@@ -295,7 +313,7 @@ export default function ServiceRequestPage() {
                 <textarea
                   value={form.notes}
                   onChange={(event) => updateField("notes", event.target.value)}
-                  placeholder="اكتب أي تفاصيل تساعد فريق الوكالة على فهم الطلب"
+                  placeholder="اكتب أي تفاصيل تساعد فريق الوكالة على فهم الطلب بدون كلمات مرور أو رموز تحقق"
                   className={`${inputClassName} min-h-36 resize-none`}
                 />
               </Field>
@@ -307,6 +325,15 @@ export default function ServiceRequestPage() {
                 {selectedService.hint}
               </div>
             )}
+
+            <div className="mt-5 rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-5 text-sm leading-7 text-yellow-50/80">
+              <h2 className="font-black text-yellow-100">تنبيهات أمان قبل الإرسال</h2>
+              <div className="mt-3 grid gap-2">
+                {safetyNotes.map((note) => (
+                  <p key={note}>{note}</p>
+                ))}
+              </div>
+            </div>
 
             {message && (
               <div
@@ -320,10 +347,16 @@ export default function ServiceRequestPage() {
 
                 {successCode && (
                   <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4">
-                    رقم الطلب:
-                    <span className="mr-2 font-black text-yellow-200">
+                    كود تتبع الطلب:
+                    <span className="mr-2 font-black text-yellow-200" dir="ltr">
                       {successCode}
                     </span>
+                    <Link
+                      href="/service-status"
+                      className="mt-3 block text-sm font-black text-purple-100 underline underline-offset-4"
+                    >
+                      فتح صفحة تتبع طلب الخدمة
+                    </Link>
                   </div>
                 )}
               </div>
@@ -356,9 +389,10 @@ export default function ServiceRequestPage() {
 
               <div className="mt-5 space-y-4 text-white/65">
                 <Step number="1" text="يتم حفظ طلبك في نظام وكالة حمزة." />
-                <Step number="2" text="يراجع الفريق تفاصيل الخدمة المطلوبة." />
-                <Step number="3" text="يتم التواصل معك عبر واتساب للتأكيد." />
-                <Step number="4" text="بعد الاتفاق تبدأ متابعة الطلب." />
+                <Step number="2" text="تحصل على كود طلب خاص لتتبّع الحالة." />
+                <Step number="3" text="يراجع الفريق تفاصيل الخدمة المطلوبة." />
+                <Step number="4" text="يتم التواصل معك عبر واتساب للتأكيد." />
+                <Step number="5" text="بعد الاتفاق تبدأ متابعة الطلب." />
               </div>
             </div>
 
@@ -407,4 +441,4 @@ function Step({ number, text }: { number: string; text: string }) {
       <p className="leading-8">{text}</p>
     </div>
   );
-        }
+}
