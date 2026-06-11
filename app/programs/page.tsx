@@ -230,11 +230,12 @@ export default async function ProgramsPage() {
           {programs.map((program) => {
             const visual = getProgramVisual(program.slug, program.name);
             const logoUrl = getProgramLogoUrl(program, mediaItems);
+            const programHref = program.slug ? `/programs/${program.slug}` : "/programs";
 
             return (
               <Link
                 key={program.id}
-                href={`/programs/${program.slug}`}
+                href={programHref}
                 className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-black/35 p-6 shadow-[0_0_35px_rgba(168,85,247,0.10)] backdrop-blur transition hover:-translate-y-1 hover:border-purple-400/50 hover:bg-purple-500/10"
               >
                 <div
@@ -324,7 +325,7 @@ function getProgramVisual(slug: string, name: string) {
   if (key.includes("tiktok")) {
     return {
       icon: "♪",
-      label: "Short Video",
+      label: "فيديوهات قصيرة",
       accent: "#ff2f8b",
       secondary: "#22d3ee",
     };
@@ -333,7 +334,7 @@ function getProgramVisual(slug: string, name: string) {
   if (key.includes("bigo")) {
     return {
       icon: "LIVE",
-      label: "Live Streaming",
+      label: "بث مباشر",
       accent: "#38bdf8",
       secondary: "#8b5cf6",
     };
@@ -342,7 +343,7 @@ function getProgramVisual(slug: string, name: string) {
   if (key.includes("yaahlan")) {
     return {
       icon: "Y",
-      label: "Community Live",
+      label: "مجتمع وبث",
       accent: "#f59e0b",
       secondary: "#8b5cf6",
     };
@@ -351,7 +352,7 @@ function getProgramVisual(slug: string, name: string) {
   if (key.includes("xena")) {
     return {
       icon: "X",
-      label: "Creator Program",
+      label: "برنامج صناع المحتوى",
       accent: "#a855f7",
       secondary: "#06b6d4",
     };
@@ -360,7 +361,7 @@ function getProgramVisual(slug: string, name: string) {
   if (key.includes("catchii")) {
     return {
       icon: "C",
-      label: "Social Creator",
+      label: "محتوى اجتماعي",
       accent: "#ec4899",
       secondary: "#facc15",
     };
@@ -368,7 +369,7 @@ function getProgramVisual(slug: string, name: string) {
 
   return {
     icon: "H",
-    label: "Agency Program",
+    label: "برنامج وكالة",
     accent: "#7c3aed",
     secondary: "#d4af37",
   };
