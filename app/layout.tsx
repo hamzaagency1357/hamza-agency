@@ -8,6 +8,7 @@ import VisualBackgroundPresets from "@/components/VisualBackgroundPresets";
 import FinalVisualPolish from "@/components/FinalVisualPolish";
 import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
 import "./globals.css";
+import "./final-fixes.css";
 
 const siteUrl = "https://hamza-agency.com";
 const siteName = "Hamza Agency | وكالة حمزة";
