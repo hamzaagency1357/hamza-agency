@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
@@ -10,8 +11,15 @@ type BackupRow = Record<string, unknown>;
 type FilterKey = "all" | "completed" | "pending" | "failed" | "manual" | "auto";
 type Tone = "green" | "blue" | "yellow" | "red" | "purple" | "slate";
 
+type BackupTableDefinition = {
+  table: string;
+  label: string;
+  critical?: boolean;
+};
+
 type BackupTableResult = {
   table: string;
+  label: string;
   status: "success" | "error";
   count: number;
   rows: Record<string, unknown>[];
@@ -27,23 +35,33 @@ const filters: { key: FilterKey; label: string }[] = [
   { key: "auto", label: "تلقائية" },
 ];
 
-const backupTables = [
-  "settings",
-  "pages",
-  "sections",
-  "programs",
-  "media",
-  "agency_applications",
-  "service_requests",
-  "jobs",
-  "reviews",
-  "success_stories",
-  "partners",
-  "gallery_items",
-  "announcements",
-  "faqs",
-  "knowledge_base",
-] as const;
+const backupTables: BackupTableDefinition[] = [
+  { table: "settings", label: "إعدادات الموقع", critical: true },
+  { table: "pages", label: "الصفحات", critical: true },
+  { table: "sections", label: "أقسام الصفحات", critical: true },
+  { table: "programs", label: "البرامج", critical: true },
+  { table: "media", label: "الوسائط", critical: true },
+  { table: "announcements", label: "الإعلانات" },
+  { table: "agency_applications", label: "طلبات الانضمام", critical: true },
+  { table: "service_requests", label: "طلبات الخدمات", critical: true },
+  { table: "jobs", label: "الوظائف" },
+  { table: "reviews", label: "التقييمات" },
+  { table: "success_stories", label: "قصص النجاح" },
+  { table: "partners", label: "الشركاء" },
+  { table: "gallery_items", label: "المعرض" },
+  { table: "faqs", label: "الأسئلة الشائعة" },
+  { table: "knowledge_base", label: "قاعدة المعرفة" },
+  { table: "admin_users", label: "حسابات الإدارة" },
+  { table: "admin_permissions", label: "صلاحيات الإدارة" },
+  { table: "activity_logs", label: "سجل النشاطات" },
+  { table: "version_history", label: "سجل الإصدارات" },
+  { table: "ai_conversations", label: "محادثات الدعم الذكي" },
+  { table: "ai_unanswered_questions", label: "أسئلة الدعم الذكي غير المجابة" },
+  { table: "backups", label: "سجلات النسخ الاحتياطي" },
+];
+
+const backupPageSize = 1000;
+const maxBackupPagesPerTable = 50;
 
 function getString(row: BackupRow, keys: string[], fallback = "") {
   for (const key of keys) {
@@ -79,6 +97,7 @@ function getStatus(row: BackupRow) {
 function getStatusLabel(row: BackupRow) {
   const status = getStatus(row);
   if (["completed", "complete", "success", "done", "ready"].includes(status)) return "مكتملة";
+  if (["completed_with_warnings", "warning", "warnings"].includes(status)) return "مكتملة مع تحذيرات";
   if (["failed", "error", "cancelled", "canceled"].includes(status)) return "فاشلة";
   if (["running", "processing", "in_progress", "pending"].includes(status)) return "قيد التنفيذ";
   return status || "غير محدد";
@@ -86,7 +105,7 @@ function getStatusLabel(row: BackupRow) {
 
 function getStatusKey(row: BackupRow): FilterKey {
   const status = getStatus(row);
-  if (["completed", "complete", "success", "done", "ready"].includes(status)) return "completed";
+  if (["completed", "complete", "success", "done", "ready", "completed_with_warnings", "warning", "warnings"].includes(status)) return "completed";
   if (["failed", "error", "cancelled", "canceled"].includes(status)) return "failed";
   return "pending";
 }
@@ -99,9 +118,11 @@ function getBackupMode(row: BackupRow): FilterKey {
 }
 
 function getTone(row: BackupRow): Tone {
-  const status = getStatusKey(row);
-  if (status === "completed") return "green";
-  if (status === "failed") return "red";
+  const status = getStatus(row);
+  if (["completed_with_warnings", "warning", "warnings"].includes(status)) return "yellow";
+  const statusKey = getStatusKey(row);
+  if (statusKey === "completed") return "green";
+  if (statusKey === "failed") return "red";
   return "yellow";
 }
 
@@ -154,6 +175,52 @@ function downloadJsonFile(fileName: string, payload: Record<string, unknown>) {
   URL.revokeObjectURL(url);
 
   return new TextEncoder().encode(json).length;
+}
+
+async function exportTableRows(tableDefinition: BackupTableDefinition): Promise<BackupTableResult> {
+  if (!supabase) {
+    return {
+      table: tableDefinition.table,
+      label: tableDefinition.label,
+      status: "error",
+      count: 0,
+      rows: [],
+      error: "الاتصال بقاعدة البيانات غير مفعل.",
+    };
+  }
+
+  const rows: Record<string, unknown>[] = [];
+
+  for (let page = 0; page < maxBackupPagesPerTable; page += 1) {
+    const from = page * backupPageSize;
+    const to = from + backupPageSize - 1;
+    const { data, error } = await supabase.from(tableDefinition.table).select("*").range(from, to);
+
+    if (error) {
+      return {
+        table: tableDefinition.table,
+        label: tableDefinition.label,
+        status: "error",
+        count: rows.length,
+        rows,
+        error: error.message,
+      };
+    }
+
+    const pageRows = ((data || []) as Record<string, unknown>[]);
+    rows.push(...pageRows);
+
+    if (pageRows.length < backupPageSize) break;
+  }
+
+  return {
+    table: tableDefinition.table,
+    label: tableDefinition.label,
+    status: "success",
+    count: rows.length,
+    rows,
+    error: null,
+  };
 }
 
 export default function AdminBackupsPage() {
@@ -217,7 +284,7 @@ export default function AdminBackupsPage() {
     setIsLoading(false);
 
     if (backupsError) {
-      setError("تعذر تحميل سجلات النسخ الاحتياطي. يرجى التأكد من إعدادات جدول backups.");
+      setError("تعذر تحميل سجلات النسخ الاحتياطي. يمكنك إنشاء نسخة JSON حتى لو لم يكن جدول backups جاهزاً بعد.");
       return;
     }
 
@@ -264,7 +331,7 @@ export default function AdminBackupsPage() {
     }
 
     const confirmed = window.confirm(
-      "هل تريد إنشاء نسخة JSON احتياطية الآن؟ سيتم تنزيل ملف يحتوي على بيانات الجداول الأساسية المتاحة لهذا الحساب."
+      "هل تريد إنشاء نسخة JSON احتياطية الآن؟ الملف قد يحتوي بيانات حساسة مثل الطلبات والصلاحيات، لذلك احفظه في مكان آمن."
     );
 
     if (!confirmed) return;
@@ -277,44 +344,50 @@ export default function AdminBackupsPage() {
     const backupCode = `HAMZA-${createdAt.replace(/[-:.TZ]/g, "").slice(0, 14)}`;
     const results: BackupTableResult[] = [];
 
-    for (const table of backupTables) {
-      const { data, error: tableError } = await supabase.from(table).select("*");
-
-      results.push({
-        table,
-        status: tableError ? "error" : "success",
-        count: tableError ? 0 : (data || []).length,
-        rows: tableError ? [] : ((data || []) as Record<string, unknown>[]),
-        error: tableError?.message || null,
-      });
+    for (const tableDefinition of backupTables) {
+      results.push(await exportTableRows(tableDefinition));
     }
 
     const exportedTables = results.filter((item) => item.status === "success");
     const failedTables = results.filter((item) => item.status === "error");
+    const failedCriticalTables = failedTables.filter((item) =>
+      backupTables.some((table) => table.table === item.table && table.critical)
+    );
     const totalRows = exportedTables.reduce((sum, item) => sum + item.count, 0);
+    const backupStatus = failedCriticalTables.length
+      ? "failed"
+      : failedTables.length
+        ? "completed_with_warnings"
+        : "completed";
+
     const backupPayload = {
+      schema_version: 2,
       backup_code: backupCode,
       project: "HAMZA AGENCY",
       created_at: createdAt,
       created_by: adminEmail,
+      status: backupStatus,
       tables_count: exportedTables.length,
       failed_tables_count: failedTables.length,
+      failed_critical_tables_count: failedCriticalTables.length,
       total_rows: totalRows,
+      page_size: backupPageSize,
       tables: results,
     };
+
     const fileName = `hamza-agency-backup-${createdAt.slice(0, 10)}-${backupCode}.json`;
     const sizeBytes = downloadJsonFile(fileName, backupPayload);
     const logSaved = await saveBackupLog({
       backup_code: backupCode,
       title: `Manual backup ${backupCode}`,
       file_name: fileName,
-      status: failedTables.length ? "completed_with_warnings" : "completed",
+      status: backupStatus,
       mode: "manual",
       created_by: adminEmail,
       size_bytes: sizeBytes,
       details: {
-        tables: exportedTables.map((item) => ({ table: item.table, count: item.count })),
-        failed_tables: failedTables.map((item) => ({ table: item.table, error: item.error })),
+        tables: exportedTables.map((item) => ({ table: item.table, label: item.label, count: item.count })),
+        failed_tables: failedTables.map((item) => ({ table: item.table, label: item.label, error: item.error })),
         total_rows: totalRows,
       },
       created_at: createdAt,
@@ -326,16 +399,22 @@ export default function AdminBackupsPage() {
       entity_type: "backups",
       entity_id: backupCode,
       old_data: "",
-      new_data: JSON.stringify({ backupCode, fileName, sizeBytes, totalRows }),
+      new_data: JSON.stringify({ backupCode, fileName, sizeBytes, totalRows, status: backupStatus }),
       ip_address: "",
     });
 
     setIsCreatingBackup(false);
     await loadBackups();
+
+    if (backupStatus === "failed") {
+      setError("تم تنزيل ملف النسخة، لكن بعض الجداول الأساسية فشلت. راجع تفاصيل الملف لمعرفة الجداول التي تحتاج ضبط صلاحيات أو إنشاء.");
+      return;
+    }
+
     setMessage(
       logSaved
-        ? "تم إنشاء وتحميل النسخة الاحتياطية وتسجيلها في سجل النسخ."
-        : "تم إنشاء وتحميل النسخة الاحتياطية، لكن تعذر تسجيلها داخل جدول backups."
+        ? `تم إنشاء وتحميل النسخة الاحتياطية بنجاح. الجداول المصدّرة: ${exportedTables.length}، الصفوف: ${totalRows}.`
+        : `تم إنشاء وتحميل النسخة الاحتياطية. الجداول المصدّرة: ${exportedTables.length}، الصفوف: ${totalRows}. لكن تعذر تسجيلها داخل جدول backups.`
     );
   }
 
@@ -397,11 +476,11 @@ export default function AdminBackupsPage() {
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="mb-3 inline-flex rounded-full border border-emerald-400/25 bg-emerald-500/10 px-5 py-2 text-sm font-bold text-emerald-100">
-              النسخ الاحتياطي
+              النسخ الاحتياطي الحقيقي
             </div>
-            <h1 className="text-4xl font-black md:text-5xl">Backup System</h1>
+            <h1 className="text-4xl font-black md:text-5xl">نظام Backup JSON</h1>
             <p className="mt-3 max-w-3xl leading-8 text-white/55">
-              إنشاء نسخة JSON احتياطية للجداول الأساسية، مع حفظ سجل العملية داخل لوحة الإدارة.
+              إنشاء نسخة JSON فعلية للجداول الأساسية والإدارية المتاحة، مع تنزيل الملف مباشرة وتسجيل العملية داخل لوحة الإدارة عندما يسمح جدول backups بذلك.
             </p>
           </div>
 
@@ -411,7 +490,7 @@ export default function AdminBackupsPage() {
               disabled={isCreatingBackup || isLoading}
               className="rounded-full bg-gradient-to-r from-yellow-500 to-emerald-600 px-6 py-3 font-black text-black shadow-[0_0_30px_rgba(250,204,21,0.22)] disabled:opacity-60"
             >
-              {isCreatingBackup ? "جاري إنشاء النسخة..." : "إنشاء Backup JSON"}
+              {isCreatingBackup ? "جاري إنشاء النسخة..." : "إنشاء نسخة JSON الآن"}
             </button>
             <button
               onClick={loadBackups}
@@ -430,8 +509,12 @@ export default function AdminBackupsPage() {
           حساب الإدارة: <span className="text-white">{adminEmail}</span>
         </div>
 
+        <div className="mb-6 rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-5 leading-8 text-yellow-50/85">
+          ملف النسخة الاحتياطية قد يحتوي بيانات تشغيلية حساسة مثل الطلبات والصلاحيات. احفظ الملف في مكان آمن ولا ترفعه داخل GitHub أو أي مكان عام.
+        </div>
+
         <div className="mb-6 rounded-3xl border border-green-400/20 bg-green-500/10 p-5 leading-8 text-green-50/85">
-          إنشاء النسخ الاحتياطية اليدوية مفعل الآن. الملف يتم تنزيله مباشرة بصيغة JSON، ويتم تسجيل العملية في جدول backups عندما تسمح بنية الجدول بذلك.
+          النسخ اليدوي يسحب البيانات على دفعات حتى {backupPageSize} صف لكل دفعة، ويسجل الجداول غير المتاحة كتحذير داخل ملف النسخة بدلاً من إيقاف العملية بالكامل.
         </div>
 
         {error && <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">{error}</div>}
@@ -514,7 +597,7 @@ function StatCard({ label, value, tone }: { label: string; value: number; tone: 
   );
 }
 
-function FilterButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function FilterButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
   return (
     <button onClick={onClick} className={active ? "rounded-full bg-emerald-600 px-5 py-3 text-sm font-black text-white" : "rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-bold text-white/65"}>
       {children}
@@ -522,7 +605,7 @@ function FilterButton({ active, onClick, children }: { active: boolean; onClick:
   );
 }
 
-function Badge({ children, tone }: { children: React.ReactNode; tone: Tone }) {
+function Badge({ children, tone }: { children: ReactNode; tone: Tone }) {
   return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${toneSoftClasses(tone)}`}>{children}</span>;
 }
 
