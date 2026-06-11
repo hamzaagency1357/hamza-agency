@@ -7,6 +7,7 @@ import { getCurrentAdminProfile } from "@/lib/adminAccess";
 
 const adminLinks = [
   { label: "الرئيسية", href: "/admin" },
+  { label: "طلبات الانضمام", href: "/admin/applications" },
   { label: "طلبات الخدمات", href: "/admin/service-requests" },
   { label: "البرامج", href: "/admin/programs" },
   { label: "الصفحات", href: "/admin/pages" },
