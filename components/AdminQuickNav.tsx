@@ -33,6 +33,25 @@ const adminLinks = [
   { label: "فحص الإطلاق", href: "/admin/launch-checklist" },
 ];
 
+const publicPreviewLinks = [
+  { label: "الرئيسية", href: "/" },
+  { label: "البرامج", href: "/programs" },
+  { label: "من نحن", href: "/about" },
+  { label: "الخدمات", href: "/services" },
+  { label: "الخدمات الرقمية", href: "/digital-services" },
+  { label: "طلب خدمة", href: "/service-request" },
+  { label: "تتبع طلب خدمة", href: "/service-status" },
+  { label: "تتبع طلب الانضمام", href: "/application-status" },
+  { label: "الوظائف", href: "/jobs" },
+  { label: "التقييمات", href: "/reviews" },
+  { label: "قصص النجاح", href: "/success-stories" },
+  { label: "الشركاء", href: "/partners" },
+  { label: "المعرض", href: "/gallery" },
+  { label: "مركز المعرفة", href: "/knowledge-center" },
+  { label: "الأسئلة الشائعة", href: "/faq" },
+  { label: "اتصل بنا", href: "/contact" },
+];
+
 export default function AdminQuickNav() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
@@ -78,16 +97,22 @@ export default function AdminQuickNav() {
   return (
     <div dir="rtl" className="fixed bottom-20 left-3 z-[80] print:hidden md:bottom-4 md:left-4">
       {isOpen && (
-        <div className="mb-3 max-h-[70vh] w-[min(320px,calc(100vw-2rem))] overflow-y-auto rounded-3xl border border-purple-400/25 bg-[#09000f]/95 p-3 shadow-[0_0_70px_rgba(124,58,237,0.35)] backdrop-blur-xl">
+        <div className="mb-3 max-h-[70vh] w-[min(340px,calc(100vw-2rem))] overflow-y-auto rounded-3xl border border-purple-400/25 bg-[#09000f]/95 p-3 shadow-[0_0_70px_rgba(124,58,237,0.35)] backdrop-blur-xl">
           <div className="mb-3 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3">
             <div className="text-xs font-black uppercase tracking-[0.25em] text-yellow-200">
               HAMZA AGENCY
             </div>
             <div className="mt-1 text-sm font-black text-white">
-              تنقل سريع للإدارة
+              تنقل الإدارة والموقع
             </div>
+            <p className="mt-2 text-xs leading-6 text-white/55">
+              عدّل من لوحة التحكم، ثم افتح مكان ظهور التعديل في الموقع مباشرة.
+            </p>
           </div>
 
+          <div className="mb-2 rounded-2xl border border-purple-400/15 bg-purple-500/10 px-3 py-2 text-xs font-black text-purple-100">
+            لوحة التحكم
+          </div>
           <nav className="grid gap-2">
             {adminLinks.map((link) => {
               const active =
@@ -114,17 +139,46 @@ export default function AdminQuickNav() {
               );
             })}
           </nav>
+
+          <div className="mb-2 mt-4 rounded-2xl border border-yellow-400/15 bg-yellow-500/10 px-3 py-2 text-xs font-black text-yellow-100">
+            عرض في الموقع
+          </div>
+          <nav className="grid gap-2">
+            {publicPreviewLinks.map((link) => {
+              const active =
+                link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
+
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  target="_blank"
+                  onClick={() => setIsOpen(false)}
+                  className={`rounded-2xl border px-4 py-3 text-sm font-bold transition ${
+                    active
+                      ? "border-yellow-300/35 bg-yellow-400/15 text-yellow-100"
+                      : "border-white/10 bg-white/[0.04] text-white/75 hover:border-yellow-300/45 hover:bg-yellow-500/10 hover:text-white"
+                  }`}
+                >
+                  <span className="block">{link.label}</span>
+                  <span className="mt-1 block text-[11px] font-normal text-white/38" dir="ltr">
+                    {link.href}
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
         </div>
       )}
 
       <button
         type="button"
         onClick={() => setIsOpen((current) => !current)}
-        aria-label={isOpen ? "إغلاق التنقل الإداري" : "فتح التنقل الإداري"}
+        aria-label={isOpen ? "إغلاق تنقل الإدارة والموقع" : "فتح تنقل الإدارة والموقع"}
         className="flex h-12 w-12 items-center justify-center rounded-full border border-purple-300/35 bg-purple-600 text-lg font-black text-white shadow-[0_0_35px_rgba(168,85,247,0.35)] transition hover:bg-purple-500 md:h-auto md:w-auto md:px-5 md:py-3 md:text-sm"
       >
         <span className="md:hidden">{isOpen ? "×" : "☰"}</span>
-        <span className="hidden md:inline">{isOpen ? "إغلاق التنقل" : "تنقل الإدارة"}</span>
+        <span className="hidden md:inline">{isOpen ? "إغلاق الربط" : "الإدارة والموقع"}</span>
       </button>
     </div>
   );
