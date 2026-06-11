@@ -45,3 +45,8 @@ main > div.lg\:hidden a[href="/knowledge-center"],
 main > div.lg\:hidden a[href="/faq"] {
   display: none !important;
 }
+
+/* Final launch mode: hide the floating site pages button from public visitors. */
+body > div.fixed.bottom-4.right-4.z-\[35\].print\:hidden {
+  display: none !important;
+}
