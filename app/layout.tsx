@@ -5,6 +5,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import PublicAiSupport from "@/components/PublicAiSupport";
 import PublicDesktopEnhancer from "@/components/PublicDesktopEnhancer";
 import VisualBackgroundPresets from "@/components/VisualBackgroundPresets";
+import FinalVisualPolish from "@/components/FinalVisualPolish";
 import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
 import "./globals.css";
 
@@ -143,6 +144,7 @@ export default function RootLayout({
         <AuthRecoveryRedirect />
         <PublicDesktopEnhancer />
         <VisualBackgroundPresets />
+        <FinalVisualPolish />
         {children}
         <LanguageSwitcher />
         <PublicAiSupport />
