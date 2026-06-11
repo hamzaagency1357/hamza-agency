@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import PublicQuickNav from "@/components/PublicQuickNav";
 import AdminQuickNav from "@/components/AdminQuickNav";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import PublicAiSupport from "@/components/PublicAiSupport";
 import PublicDesktopEnhancer from "@/components/PublicDesktopEnhancer";
 import VisualBackgroundPresets from "@/components/VisualBackgroundPresets";
 import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
@@ -144,6 +145,7 @@ export default function RootLayout({
         <VisualBackgroundPresets />
         {children}
         <LanguageSwitcher />
+        <PublicAiSupport />
         <PublicQuickNav />
         <AdminQuickNav />
       </body>
