@@ -119,7 +119,7 @@ export default function AdminKnowledgeBasePage() {
 
   useEffect(() => {
     async function checkAccess() {
-      const access = await requireAdminModuleAccess("dashboard");
+      const access = await requireAdminModuleAccess("knowledge_base");
 
       if (!access.isAuthorized || !access.profile) {
         setIsAuthorized(false);
@@ -223,7 +223,7 @@ export default function AdminKnowledgeBasePage() {
         <section className="mx-auto max-w-4xl rounded-[2rem] border border-red-400/25 bg-red-500/10 p-8 text-center">
           <div className="text-sm font-black tracking-[0.25em] text-red-100">صلاحيات محدودة</div>
           <h1 className="mt-3 text-3xl font-black">لا يمكن عرض قاعدة المعرفة لهذا الحساب</h1>
-          <p className="mt-4 leading-8 text-white/60">إدارة قاعدة المعرفة مخصصة لحسابات السوبر أدمن ونائب السوبر أدمن فقط.</p>
+          <p className="mt-4 leading-8 text-white/60">قاعدة المعرفة مخصصة لحسابات السوبر أدمن ونائب السوبر أدمن فقط.</p>
           <p className="mt-3 text-sm text-white/45">الحساب: {adminEmail}</p>
           <Link href="/admin" className="mt-6 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-6 py-3 font-bold text-white/75">
             العودة إلى لوحة التحكم
@@ -240,12 +240,12 @@ export default function AdminKnowledgeBasePage() {
       <section className="mx-auto max-w-7xl">
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="mb-3 inline-flex rounded-full border border-violet-400/25 bg-violet-500/10 px-5 py-2 text-sm font-bold text-violet-100">
+            <div className="mb-3 inline-flex rounded-full border border-cyan-400/25 bg-cyan-500/10 px-5 py-2 text-sm font-bold text-cyan-100">
               قاعدة المعرفة
             </div>
             <h1 className="text-4xl font-black md:text-5xl">Knowledge Base</h1>
             <p className="mt-3 max-w-3xl leading-8 text-white/55">
-              مركز إدارة المعرفة التي ستدعم لاحقاً مساعد الوكالة الذكي، الأسئلة المتكررة، معلومات البرامج، وسياسات التشغيل.
+              مصدر المعلومات المعتمد للدعم الذكي: الأسئلة، البرامج، الخدمات، السياسات، والمعلومات التي يجب أن يعتمد عليها الرد الآلي.
             </p>
           </div>
 
@@ -254,9 +254,9 @@ export default function AdminKnowledgeBasePage() {
               type="button"
               onClick={loadKnowledgeBase}
               disabled={isLoading}
-              className="rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3 font-black text-white shadow-[0_0_30px_rgba(168,85,247,0.22)] disabled:opacity-60"
+              className="rounded-full bg-gradient-to-r from-cyan-600 to-purple-600 px-6 py-3 font-black text-white shadow-[0_0_30px_rgba(34,211,238,0.18)] disabled:opacity-60"
             >
-              {isLoading ? "جاري التحديث..." : "تحديث البيانات"}
+              {isLoading ? "جاري التحديث..." : "تحديث القاعدة"}
             </button>
             <Link href="/admin" className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">
               لوحة الإدارة
@@ -264,87 +264,57 @@ export default function AdminKnowledgeBasePage() {
           </div>
         </div>
 
-        <div className="mb-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-sm text-white/55">
-          حساب الإدارة: <span className="text-white">{adminEmail}</span>
-        </div>
+        {error && <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">{error}</div>}
 
-        {error && (
-          <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 leading-8 text-red-100">
-            {error}
-          </div>
-        )}
-
-        <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <StatCard label="عناصر المعرفة" value={records.length} tone="purple" />
+        <div className="mb-8 grid gap-4 md:grid-cols-4">
           <StatCard label="منشور" value={publishedCount} tone="green" />
-          <StatCard label="مسودات" value={draftCount} tone="blue" />
+          <StatCard label="مسودات" value={draftCount} tone="yellow" />
           <StatCard label="مخفي" value={hiddenCount} tone="red" />
-          <StatCard label="التصنيفات" value={categoriesCount} tone="cyan" />
+          <StatCard label="تصنيفات" value={categoriesCount} tone="cyan" />
         </div>
 
-        <section className="mb-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="ابحث في العنوان أو المحتوى أو التصنيف..."
-              className="w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none placeholder:text-white/35 focus:border-violet-300/40"
-            />
-            <select
-              value={filter}
-              onChange={(event) => setFilter(event.target.value as FilterKey)}
-              className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-violet-300/40"
-            >
-              {filters.map((item) => (
-                <option key={item.key} value={item.key} className="bg-[#120018]">
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </section>
-
-        <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-2xl font-black">عناصر قاعدة المعرفة</h2>
-              <p className="mt-2 text-sm text-white/45">عدد النتائج: {filteredRecords.length}</p>
-            </div>
+        <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="flex flex-wrap gap-3">
+            {filters.map((item) => (
+              <FilterButton key={item.key} active={filter === item.key} onClick={() => setFilter(item.key)}>
+                {item.label}
+              </FilterButton>
+            ))}
           </div>
 
-          {filteredRecords.length === 0 && (
-            <div className="rounded-3xl border border-white/10 bg-black/25 p-8 text-center text-white/55">
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="بحث في قاعدة المعرفة..."
+            className="w-full rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-white outline-none placeholder:text-white/35 focus:border-cyan-300/50"
+          />
+        </div>
+
+        <div className="grid gap-4">
+          {filteredRecords.length === 0 && !error && (
+            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center text-white/55">
               لا توجد عناصر معرفة مطابقة حالياً.
             </div>
           )}
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            {filteredRecords.map((record, index) => (
-              <article key={`${getRecordId(record)}-${index}`} className={`rounded-3xl border p-5 ${toneClass(getStatus(record) === "published" ? "green" : getStatus(record) === "hidden" ? "red" : "purple")}`}>
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <div className="mb-3 inline-flex rounded-full border border-white/10 bg-black/20 px-4 py-1 text-sm font-black">
-                      {getStatusLabel(record)}
-                    </div>
-                    <h3 className="text-2xl font-black">{getTitle(record)}</h3>
-                    <p className="mt-2 text-sm opacity-75">التصنيف: {getCategory(record)}</p>
-                    <p className="mt-1 text-sm opacity-75">المعرّف: {getRecordId(record)}</p>
-                  </div>
+          {filteredRecords.map((record, index) => (
+            <article key={`${getRecordId(record)}-${index}`} className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur transition hover:border-cyan-400/40 hover:bg-cyan-500/10">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <Badge tone={getStatus(record) === "published" ? "green" : getStatus(record) === "hidden" ? "red" : "yellow"}>{getStatusLabel(record)}</Badge>
+                <Badge tone="cyan">{getCategory(record)}</Badge>
+                <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-black text-white/60">
+                  {getRecordId(record)}
+                </span>
+              </div>
 
-                  <div className="text-sm opacity-70 md:text-left">
-                    {formatDate(getCreatedAt(record))}
-                  </div>
-                </div>
-
-                {getContent(record) && (
-                  <p className="mt-4 line-clamp-4 leading-8 opacity-80">
-                    {getContent(record)}
-                  </p>
-                )}
-              </article>
-            ))}
-          </div>
-        </section>
+              <h2 className="text-2xl font-black leading-9">{getTitle(record)}</h2>
+              <p className="mt-3 whitespace-pre-wrap leading-8 text-white/70">
+                {getContent(record) || "لا يوجد محتوى نصي واضح لهذا العنصر."}
+              </p>
+              <div className="mt-4 text-sm text-white/40">آخر تاريخ: {formatDate(getCreatedAt(record))}</div>
+            </article>
+          ))}
+        </div>
       </section>
     </main>
   );
@@ -352,16 +322,26 @@ export default function AdminKnowledgeBasePage() {
 
 function StatCard({ label, value, tone }: { label: string; value: number; tone: Tone }) {
   return (
-    <div className={`rounded-3xl border p-5 ${toneClass(tone)}`}>
+    <div className={`rounded-3xl border p-5 ${toneSoftClasses(tone)}`}>
       <div className="text-sm font-bold opacity-75">{label}</div>
-      <div className="mt-2 text-4xl font-black" dir="ltr">
-        {value}
-      </div>
+      <div className="mt-2 text-4xl font-black" dir="ltr">{value}</div>
     </div>
   );
 }
 
-function toneClass(tone: Tone) {
+function FilterButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} className={active ? "rounded-full bg-cyan-600 px-5 py-3 text-sm font-black text-white" : "rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-bold text-white/65"}>
+      {children}
+    </button>
+  );
+}
+
+function Badge({ children, tone }: { children: React.ReactNode; tone: Tone }) {
+  return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${toneSoftClasses(tone)}`}>{children}</span>;
+}
+
+function toneSoftClasses(tone: Tone) {
   const classes: Record<Tone, string> = {
     purple: "border-purple-400/20 bg-purple-500/10 text-purple-100",
     green: "border-green-400/20 bg-green-500/10 text-green-100",
