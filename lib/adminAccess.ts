@@ -20,6 +20,12 @@ export type AdminModule =
   | "activity_logs"
   | "trash"
   | "backups"
+  | "version_history"
+  | "export_center"
+  | "audit_mode"
+  | "knowledge_base"
+  | "ai_support"
+  | "ai_settings"
   | "permissions"
   | "notifications"
   | "analytics"
@@ -76,6 +82,12 @@ const superAdminModules: AdminModule[] = [
   "activity_logs",
   "trash",
   "backups",
+  "version_history",
+  "export_center",
+  "audit_mode",
+  "knowledge_base",
+  "ai_support",
+  "ai_settings",
   "permissions",
   "notifications",
   "analytics",
@@ -99,6 +111,12 @@ const deputySuperAdminModules: AdminModule[] = [
   "activity_logs",
   "trash",
   "backups",
+  "version_history",
+  "export_center",
+  "audit_mode",
+  "knowledge_base",
+  "ai_support",
+  "ai_settings",
   "permissions",
   "notifications",
   "analytics",
