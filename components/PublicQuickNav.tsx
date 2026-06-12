@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 const publicLinkGroups = [
   {
@@ -60,26 +60,17 @@ const publicLinkGroups = [
 export default function PublicQuickNav() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
 
-  useEffect(() => {
-    setIsOpen(false);
-    setIsVisible(false);
-
-    if (pathname.startsWith("/admin") || pathname === "/maintenance") return;
-
-    const delay = pathname === "/" ? 6200 : 1200;
-    const timer = window.setTimeout(() => setIsVisible(true), delay);
-
-    return () => window.clearTimeout(timer);
-  }, [pathname]);
-
-  if (pathname.startsWith("/admin") || pathname === "/maintenance" || !isVisible) return null;
+  if (pathname.startsWith("/admin") || pathname === "/maintenance") return null;
 
   return (
-    <div dir="rtl" className="fixed bottom-24 right-4 z-[70] print:hidden md:bottom-4">
+    <div
+      dir="rtl"
+      className="fixed right-4 z-[160] print:hidden"
+      style={{ position: "fixed", right: "1rem", bottom: "7.75rem", zIndex: 160 }}
+    >
       {isOpen && (
-        <div className="mb-3 max-h-[70vh] w-[min(340px,calc(100vw-2rem))] overflow-y-auto rounded-3xl border border-purple-400/25 bg-[#09000f]/95 p-3 shadow-[0_0_70px_rgba(124,58,237,0.35)] backdrop-blur-xl">
+        <div className="mb-3 max-h-[62vh] w-[min(340px,calc(100vw-2rem))] overflow-y-auto rounded-3xl border border-purple-400/25 bg-[#09000f]/95 p-3 shadow-[0_0_70px_rgba(124,58,237,0.35)] backdrop-blur-xl">
           <div className="mb-3 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3">
             <div className="text-xs font-black uppercase tracking-[0.25em] text-yellow-200">
               HAMZA AGENCY
@@ -130,7 +121,7 @@ export default function PublicQuickNav() {
         type="button"
         onClick={() => setIsOpen((current) => !current)}
         aria-label={isOpen ? "إغلاق قائمة الموقع" : "فتح قائمة الموقع"}
-        className="rounded-full border border-yellow-300/35 bg-[#12051f]/90 px-4 py-3 text-xs font-black text-yellow-100 shadow-[0_0_28px_rgba(234,179,8,0.14)] transition hover:bg-purple-900/90 md:px-5 md:text-sm"
+        className="rounded-full border border-yellow-300/40 bg-[#12051f]/95 px-4 py-3 text-xs font-black text-yellow-100 shadow-[0_0_34px_rgba(234,179,8,0.2)] transition hover:bg-purple-900/90 md:px-5 md:text-sm"
       >
         {isOpen ? "إغلاق القائمة" : "القائمة"}
       </button>
