@@ -1,0 +1,5 @@
+/* Restore public application modals that use form overlays. */
+main > div.fixed.inset-0.z-50.overflow-y-auto.bg-black\/80 {
+  display: block !important;
+  visibility: visible !important;
+}
