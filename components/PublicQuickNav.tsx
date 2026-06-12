@@ -17,6 +17,16 @@ const publicLinkGroups = [
     ],
   },
   {
+    title: "تفاصيل البرامج",
+    links: [
+      { label: "TikTok", href: "/programs/tiktok" },
+      { label: "BIGO LIVE", href: "/programs/bigo-live" },
+      { label: "Yaahlan", href: "/programs/yaahlan" },
+      { label: "Xena", href: "/programs/xena" },
+      { label: "Catchii", href: "/programs/catchii" },
+    ],
+  },
+  {
     title: "الطلبات والمتابعة",
     links: [
       { label: "طلب خدمة", href: "/service-request" },
@@ -30,11 +40,11 @@ const publicLinkGroups = [
     links: [
       { label: "التقييمات", href: "/reviews" },
       { label: "قصص النجاح", href: "/success-stories" },
-      { label: "شركاؤنا وبرامجنا", href: "/partners" },
+      { label: "الشركاء والبرامج", href: "/partners" },
       { label: "المعرض", href: "/gallery" },
       { label: "مركز المعرفة", href: "/knowledge-center" },
       { label: "الأسئلة الشائعة", href: "/faq" },
-      { label: "AI Support", href: "/ai-support" },
+      { label: "الدعم الذكي", href: "/ai-support" },
     ],
   },
   {
@@ -78,7 +88,7 @@ export default function PublicQuickNav() {
               قائمة الموقع
             </div>
             <p className="mt-2 text-xs leading-6 text-white/55">
-              تنقل سريع بين أقسام الوكالة، البرامج، الطلبات، وصفحات المعلومات الرسمية.
+              تنقل سريع بين جميع صفحات الموقع العامة، بدون روابط لوحة الإدارة.
             </p>
           </div>
 
