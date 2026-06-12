@@ -77,7 +77,7 @@ export default function PublicQuickNav() {
   if (pathname.startsWith("/admin") || pathname === "/maintenance" || !isVisible) return null;
 
   return (
-    <div dir="rtl" className="fixed bottom-4 right-4 z-[35] print:hidden">
+    <div dir="rtl" className="fixed bottom-24 right-4 z-[70] print:hidden md:bottom-4">
       {isOpen && (
         <div className="mb-3 max-h-[70vh] w-[min(340px,calc(100vw-2rem))] overflow-y-auto rounded-3xl border border-purple-400/25 bg-[#09000f]/95 p-3 shadow-[0_0_70px_rgba(124,58,237,0.35)] backdrop-blur-xl">
           <div className="mb-3 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3">
