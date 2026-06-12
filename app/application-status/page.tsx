@@ -67,15 +67,28 @@ const statusContent: Record<
   },
 };
 
+const platformOptions = [
+  "TikTok",
+  "BIGO LIVE",
+  "Yaahlan",
+  "Xena",
+  "Catchii",
+  "منصة أخرى",
+];
+
 const privacyNotes = [
-  "تستخدم الصفحة رقم الواتساب فقط للبحث عن آخر طلب مرتبط به.",
+  "تستخدم الصفحة رقم الواتساب مع اسم البرنامج لتقليل ظهور نتيجة غير مقصودة لشخص آخر.",
   "لا تعرض الصفحة الاسم الكامل أو الملاحظات أو الخبرات السابقة أو أي تفاصيل شخصية كاملة.",
-  "للدقة، أدخل نفس رقم الواتساب الذي استخدمته عند إرسال طلب الانضمام.",
-  "في مرحلة لاحقة يمكن تحسين التتبع ليصبح عبر كود طلب خاص بدلاً من الرقم فقط.",
+  "للدقة، أدخل نفس رقم الواتساب ونفس البرنامج الذي استخدمته عند إرسال طلب الانضمام.",
+  "للخصوصية الأقوى في النسخ القادمة، يُفضّل اعتماد كود تتبع خاص لكل طلب من قاعدة البيانات ولوحة الإدارة.",
 ];
 
 function normalizeDigits(value: string) {
   return value.replace(/[^0-9]/g, "");
+}
+
+function normalizePlatform(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function maskWhatsapp(value: string | null) {
@@ -114,6 +127,7 @@ function formatDate(value: string | null) {
 
 export default function ApplicationStatusPage() {
   const [whatsapp, setWhatsapp] = useState("");
+  const [platform, setPlatform] = useState(platformOptions[0]);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [application, setApplication] = useState<ApplicationRecord | null>(null);
@@ -125,9 +139,15 @@ export default function ApplicationStatusPage() {
     setApplication(null);
 
     const cleanedWhatsapp = normalizeDigits(whatsapp);
+    const selectedPlatform = platform.trim();
 
     if (!cleanedWhatsapp || cleanedWhatsapp.length < 8) {
       setMessage("يرجى إدخال رقم واتساب صحيح لا يقل عن 8 أرقام للبحث عن حالة الطلب.");
+      return;
+    }
+
+    if (!selectedPlatform) {
+      setMessage("يرجى اختيار البرنامج الذي تم التقديم عليه.");
       return;
     }
 
@@ -144,8 +164,9 @@ export default function ApplicationStatusPage() {
       .from("agency_applications")
       .select("id, whatsapp, platform, status, created_at")
       .ilike("whatsapp", `%${searchKey}%`)
+      .ilike("platform", selectedPlatform === "منصة أخرى" ? "%" : `%${selectedPlatform}%`)
       .order("created_at", { ascending: false })
-      .limit(1);
+      .limit(5);
 
     setIsLoading(false);
 
@@ -157,14 +178,19 @@ export default function ApplicationStatusPage() {
       return;
     }
 
-    if (!data || data.length === 0) {
+    const exactMatch = (data || []).find((item) => {
+      if (selectedPlatform === "منصة أخرى") return true;
+      return normalizePlatform(item.platform || "").includes(normalizePlatform(selectedPlatform));
+    });
+
+    if (!exactMatch) {
       setMessage(
-        "لم يتم العثور على طلب بهذا الرقم. تأكد من إدخال نفس رقم الواتساب المستخدم عند التقديم."
+        "لم يتم العثور على طلب مطابق لهذا الرقم والبرنامج. تأكد من إدخال نفس رقم الواتساب والبرنامج المستخدم عند التقديم."
       );
       return;
     }
 
-    setApplication(data[0] as ApplicationRecord);
+    setApplication(exactMatch as ApplicationRecord);
   }
 
   const statusInfo = application ? getStatusInfo(application.status) : null;
@@ -205,7 +231,7 @@ export default function ApplicationStatusPage() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-3xl text-lg leading-9 text-white/70">
-            أدخل رقم الواتساب الذي استخدمته عند التقديم لمعرفة آخر حالة مسجلة لطلبك لدى وكالة حمزة.
+            أدخل رقم الواتساب والبرنامج الذي استخدمته عند التقديم لمعرفة آخر حالة مسجلة لطلبك لدى وكالة حمزة.
           </p>
         </header>
 
@@ -226,6 +252,22 @@ export default function ApplicationStatusPage() {
               autoComplete="tel"
               className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-white outline-none transition placeholder:text-white/35 focus:border-purple-400/60"
             />
+
+            <label className="mt-5 block text-sm font-black text-white/80">
+              البرنامج الذي تم التقديم عليه
+            </label>
+
+            <select
+              value={platform}
+              onChange={(event) => setPlatform(event.target.value)}
+              className="mt-3 w-full rounded-2xl border border-white/10 bg-[#12051f] px-4 py-4 text-white outline-none transition focus:border-purple-400/60"
+            >
+              {platformOptions.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
 
             <button
               type="submit"
@@ -256,7 +298,7 @@ export default function ApplicationStatusPage() {
 
             {!application && (
               <div className="mt-6 rounded-2xl border border-white/10 bg-black/25 p-5 text-white/60">
-                أدخل رقم الواتساب واضغط على زر عرض الحالة لمعرفة نتيجة آخر طلب مرتبط بهذا الرقم.
+                أدخل رقم الواتساب واختر البرنامج، ثم اضغط على زر عرض الحالة لمعرفة نتيجة آخر طلب مطابق.
               </div>
             )}
 
