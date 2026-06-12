@@ -22,12 +22,12 @@ type Review = {
 const fallbackReviews: Review[] = [
   {
     id: 1,
-    reviewer_name: "صانع محتوى من TikTok",
+    reviewer_name: "نموذج تجربة من TikTok",
     country: "تركيا",
     platform: "TikTok",
     rating: 5,
     content:
-      "تجربة منظمة وواضحة. تم شرح خطوات الانضمام والمتابعة عبر واتساب بطريقة محترمة وسريعة.",
+      "مثال توضيحي لطريقة عرض تقييم من صانع محتوى بعد شرح خطوات الانضمام والمتابعة عبر واتساب.",
     avatar_url: null,
     is_featured: true,
     sort_order: 1,
@@ -37,12 +37,12 @@ const fallbackReviews: Review[] = [
   },
   {
     id: 2,
-    reviewer_name: "مقدمة بث مباشر",
+    reviewer_name: "نموذج تجربة بث مباشر",
     country: "سوريا",
     platform: "BIGO LIVE",
     rating: 5,
     content:
-      "أعجبني أن التواصل كان واضحاً، وتمت متابعة الطلب بدون تعقيد. الوكالة مناسبة لمن يريد بداية منظمة.",
+      "مثال توضيحي لتجربة تواصل واضحة ومتابعة طلب بدون تعقيد، ويستبدل لاحقاً بتقييمات حقيقية من لوحة الإدارة.",
     avatar_url: null,
     is_featured: true,
     sort_order: 2,
@@ -52,12 +52,12 @@ const fallbackReviews: Review[] = [
   },
   {
     id: 3,
-    reviewer_name: "صانع محتوى جديد",
+    reviewer_name: "نموذج صانع محتوى جديد",
     country: "العراق",
     platform: "Yaahlan",
     rating: 5,
     content:
-      "الشرح كان بسيطاً، والفريق وضح لي الفرق بين البرامج والخطوات المطلوبة قبل التقديم.",
+      "مثال يوضح كيف يمكن عرض رأي مختصر حول فهم الفرق بين البرامج والخطوات المطلوبة قبل التقديم.",
     avatar_url: null,
     is_featured: false,
     sort_order: 3,
@@ -67,12 +67,12 @@ const fallbackReviews: Review[] = [
   },
   {
     id: 4,
-    reviewer_name: "متابع خدمات رقمية",
+    reviewer_name: "نموذج خدمات رقمية",
     country: "تركيا",
     platform: "Digital Services",
     rating: 5,
     content:
-      "الطلب كان واضحاً من الموقع، وتمت المتابعة عبر واتساب بعد إرسال التفاصيل.",
+      "مثال لطريقة عرض تجربة طلب خدمة من الموقع ثم المتابعة عبر واتساب بعد إرسال التفاصيل.",
     avatar_url: null,
     is_featured: false,
     sort_order: 4,
@@ -145,6 +145,7 @@ export default async function ReviewsPage() {
   const featuredReviews = reviews.filter((review) => review.is_featured);
   const normalReviews = reviews.filter((review) => !review.is_featured);
   const averageRating = getAverageRating(reviews);
+  const isUsingDefaultReviews = reviews.every((review) => review.created_at === null);
 
   return (
     <main
@@ -174,11 +175,17 @@ export default async function ReviewsPage() {
             هذه الصفحة مخصصة لعرض آراء صناع المحتوى والعملاء حول تجربة التواصل
             مع وكالة حمزة، متابعة الطلبات، والخدمات المقدمة.
           </p>
+
+          {isUsingDefaultReviews && (
+            <div className="mx-auto mt-6 max-w-4xl rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-5 text-sm leading-7 text-yellow-50/80">
+              ملاحظة شفافة: التقييمات الظاهرة حالياً نماذج توضيحية لطريقة العرض. عند إضافة تقييمات حقيقية ومنشورة من لوحة الإدارة سيتم عرضها هنا بدلاً من هذه النماذج.
+            </div>
+          )}
         </header>
 
         <div className="mt-10 grid gap-5 md:grid-cols-3">
-          <StatCard title="عدد التقييمات" value={`${reviews.length}+`} />
-          <StatCard title="متوسط التقييم" value={averageRating} />
+          <StatCard title={isUsingDefaultReviews ? "نماذج معروضة" : "عدد التقييمات"} value={`${reviews.length}+`} />
+          <StatCard title={isUsingDefaultReviews ? "شكل العرض" : "متوسط التقييم"} value={isUsingDefaultReviews ? "توضيحي" : averageRating} />
           <StatCard title="المنصات" value="متعددة" />
         </div>
 
@@ -186,20 +193,21 @@ export default async function ReviewsPage() {
           <section className="mt-14">
             <div className="mb-6">
               <div className="mb-3 inline-flex rounded-full border border-yellow-400/20 bg-yellow-500/10 px-4 py-2 text-sm font-black text-yellow-100">
-                تقييمات مميزة
+                {isUsingDefaultReviews ? "نماذج مميزة" : "تقييمات مميزة"}
               </div>
 
               <h2 className="text-4xl font-black">تجارب بارزة</h2>
 
               <p className="mt-3 max-w-3xl leading-8 text-white/60">
-                تقييمات مختارة تظهر في مقدمة الصفحة لأنها تمثل تجربة واضحة مع
-                الوكالة أو أحد برامجها.
+                {isUsingDefaultReviews
+                  ? "نماذج مختارة توضّح طريقة عرض التقييمات قبل نشر آراء حقيقية من لوحة الإدارة."
+                  : "تقييمات مختارة تظهر في مقدمة الصفحة لأنها تمثل تجربة واضحة مع الوكالة أو أحد برامجها."}
               </p>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
               {featuredReviews.map((review) => (
-                <ReviewCard key={review.id} review={review} featured />
+                <ReviewCard key={review.id} review={review} featured isDefault={isUsingDefaultReviews} />
               ))}
             </div>
           </section>
@@ -208,7 +216,7 @@ export default async function ReviewsPage() {
         <section className="mt-14">
           <div className="mb-6">
             <div className="mb-3 inline-flex rounded-full border border-purple-400/20 bg-purple-500/10 px-4 py-2 text-sm font-black text-purple-100">
-              كل التقييمات
+              {isUsingDefaultReviews ? "نماذج إضافية" : "كل التقييمات"}
             </div>
 
             <h2 className="text-4xl font-black">آراء إضافية</h2>
@@ -222,7 +230,7 @@ export default async function ReviewsPage() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {[...normalReviews, ...(normalReviews.length ? [] : featuredReviews)].map(
               (review) => (
-                <ReviewCard key={`normal-${review.id}`} review={review} />
+                <ReviewCard key={`normal-${review.id}`} review={review} isDefault={isUsingDefaultReviews} />
               )
             )}
           </div>
@@ -254,9 +262,11 @@ export default async function ReviewsPage() {
 function ReviewCard({
   review,
   featured = false,
+  isDefault = false,
 }: {
   review: Review;
   featured?: boolean;
+  isDefault?: boolean;
 }) {
   return (
     <article
@@ -300,11 +310,19 @@ function ReviewCard({
         {review.content || "تقييم إيجابي لتجربة التعامل مع وكالة حمزة."}
       </p>
 
-      {featured && (
-        <div className="mt-5 inline-flex rounded-full border border-yellow-300/25 bg-yellow-500/10 px-4 py-2 text-xs font-black text-yellow-100">
-          تقييم مميز
-        </div>
-      )}
+      <div className="mt-5 flex flex-wrap gap-2">
+        {featured && (
+          <div className="inline-flex rounded-full border border-yellow-300/25 bg-yellow-500/10 px-4 py-2 text-xs font-black text-yellow-100">
+            {isDefault ? "نموذج مميز" : "تقييم مميز"}
+          </div>
+        )}
+
+        {isDefault && (
+          <div className="inline-flex rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-black text-white/55">
+            نموذج توضيحي
+          </div>
+        )}
+      </div>
     </article>
   );
 }
