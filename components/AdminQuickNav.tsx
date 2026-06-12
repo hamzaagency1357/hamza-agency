@@ -37,6 +37,11 @@ const adminLinks = [
 const publicPreviewLinks = [
   { label: "الرئيسية", href: "/" },
   { label: "البرامج", href: "/programs" },
+  { label: "TikTok", href: "/programs/tiktok" },
+  { label: "BIGO LIVE", href: "/programs/bigo-live" },
+  { label: "Yaahlan", href: "/programs/yaahlan" },
+  { label: "Xena", href: "/programs/xena" },
+  { label: "Catchii", href: "/programs/catchii" },
   { label: "من نحن", href: "/about" },
   { label: "الخدمات", href: "/services" },
   { label: "الخدمات الرقمية", href: "/digital-services" },
@@ -50,7 +55,11 @@ const publicPreviewLinks = [
   { label: "المعرض", href: "/gallery" },
   { label: "مركز المعرفة", href: "/knowledge-center" },
   { label: "الأسئلة الشائعة", href: "/faq" },
+  { label: "الدعم الذكي", href: "/ai-support" },
   { label: "اتصل بنا", href: "/contact" },
+  { label: "سياسة الخصوصية", href: "/privacy-policy" },
+  { label: "الشروط والأحكام", href: "/terms-and-conditions" },
+  { label: "سياسة الذكاء الاصطناعي", href: "/ai-policy" },
 ];
 
 export default function AdminQuickNav() {
@@ -65,7 +74,7 @@ export default function AdminQuickNav() {
     async function checkAccess() {
       setIsOpen(false);
 
-      if (pathname === "/admin/login") {
+      if (!pathname.startsWith("/admin") || pathname === "/admin/login") {
         if (isMounted) {
           setCanShowNav(false);
           setIsCheckingAccess(false);
@@ -93,7 +102,7 @@ export default function AdminQuickNav() {
     };
   }, [pathname]);
 
-  if (pathname === "/admin/login" || isCheckingAccess || !canShowNav) return null;
+  if (!pathname.startsWith("/admin") || pathname === "/admin/login" || isCheckingAccess || !canShowNav) return null;
 
   return (
     <div dir="rtl" className="fixed bottom-20 left-3 z-[80] print:hidden md:bottom-4 md:left-4">
@@ -107,7 +116,7 @@ export default function AdminQuickNav() {
               تنقل الإدارة والموقع
             </div>
             <p className="mt-2 text-xs leading-6 text-white/55">
-              عدّل من لوحة التحكم، ثم افتح مكان ظهور التعديل في الموقع مباشرة.
+              يظهر هذا التنقل داخل لوحة الإدارة فقط، مع روابط معاينة لصفحات الموقع العامة.
             </p>
           </div>
 
@@ -142,7 +151,7 @@ export default function AdminQuickNav() {
           </nav>
 
           <div className="mb-2 mt-4 rounded-2xl border border-yellow-400/15 bg-yellow-500/10 px-3 py-2 text-xs font-black text-yellow-100">
-            عرض في الموقع
+            معاينة صفحات الموقع
           </div>
           <nav className="grid gap-2">
             {publicPreviewLinks.map((link) => {
