@@ -79,7 +79,7 @@ export default function LanguageSwitcher() {
   if (pathname.startsWith("/admin") || pathname === "/maintenance") return null;
 
   return (
-    <div dir="ltr" className="fixed left-4 top-4 z-[70] print:hidden">
+    <div dir="ltr" className="fixed left-3 top-3 z-[120] print:hidden sm:left-4 sm:top-4">
       <div
         className="rounded-2xl border border-white/10 bg-[#09000f]/85 p-1 shadow-[0_0_35px_rgba(124,58,237,0.22)] backdrop-blur-xl"
         onMouseEnter={() => setShowScope(true)}
