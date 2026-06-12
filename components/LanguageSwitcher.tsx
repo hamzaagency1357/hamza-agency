@@ -19,9 +19,15 @@ const languages: {
 ];
 
 const helperText: Record<SiteLanguage, string> = {
-  ar: "لغة الموقع",
-  en: "Site language",
-  tr: "Site dili",
+  ar: "واجهة اللغة",
+  en: "Language UI",
+  tr: "Dil arayüzü",
+};
+
+const scopeText: Record<SiteLanguage, string> = {
+  ar: "تبديل اتجاه وأزرار الواجهة حالياً، والمحتوى العربي هو النسخة الرسمية.",
+  en: "Changes interface direction/buttons for now. Arabic content is the official version.",
+  tr: "Şimdilik arayüz yönünü/düğmeleri değiştirir. Resmi içerik Arapçadır.",
 };
 
 function isSupportedLanguage(value: string | null): value is SiteLanguage {
@@ -54,6 +60,7 @@ export default function LanguageSwitcher() {
   const pathname = usePathname();
   const [language, setLanguage] = useState<SiteLanguage>("ar");
   const [isReady, setIsReady] = useState(false);
+  const [showScope, setShowScope] = useState(false);
 
   useEffect(() => {
     const preferredLanguage = detectPreferredLanguage();
@@ -73,11 +80,20 @@ export default function LanguageSwitcher() {
 
   return (
     <div dir="ltr" className="fixed left-4 top-4 z-[70] print:hidden">
-      <div className="rounded-full border border-white/10 bg-[#09000f]/85 p-1 shadow-[0_0_35px_rgba(124,58,237,0.22)] backdrop-blur-xl">
+      <div
+        className="rounded-2xl border border-white/10 bg-[#09000f]/85 p-1 shadow-[0_0_35px_rgba(124,58,237,0.22)] backdrop-blur-xl"
+        onMouseEnter={() => setShowScope(true)}
+        onMouseLeave={() => setShowScope(false)}
+      >
         <div className="flex items-center gap-1">
-          <span className="hidden px-3 text-xs font-black text-white/45 sm:inline">
+          <button
+            type="button"
+            onClick={() => setShowScope((current) => !current)}
+            className="hidden px-3 text-xs font-black text-white/45 transition hover:text-white/75 sm:inline"
+            aria-label="شرح نطاق تبديل اللغة"
+          >
             {helperText[language]}
-          </span>
+          </button>
 
           {languages.map((item) => {
             const active = item.code === language;
@@ -87,7 +103,7 @@ export default function LanguageSwitcher() {
                 key={item.code}
                 type="button"
                 onClick={() => setLanguage(item.code)}
-                aria-label={`Switch language to ${item.label}`}
+                aria-label={`Switch language UI to ${item.label}`}
                 className={`rounded-full px-3 py-2 text-xs font-black transition ${
                   active
                     ? "bg-gradient-to-r from-purple-600 to-yellow-500 text-white shadow-[0_0_22px_rgba(168,85,247,0.28)]"
@@ -99,6 +115,12 @@ export default function LanguageSwitcher() {
             );
           })}
         </div>
+
+        {showScope && (
+          <div className="mt-1 max-w-56 px-3 pb-2 text-[11px] leading-5 text-white/48" dir={language === "ar" ? "rtl" : "ltr"}>
+            {scopeText[language]}
+          </div>
+        )}
       </div>
     </div>
   );
