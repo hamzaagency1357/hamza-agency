@@ -66,8 +66,7 @@ export default function PublicQuickNav() {
   return (
     <div
       dir="rtl"
-      className="fixed right-4 z-[160] print:hidden"
-      style={{ position: "fixed", right: "1rem", bottom: "7.75rem", zIndex: 160 }}
+      className="fixed bottom-[7.75rem] right-4 z-[160] print:hidden md:bottom-6 md:left-6 md:right-auto"
     >
       {isOpen && (
         <div className="mb-3 max-h-[62vh] w-[min(340px,calc(100vw-2rem))] overflow-y-auto rounded-3xl border border-purple-400/25 bg-[#09000f]/95 p-3 shadow-[0_0_70px_rgba(124,58,237,0.35)] backdrop-blur-xl">
