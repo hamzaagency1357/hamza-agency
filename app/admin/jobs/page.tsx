@@ -146,6 +146,21 @@ function getJobApplicationAction(changes: Partial<JobApplication>) {
   return "update_job_application";
 }
 
+function csvValue(value: string | number | null | undefined) {
+  const text = value === null || value === undefined ? "" : String(value);
+  return `"${text.replace(/"/g, '""').replace(/\r?\n/g, " ")}"`;
+}
+
+function excelValue(value: string | number | null | undefined) {
+  const text = value === null || value === undefined ? "" : String(value);
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/\r?\n/g, " ");
+}
+
 export default function AdminJobsPage() {
   const [adminStatus, setAdminStatus] = useState<AdminStatus>("checking");
   const [adminEmail, setAdminEmail] = useState("");
@@ -537,6 +552,116 @@ export default function AdminJobsPage() {
     ].join("\n");
   }
 
+  function getJobApplicationExportRows() {
+    const headers = [
+      "ID",
+      "الوظيفة",
+      "الاسم",
+      "الدولة",
+      "واتساب",
+      "البريد",
+      "الحالة",
+      "الخبرات",
+      "ملاحظات المتقدم",
+      "ملاحظات داخلية",
+      "تاريخ الطلب",
+      "آخر تحديث",
+    ];
+
+    const rows = filteredApplications.map((application) => [
+      application.id,
+      getJobTitle(application.job_id),
+      application.full_name || "",
+      application.country || "",
+      application.whatsapp || "",
+      application.email || "",
+      applicationStatusLabels[application.status || ""] || application.status || "غير محدد",
+      application.experience || "",
+      application.notes || "",
+      application.internal_notes || "",
+      formatDate(application.created_at),
+      formatDate(application.updated_at),
+    ]);
+
+    return { headers, rows };
+  }
+
+  function exportJobApplicationsCsv() {
+    if (filteredApplications.length === 0) {
+      setMessage("لا توجد طلبات وظائف مطابقة لتصديرها.");
+      return;
+    }
+
+    const { headers, rows } = getJobApplicationExportRows();
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => csvValue(cell)).join(","))
+      .join("\n");
+
+    const blob = new Blob(["\ufeff" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+
+    link.href = url;
+    link.download = `hamza-job-applications-${date}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setMessage(`تم تصدير ${filteredApplications.length} طلب وظيفة بصيغة CSV.`);
+  }
+
+  function exportJobApplicationsExcel() {
+    if (filteredApplications.length === 0) {
+      setMessage("لا توجد طلبات وظائف مطابقة لتصديرها.");
+      return;
+    }
+
+    const { headers, rows } = getJobApplicationExportRows();
+    const tableHeader = headers.map((header) => `<th>${excelValue(header)}</th>`).join("");
+    const tableRows = rows
+      .map((row) => `<tr>${row.map((cell) => `<td>${excelValue(cell)}</td>`).join("")}</tr>`)
+      .join("");
+
+    const workbook = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <meta charset="UTF-8" />
+          <style>
+            table { border-collapse: collapse; direction: rtl; font-family: Arial, sans-serif; }
+            th { background: #3b0764; color: #ffffff; font-weight: bold; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px; mso-number-format: "\\@"; }
+          </style>
+        </head>
+        <body>
+          <table>
+            <thead><tr>${tableHeader}</tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `.trim();
+
+    const blob = new Blob(["\ufeff" + workbook], {
+      type: "application/vnd.ms-excel;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+
+    link.href = url;
+    link.download = `hamza-job-applications-${date}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setMessage(`تم تصدير ${filteredApplications.length} طلب وظيفة بصيغة Excel.`);
+  }
+
   async function copyText(text: string, successMessage: string) {
     try {
       await navigator.clipboard.writeText(text);
@@ -612,6 +737,22 @@ export default function AdminJobsPage() {
               className="rounded-full border border-purple-400/25 bg-purple-500/10 px-5 py-3 font-bold text-purple-100"
             >
               تحديث البيانات
+            </button>
+
+            <button
+              type="button"
+              onClick={exportJobApplicationsCsv}
+              className="rounded-full border border-green-400/25 bg-green-500/10 px-5 py-3 font-bold text-green-100 transition hover:bg-green-500/20"
+            >
+              تصدير CSV
+            </button>
+
+            <button
+              type="button"
+              onClick={exportJobApplicationsExcel}
+              className="rounded-full border border-cyan-400/25 bg-cyan-500/10 px-5 py-3 font-bold text-cyan-100 transition hover:bg-cyan-500/20"
+            >
+              تصدير Excel
             </button>
 
             <Link
