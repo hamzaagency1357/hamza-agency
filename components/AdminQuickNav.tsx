@@ -11,6 +11,8 @@ const adminLinks = [
   { label: "طلبات الخدمات", href: "/admin/service-requests" },
   { label: "البرامج", href: "/admin/programs" },
   { label: "الصفحات", href: "/admin/pages" },
+  { label: "الأقسام", href: "/admin/sections" },
+  { label: "الأسئلة الشائعة", href: "/admin/faqs" },
   { label: "الوسائط", href: "/admin/media" },
   { label: "الإعلانات", href: "/admin/announcements" },
   { label: "الإعدادات", href: "/admin/settings" },
