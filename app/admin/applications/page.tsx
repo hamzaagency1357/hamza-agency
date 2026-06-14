@@ -79,6 +79,16 @@ function csvValue(value: string | number | null | undefined) {
   return `"${text.replace(/"/g, '""').replace(/\r?\n/g, " ")}"`;
 }
 
+function excelValue(value: string | number | null | undefined) {
+  const text = value === null || value === undefined ? "" : String(value);
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/\r?\n/g, " ");
+}
+
 function getStatusLabel(status: string | null | undefined) {
   return statusLabels[status || ""] || status || "غير محدد";
 }
@@ -280,12 +290,7 @@ export default function AdminApplicationsPage() {
     showMessage("تم تحديث حالة الطلب بنجاح.", "success");
   }
 
-  function exportCsv() {
-    if (filteredApplications.length === 0) {
-      showMessage("لا توجد طلبات مطابقة لتصديرها.", "info");
-      return;
-    }
-
+  function getExportRows() {
     const headers = [
       "ID",
       "الاسم",
@@ -310,6 +315,16 @@ export default function AdminApplicationsPage() {
       formatDate(item.created_at),
     ]);
 
+    return { headers, rows };
+  }
+
+  function exportCsv() {
+    if (filteredApplications.length === 0) {
+      showMessage("لا توجد طلبات مطابقة لتصديرها.", "info");
+      return;
+    }
+
+    const { headers, rows } = getExportRows();
     const csvContent = [headers, ...rows]
       .map((row) => row.map((cell) => csvValue(cell)).join(","))
       .join("\n");
@@ -329,6 +344,56 @@ export default function AdminApplicationsPage() {
     URL.revokeObjectURL(url);
 
     showMessage("تم تجهيز ملف CSV وتحميله.", "success");
+  }
+
+  function exportExcel() {
+    if (filteredApplications.length === 0) {
+      showMessage("لا توجد طلبات مطابقة لتصديرها.", "info");
+      return;
+    }
+
+    const { headers, rows } = getExportRows();
+    const tableHeader = headers
+      .map((header) => `<th>${excelValue(header)}</th>`)
+      .join("");
+    const tableRows = rows
+      .map((row) => `<tr>${row.map((cell) => `<td>${excelValue(cell)}</td>`).join("")}</tr>`)
+      .join("");
+
+    const workbook = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <meta charset="UTF-8" />
+          <style>
+            table { border-collapse: collapse; direction: rtl; font-family: Arial, sans-serif; }
+            th { background: #3b0764; color: #ffffff; font-weight: bold; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px; mso-number-format: "\\@"; }
+          </style>
+        </head>
+        <body>
+          <table>
+            <thead><tr>${tableHeader}</tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `.trim();
+
+    const blob = new Blob(["\ufeff" + workbook], {
+      type: "application/vnd.ms-excel;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+
+    link.href = url;
+    link.download = `hamza-agency-applications-${date}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showMessage("تم تجهيز ملف Excel وتحميله.", "success");
   }
 
   if (adminStatus === "checking" || isLoading) {
@@ -389,6 +454,14 @@ export default function AdminApplicationsPage() {
                 className="rounded-full border border-green-400/25 bg-green-500/10 px-5 py-3 text-sm font-black text-green-100 hover:bg-green-500/20"
               >
                 تصدير CSV
+              </button>
+
+              <button
+                type="button"
+                onClick={exportExcel}
+                className="rounded-full border border-cyan-400/25 bg-cyan-500/10 px-5 py-3 text-sm font-black text-cyan-100 hover:bg-cyan-500/20"
+              >
+                تصدير Excel
               </button>
 
               <Link
