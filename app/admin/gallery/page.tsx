@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { logAdminActivity } from "@/lib/adminActivityLogger";
 
 type GalleryItem = {
   id: number;
@@ -117,6 +118,31 @@ function isMediaPickerOption(item: MediaOption) {
 
 function isVideoMedia(item: MediaOption) {
   return item.file_type === "video" || item.file_type === "background_video";
+}
+
+function getGalleryItemSnapshot(item: GalleryItem) {
+  return {
+    id: item.id,
+    title: item.title,
+    slug: item.slug,
+    category: item.category,
+    media_type: item.media_type,
+    description: item.description,
+    media_url: item.media_url,
+    thumbnail_url: item.thumbnail_url,
+    effect_type: item.effect_type,
+    external_url: item.external_url,
+    alt_text: item.alt_text,
+    button_label: item.button_label,
+    button_url: item.button_url,
+    status: item.status,
+    is_visible: item.is_visible,
+    is_featured: item.is_featured,
+    sort_order: item.sort_order,
+    metadata: item.metadata,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+  };
 }
 
 export default function AdminGalleryPage() {
@@ -432,6 +458,16 @@ export default function AdminGalleryPage() {
           return;
         }
 
+        await logAdminActivity({
+          action: "update_gallery_item",
+          module: "gallery",
+          adminEmail: adminProfile?.email || "",
+          recordId: editingItem.id,
+          details: "تعديل عنصر معرض من لوحة الإدارة",
+          oldData: getGalleryItemSnapshot(editingItem),
+          newData: payload,
+        });
+
         successText = "تم حفظ تعديلات عنصر المعرض بنجاح.";
       } else {
         const { error } = await supabase.from("gallery_items").insert(payload);
@@ -441,6 +477,16 @@ export default function AdminGalleryPage() {
           setMessage("تعذر إضافة عنصر المعرض. تأكد أن الرابط التعريفي غير مستخدم مسبقاً.");
           return;
         }
+
+        await logAdminActivity({
+          action: "create_gallery_item",
+          module: "gallery",
+          adminEmail: adminProfile?.email || "",
+          recordId: payload.slug,
+          details: "إضافة عنصر معرض من لوحة الإدارة",
+          oldData: null,
+          newData: payload,
+        });
 
         successText = "تمت إضافة عنصر المعرض بنجاح.";
       }
@@ -463,11 +509,12 @@ export default function AdminGalleryPage() {
     if (!supabase) return;
 
     const nextStatus = visible ? "published" : "hidden";
+    const updatePayload = { is_visible: visible, status: nextStatus, updated_at: new Date().toISOString() };
 
     try {
       const { error } = await supabase
         .from("gallery_items")
-        .update({ is_visible: visible, status: nextStatus, updated_at: new Date().toISOString() })
+        .update(updatePayload)
         .eq("id", item.id);
 
       if (error) {
@@ -475,6 +522,19 @@ export default function AdminGalleryPage() {
         setMessage("تعذر تحديث حالة الظهور.");
         return;
       }
+
+      await logAdminActivity({
+        action: "toggle_gallery_item_visibility",
+        module: "gallery",
+        adminEmail: adminProfile?.email || "",
+        recordId: item.id,
+        details: visible ? "إظهار عنصر معرض للعامة" : "إخفاء عنصر معرض من العامة",
+        oldData: getGalleryItemSnapshot(item),
+        newData: {
+          ...getGalleryItemSnapshot(item),
+          ...updatePayload,
+        },
+      });
 
       setMessageType("success");
       setMessage(visible ? "تم إظهار عنصر المعرض." : "تم إخفاء عنصر المعرض.");
@@ -489,11 +549,12 @@ export default function AdminGalleryPage() {
     if (!supabase) return;
 
     const nextValue = !item.is_featured;
+    const updatePayload = { is_featured: nextValue, updated_at: new Date().toISOString() };
 
     try {
       const { error } = await supabase
         .from("gallery_items")
-        .update({ is_featured: nextValue, updated_at: new Date().toISOString() })
+        .update(updatePayload)
         .eq("id", item.id);
 
       if (error) {
@@ -501,6 +562,19 @@ export default function AdminGalleryPage() {
         setMessage("تعذر تحديث تمييز عنصر المعرض.");
         return;
       }
+
+      await logAdminActivity({
+        action: "toggle_gallery_item_featured",
+        module: "gallery",
+        adminEmail: adminProfile?.email || "",
+        recordId: item.id,
+        details: nextValue ? "تمييز عنصر معرض" : "إلغاء تمييز عنصر معرض",
+        oldData: getGalleryItemSnapshot(item),
+        newData: {
+          ...getGalleryItemSnapshot(item),
+          ...updatePayload,
+        },
+      });
 
       setMessageType("success");
       setMessage(nextValue ? "تم تمييز عنصر المعرض." : "تم إلغاء التمييز.");
@@ -520,17 +594,19 @@ export default function AdminGalleryPage() {
 
     if (!confirmed) return;
 
+    const archivePayload = {
+      title: item.title?.startsWith("محذوف -") ? item.title : `محذوف - ${item.title}`,
+      status: "hidden",
+      is_visible: false,
+      is_featured: false,
+      sort_order: 9999,
+      updated_at: new Date().toISOString(),
+    };
+
     try {
       const { error } = await supabase
         .from("gallery_items")
-        .update({
-          title: item.title?.startsWith("محذوف -") ? item.title : `محذوف - ${item.title}`,
-          status: "hidden",
-          is_visible: false,
-          is_featured: false,
-          sort_order: 9999,
-          updated_at: new Date().toISOString(),
-        })
+        .update(archivePayload)
         .eq("id", item.id);
 
       if (error) {
@@ -538,6 +614,19 @@ export default function AdminGalleryPage() {
         setMessage("تعذر حذف عنصر المعرض بشكل آمن.");
         return;
       }
+
+      await logAdminActivity({
+        action: "archive_gallery_item",
+        module: "gallery",
+        adminEmail: adminProfile?.email || "",
+        recordId: item.id,
+        details: "حذف آمن وأرشفة عنصر معرض من لوحة الإدارة",
+        oldData: getGalleryItemSnapshot(item),
+        newData: {
+          ...getGalleryItemSnapshot(item),
+          ...archivePayload,
+        },
+      });
 
       if (editingItem?.id === item.id) resetForm(false);
 
