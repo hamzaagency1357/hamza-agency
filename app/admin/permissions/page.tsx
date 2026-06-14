@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { logAdminActivity } from "@/lib/adminActivityLogger";
 
 type AnyRow = Record<string, unknown>;
 type PermissionKey = "can_view" | "can_create" | "can_edit" | "can_delete" | "can_export" | "can_manage";
@@ -113,6 +114,23 @@ function toForm(row: AnyRow): PermissionForm {
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
+}
+
+function getPermissionSnapshot(row: AnyRow) {
+  return {
+    admin_email: getString(row, ["admin_email", "email"], ""),
+    module_key: getString(row, ["module_key"], ""),
+    module_label: getModuleLabel(getString(row, ["module_key"], "")),
+    can_view: getBoolean(row, "can_view"),
+    can_create: getBoolean(row, "can_create"),
+    can_edit: getBoolean(row, "can_edit"),
+    can_delete: getBoolean(row, "can_delete"),
+    can_export: getBoolean(row, "can_export"),
+    can_manage: getBoolean(row, "can_manage"),
+    notes: getString(row, ["notes"], ""),
+    created_at: getString(row, ["created_at"], ""),
+    updated_at: getString(row, ["updated_at"], ""),
+  };
 }
 
 export default function AdminPermissionsPage() {
@@ -254,6 +272,12 @@ export default function AdminPermissionsPage() {
       updated_at: new Date().toISOString(),
     };
 
+    const oldPermission = permissions.find((permission) => {
+      const permissionEmail = normalizeEmail(getString(permission, ["admin_email", "email"], ""));
+      const moduleKey = getString(permission, ["module_key"], "");
+      return permissionEmail === email && moduleKey === form.module_key;
+    });
+
     const { error: saveError } = await supabase
       .from("admin_permissions")
       .upsert(payload, { onConflict: "admin_email,module_key" });
@@ -264,6 +288,19 @@ export default function AdminPermissionsPage() {
       setError(`تعذر حفظ الصلاحية: ${saveError.message}`);
       return;
     }
+
+    await logAdminActivity({
+      action: oldPermission ? "update_admin_permission" : "create_admin_permission",
+      module: "permissions",
+      adminEmail,
+      recordId: `${email}:${form.module_key}`,
+      details: oldPermission ? "تعديل صلاحية مدير من لوحة الإدارة" : "إنشاء صلاحية مدير من لوحة الإدارة",
+      oldData: oldPermission ? getPermissionSnapshot(oldPermission) : null,
+      newData: {
+        ...payload,
+        module_label: getModuleLabel(form.module_key),
+      },
+    });
 
     setMessage("تم حفظ الصلاحية بنجاح.");
     await loadData();
@@ -293,6 +330,16 @@ export default function AdminPermissionsPage() {
       setError(`تعذر حذف الصلاحية: ${deleteError.message}`);
       return;
     }
+
+    await logAdminActivity({
+      action: "delete_admin_permission",
+      module: "permissions",
+      adminEmail,
+      recordId: `${email}:${moduleKey}`,
+      details: "حذف صلاحية مدير من لوحة الإدارة",
+      oldData: getPermissionSnapshot(permission),
+      newData: null,
+    });
 
     setMessage("تم حذف الصلاحية بنجاح.");
     await loadData();
