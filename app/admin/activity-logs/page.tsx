@@ -69,6 +69,11 @@ function getAction(row: ActivityLogRow) {
 
 function getActionCategory(row: ActivityLogRow): FilterKey {
   const action = getAction(row).toLowerCase();
+  const moduleName = getModuleName(row).toLowerCase();
+
+  if (["system", "backup", "export", "import", "maintenance"].some((word) => action.includes(word) || moduleName.includes(word))) {
+    return "system";
+  }
 
   if (["create", "insert", "add", "publish", "restore"].some((word) => action.includes(word))) {
     return "create";
@@ -86,10 +91,6 @@ function getActionCategory(row: ActivityLogRow): FilterKey {
     return "auth";
   }
 
-  if (["system", "backup", "export", "import", "maintenance"].some((word) => action.includes(word))) {
-    return "system";
-  }
-
   return "other";
 }
 
@@ -97,13 +98,14 @@ function getActionLabel(row: ActivityLogRow) {
   const action = getAction(row);
   const normalized = action.toLowerCase();
 
+  if (normalized.includes("backup")) return "نسخة احتياطية";
+  if (normalized.includes("export")) return "تصدير";
   if (normalized.includes("create") || normalized.includes("insert") || normalized.includes("add")) return "إضافة";
   if (normalized.includes("update") || normalized.includes("edit") || normalized.includes("save")) return "تعديل";
   if (normalized.includes("status")) return "تغيير حالة";
   if (normalized.includes("delete") || normalized.includes("remove") || normalized.includes("trash")) return "حذف";
   if (normalized.includes("login")) return "تسجيل دخول";
   if (normalized.includes("logout")) return "تسجيل خروج";
-  if (normalized.includes("export")) return "تصدير";
 
   return action || "نشاط إداري";
 }
@@ -117,8 +119,12 @@ function getTone(category: FilterKey): Tone {
   return "slate";
 }
 
+function getModuleName(row: ActivityLogRow) {
+  return getStringValue(row, ["module", "table_name", "table", "entity", "entity_type", "resource"], "النظام");
+}
+
 function getModuleLabel(row: ActivityLogRow) {
-  const moduleName = getStringValue(row, ["module", "table_name", "table", "entity", "resource"], "النظام");
+  const moduleName = getModuleName(row);
 
   const labels: Record<string, string> = {
     agency_applications: "طلبات الانضمام",
@@ -135,6 +141,11 @@ function getModuleLabel(row: ActivityLogRow) {
     gallery_items: "المعرض",
     settings: "الإعدادات",
     admin_users: "المستخدمون الإداريون",
+    backups: "النسخ الاحتياطي",
+    activity_logs: "سجل النشاطات",
+    knowledge_base: "قاعدة المعرفة",
+    ai_conversations: "محادثات الدعم الذكي",
+    ai_unanswered_questions: "أسئلة الدعم الذكي غير المجابة",
   };
 
   return labels[moduleName] || moduleName;
@@ -149,7 +160,7 @@ function getActor(row: ActivityLogRow) {
 }
 
 function getRecordId(row: ActivityLogRow) {
-  return getStringValue(row, ["record_id", "entity_id", "target_id", "item_id"], "غير متوفر");
+  return getStringValue(row, ["record_id", "entity_id", "target_id", "item_id", "backup_code", "code"], "غير متوفر");
 }
 
 function getDetails(row: ActivityLogRow) {
@@ -160,7 +171,9 @@ function getDetails(row: ActivityLogRow) {
     row.metadata ??
     row.payload ??
     row.new_values ??
+    row.new_data ??
     row.old_values ??
+    row.old_data ??
     ""
   );
 }
