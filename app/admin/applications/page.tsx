@@ -9,6 +9,7 @@ import {
   shouldLimitToAssignedProgram,
   type AdminProfile,
 } from "@/lib/adminAccess";
+import { logAdminActivity } from "@/lib/adminActivityLogger";
 
 type AdminStatus = "checking" | "authorized" | "unauthorized";
 type MessageType = "success" | "error" | "info";
@@ -80,6 +81,20 @@ function csvValue(value: string | number | null | undefined) {
 
 function getStatusLabel(status: string | null | undefined) {
   return statusLabels[status || ""] || status || "غير محدد";
+}
+
+function getApplicationSnapshot(item: ApplicationRecord) {
+  return {
+    id: item.id,
+    full_name: item.full_name,
+    country: item.country,
+    whatsapp: item.whatsapp,
+    platform: item.platform,
+    previous_experience: item.previous_experience,
+    notes: item.notes,
+    status: item.status,
+    created_at: item.created_at,
+  };
 }
 
 export default function AdminApplicationsPage() {
@@ -247,6 +262,19 @@ export default function AdminApplicationsPage() {
       showMessage(`تعذر تحديث حالة الطلب: ${error.message}`, "error");
       return;
     }
+
+    await logAdminActivity({
+      action: "update_application_status",
+      module: "agency_applications",
+      adminEmail,
+      recordId: item.id,
+      details: `تغيير حالة طلب الانضمام من ${getStatusLabel(item.status)} إلى ${getStatusLabel(nextStatus)}`,
+      oldData: getApplicationSnapshot(item),
+      newData: {
+        ...getApplicationSnapshot(item),
+        status: nextStatus,
+      },
+    });
 
     await loadApplications();
     showMessage("تم تحديث حالة الطلب بنجاح.", "success");
