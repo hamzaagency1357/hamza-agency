@@ -11,6 +11,7 @@ const publicRoutes = [
   { path: "/programs/xena", priority: 0.8, changeFrequency: "weekly" as const },
   { path: "/programs/catchii", priority: 0.8, changeFrequency: "weekly" as const },
   { path: "/about", priority: 0.85, changeFrequency: "monthly" as const },
+  { path: "/apply", priority: 0.9, changeFrequency: "weekly" as const },
   { path: "/services", priority: 0.9, changeFrequency: "weekly" as const },
   { path: "/digital-services", priority: 0.85, changeFrequency: "weekly" as const },
   { path: "/ai-support", priority: 0.8, changeFrequency: "weekly" as const },
