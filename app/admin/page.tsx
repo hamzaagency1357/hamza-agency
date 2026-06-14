@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { logAdminActivity } from "@/lib/adminActivityLogger";
 
 type Application = {
   id: number;
@@ -205,6 +206,21 @@ const operationsLinks: AdminLink[] = [
   },
 ];
 
+function getApplicationSnapshot(app: Application) {
+  return {
+    id: app.id,
+    full_name: app.full_name,
+    country: app.country,
+    whatsapp: app.whatsapp,
+    platform: app.platform,
+    previous_experience: app.previous_experience,
+    notes: app.notes,
+    status: app.status,
+    internal_notes: app.internal_notes,
+    created_at: app.created_at,
+  };
+}
+
 export default function AdminPage() {
   const router = useRouter();
 
@@ -274,7 +290,7 @@ export default function AdminPage() {
     if (applicationsError) {
       setError("لا يمكن قراءة طلبات الانضمام حالياً.");
     } else {
-      setApplications(data || []);
+      setApplications((data || []) as Application[]);
     }
 
     const [
@@ -359,6 +375,10 @@ export default function AdminPage() {
     setMessage("");
     setError("");
 
+    const currentApplication =
+      applications.find((app) => app.id === id) ||
+      (selectedApplication?.id === id ? selectedApplication : null);
+
     const { error } = await supabase
       .from("agency_applications")
       .update({ status })
@@ -368,6 +388,18 @@ export default function AdminPage() {
       setError("فشل تحديث حالة الطلب.");
       return;
     }
+
+    await logAdminActivity({
+      action: "update_application_status_from_dashboard",
+      module: "agency_applications",
+      adminEmail,
+      recordId: id,
+      details: `تغيير حالة طلب الانضمام من لوحة الإدارة الرئيسية إلى ${statusLabel[status] || status}`,
+      oldData: currentApplication ? getApplicationSnapshot(currentApplication) : { id },
+      newData: currentApplication
+        ? { ...getApplicationSnapshot(currentApplication), status }
+        : { id, status },
+    });
 
     setApplications((current) =>
       current.map((app) => (app.id === id ? { ...app, status } : app))
@@ -386,6 +418,7 @@ export default function AdminPage() {
     setMessage("");
     setError("");
 
+    const oldApplication = selectedApplication;
     const { error } = await supabase
       .from("agency_applications")
       .update({ internal_notes: internalNotes })
@@ -395,6 +428,19 @@ export default function AdminPage() {
       setError("فشل حفظ الملاحظات الداخلية.");
       return;
     }
+
+    await logAdminActivity({
+      action: "update_application_internal_notes_from_dashboard",
+      module: "agency_applications",
+      adminEmail,
+      recordId: selectedApplication.id,
+      details: "تحديث الملاحظات الداخلية لطلب الانضمام من لوحة الإدارة الرئيسية",
+      oldData: getApplicationSnapshot(oldApplication),
+      newData: {
+        ...getApplicationSnapshot(oldApplication),
+        internal_notes: internalNotes,
+      },
+    });
 
     setApplications((current) =>
       current.map((app) =>
@@ -417,12 +463,16 @@ export default function AdminPage() {
     setInternalNotes(app.internal_notes || "");
   }
 
-  function copyWhatsAppNumber(number: string) {
-    navigator.clipboard.writeText(number);
-    setMessage("تم نسخ رقم واتساب.");
+  async function copyWhatsAppNumber(number: string) {
+    try {
+      await navigator.clipboard.writeText(number);
+      setMessage("تم نسخ رقم واتساب.");
+    } catch {
+      setMessage("تعذر نسخ رقم واتساب.");
+    }
   }
 
-  function copyApplicationInfo(app: Application) {
+  async function copyApplicationInfo(app: Application) {
     const info = `
 الاسم الكامل: ${app.full_name}
 الدولة: ${app.country}
@@ -435,8 +485,12 @@ export default function AdminPage() {
 الملاحظات الداخلية: ${app.internal_notes || "لا يوجد"}
     `.trim();
 
-    navigator.clipboard.writeText(info);
-    setMessage("تم نسخ معلومات الطلب كاملة.");
+    try {
+      await navigator.clipboard.writeText(info);
+      setMessage("تم نسخ معلومات الطلب كاملة.");
+    } catch {
+      setMessage("تعذر نسخ معلومات الطلب.");
+    }
   }
 
   async function logout() {
