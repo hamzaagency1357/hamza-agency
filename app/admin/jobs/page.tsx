@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { logAdminActivity } from "@/lib/adminActivityLogger";
 
 type AdminStatus = "checking" | "authorized" | "unauthorized";
 
@@ -96,6 +97,55 @@ const applicationStatusLabels: Record<string, string> = {
   rejected: "مرفوض",
 };
 
+function getJobSnapshot(job: Job) {
+  return {
+    id: job.id,
+    title: job.title,
+    slug: job.slug,
+    department: job.department,
+    location: job.location,
+    job_type: job.job_type,
+    short_description: job.short_description,
+    description: job.description,
+    requirements: job.requirements,
+    status: job.status,
+    sort_order: job.sort_order,
+    is_visible: job.is_visible,
+    created_at: job.created_at,
+    updated_at: job.updated_at,
+  };
+}
+
+function getJobApplicationSnapshot(application: JobApplication, jobTitle: string) {
+  return {
+    id: application.id,
+    job_id: application.job_id,
+    job_title: jobTitle,
+    full_name: application.full_name,
+    country: application.country,
+    whatsapp: application.whatsapp,
+    email: application.email,
+    experience: application.experience,
+    notes: application.notes,
+    status: application.status,
+    internal_notes: application.internal_notes,
+    created_at: application.created_at,
+    updated_at: application.updated_at,
+  };
+}
+
+function getJobUpdateAction(changes: Partial<Job>) {
+  if (Object.prototype.hasOwnProperty.call(changes, "is_visible")) return "toggle_job_visibility";
+  if (Object.prototype.hasOwnProperty.call(changes, "status")) return "update_job_status";
+  return "update_job";
+}
+
+function getJobApplicationAction(changes: Partial<JobApplication>) {
+  if (Object.prototype.hasOwnProperty.call(changes, "status")) return "update_job_application_status";
+  if (Object.prototype.hasOwnProperty.call(changes, "internal_notes")) return "update_job_application_internal_notes";
+  return "update_job_application";
+}
+
 export default function AdminJobsPage() {
   const [adminStatus, setAdminStatus] = useState<AdminStatus>("checking");
   const [adminEmail, setAdminEmail] = useState("");
@@ -146,7 +196,7 @@ export default function AdminJobsPage() {
 
     setAdminEmail(access.profile.email || access.user?.email || "");
     setAdminStatus("authorized");
-      await loadData();
+    await loadData();
   }
 
   async function loadData() {
@@ -321,6 +371,8 @@ export default function AdminJobsPage() {
       is_visible: form.isVisible,
     };
 
+    const oldJob = editingId ? jobs.find((job) => job.id === editingId) || null : null;
+
     setIsSavingJob(true);
 
     if (editingId) {
@@ -336,6 +388,16 @@ export default function AdminJobsPage() {
         return;
       }
 
+      await logAdminActivity({
+        action: "update_job",
+        module: "jobs",
+        adminEmail,
+        recordId: editingId,
+        details: "تعديل وظيفة من لوحة الإدارة",
+        oldData: oldJob ? getJobSnapshot(oldJob) : null,
+        newData: payload,
+      });
+
       setMessage("تم تحديث الوظيفة بنجاح.");
       resetForm();
       await loadData();
@@ -350,6 +412,16 @@ export default function AdminJobsPage() {
       setMessage(`تعذر إضافة الوظيفة: ${error.message}`);
       return;
     }
+
+    await logAdminActivity({
+      action: "create_job",
+      module: "jobs",
+      adminEmail,
+      recordId: payload.slug,
+      details: "إضافة وظيفة من لوحة الإدارة",
+      oldData: null,
+      newData: payload,
+    });
 
     setMessage("تمت إضافة الوظيفة بنجاح.");
     resetForm();
@@ -368,6 +440,19 @@ export default function AdminJobsPage() {
       setMessage(`تعذر تحديث الوظيفة: ${error.message}`);
       return;
     }
+
+    await logAdminActivity({
+      action: getJobUpdateAction(changes),
+      module: "jobs",
+      adminEmail,
+      recordId: job.id,
+      details: "تحديث سريع لوظيفة من لوحة الإدارة",
+      oldData: getJobSnapshot(job),
+      newData: {
+        ...getJobSnapshot(job),
+        ...changes,
+      },
+    });
 
     setMessage("تم تحديث الوظيفة بنجاح.");
     await loadData();
@@ -392,6 +477,21 @@ export default function AdminJobsPage() {
       setMessage(`تعذر تحديث طلب الوظيفة: ${error.message}`);
       return;
     }
+
+    const jobTitle = getJobTitle(application.job_id);
+
+    await logAdminActivity({
+      action: getJobApplicationAction(changes),
+      module: "job_applications",
+      adminEmail,
+      recordId: application.id,
+      details: "تحديث طلب وظيفة من لوحة الإدارة",
+      oldData: getJobApplicationSnapshot(application, jobTitle),
+      newData: {
+        ...getJobApplicationSnapshot(application, jobTitle),
+        ...changes,
+      },
+    });
 
     setMessage("تم تحديث طلب الوظيفة بنجاح.");
     await loadData();
