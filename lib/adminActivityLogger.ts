@@ -1,18 +1,16 @@
 import { supabase } from "@/lib/supabase";
 
-type JsonLike = string | number | boolean | null | JsonLike[] | { [key: string]: JsonLike };
-
 type AdminActivityInput = {
   action: string;
   module: string;
   adminEmail?: string;
   recordId?: string | number | null;
-  details?: JsonLike;
-  oldData?: JsonLike;
-  newData?: JsonLike;
+  details?: unknown;
+  oldData?: unknown;
+  newData?: unknown;
 };
 
-type ActivityPayload = Record<string, string | number | JsonLike | undefined>;
+type ActivityPayload = Record<string, unknown>;
 
 function cleanPayload(payload: ActivityPayload) {
   return Object.fromEntries(
