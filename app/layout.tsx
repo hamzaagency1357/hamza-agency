@@ -7,6 +7,7 @@ import PublicDesktopEnhancer from "@/components/PublicDesktopEnhancer";
 import VisualBackgroundPresets from "@/components/VisualBackgroundPresets";
 import FinalVisualPolish from "@/components/FinalVisualPolish";
 import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
+import StructuredData from "@/components/StructuredData";
 import "./globals.css";
 import "./final-fixes.css";
 import "./public-modal-fixes.css";
@@ -109,34 +110,10 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const organizationJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    name: "HAMZA AGENCY",
-    alternateName: ["وكالة حمزة", "Hamza Agency"],
-    url: siteUrl,
-    logo: `${siteUrl}/Logo%20hamza%20agency.jpg`,
-    description: siteDescription,
-    areaServed: ["TR", "SA", "AE", "KW", "QA", "BH", "OM", "IQ", "SY", "JO", "LB", "EG"],
-    availableLanguage: ["Arabic"],
-    knowsAbout: [
-      "Live streaming creator management",
-      "TikTok creator agency",
-      "BIGO LIVE creator agency",
-      "Digital services",
-      "Social media solutions",
-    ],
-  };
-
   return (
     <html lang="ar" dir="rtl">
       <body>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(organizationJsonLd),
-          }}
-        />
+        <StructuredData />
         <AuthRecoveryRedirect />
         <PublicDesktopEnhancer />
         <VisualBackgroundPresets />
