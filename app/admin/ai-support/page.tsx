@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { logAdminActivity } from "@/lib/adminActivityLogger";
 import { supabase } from "@/lib/supabase";
 
 type GenericRow = Record<string, unknown>;
+type KnowledgePayload = Record<string, string | number | boolean>;
 type FilterKey = "all" | "open" | "answered" | "unanswered" | "escalated";
 type Tone = "purple" | "green" | "blue" | "yellow" | "red" | "cyan";
 
@@ -54,7 +56,7 @@ function formatDate(value: string) {
 function getStatus(row: GenericRow): FilterKey {
   const status = getString(row, ["status", "state", "conversation_status", "question_status"], "open").toLowerCase();
 
-  if (["answered", "resolved", "closed", "done"].includes(status)) return "answered";
+  if (["answered", "resolved", "closed", "done", "converted"].includes(status)) return "answered";
   if (["unanswered", "pending", "new"].includes(status)) return "unanswered";
   if (["escalated", "whatsapp", "human", "support"].includes(status)) return "escalated";
 
@@ -96,6 +98,53 @@ function toneForStatus(status: FilterKey): Tone {
   return "purple";
 }
 
+function asSupabasePayload(payload: KnowledgePayload) {
+  return payload as never;
+}
+
+function buildKnowledgePayloads(question: string, answer: string): KnowledgePayload[] {
+  const cleanQuestion = question.trim();
+  const cleanAnswer = answer.trim();
+  const summary = cleanAnswer.length > 180 ? `${cleanAnswer.slice(0, 180)}...` : cleanAnswer;
+
+  return [
+    {
+      title: cleanQuestion,
+      summary,
+      content: cleanAnswer,
+      category: "أسئلة الدعم الذكي",
+      sort_order: 1,
+      is_published: true,
+      status: "published",
+    },
+    {
+      title: cleanQuestion,
+      summary,
+      content: cleanAnswer,
+      category: "أسئلة الدعم الذكي",
+      sort_order: 1,
+      is_published: true,
+    },
+    {
+      title: cleanQuestion,
+      content: cleanAnswer,
+      category: "أسئلة الدعم الذكي",
+      status: "published",
+    },
+    {
+      question: cleanQuestion,
+      answer: cleanAnswer,
+      category: "أسئلة الدعم الذكي",
+      status: "published",
+    },
+    {
+      question: cleanQuestion,
+      answer: cleanAnswer,
+      category: "أسئلة الدعم الذكي",
+    },
+  ];
+}
+
 export default function AdminAiSupportPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -105,9 +154,12 @@ export default function AdminAiSupportPage() {
   const [conversations, setConversations] = useState<GenericRow[]>([]);
   const [unansweredQuestions, setUnansweredQuestions] = useState<GenericRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isConverting, setIsConverting] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
+  const [knowledgeAnswers, setKnowledgeAnswers] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function checkAccess() {
@@ -148,6 +200,7 @@ export default function AdminAiSupportPage() {
     }
 
     setError("");
+    setMessage("");
     setIsLoading(true);
 
     const [conversationsResult, unansweredResult] = await Promise.all([
@@ -164,6 +217,70 @@ export default function AdminAiSupportPage() {
 
     setConversations((conversationsResult.data || []) as GenericRow[]);
     setUnansweredQuestions((unansweredResult.data || []) as GenericRow[]);
+  }
+
+  function setDraft(recordKey: string, value: string) {
+    setKnowledgeAnswers((current) => ({ ...current, [recordKey]: value }));
+  }
+
+  async function convertToKnowledgeBase(row: GenericRow, recordKey: string) {
+    setError("");
+    setMessage("");
+
+    if (!supabase) {
+      setError("الاتصال بقاعدة البيانات غير مفعل.");
+      return;
+    }
+
+    const question = getQuestion(row);
+    const answer = (knowledgeAnswers[recordKey] || getAnswer(row)).trim();
+
+    if (!question.trim() || !answer) {
+      setError("اكتب إجابة معتمدة قبل تحويل السؤال إلى قاعدة المعرفة.");
+      return;
+    }
+
+    setIsConverting(recordKey);
+    let lastError = "";
+
+    for (const payload of buildKnowledgePayloads(question, answer)) {
+      const { error: insertError } = await supabase
+        .from("knowledge_base")
+        .insert(asSupabasePayload(payload));
+
+      if (!insertError) {
+        const id = row.id;
+        if (typeof id === "string" || typeof id === "number") {
+          await supabase.from("ai_unanswered_questions").update({ status: "converted" } as never).eq("id", id);
+        }
+
+        await logAdminActivity({
+          action: "convert_ai_question_to_knowledge_base",
+          module: "ai_support",
+          adminEmail,
+          recordId: getRecordId(row),
+          details: "تحويل سؤال غير مجاب من الدعم الذكي إلى قاعدة المعرفة",
+          oldData: row,
+          newData: {
+            title: question,
+            content: answer,
+            category: "أسئلة الدعم الذكي",
+            status: "published",
+          },
+        });
+
+        setIsConverting("");
+        setMessage("تم تحويل السؤال إلى Knowledge Base بنجاح.");
+        setKnowledgeAnswers((current) => ({ ...current, [recordKey]: "" }));
+        await loadAiSupportData();
+        return;
+      }
+
+      lastError = insertError.message;
+    }
+
+    setIsConverting("");
+    setError(`تعذر تحويل السؤال إلى قاعدة المعرفة. آخر خطأ: ${lastError || "غير معروف"}`);
   }
 
   const allItems = useMemo(() => {
@@ -259,6 +376,7 @@ export default function AdminAiSupportPage() {
           </div>
         </div>
 
+        {message && <div className="mb-6 rounded-3xl border border-green-400/25 bg-green-500/10 p-5 text-green-100">{message}</div>}
         {error && <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">{error}</div>}
 
         <div className="mb-8 grid gap-4 md:grid-cols-3">
@@ -294,9 +412,10 @@ export default function AdminAiSupportPage() {
           {filteredItems.map((item, index) => {
             const status = item.source === "unanswered" ? "unanswered" : getStatus(item.row);
             const answer = getAnswer(item.row);
+            const recordKey = `${item.source}-${getRecordId(item.row)}-${index}`;
 
             return (
-              <article key={`${item.source}-${getRecordId(item.row)}-${index}`} className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur transition hover:border-fuchsia-400/40 hover:bg-fuchsia-500/10">
+              <article key={recordKey} className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur transition hover:border-fuchsia-400/40 hover:bg-fuchsia-500/10">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
                   <Badge tone={toneForStatus(status)}>{item.source === "unanswered" ? "غير مجاب" : getStatusLabel(item.row)}</Badge>
                   <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-black text-white/60">
@@ -317,6 +436,26 @@ export default function AdminAiSupportPage() {
                   </div>
                 )}
 
+                {item.source === "unanswered" && (
+                  <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4">
+                    <label className="text-sm font-black text-cyan-100">إجابة معتمدة للتحويل إلى Knowledge Base</label>
+                    <textarea
+                      value={knowledgeAnswers[recordKey] || ""}
+                      onChange={(event) => setDraft(recordKey, event.target.value)}
+                      className="mt-3 min-h-28 w-full rounded-2xl border border-white/10 bg-black/30 p-3 text-white outline-none focus:border-cyan-300"
+                      placeholder="اكتب الجواب الرسمي هنا..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => convertToKnowledgeBase(item.row, recordKey)}
+                      disabled={isConverting === recordKey}
+                      className="mt-3 rounded-full bg-cyan-600 px-5 py-3 text-sm font-black text-white disabled:opacity-60"
+                    >
+                      {isConverting === recordKey ? "جاري التحويل..." : "تحويل إلى Knowledge Base"}
+                    </button>
+                  </div>
+                )}
+
                 {formatValue(item.row) !== "غير متوفر" && (
                   <details className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-xs text-white/50">
                     <summary className="cursor-pointer font-black text-white/70">عرض البيانات الخام</summary>
@@ -331,7 +470,7 @@ export default function AdminAiSupportPage() {
         </div>
 
         <div className="mt-8 rounded-3xl border border-cyan-400/20 bg-cyan-500/10 p-5 leading-8 text-cyan-50/85">
-          الحالات المحولة للمتابعة البشرية: {escalatedCount}. يتم التعامل معها من خلال واتساب أو فريق الإدارة حسب إعدادات الدعم.
+          الحالات المحولة للمتابعة البشرية: {escalatedCount}. الأسئلة غير المجابة يمكن تحويلها الآن إلى Knowledge Base من نفس الصفحة.
         </div>
       </section>
     </main>
