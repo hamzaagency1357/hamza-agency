@@ -115,7 +115,7 @@ export default function ResetPasswordPage() {
           return;
         }
 
-        markError("رابط إعادة تعيين كلمة المرور غير مكتمل أو انتهت صلاحيته. أرسل رابطاً جديداً من Supabase Authentication.");
+        markError("رابط إعادة تعيين كلمة المرور غير مكتمل أو انتهت صلاحيته. ارجع إلى صفحة دخول الإدارة وأرسل رابط استعادة جديد.");
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "خطأ غير معروف";
         markError(`حدث خطأ أثناء تفعيل رابط إعادة التعيين: ${errorMessage}`);
@@ -250,7 +250,7 @@ export default function ResetPasswordPage() {
               العودة إلى تسجيل الدخول
             </Link>
             <p className="text-center text-xs leading-6 text-white/45">
-              إذا انتهت صلاحية الرابط، أرسل رابطاً جديداً من Supabase Authentication.
+              إذا انتهت صلاحية الرابط، أرسل رابطاً جديداً من صفحة دخول الإدارة.
             </p>
           </div>
         )}
