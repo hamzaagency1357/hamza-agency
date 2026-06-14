@@ -9,22 +9,26 @@ import { logAdminActivity } from "@/lib/adminActivityLogger";
 import { supabase } from "@/lib/supabase";
 
 type KnowledgeBaseRow = Record<string, unknown>;
-type KnowledgePayload = Record<string, string | boolean>;
+type KnowledgePayload = Record<string, string | number | boolean>;
 type FilterKey = "all" | "published" | "draft" | "hidden" | "faq" | "program" | "service" | "policy";
 type Tone = "purple" | "green" | "blue" | "yellow" | "red" | "cyan";
 type RecordId = string | number;
 
 type KnowledgeFormState = {
   title: string;
+  summary: string;
   content: string;
   category: string;
+  sort_order: string;
   status: "published" | "draft";
 };
 
 const initialFormState: KnowledgeFormState = {
   title: "",
+  summary: "",
   content: "",
   category: "عام",
+  sort_order: "1",
   status: "published",
 };
 
@@ -66,6 +70,19 @@ function getBoolean(row: KnowledgeBaseRow, keys: string[], fallback = false) {
   return fallback;
 }
 
+function getNumber(row: KnowledgeBaseRow, keys: string[], fallback = 1) {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+
+  return fallback;
+}
+
 function formatDate(value: string) {
   if (!value) return "غير متوفر";
   const date = new Date(value);
@@ -81,12 +98,20 @@ function getTitle(row: KnowledgeBaseRow) {
   return getString(row, ["title", "question", "name", "headline", "label"], "عنصر معرفة");
 }
 
+function getSummary(row: KnowledgeBaseRow) {
+  return getString(row, ["summary", "short_description", "excerpt", "subtitle", "description"], "");
+}
+
 function getContent(row: KnowledgeBaseRow) {
-  return getString(row, ["content", "answer", "description", "body", "summary", "text"], "");
+  return getString(row, ["content", "answer", "body", "text"], "");
 }
 
 function getCategory(row: KnowledgeBaseRow) {
   return getString(row, ["category", "type", "section", "module", "group"], "عام");
+}
+
+function getSortOrder(row: KnowledgeBaseRow) {
+  return getNumber(row, ["sort_order", "order", "position", "priority"], 1);
 }
 
 function getStatus(row: KnowledgeBaseRow) {
@@ -123,14 +148,17 @@ function getActivitySnapshot(row: KnowledgeBaseRow) {
   return {
     id: getRecordId(row),
     title: getTitle(row),
+    summary: getSummary(row),
     content: getContent(row),
     category: getCategory(row),
+    sort_order: getSortOrder(row),
     status: getStatus(row),
+    is_published: getStatus(row) === "published",
   };
 }
 
 function getCategoryKey(row: KnowledgeBaseRow): FilterKey {
-  const text = `${getCategory(row)} ${getTitle(row)} ${getContent(row)}`.toLowerCase();
+  const text = `${getCategory(row)} ${getTitle(row)} ${getSummary(row)} ${getContent(row)}`.toLowerCase();
 
   if (["faq", "question", "سؤال", "أسئلة"].some((word) => text.includes(word))) return "faq";
   if (["program", "platform", "tiktok", "bigo", "yaahlan", "xena", "catchii", "برنامج"].some((word) => text.includes(word))) return "program";
@@ -142,11 +170,31 @@ function getCategoryKey(row: KnowledgeBaseRow): FilterKey {
 
 function buildKnowledgePayloads(form: KnowledgeFormState): KnowledgePayload[] {
   const cleanTitle = form.title.trim();
+  const cleanSummary = form.summary.trim();
   const cleanContent = form.content.trim();
   const cleanCategory = form.category.trim() || "عام";
+  const sortOrder = Number(form.sort_order) || 1;
   const isPublished = form.status === "published";
 
   return [
+    {
+      title: cleanTitle,
+      summary: cleanSummary,
+      content: cleanContent,
+      category: cleanCategory,
+      sort_order: sortOrder,
+      is_published: isPublished,
+      status: form.status,
+    },
+    {
+      title: cleanTitle,
+      summary: cleanSummary,
+      content: cleanContent,
+      category: cleanCategory,
+      sort_order: sortOrder,
+      is_published: isPublished,
+    },
+    { title: cleanTitle, summary: cleanSummary, content: cleanContent, category: cleanCategory, sort_order: sortOrder },
     { title: cleanTitle, content: cleanContent, category: cleanCategory, status: form.status },
     { title: cleanTitle, content: cleanContent, category: cleanCategory, is_active: isPublished },
     { title: cleanTitle, content: cleanContent, category: cleanCategory },
@@ -160,6 +208,7 @@ function buildKnowledgePayloads(form: KnowledgeFormState): KnowledgePayload[] {
 
 const hideKnowledgePayloads: KnowledgePayload[] = [
   { status: "hidden" },
+  { is_published: false },
   { is_active: false },
   { is_visible: false },
   { published: false },
@@ -259,8 +308,10 @@ export default function AdminKnowledgeBasePage() {
     setEditingSnapshot(getActivitySnapshot(record));
     setForm({
       title: getTitle(record),
+      summary: getSummary(record),
       content: getContent(record),
       category: getCategory(record),
+      sort_order: String(getSortOrder(record)),
       status: getStatus(record) === "published" ? "published" : "draft",
     });
     setMessage("تم تحميل العنصر في نموذج التعديل.");
@@ -300,9 +351,12 @@ export default function AdminKnowledgeBasePage() {
           oldData: editingId === null ? null : editingSnapshot,
           newData: {
             title: form.title.trim(),
+            summary: form.summary.trim(),
             content: form.content.trim(),
             category: form.category.trim() || "عام",
+            sort_order: Number(form.sort_order) || 1,
             status: form.status,
+            is_published: form.status === "published",
           },
         });
 
@@ -351,7 +405,7 @@ export default function AdminKnowledgeBasePage() {
           recordId: id,
           details: "إخفاء عنصر معرفة من لوحة الإدارة",
           oldData: getActivitySnapshot(record),
-          newData: { status: "hidden" },
+          newData: { status: "hidden", is_published: false },
         });
 
         setMessage("تم إخفاء عنصر المعرفة بنجاح.");
@@ -382,6 +436,7 @@ export default function AdminKnowledgeBasePage() {
 
       const text = [
         getTitle(record),
+        getSummary(record),
         getContent(record),
         getCategory(record),
         getStatusLabel(record),
@@ -463,7 +518,7 @@ export default function AdminKnowledgeBasePage() {
           <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-2xl font-black">{editingId === null ? "إضافة عنصر معرفة" : "تعديل عنصر معرفة"}</h2>
-              <p className="mt-2 text-sm leading-6 text-white/50">هذه العناصر يستخدمها الدعم الذكي كمصدر إجابات موثوق.</p>
+              <p className="mt-2 text-sm leading-6 text-white/50">هذه العناصر يستخدمها الدعم الذكي ومركز المعرفة كمصدر إجابات موثوق.</p>
             </div>
             {editingId !== null && (
               <button type="button" onClick={resetForm} className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-2 text-sm font-bold text-white/70">
@@ -505,7 +560,29 @@ export default function AdminKnowledgeBasePage() {
                 <option value="draft">مسودة</option>
               </select>
             </label>
+
+            <label className="grid gap-2 text-sm font-bold text-white/70">
+              ترتيب الظهور
+              <input
+                type="number"
+                min="1"
+                value={form.sort_order}
+                onChange={(event) => setForm((current) => ({ ...current, sort_order: event.target.value }))}
+                className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-white outline-none focus:border-cyan-300/50"
+                placeholder="1"
+              />
+            </label>
           </div>
+
+          <label className="mt-4 grid gap-2 text-sm font-bold text-white/70">
+            الملخص القصير
+            <textarea
+              value={form.summary}
+              onChange={(event) => setForm((current) => ({ ...current, summary: event.target.value }))}
+              className="min-h-20 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 leading-7 text-white outline-none focus:border-cyan-300/50"
+              placeholder="اكتب ملخصاً قصيراً يظهر في مركز المعرفة قبل المحتوى الكامل."
+            />
+          </label>
 
           <label className="mt-4 grid gap-2 text-sm font-bold text-white/70">
             المحتوى / الجواب
@@ -565,9 +642,13 @@ export default function AdminKnowledgeBasePage() {
                 <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-black text-white/60">
                   {getRecordId(record)}
                 </span>
+                <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-black text-white/60" dir="ltr">
+                  ترتيب: {getSortOrder(record)}
+                </span>
               </div>
 
               <h2 className="text-2xl font-black leading-9">{getTitle(record)}</h2>
+              {getSummary(record) && <p className="mt-3 leading-8 text-cyan-100/80">{getSummary(record)}</p>}
               <p className="mt-3 whitespace-pre-wrap leading-8 text-white/70">
                 {getContent(record) || "لا يوجد محتوى نصي واضح لهذا العنصر."}
               </p>
