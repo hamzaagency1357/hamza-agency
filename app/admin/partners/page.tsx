@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { logAdminActivity } from "@/lib/adminActivityLogger";
 
 type Partner = {
   id: number;
@@ -108,6 +109,26 @@ function generateSlug(value: string) {
     .replace(/[^a-z0-9-]/g, "")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+function getPartnerSnapshot(partner: Partner) {
+  return {
+    id: partner.id,
+    name: partner.name,
+    slug: partner.slug,
+    category: partner.category,
+    description: partner.description,
+    badge: partner.badge,
+    logo_url: partner.logo_url,
+    detail_url: partner.detail_url,
+    website_url: partner.website_url,
+    status: partner.status,
+    is_visible: partner.is_visible,
+    is_featured: partner.is_featured,
+    sort_order: partner.sort_order,
+    created_at: partner.created_at,
+    updated_at: partner.updated_at,
+  };
 }
 
 export default function AdminPartnersPage() {
@@ -350,6 +371,16 @@ export default function AdminPartnersPage() {
           return;
         }
 
+        await logAdminActivity({
+          action: "update_partner",
+          module: "partners",
+          adminEmail: adminProfile?.email || "",
+          recordId: editingPartner.id,
+          details: "تعديل شريك أو برنامج من لوحة الإدارة",
+          oldData: getPartnerSnapshot(editingPartner),
+          newData: payload,
+        });
+
         successText = "تم حفظ تعديلات الشريك أو البرنامج بنجاح.";
       } else {
         const { error } = await supabase.from("partners").insert(payload);
@@ -359,6 +390,16 @@ export default function AdminPartnersPage() {
           setMessage("تعذر إضافة الشريك أو البرنامج. تأكد أن الرابط التعريفي غير مستخدم مسبقاً.");
           return;
         }
+
+        await logAdminActivity({
+          action: "create_partner",
+          module: "partners",
+          adminEmail: adminProfile?.email || "",
+          recordId: payload.slug,
+          details: "إضافة شريك أو برنامج من لوحة الإدارة",
+          oldData: null,
+          newData: payload,
+        });
 
         successText = "تمت إضافة الشريك أو البرنامج بنجاح.";
       }
@@ -381,11 +422,12 @@ export default function AdminPartnersPage() {
     if (!supabase) return;
 
     const nextStatus = visible ? "published" : "hidden";
+    const updatePayload = { is_visible: visible, status: nextStatus, updated_at: new Date().toISOString() };
 
     try {
       const { error } = await supabase
         .from("partners")
-        .update({ is_visible: visible, status: nextStatus, updated_at: new Date().toISOString() })
+        .update(updatePayload)
         .eq("id", partner.id);
 
       if (error) {
@@ -393,6 +435,19 @@ export default function AdminPartnersPage() {
         setMessage("تعذر تحديث حالة الظهور.");
         return;
       }
+
+      await logAdminActivity({
+        action: "toggle_partner_visibility",
+        module: "partners",
+        adminEmail: adminProfile?.email || "",
+        recordId: partner.id,
+        details: visible ? "إظهار شريك أو برنامج للعامة" : "إخفاء شريك أو برنامج من العامة",
+        oldData: getPartnerSnapshot(partner),
+        newData: {
+          ...getPartnerSnapshot(partner),
+          ...updatePayload,
+        },
+      });
 
       setMessageType("success");
       setMessage(visible ? "تم إظهار الشريك أو البرنامج." : "تم إخفاء الشريك أو البرنامج.");
@@ -407,11 +462,12 @@ export default function AdminPartnersPage() {
     if (!supabase) return;
 
     const nextValue = !partner.is_featured;
+    const updatePayload = { is_featured: nextValue, updated_at: new Date().toISOString() };
 
     try {
       const { error } = await supabase
         .from("partners")
-        .update({ is_featured: nextValue, updated_at: new Date().toISOString() })
+        .update(updatePayload)
         .eq("id", partner.id);
 
       if (error) {
@@ -419,6 +475,19 @@ export default function AdminPartnersPage() {
         setMessage("تعذر تحديث تمييز الشريك أو البرنامج.");
         return;
       }
+
+      await logAdminActivity({
+        action: "toggle_partner_featured",
+        module: "partners",
+        adminEmail: adminProfile?.email || "",
+        recordId: partner.id,
+        details: nextValue ? "تمييز شريك أو برنامج" : "إلغاء تمييز شريك أو برنامج",
+        oldData: getPartnerSnapshot(partner),
+        newData: {
+          ...getPartnerSnapshot(partner),
+          ...updatePayload,
+        },
+      });
 
       setMessageType("success");
       setMessage(nextValue ? "تم تمييز الشريك أو البرنامج." : "تم إلغاء التمييز.");
@@ -438,17 +507,19 @@ export default function AdminPartnersPage() {
 
     if (!confirmed) return;
 
+    const archivePayload = {
+      name: `محذوف - ${partner.name}`,
+      status: "hidden",
+      is_visible: false,
+      is_featured: false,
+      sort_order: 9999,
+      updated_at: new Date().toISOString(),
+    };
+
     try {
       const { error } = await supabase
         .from("partners")
-        .update({
-          name: `محذوف - ${partner.name}`,
-          status: "hidden",
-          is_visible: false,
-          is_featured: false,
-          sort_order: 9999,
-          updated_at: new Date().toISOString(),
-        })
+        .update(archivePayload)
         .eq("id", partner.id);
 
       if (error) {
@@ -456,6 +527,19 @@ export default function AdminPartnersPage() {
         setMessage("تعذر حذف الشريك أو البرنامج بشكل آمن.");
         return;
       }
+
+      await logAdminActivity({
+        action: "archive_partner",
+        module: "partners",
+        adminEmail: adminProfile?.email || "",
+        recordId: partner.id,
+        details: "حذف آمن وأرشفة شريك أو برنامج من لوحة الإدارة",
+        oldData: getPartnerSnapshot(partner),
+        newData: {
+          ...getPartnerSnapshot(partner),
+          ...archivePayload,
+        },
+      });
 
       if (editingPartner?.id === partner.id) resetForm();
 
