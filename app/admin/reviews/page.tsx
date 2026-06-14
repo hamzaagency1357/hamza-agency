@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { logAdminActivity } from "@/lib/adminActivityLogger";
 
 type AdminStatus = "checking" | "authorized" | "unauthorized";
 type MessageType = "success" | "error" | "info";
@@ -74,14 +75,37 @@ function isSelectableMedia(item: MediaPickerItem) {
 
   return (
     Boolean(fileUrl) &&
-    (
-      fileType === "image" ||
+    (fileType === "image" ||
       fileType === "logo" ||
       fileType === "icon" ||
       fileType.startsWith("image") ||
-      /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileUrl)
-    )
+      /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileUrl))
   );
+}
+
+function getReviewSnapshot(review: Review) {
+  return {
+    id: review.id,
+    reviewer_name: review.reviewer_name,
+    country: review.country,
+    platform: review.platform,
+    rating: review.rating,
+    content: review.content,
+    avatar_url: review.avatar_url,
+    is_featured: review.is_featured,
+    sort_order: review.sort_order,
+    status: review.status,
+    is_visible: review.is_visible,
+    created_at: review.created_at,
+    updated_at: review.updated_at,
+  };
+}
+
+function getReviewQuickAction(changes: Partial<Pick<Review, "status" | "is_visible" | "is_featured">>) {
+  if (Object.prototype.hasOwnProperty.call(changes, "status")) return "update_review_status";
+  if (Object.prototype.hasOwnProperty.call(changes, "is_visible")) return "toggle_review_visibility";
+  if (Object.prototype.hasOwnProperty.call(changes, "is_featured")) return "toggle_review_featured";
+  return "update_review";
 }
 
 export default function AdminReviewsPage() {
@@ -249,6 +273,8 @@ export default function AdminReviewsPage() {
       updated_at: new Date().toISOString(),
     };
 
+    const oldReview = editingId ? reviews.find((review) => review.id === editingId) || null : null;
+
     setIsSaving(true);
 
     const result = editingId
@@ -262,6 +288,16 @@ export default function AdminReviewsPage() {
       return;
     }
 
+    await logAdminActivity({
+      action: editingId ? "update_review" : "create_review",
+      module: "reviews",
+      adminEmail,
+      recordId: editingId ?? payload.reviewer_name,
+      details: editingId ? "تعديل تقييم من لوحة الإدارة" : "إضافة تقييم من لوحة الإدارة",
+      oldData: oldReview ? getReviewSnapshot(oldReview) : null,
+      newData: payload,
+    });
+
     const successText = editingId
       ? "تم حفظ تعديلات التقييم بنجاح."
       : "تم إضافة التقييم بنجاح.";
@@ -272,7 +308,7 @@ export default function AdminReviewsPage() {
   }
 
   async function quickUpdateReview(
-    reviewId: number,
+    review: Review,
     changes: Partial<Pick<Review, "status" | "is_visible" | "is_featured">>,
     successMessage: string
   ) {
@@ -280,24 +316,39 @@ export default function AdminReviewsPage() {
 
     clearMessage();
 
+    const updatePayload = {
+      ...changes,
+      updated_at: new Date().toISOString(),
+    };
+
     const { error } = await supabase
       .from("reviews")
-      .update({
-        ...changes,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", reviewId);
+      .update(updatePayload)
+      .eq("id", review.id);
 
     if (error) {
       showMessage("تعذر تنفيذ الإجراء. يرجى المحاولة مرة أخرى.", "error");
       return;
     }
 
+    await logAdminActivity({
+      action: getReviewQuickAction(changes),
+      module: "reviews",
+      adminEmail,
+      recordId: review.id,
+      details: "تحديث سريع لتقييم من لوحة الإدارة",
+      oldData: getReviewSnapshot(review),
+      newData: {
+        ...getReviewSnapshot(review),
+        ...updatePayload,
+      },
+    });
+
     await loadReviews();
     showMessage(successMessage, "success");
   }
 
-  async function deleteReview(reviewId: number) {
+  async function deleteReview(review: Review) {
     if (!supabase) return;
 
     const confirmed = window.confirm(
@@ -308,22 +359,37 @@ export default function AdminReviewsPage() {
 
     clearMessage();
 
+    const archivePayload = {
+      status: "hidden",
+      is_visible: false,
+      is_featured: false,
+      updated_at: new Date().toISOString(),
+    };
+
     const { error } = await supabase
       .from("reviews")
-      .update({
-        status: "hidden",
-        is_visible: false,
-        is_featured: false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", reviewId);
+      .update(archivePayload)
+      .eq("id", review.id);
 
     if (error) {
       showMessage("تعذر أرشفة التقييم. يرجى المحاولة مرة أخرى.", "error");
       return;
     }
 
-    if (editingId === reviewId) {
+    await logAdminActivity({
+      action: "archive_review",
+      module: "reviews",
+      adminEmail,
+      recordId: review.id,
+      details: "إخفاء وأرشفة تقييم من لوحة الإدارة",
+      oldData: getReviewSnapshot(review),
+      newData: {
+        ...getReviewSnapshot(review),
+        ...archivePayload,
+      },
+    });
+
+    if (editingId === review.id) {
       resetForm({ keepMessage: true });
     }
 
@@ -676,10 +742,10 @@ export default function AdminReviewsPage() {
                   key={review.id}
                   review={review}
                   onEdit={() => editReview(review)}
-                  onDelete={() => deleteReview(review.id)}
+                  onDelete={() => deleteReview(review)}
                   onToggleVisible={() =>
                     quickUpdateReview(
-                      review.id,
+                      review,
                       {
                         is_visible: review.is_visible === false,
                       },
@@ -690,7 +756,7 @@ export default function AdminReviewsPage() {
                   }
                   onToggleFeatured={() =>
                     quickUpdateReview(
-                      review.id,
+                      review,
                       {
                         is_featured: review.is_featured !== true,
                       },
@@ -701,7 +767,7 @@ export default function AdminReviewsPage() {
                   }
                   onPublish={() =>
                     quickUpdateReview(
-                      review.id,
+                      review,
                       {
                         status: "published",
                         is_visible: true,
@@ -711,7 +777,7 @@ export default function AdminReviewsPage() {
                   }
                   onHide={() =>
                     quickUpdateReview(
-                      review.id,
+                      review,
                       {
                         status: "hidden",
                         is_visible: false,
@@ -769,8 +835,7 @@ function ReviewAdminCard({
           </h3>
 
           <p className="mt-2 text-sm text-white/50">
-            {review.country || "بدون دولة"} —{" "}
-            {review.platform || "بدون منصة"} — {review.rating || 5} نجوم
+            {review.country || "بدون دولة"} — {review.platform || "بدون منصة"} — {review.rating || 5} نجوم
           </p>
 
           <p className="mt-4 leading-8 text-white/70">
