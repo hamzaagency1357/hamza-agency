@@ -52,9 +52,6 @@ export const metadata: Metadata = {
     "منصات البث المباشر",
     "الخدمات الرقمية",
   ],
-  alternates: {
-    canonical: siteUrl,
-  },
   openGraph: {
     title: siteName,
     description: siteDescription,
