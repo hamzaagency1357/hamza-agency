@@ -33,7 +33,6 @@
 
 2. الفحص البصري النهائي من جهاز صاحب المشروع بعد آخر نشر ناجح على Vercel.
    - الصفحة الرئيسية، البرامج، تفاصيل البرامج، الانضمام، طلب الخدمة، التتبع، الوظائف، الفوتر، الجوال، سطح المكتب، لوحة الإدارة، النسخة الاحتياطية.
-   - آخر نشر على Vercel تم التحقق من نجاحه عبر GitHub status.
    - المتبقي هنا ليس كوداً جديداً، بل تأكيد بصري/يدوي من المتصفح بعد النشر.
 
 3. مراقبة Google Search Console بعد الفهرسة.
@@ -59,7 +58,7 @@
 9. تتبع طلب الانضمام يعمل.
 10. صفحة الوظائف تعمل.
 11. زر التقديم على وظيفة تم إصلاحه ويعمل.
-12. صفحة FAQ تعمل.
+12. صفحة FAQ العامة تعمل.
 13. مركز المعرفة يعمل.
 14. المعرض يعمل.
 15. الشركاء والبرامج تعمل.
@@ -84,6 +83,105 @@
 34. آخر نشر على Vercel بعد تحديثات الإغلاق النهائية ظهر بحالة نجاح عبر GitHub status.
 35. تنظيف كود مكوّن قائمة الموقع العامة PublicQuickNav تم بشكل آمن عبر استخراج الأنواع، الثوابت، ودوال الحالة النشطة بدون حذف روابط أو تغيير سلوك التنقل.
 36. إعادة تصميم صفحة إعدادات الإدارة /admin/settings تم تنفيذها كواجهة إعدادات منظمة بدلاً من قائمة تقنية خام، مع إبقاء بنية البيانات كما هي.
+37. صفحة Activity Logs تستخدم صلاحية activity_logs بدلاً من dashboard.
+38. تم تحسين عرض Activity Logs لدعم أعمدة مثل entity_type و entity_id و new_data و old_data.
+39. تم تحسين رسائل صفحة reset-password لتوجيه المستخدم إلى صفحة دخول الإدارة بدلاً من رسائل Supabase التقنية.
+40. تم إضافة FAQPage structured data إلى صفحة /faq العامة.
+41. تم إضافة Service structured data إلى صفحة /services العامة.
+42. تم إضافة Breadcrumb structured data إلى صفحة /services العامة.
+43. تم إنشاء ملف خطة الإغلاق الكامل: docs/HAMZA_AGENCY_FULL_COMPLETION_EXECUTION_PLAN.md.
+
+---
+
+## آخر دفعات التنفيذ والتأجيل الموثقة
+
+### دفعة Activity Logs الأساسية
+
+تم إنشاء مساعد تسجيل موحّد:
+
+- الملف: lib/adminActivityLogger.ts
+- الهدف: تسجيل العمليات الإدارية داخل activity_logs بدون تعطيل عمل لوحة الإدارة إذا فشل التسجيل.
+- الحالة: منفذ.
+
+تمت إضافة Activity Logs للصفحات التالية:
+
+1. app/admin/knowledge-base/page.tsx
+2. app/admin/programs/page.tsx
+3. app/admin/applications/page.tsx
+4. app/admin/service-requests/page.tsx
+5. app/admin/jobs/page.tsx
+6. app/admin/reviews/page.tsx
+7. app/admin/success-stories/page.tsx
+8. app/admin/partners/page.tsx
+9. app/admin/permissions/page.tsx
+10. app/admin/gallery/page.tsx
+
+صفحات تم فحصها وتبين أنها لا تحتاج تعديل حالياً لأنها تسجل مسبقاً أو لا تحتاج Activity Logs:
+
+1. app/admin/media/page.tsx
+2. app/admin/settings/page.tsx
+3. app/admin/announcements/page.tsx
+4. app/admin/pages/page.tsx
+5. app/admin/backups/page.tsx
+6. app/admin/trash/page.tsx
+7. app/admin/sections/page.tsx
+8. app/admin/notifications/page.tsx
+9. app/admin/analytics/page.tsx
+10. app/admin/launch-checklist/page.tsx
+11. app/admin/version-history/page.tsx
+12. app/admin/audit-mode/page.tsx
+13. app/admin/ai-settings/page.tsx
+14. app/admin/export-center/page.tsx
+15. app/admin/ai-support/page.tsx
+
+المتبقي الوحيد من Activity Logs الأساسية:
+
+- app/admin/page.tsx
+- الدوال: updateStatus و saveInternalNotes
+- الحالة: مؤجل بطلب صاحب المشروع.
+- السبب: أداة GitHub حظرت تعديل الملف أكثر من مرة، ولا يعتبر هذا عائقاً حالياً.
+
+### دفعة FAQ Admin
+
+تم إنشاء صفحة إدارة الأسئلة الشائعة:
+
+- الملف: app/admin/faqs/page.tsx
+- الرابط: /admin/faqs
+- الوظائف: عرض الأسئلة، إضافة سؤال، تعديل سؤال، تفعيل/إلغاء النشر، البحث، وتسجيل العمليات في Activity Logs عبر lib/adminActivityLogger.ts.
+- تم إضافة الرابط إلى تنقل الإدارة في components/AdminQuickNav.tsx.
+- تم ضبط RLS لجدول faqs بسياسة تعتمد على حسابات الإدارة في admin_users.
+- تم التأكد أن آخر Deploy الخاص بصفحة FAQ Admin ورابطها ظهر Ready على Vercel.
+- حالة FAQ Admin: مغلقة من ناحية الكود والنشر وRLS.
+
+المتبقي في FAQ Admin:
+
+- اختبار إضافة سؤال فعلي من لوحة الإدارة ثم ظهوره في /faq.
+- الحالة: مؤجل بطلب صاحب المشروع، وليس عائق إطلاق حالياً.
+
+### صفحات إدارية تم اعتبارها مؤجلة/اختيارية وليست نواقص إطلاق
+
+1. app/admin/services/page.tsx
+   - مؤجلة لأن صفحة /services العامة تعتمد حالياً على كروت ثابتة + CMS من pages وsections، وطلبات الخدمات تُدار من /admin/service-requests.
+
+2. app/admin/homepage/page.tsx
+   - مؤجلة لأن الصفحة الرئيسية تُدار حالياً من settings وpages وprograms وmedia وannouncements.
+
+3. app/admin/redirects/page.tsx
+   - مؤجلة لأنه لا يوجد استخدام فعلي واضح لـ redirects داخل الكود حالياً.
+
+4. app/admin/users/page.tsx
+   - مؤجلة لأن إدارة حسابات المدراء والصلاحيات موجودة فعلياً داخل /admin/permissions.
+
+5. app/admin/roles/page.tsx
+   - مؤجلة لأن الأدوار الأساسية ثابتة داخل adminAccess والصلاحيات العملية تُدار من /admin/permissions.
+
+6. app/admin/translations/page.tsx
+   - مؤجلة كميزة مستقبلية كبيرة لأنها تحتاج تصميم نظام ترجمة كامل للمحتوى واللغات والـ SEO.
+
+7. صفحات إدارة مستقلة لـ ai_conversations و ai_unanswered_questions
+   - غير موجودة حالياً.
+   - يوجد حالياً app/admin/ai-support/page.tsx كصفحة عرض وفلترة فقط.
+   - أي إدارة متقدمة لهذه الجداول تعتبر ضمن تفعيل الدعم الذكي إنتاجياً.
 
 ---
 
@@ -145,6 +243,7 @@
 3. تقوية محتوى الصفحات العامة وصفحات البرامج.
 4. إضافة Structured Data متقدم مثل Organization وFAQPage وBreadcrumb وService وJobPosting.
 5. تحسين SEO صفحة الشركاء والصفحات القانونية والخدمات الرقمية.
+6. المنفذ حالياً من Structured Data: FAQPage لصفحة /faq، وService + BreadcrumbList لصفحة /services.
 
 ### 6. نظام تتبع طلبات الانضمام بكود خاص
 
@@ -157,11 +256,12 @@
 
 ### 7. Activity Log الكامل
 
-1. تصحيح صلاحية صفحة Activity Logs لاستخدام activity_logs بدلاً من dashboard.
-2. تسجيل كل عمليات الإدارة المهمة: إضافة، تعديل، حذف، إخفاء، إظهار، قبول، رفض، تغيير حالة، تصدير، وإنشاء نسخة احتياطية.
-3. تسجيل المستخدم، الوقت، القسم المتأثر، ومعرّف السجل.
-4. تسجيل القيم القديمة والجديدة عند الإمكان.
-5. إضافة فلترة وبحث متقدم.
+1. تصحيح صلاحية صفحة Activity Logs لاستخدام activity_logs بدلاً من dashboard. — منفذ.
+2. تسجيل كل عمليات الإدارة المهمة: إضافة، تعديل، حذف، إخفاء، إظهار، قبول، رفض، تغيير حالة، تصدير، وإنشاء نسخة احتياطية. — منفذ جزئياً على أغلب الصفحات الأساسية.
+3. تسجيل المستخدم، الوقت، القسم المتأثر، ومعرّف السجل. — منفذ حسب الصفحات المربوطة.
+4. تسجيل القيم القديمة والجديدة عند الإمكان. — منفذ جزئياً حسب الصفحة.
+5. إضافة فلترة وبحث متقدم. — موجود أساسياً ويحتاج توسعة لاحقة إن لزم.
+6. المتبقي الوحيد المؤجل في المرحلة الأساسية: app/admin/page.tsx داخل updateStatus و saveInternalNotes.
 
 ### 8. Trash System الكامل
 
@@ -253,7 +353,7 @@
 
 1. إنشاء بريد رسمي للدومين.
 2. ربط البريد بالنماذج أو الإشعارات لاحقاً عند الحاجة.
-3. تفعيل استعادة كلمة المرور من صفحة دخول الإدارة.
+3. تفعيل استعادة كلمة المرور من صفحة دخول الإدارة. — منفذ.
 4. ضبط Supabase redirect URLs.
 5. اختبار reset password من الموقع نفسه.
 
@@ -290,3 +390,5 @@
 المشروع من ناحية الكود والتجربة الأساسية جاهز تقريباً لنسخة الإطلاق الأولى.
 لا يتم إعادة تنفيذ أي شيء من قائمة المنجزات.
 الإغلاق الكامل للمشروع يتطلب تنفيذ التوسعات المعتمدة أعلاه أو تأجيل كل بند منها بقرار واضح من صاحب المشروع.
+صفحة FAQ Admin مغلقة من ناحية الكود والنشر وRLS، والمتبقي عليها اختبار عملي مؤجل فقط.
+Activity Logs الأساسية مكتملة تقريباً، والمتبقي الوحيد app/admin/page.tsx مؤجل بطلب صاحب المشروع.
