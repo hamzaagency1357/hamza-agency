@@ -74,6 +74,27 @@ function buildServicesStructuredData(pageTitle: string, pageDescription: string)
   }).replace(/</g, "\\u003c");
 }
 
+function buildServicesBreadcrumbData() {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "الرئيسية",
+        item: "https://hamza-agency.com",
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "الخدمات",
+        item: "https://hamza-agency.com/services",
+      },
+    ],
+  }).replace(/</g, "\\u003c");
+}
+
 export default async function ServicesPage() {
   const { page, sections } = await getCmsPageWithSections("services");
 
@@ -94,12 +115,17 @@ export default async function ServicesPage() {
   const pageTitle = page?.title || agencyServices.title;
   const pageDescription = page?.content || agencyServices.content;
   const servicesStructuredData = buildServicesStructuredData(pageTitle, pageDescription);
+  const servicesBreadcrumbData = buildServicesBreadcrumbData();
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#070009] px-5 py-8 text-white">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: servicesStructuredData }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: servicesBreadcrumbData }}
       />
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.32),transparent_45%)]" />
