@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { logAdminActivity } from "@/lib/adminActivityLogger";
 import { supabase } from "@/lib/supabase";
 
 type KnowledgeBaseRow = Record<string, unknown>;
@@ -118,6 +119,16 @@ function getRawId(row: KnowledgeBaseRow): RecordId | null {
   return typeof id === "string" || typeof id === "number" ? id : null;
 }
 
+function getActivitySnapshot(row: KnowledgeBaseRow) {
+  return {
+    id: getRecordId(row),
+    title: getTitle(row),
+    content: getContent(row),
+    category: getCategory(row),
+    status: getStatus(row),
+  };
+}
+
 function getCategoryKey(row: KnowledgeBaseRow): FilterKey {
   const text = `${getCategory(row)} ${getTitle(row)} ${getContent(row)}`.toLowerCase();
 
@@ -172,6 +183,7 @@ export default function AdminKnowledgeBasePage() {
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<RecordId | null>(null);
+  const [editingSnapshot, setEditingSnapshot] = useState<ReturnType<typeof getActivitySnapshot> | null>(null);
   const [form, setForm] = useState<KnowledgeFormState>(initialFormState);
 
   useEffect(() => {
@@ -232,6 +244,7 @@ export default function AdminKnowledgeBasePage() {
 
   function resetForm() {
     setEditingId(null);
+    setEditingSnapshot(null);
     setForm(initialFormState);
   }
 
@@ -243,6 +256,7 @@ export default function AdminKnowledgeBasePage() {
     }
 
     setEditingId(id);
+    setEditingSnapshot(getActivitySnapshot(record));
     setForm({
       title: getTitle(record),
       content: getContent(record),
@@ -277,6 +291,21 @@ export default function AdminKnowledgeBasePage() {
         : await supabase.from("knowledge_base").update(safePayload).eq("id", editingId);
 
       if (!result.error) {
+        await logAdminActivity({
+          action: editingId === null ? "create_knowledge_base_item" : "update_knowledge_base_item",
+          module: "knowledge_base",
+          adminEmail,
+          recordId: editingId ?? form.title.trim(),
+          details: editingId === null ? "إضافة عنصر معرفة من لوحة الإدارة" : "تعديل عنصر معرفة من لوحة الإدارة",
+          oldData: editingId === null ? null : editingSnapshot,
+          newData: {
+            title: form.title.trim(),
+            content: form.content.trim(),
+            category: form.category.trim() || "عام",
+            status: form.status,
+          },
+        });
+
         setIsSaving(false);
         setMessage(editingId === null ? "تمت إضافة عنصر المعرفة بنجاح." : "تم تحديث عنصر المعرفة بنجاح.");
         resetForm();
@@ -315,6 +344,16 @@ export default function AdminKnowledgeBasePage() {
         .eq("id", id);
 
       if (!hideError) {
+        await logAdminActivity({
+          action: "hide_knowledge_base_item",
+          module: "knowledge_base",
+          adminEmail,
+          recordId: id,
+          details: "إخفاء عنصر معرفة من لوحة الإدارة",
+          oldData: getActivitySnapshot(record),
+          newData: { status: "hidden" },
+        });
+
         setMessage("تم إخفاء عنصر المعرفة بنجاح.");
         await loadKnowledgeBase();
         return;
