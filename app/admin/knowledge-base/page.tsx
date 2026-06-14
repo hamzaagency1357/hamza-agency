@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
 import { supabase } from "@/lib/supabase";
@@ -10,21 +9,6 @@ import { supabase } from "@/lib/supabase";
 type KnowledgeBaseRow = Record<string, unknown>;
 type FilterKey = "all" | "published" | "draft" | "hidden" | "faq" | "program" | "service" | "policy";
 type Tone = "purple" | "green" | "blue" | "yellow" | "red" | "cyan";
-type RecordId = string | number;
-
-type KnowledgeFormState = {
-  title: string;
-  content: string;
-  category: string;
-  status: "published" | "draft";
-};
-
-const initialFormState: KnowledgeFormState = {
-  title: "",
-  content: "",
-  category: "عام",
-  status: "published",
-};
 
 const filters: { key: FilterKey; label: string }[] = [
   { key: "all", label: "الكل" },
@@ -36,8 +20,6 @@ const filters: { key: FilterKey; label: string }[] = [
   { key: "service", label: "خدمات" },
   { key: "policy", label: "سياسات" },
 ];
-
-const categoryOptions = ["عام", "أسئلة", "برامج", "خدمات", "سياسات", "انضمام", "تواصل"];
 
 function getString(row: KnowledgeBaseRow, keys: string[], fallback = "") {
   for (const key of keys) {
@@ -112,11 +94,6 @@ function getRecordId(row: KnowledgeBaseRow) {
   return getString(row, ["id", "slug", "code", "key"], "غير متوفر");
 }
 
-function getRawId(row: KnowledgeBaseRow): RecordId | null {
-  const id = row.id;
-  return typeof id === "string" || typeof id === "number" ? id : null;
-}
-
 function getCategoryKey(row: KnowledgeBaseRow): FilterKey {
   const text = `${getCategory(row)} ${getTitle(row)} ${getContent(row)}`.toLowerCase();
 
@@ -128,24 +105,6 @@ function getCategoryKey(row: KnowledgeBaseRow): FilterKey {
   return "all";
 }
 
-function buildKnowledgePayloads(form: KnowledgeFormState) {
-  const cleanTitle = form.title.trim();
-  const cleanContent = form.content.trim();
-  const cleanCategory = form.category.trim() || "عام";
-  const isPublished = form.status === "published";
-
-  return [
-    { title: cleanTitle, content: cleanContent, category: cleanCategory, status: form.status },
-    { title: cleanTitle, content: cleanContent, category: cleanCategory, is_active: isPublished },
-    { title: cleanTitle, content: cleanContent, category: cleanCategory },
-    { question: cleanTitle, answer: cleanContent, category: cleanCategory, status: form.status },
-    { question: cleanTitle, answer: cleanContent, category: cleanCategory, is_active: isPublished },
-    { question: cleanTitle, answer: cleanContent, category: cleanCategory },
-    { question: cleanTitle, answer: cleanContent },
-    { title: cleanTitle, content: cleanContent },
-  ];
-}
-
 export default function AdminKnowledgeBasePage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -154,13 +113,9 @@ export default function AdminKnowledgeBasePage() {
   const [adminEmail, setAdminEmail] = useState("");
   const [records, setRecords] = useState<KnowledgeBaseRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
-  const [editingId, setEditingId] = useState<RecordId | null>(null);
-  const [form, setForm] = useState<KnowledgeFormState>(initialFormState);
 
   useEffect(() => {
     async function checkAccess() {
@@ -216,103 +171,6 @@ export default function AdminKnowledgeBasePage() {
     }
 
     setRecords((data || []) as KnowledgeBaseRow[]);
-  }
-
-  function resetForm() {
-    setEditingId(null);
-    setForm(initialFormState);
-  }
-
-  function startEdit(record: KnowledgeBaseRow) {
-    const id = getRawId(record);
-    if (id === null) {
-      setMessage("لا يمكن تعديل هذا العنصر لأنه لا يحتوي على id واضح.");
-      return;
-    }
-
-    setEditingId(id);
-    setForm({
-      title: getTitle(record),
-      content: getContent(record),
-      category: getCategory(record),
-      status: getStatus(record) === "published" ? "published" : "draft",
-    });
-    setMessage("تم تحميل العنصر في نموذج التعديل.");
-  }
-
-  async function saveKnowledgeItem(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMessage("");
-    setError("");
-
-    if (!supabase) {
-      setError("الاتصال بقاعدة البيانات غير مفعل.");
-      return;
-    }
-
-    if (!form.title.trim() || !form.content.trim()) {
-      setMessage("يرجى كتابة عنوان ومحتوى قبل الحفظ.");
-      return;
-    }
-
-    setIsSaving(true);
-    let lastError = "";
-
-    for (const payload of buildKnowledgePayloads(form)) {
-      const result = editingId === null
-        ? await supabase.from("knowledge_base").insert(payload)
-        : await supabase.from("knowledge_base").update(payload).eq("id", editingId);
-
-      if (!result.error) {
-        setIsSaving(false);
-        setMessage(editingId === null ? "تمت إضافة عنصر المعرفة بنجاح." : "تم تحديث عنصر المعرفة بنجاح.");
-        resetForm();
-        await loadKnowledgeBase();
-        return;
-      }
-
-      lastError = result.error.message;
-    }
-
-    setIsSaving(false);
-    setError(`تعذر حفظ عنصر المعرفة. آخر خطأ: ${lastError || "غير معروف"}`);
-  }
-
-  async function hideKnowledgeItem(record: KnowledgeBaseRow) {
-    setMessage("");
-    setError("");
-
-    if (!supabase) {
-      setError("الاتصال بقاعدة البيانات غير مفعل.");
-      return;
-    }
-
-    const id = getRawId(record);
-    if (id === null) {
-      setMessage("لا يمكن إخفاء هذا العنصر لأنه لا يحتوي على id واضح.");
-      return;
-    }
-
-    const payloads = [
-      { status: "hidden" },
-      { is_active: false },
-      { is_visible: false },
-      { published: false },
-    ];
-    let lastError = "";
-
-    for (const payload of payloads) {
-      const { error: hideError } = await supabase.from("knowledge_base").update(payload).eq("id", id);
-      if (!hideError) {
-        setMessage("تم إخفاء عنصر المعرفة بنجاح.");
-        await loadKnowledgeBase();
-        return;
-      }
-
-      lastError = hideError.message;
-    }
-
-    setError(`تعذر إخفاء عنصر المعرفة. آخر خطأ: ${lastError || "غير معروف"}`);
   }
 
   const filteredRecords = useMemo(() => {
@@ -406,75 +264,7 @@ export default function AdminKnowledgeBasePage() {
           </div>
         </div>
 
-        {message && <div className="mb-6 rounded-3xl border border-green-400/25 bg-green-500/10 p-5 text-green-100">{message}</div>}
         {error && <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">{error}</div>}
-
-        <form onSubmit={saveKnowledgeItem} className="mb-8 rounded-[2rem] border border-cyan-400/20 bg-cyan-500/10 p-5 backdrop-blur">
-          <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-2xl font-black">{editingId === null ? "إضافة عنصر معرفة" : "تعديل عنصر معرفة"}</h2>
-              <p className="mt-2 text-sm leading-6 text-white/50">هذه العناصر يستخدمها الدعم الذكي كمصدر إجابات موثوق.</p>
-            </div>
-            {editingId !== null && (
-              <button type="button" onClick={resetForm} className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-2 text-sm font-bold text-white/70">
-                إلغاء التعديل
-              </button>
-            )}
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <label className="grid gap-2 text-sm font-bold text-white/70">
-              العنوان / السؤال
-              <input
-                value={form.title}
-                onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-                className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-white outline-none focus:border-cyan-300/50"
-                placeholder="مثال: كيف أنضم إلى وكالة حمزة؟"
-              />
-            </label>
-
-            <label className="grid gap-2 text-sm font-bold text-white/70">
-              التصنيف
-              <select
-                value={form.category}
-                onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
-                className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-white outline-none focus:border-cyan-300/50"
-              >
-                {categoryOptions.map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
-            </label>
-
-            <label className="grid gap-2 text-sm font-bold text-white/70">
-              الحالة
-              <select
-                value={form.status}
-                onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as KnowledgeFormState["status"] }))}
-                className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-white outline-none focus:border-cyan-300/50"
-              >
-                <option value="published">منشور</option>
-                <option value="draft">مسودة</option>
-              </select>
-            </label>
-          </div>
-
-          <label className="mt-4 grid gap-2 text-sm font-bold text-white/70">
-            المحتوى / الجواب
-            <textarea
-              value={form.content}
-              onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))}
-              className="min-h-32 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 leading-7 text-white outline-none focus:border-cyan-300/50"
-              placeholder="اكتب الجواب المعتمد الذي يجب أن يستخدمه الدعم الذكي."
-            />
-          </label>
-
-          <button
-            type="submit"
-            disabled={isSaving}
-            className="mt-5 rounded-full bg-gradient-to-r from-cyan-600 to-purple-600 px-7 py-3 font-black text-white disabled:opacity-60"
-          >
-            {isSaving ? "جاري الحفظ..." : editingId === null ? "إضافة إلى قاعدة المعرفة" : "حفظ التعديل"}
-          </button>
-        </form>
 
         <div className="mb-8 grid gap-4 md:grid-cols-4">
           <StatCard label="منشور" value={publishedCount} tone="green" />
@@ -522,15 +312,6 @@ export default function AdminKnowledgeBasePage() {
                 {getContent(record) || "لا يوجد محتوى نصي واضح لهذا العنصر."}
               </p>
               <div className="mt-4 text-sm text-white/40">آخر تاريخ: {formatDate(getCreatedAt(record))}</div>
-
-              <div className="mt-5 flex flex-wrap gap-3">
-                <button type="button" onClick={() => startEdit(record)} className="rounded-full border border-cyan-300/25 bg-cyan-500/10 px-5 py-2 text-sm font-black text-cyan-100">
-                  تعديل
-                </button>
-                <button type="button" onClick={() => hideKnowledgeItem(record)} className="rounded-full border border-red-300/25 bg-red-500/10 px-5 py-2 text-sm font-black text-red-100">
-                  إخفاء
-                </button>
-              </div>
             </article>
           ))}
         </div>
