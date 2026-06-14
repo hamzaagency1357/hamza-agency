@@ -96,6 +96,11 @@ function getTopCounts(values: Array<string | null | undefined>, fallback = "غي
     .slice(0, 6);
 }
 
+function percent(value: number, total: number) {
+  if (!total) return 0;
+  return Math.round((value / total) * 100);
+}
+
 export default function AdminAnalyticsPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -209,6 +214,11 @@ export default function AdminAnalyticsPage() {
         normalizeStatus(item.status)
       )
     ).length;
+    const openJobApplications = jobApplications.filter((item) =>
+      ["new", "pending", "under_review", "reviewing"].includes(normalizeStatus(item.status))
+    ).length;
+    const totalOperationalItems = applications.length + serviceRequests.length + jobApplications.length;
+    const totalOpenItems = openApplications + openServices + openJobApplications;
 
     return {
       todayApplications,
@@ -219,13 +229,27 @@ export default function AdminAnalyticsPage() {
       openApplications,
       completedServices,
       openServices,
+      openJobApplications,
+      totalApplications: applications.length,
+      totalServices: serviceRequests.length,
+      totalJobApplications: jobApplications.length,
+      totalOperationalItems,
+      totalOpenItems,
+      acceptanceRate: percent(acceptedApplications, applications.length),
+      rejectionRate: percent(rejectedApplications, applications.length),
+      applicationBacklogRate: percent(openApplications, applications.length),
+      serviceCompletionRate: percent(completedServices, serviceRequests.length),
+      serviceBacklogRate: percent(openServices, serviceRequests.length),
+      jobBacklogRate: percent(openJobApplications, jobApplications.length),
+      operationalBacklogRate: percent(totalOpenItems, totalOperationalItems),
       topPrograms: getTopCounts(applications.map((item) => item.platform)),
       topCountries: getTopCounts(applications.map((item) => item.country)),
       applicationStatuses: getTopCounts(applications.map((item) => getStatusLabel(item.status))),
       serviceStatuses: getTopCounts(serviceRequests.map((item) => getStatusLabel(item.status))),
       serviceTypes: getTopCounts(serviceRequests.map((item) => item.service_type)),
+      jobStatuses: getTopCounts(jobApplications.map((item) => getStatusLabel(item.status))),
     };
-  }, [applications, serviceRequests]);
+  }, [applications, serviceRequests, jobApplications]);
 
   const recentActivity = useMemo(() => {
     const applicationItems = applications.slice(0, 8).map((item) => ({
@@ -246,14 +270,23 @@ export default function AdminAnalyticsPage() {
       href: "/admin/service-requests",
     }));
 
-    return [...applicationItems, ...serviceItems]
+    const jobItems = jobApplications.slice(0, 8).map((item) => ({
+      id: `job-${item.id}`,
+      title: "طلب وظيفة",
+      description: `طلب وظيفة رقم ${item.id}`,
+      status: getStatusLabel(item.status),
+      createdAt: item.created_at,
+      href: "/admin/jobs",
+    }));
+
+    return [...applicationItems, ...serviceItems, ...jobItems]
       .sort((a, b) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return bTime - aTime;
       })
-      .slice(0, 10);
-  }, [applications, serviceRequests]);
+      .slice(0, 12);
+  }, [applications, serviceRequests, jobApplications]);
 
   if (isCheckingAuth) {
     return (
@@ -273,11 +306,11 @@ export default function AdminAnalyticsPage() {
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="mb-3 inline-flex rounded-full border border-purple-400/25 bg-purple-500/10 px-5 py-2 text-sm font-bold text-purple-100">
-              Dashboard Analytics
+              KPI Dashboard
             </div>
-            <h1 className="text-4xl font-black md:text-5xl">تحليلات لوحة التحكم</h1>
+            <h1 className="text-4xl font-black md:text-5xl">مؤشرات الأداء التشغيلية</h1>
             <p className="mt-3 text-white/55">
-              قراءة تشغيلية سريعة لطلبات الانضمام والخدمات والوظائف داخل وكالة حمزة.
+              قراءة تشغيلية متقدمة لطلبات الانضمام والخدمات والوظائف داخل وكالة حمزة.
             </p>
           </div>
 
@@ -312,18 +345,38 @@ export default function AdminAnalyticsPage() {
           <MetricCard label="طلبات اليوم" value={analytics.todayApplications} tone="blue" />
           <MetricCard label="طلبات آخر 7 أيام" value={analytics.weekApplications} tone="purple" />
           <MetricCard label="طلبات آخر 30 يوم" value={analytics.monthApplications} tone="pink" />
+          <MetricCard label="إجمالي التشغيل" value={analytics.totalOperationalItems} tone="cyan" />
           <MetricCard label="طلبات مفتوحة" value={analytics.openApplications} tone="yellow" />
           <MetricCard label="طلبات مقبولة" value={analytics.acceptedApplications} tone="green" />
           <MetricCard label="طلبات مرفوضة" value={analytics.rejectedApplications} tone="red" />
           <MetricCard label="خدمات قيد المتابعة" value={analytics.openServices} tone="purple" />
           <MetricCard label="خدمات مكتملة" value={analytics.completedServices} tone="green" />
+          <MetricCard label="طلبات وظائف مفتوحة" value={analytics.openJobApplications} tone="yellow" />
+          <MetricCard label="طلبات الوظائف" value={analytics.totalJobApplications} tone="blue" />
+          <MetricCard label="كل العناصر المفتوحة" value={analytics.totalOpenItems} tone="red" />
         </div>
+
+        <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
+          <h2 className="text-2xl font-black">معدلات KPI</h2>
+          <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <RateCard label="معدل القبول" value={analytics.acceptanceRate} tone="green" />
+            <RateCard label="معدل الرفض" value={analytics.rejectionRate} tone="red" />
+            <RateCard label="تراكم الانضمام" value={analytics.applicationBacklogRate} tone="yellow" />
+            <RateCard label="إنجاز الخدمات" value={analytics.serviceCompletionRate} tone="green" />
+            <RateCard label="تراكم الخدمات" value={analytics.serviceBacklogRate} tone="yellow" />
+            <RateCard label="تراكم الوظائف" value={analytics.jobBacklogRate} tone="yellow" />
+            <RateCard label="الضغط التشغيلي" value={analytics.operationalBacklogRate} tone="purple" />
+            <RateCard label="نشاط آخر أسبوع" value={percent(analytics.weekApplications, analytics.totalApplications)} tone="cyan" />
+          </div>
+        </section>
 
         <div className="grid gap-6 lg:grid-cols-2">
           <InsightPanel title="أكثر البرامج طلباً" items={analytics.topPrograms} />
           <InsightPanel title="أكثر الدول في الطلبات" items={analytics.topCountries} />
           <InsightPanel title="حالات طلبات الانضمام" items={analytics.applicationStatuses} />
           <InsightPanel title="حالات طلبات الخدمات" items={analytics.serviceStatuses} />
+          <InsightPanel title="أنواع الخدمات الأكثر طلباً" items={analytics.serviceTypes} />
+          <InsightPanel title="حالات طلبات الوظائف" items={analytics.jobStatuses} />
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -358,21 +411,17 @@ export default function AdminAnalyticsPage() {
           </section>
 
           <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
-            <h2 className="text-2xl font-black">طلبات الوظائف</h2>
+            <h2 className="text-2xl font-black">ملخص سريع</h2>
             <div className="mt-5 grid gap-3">
-              <MiniMetric label="إجمالي طلبات الوظائف" value={jobApplications.length} />
-              <MiniMetric
-                label="وظائف آخر 7 أيام"
-                value={jobApplications.filter((item) => isWithinDays(item.created_at, 7)).length}
-              />
-              <MiniMetric
-                label="وظائف اليوم"
-                value={jobApplications.filter((item) => isSameDay(item.created_at)).length}
-              />
+              <MiniMetric label="إجمالي طلبات الانضمام" value={analytics.totalApplications} />
+              <MiniMetric label="إجمالي طلبات الخدمات" value={analytics.totalServices} />
+              <MiniMetric label="إجمالي طلبات الوظائف" value={analytics.totalJobApplications} />
+              <MiniMetric label="وظائف آخر 7 أيام" value={jobApplications.filter((item) => isWithinDays(item.created_at, 7)).length} />
+              <MiniMetric label="وظائف اليوم" value={jobApplications.filter((item) => isSameDay(item.created_at)).length} />
             </div>
 
             <div className="mt-6 rounded-2xl border border-yellow-400/20 bg-yellow-500/10 p-4 text-sm leading-7 text-yellow-100">
-              هذه الصفحة مخصصة للقراءة التشغيلية السريعة. التعديل التفصيلي يبقى داخل صفحات الإدارة المختصة.
+              مؤشرات زمن المراجعة الدقيقة تحتاج لاحقاً أعمدة زمنية مخصصة لكل انتقال حالة.
             </div>
           </section>
         </div>
@@ -386,6 +435,15 @@ function MetricCard({ label, value, tone }: { label: string; value: number; tone
     <div className={`rounded-3xl border p-5 ${toneClass(tone)}`}>
       <div className="text-sm font-bold opacity-75">{label}</div>
       <div className="mt-2 text-4xl font-black" dir="ltr">{value}</div>
+    </div>
+  );
+}
+
+function RateCard({ label, value, tone }: { label: string; value: number; tone: Tone }) {
+  return (
+    <div className={`rounded-3xl border p-5 ${toneClass(tone)}`}>
+      <div className="text-sm font-bold opacity-75">{label}</div>
+      <div className="mt-2 text-4xl font-black" dir="ltr">{value}%</div>
     </div>
   );
 }
