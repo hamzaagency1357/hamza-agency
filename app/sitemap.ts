@@ -17,6 +17,7 @@ const publicRoutes = [
   { path: "/digital-services", priority: 0.85, changeFrequency: "weekly" as const },
   { path: "/ai-support", priority: 0.8, changeFrequency: "weekly" as const },
   { path: "/service-request", priority: 0.8, changeFrequency: "weekly" as const },
+  { path: "/service-status", priority: 0.65, changeFrequency: "weekly" as const },
   { path: "/jobs", priority: 0.8, changeFrequency: "weekly" as const },
   { path: "/reviews", priority: 0.75, changeFrequency: "weekly" as const },
   { path: "/success-stories", priority: 0.75, changeFrequency: "weekly" as const },
