@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { logAdminActivity } from "@/lib/adminActivityLogger";
 
 type ServiceRequest = {
   id: number;
@@ -51,6 +52,43 @@ const statusLabels: Record<string, string> = {
   rejected: "مرفوض",
   canceled: "ملغي",
 };
+
+function getServiceRequestSnapshot(request: ServiceRequest) {
+  return {
+    id: request.id,
+    request_code: request.request_code,
+    full_name: request.full_name,
+    country: request.country,
+    whatsapp: request.whatsapp,
+    service_type: request.service_type,
+    platform: request.platform,
+    account_identifier: request.account_identifier,
+    requested_amount: request.requested_amount,
+    notes: request.notes,
+    status: request.status,
+    internal_notes: request.internal_notes,
+    created_at: request.created_at,
+    updated_at: request.updated_at,
+  };
+}
+
+function getServiceRequestAction(changes: Partial<ServiceRequest>) {
+  if (Object.prototype.hasOwnProperty.call(changes, "status")) return "update_service_request_status";
+  if (Object.prototype.hasOwnProperty.call(changes, "internal_notes")) return "update_service_request_internal_notes";
+  return "update_service_request";
+}
+
+function getServiceRequestDetails(request: ServiceRequest, changes: Partial<ServiceRequest>) {
+  if (Object.prototype.hasOwnProperty.call(changes, "status")) {
+    return `تغيير حالة طلب الخدمة من ${statusLabels[request.status || ""] || request.status || "غير محدد"} إلى ${statusLabels[String(changes.status || "")] || changes.status || "غير محدد"}`;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(changes, "internal_notes")) {
+    return "تحديث الملاحظات الداخلية لطلب الخدمة";
+  }
+
+  return "تحديث طلب خدمة من لوحة الإدارة";
+}
 
 export default function AdminServiceRequestsPage() {
   const [adminStatus, setAdminStatus] = useState<AdminStatus>("checking");
@@ -296,7 +334,7 @@ export default function AdminServiceRequestsPage() {
           <style>
             table { border-collapse: collapse; direction: rtl; font-family: Arial, sans-serif; }
             th { background: #3b0764; color: #ffffff; font-weight: bold; }
-            th, td { border: 1px solid #cbd5e1; padding: 8px; mso-number-format: "\\@"; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px; mso-number-format: "\@"; }
           </style>
         </head>
         <body>
@@ -358,6 +396,16 @@ export default function AdminServiceRequestsPage() {
     }
 
     const updated = data as ServiceRequest;
+
+    await logAdminActivity({
+      action: getServiceRequestAction(changes),
+      module: "service_requests",
+      adminEmail,
+      recordId: request.request_code || request.id,
+      details: getServiceRequestDetails(request, changes),
+      oldData: getServiceRequestSnapshot(request),
+      newData: getServiceRequestSnapshot(updated),
+    });
 
     setRequests((current) =>
       current.map((item) => (item.id === request.id ? updated : item))
