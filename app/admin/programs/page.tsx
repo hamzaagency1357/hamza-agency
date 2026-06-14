@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { logAdminActivity } from "@/lib/adminActivityLogger";
 
 type Program = {
   id: number;
@@ -22,7 +23,38 @@ type Program = {
   updates: string | null;
 };
 
-const emptyForm = {
+type ProgramForm = {
+  name: string;
+  slug: string;
+  description: string;
+  short_description: string;
+  status: string;
+  sort_order: string;
+  is_visible: boolean;
+  is_active: boolean;
+  requirements: string;
+  benefits: string;
+  faq: string;
+  updates: string;
+};
+
+type ProgramPayload = {
+  name: string;
+  slug: string;
+  description: string | null;
+  short_description: string | null;
+  status: string;
+  sort_order: number;
+  is_visible: boolean;
+  is_active: boolean;
+  requirements: string | null;
+  benefits: string | null;
+  faq: string | null;
+  updates: string | null;
+  updated_at: string;
+};
+
+const emptyForm: ProgramForm = {
   name: "",
   slug: "",
   description: "",
@@ -37,26 +69,63 @@ const emptyForm = {
   updates: "",
 };
 
+function getProgramSnapshot(program: Program) {
+  return {
+    id: program.id,
+    name: program.name,
+    slug: program.slug,
+    description: program.description,
+    short_description: program.short_description,
+    status: program.status,
+    sort_order: program.sort_order,
+    is_visible: program.is_visible,
+    is_active: program.is_active,
+    requirements: program.requirements,
+    benefits: program.benefits,
+    faq: program.faq,
+    updates: program.updates,
+  };
+}
+
+function getProgramPayloadSnapshot(payload: ProgramPayload) {
+  return {
+    name: payload.name,
+    slug: payload.slug,
+    description: payload.description,
+    short_description: payload.short_description,
+    status: payload.status,
+    sort_order: payload.sort_order,
+    is_visible: payload.is_visible,
+    is_active: payload.is_active,
+    requirements: payload.requirements,
+    benefits: payload.benefits,
+    faq: payload.faq,
+    updates: payload.updates,
+  };
+}
+
 export default function AdminProgramsPage() {
   const router = useRouter();
 
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [adminEmail, setAdminEmail] = useState("");
   const [programs, setPrograms] = useState<Program[]>([]);
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<ProgramForm>(emptyForm);
 
   useEffect(() => {
     async function checkAdminAccess() {
       const access = await requireAdminModuleAccess("programs");
 
-      if (!access.isAuthorized) {
+      if (!access.isAuthorized || !access.profile) {
         router.replace("/admin/login");
         return;
       }
 
+      setAdminEmail(access.profile.email || access.user?.email || "");
       setIsAuthorized(true);
       setIsCheckingAuth(false);
     }
@@ -79,7 +148,7 @@ export default function AdminProgramsPage() {
       return;
     }
 
-    setPrograms(data || []);
+    setPrograms((data || []) as Program[]);
   }
 
   useEffect(() => {
@@ -93,7 +162,7 @@ export default function AdminProgramsPage() {
     });
   }, [programs, search]);
 
-  function updateField(key: keyof typeof form, value: string | boolean) {
+  function updateField(key: keyof ProgramForm, value: string | boolean) {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
@@ -132,7 +201,7 @@ export default function AdminProgramsPage() {
       return;
     }
 
-    const payload = {
+    const payload: ProgramPayload = {
       name: form.name.trim(),
       slug: form.slug.trim(),
       description: form.description.trim() || null,
@@ -157,6 +226,16 @@ export default function AdminProgramsPage() {
       return;
     }
 
+    await logAdminActivity({
+      action: editingProgram ? "update_program" : "create_program",
+      module: "programs",
+      adminEmail,
+      recordId: editingProgram ? editingProgram.id : payload.slug,
+      details: editingProgram ? "تعديل برنامج من لوحة الإدارة" : "إضافة برنامج من لوحة الإدارة",
+      oldData: editingProgram ? getProgramSnapshot(editingProgram) : null,
+      newData: getProgramPayloadSnapshot(payload),
+    });
+
     setMessage(editingProgram ? "تم تعديل البرنامج بنجاح." : "تم إضافة البرنامج بنجاح.");
     resetForm();
     await loadPrograms();
@@ -165,15 +244,31 @@ export default function AdminProgramsPage() {
   async function toggleProgram(program: Program, key: "is_visible" | "is_active") {
     if (!supabase) return;
 
+    const nextValue = !program[key];
     const { error } = await supabase
       .from("programs")
-      .update({ [key]: !program[key], updated_at: new Date().toISOString() })
+      .update({ [key]: nextValue, updated_at: new Date().toISOString() })
       .eq("id", program.id);
 
     if (error) {
       alert("فشل تحديث حالة البرنامج");
       return;
     }
+
+    await logAdminActivity({
+      action: key === "is_visible" ? "toggle_program_visibility" : "toggle_program_active_status",
+      module: "programs",
+      adminEmail,
+      recordId: program.id,
+      details: key === "is_visible" ? "تغيير ظهور البرنامج" : "تغيير تفعيل البرنامج",
+      oldData: getProgramSnapshot(program),
+      newData: {
+        id: program.id,
+        name: program.name,
+        slug: program.slug,
+        [key]: nextValue,
+      },
+    });
 
     await loadPrograms();
   }
