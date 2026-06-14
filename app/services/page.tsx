@@ -46,6 +46,34 @@ const processSteps = [
   "التواصل مع صاحب الطلب عبر واتساب عند الحاجة.",
 ];
 
+function buildServicesStructuredData(pageTitle: string, pageDescription: string) {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: pageTitle,
+    description: pageDescription,
+    provider: {
+      "@type": "Organization",
+      name: "HAMZA AGENCY",
+      url: "https://hamza-agency.com",
+    },
+    areaServed: "Online",
+    serviceType: serviceCards.map((service) => service.title),
+    hasOfferCatalog: {
+      "@type": "OfferCatalog",
+      name: "خدمات وكالة حمزة",
+      itemListElement: serviceCards.map((service) => ({
+        "@type": "Offer",
+        itemOffered: {
+          "@type": "Service",
+          name: service.title,
+          description: service.text,
+        },
+      })),
+    },
+  }).replace(/</g, "\\u003c");
+}
+
 export default async function ServicesPage() {
   const { page, sections } = await getCmsPageWithSections("services");
 
@@ -65,9 +93,14 @@ export default async function ServicesPage() {
 
   const pageTitle = page?.title || agencyServices.title;
   const pageDescription = page?.content || agencyServices.content;
+  const servicesStructuredData = buildServicesStructuredData(pageTitle, pageDescription);
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#070009] px-5 py-8 text-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: servicesStructuredData }}
+      />
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.32),transparent_45%)]" />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(40,10,70,0.35),rgba(7,0,9,0.95))]" />
