@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
 import { supabase } from "@/lib/supabase";
 
 type KnowledgeBaseRow = Record<string, unknown>;
+type KnowledgePayload = Record<string, string | boolean>;
 type FilterKey = "all" | "published" | "draft" | "hidden" | "faq" | "program" | "service" | "policy";
 type Tone = "purple" | "green" | "blue" | "yellow" | "red" | "cyan";
 type RecordId = string | number;
@@ -128,7 +129,7 @@ function getCategoryKey(row: KnowledgeBaseRow): FilterKey {
   return "all";
 }
 
-function buildKnowledgePayloads(form: KnowledgeFormState) {
+function buildKnowledgePayloads(form: KnowledgeFormState): KnowledgePayload[] {
   const cleanTitle = form.title.trim();
   const cleanContent = form.content.trim();
   const cleanCategory = form.category.trim() || "عام";
@@ -144,6 +145,17 @@ function buildKnowledgePayloads(form: KnowledgeFormState) {
     { question: cleanTitle, answer: cleanContent },
     { title: cleanTitle, content: cleanContent },
   ];
+}
+
+const hideKnowledgePayloads: KnowledgePayload[] = [
+  { status: "hidden" },
+  { is_active: false },
+  { is_visible: false },
+  { published: false },
+];
+
+function asSupabasePayload(payload: KnowledgePayload) {
+  return payload as never;
 }
 
 export default function AdminKnowledgeBasePage() {
@@ -259,9 +271,10 @@ export default function AdminKnowledgeBasePage() {
     let lastError = "";
 
     for (const payload of buildKnowledgePayloads(form)) {
+      const safePayload = asSupabasePayload(payload);
       const result = editingId === null
-        ? await supabase.from("knowledge_base").insert(payload)
-        : await supabase.from("knowledge_base").update(payload).eq("id", editingId);
+        ? await supabase.from("knowledge_base").insert(safePayload)
+        : await supabase.from("knowledge_base").update(safePayload).eq("id", editingId);
 
       if (!result.error) {
         setIsSaving(false);
@@ -293,16 +306,14 @@ export default function AdminKnowledgeBasePage() {
       return;
     }
 
-    const payloads = [
-      { status: "hidden" },
-      { is_active: false },
-      { is_visible: false },
-      { published: false },
-    ];
     let lastError = "";
 
-    for (const payload of payloads) {
-      const { error: hideError } = await supabase.from("knowledge_base").update(payload).eq("id", id);
+    for (const payload of hideKnowledgePayloads) {
+      const { error: hideError } = await supabase
+        .from("knowledge_base")
+        .update(asSupabasePayload(payload))
+        .eq("id", id);
+
       if (!hideError) {
         setMessage("تم إخفاء عنصر المعرفة بنجاح.");
         await loadKnowledgeBase();
@@ -548,7 +559,7 @@ function StatCard({ label, value, tone }: { label: string; value: number; tone: 
   );
 }
 
-function FilterButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function FilterButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
   return (
     <button onClick={onClick} className={active ? "rounded-full bg-cyan-600 px-5 py-3 text-sm font-black text-white" : "rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-bold text-white/65"}>
       {children}
@@ -556,7 +567,7 @@ function FilterButton({ active, onClick, children }: { active: boolean; onClick:
   );
 }
 
-function Badge({ children, tone }: { children: React.ReactNode; tone: Tone }) {
+function Badge({ children, tone }: { children: ReactNode; tone: Tone }) {
   return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${toneSoftClasses(tone)}`}>{children}</span>;
 }
 
