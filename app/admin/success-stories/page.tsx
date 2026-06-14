@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { logAdminActivity } from "@/lib/adminActivityLogger";
 
 type AdminStatus = "checking" | "authorized" | "unauthorized";
 type MessageType = "success" | "error" | "info";
@@ -77,14 +78,40 @@ function isSelectableMedia(item: MediaPickerItem) {
 
   return (
     Boolean(fileUrl) &&
-    (
-      fileType === "image" ||
+    (fileType === "image" ||
       fileType === "logo" ||
       fileType === "icon" ||
       fileType.startsWith("image") ||
-      /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileUrl)
-    )
+      /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileUrl))
   );
+}
+
+function getSuccessStorySnapshot(story: SuccessStory) {
+  return {
+    id: story.id,
+    title: story.title,
+    person_name: story.person_name,
+    country: story.country,
+    platform: story.platform,
+    result_summary: story.result_summary,
+    story: story.story,
+    image_url: story.image_url,
+    is_featured: story.is_featured,
+    sort_order: story.sort_order,
+    status: story.status,
+    is_visible: story.is_visible,
+    created_at: story.created_at,
+    updated_at: story.updated_at,
+  };
+}
+
+function getSuccessStoryQuickAction(
+  changes: Partial<Pick<SuccessStory, "status" | "is_visible" | "is_featured">>
+) {
+  if (Object.prototype.hasOwnProperty.call(changes, "status")) return "update_success_story_status";
+  if (Object.prototype.hasOwnProperty.call(changes, "is_visible")) return "toggle_success_story_visibility";
+  if (Object.prototype.hasOwnProperty.call(changes, "is_featured")) return "toggle_success_story_featured";
+  return "update_success_story";
 }
 
 export default function AdminSuccessStoriesPage() {
@@ -267,6 +294,8 @@ export default function AdminSuccessStoriesPage() {
       ...(editingId ? {} : { created_at: now }),
     };
 
+    const oldStory = editingId ? stories.find((story) => story.id === editingId) || null : null;
+
     setIsSaving(true);
 
     const result = editingId
@@ -283,6 +312,16 @@ export default function AdminSuccessStoriesPage() {
       return;
     }
 
+    await logAdminActivity({
+      action: editingId ? "update_success_story" : "create_success_story",
+      module: "success_stories",
+      adminEmail,
+      recordId: editingId ?? payload.title,
+      details: editingId ? "تعديل قصة نجاح من لوحة الإدارة" : "إضافة قصة نجاح من لوحة الإدارة",
+      oldData: oldStory ? getSuccessStorySnapshot(oldStory) : null,
+      newData: payload,
+    });
+
     const successText = editingId
       ? "تم حفظ تعديلات قصة النجاح بنجاح."
       : "تم إضافة قصة النجاح بنجاح.";
@@ -293,7 +332,7 @@ export default function AdminSuccessStoriesPage() {
   }
 
   async function quickUpdateStory(
-    storyId: number,
+    story: SuccessStory,
     changes: Partial<
       Pick<SuccessStory, "status" | "is_visible" | "is_featured">
     >,
@@ -303,24 +342,39 @@ export default function AdminSuccessStoriesPage() {
 
     clearMessage();
 
+    const updatePayload = {
+      ...changes,
+      updated_at: new Date().toISOString(),
+    };
+
     const { error } = await supabase
       .from("success_stories")
-      .update({
-        ...changes,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", storyId);
+      .update(updatePayload)
+      .eq("id", story.id);
 
     if (error) {
       showMessage("تعذر تنفيذ الإجراء. يرجى المحاولة مرة أخرى.", "error");
       return;
     }
 
+    await logAdminActivity({
+      action: getSuccessStoryQuickAction(changes),
+      module: "success_stories",
+      adminEmail,
+      recordId: story.id,
+      details: "تحديث سريع لقصة نجاح من لوحة الإدارة",
+      oldData: getSuccessStorySnapshot(story),
+      newData: {
+        ...getSuccessStorySnapshot(story),
+        ...updatePayload,
+      },
+    });
+
     await loadStories();
     showMessage(successMessage, "success");
   }
 
-  async function deleteStory(storyId: number) {
+  async function deleteStory(story: SuccessStory) {
     if (!supabase) return;
 
     const confirmed = window.confirm(
@@ -331,27 +385,42 @@ export default function AdminSuccessStoriesPage() {
 
     clearMessage();
 
+    const archivePayload = {
+      status: "hidden",
+      is_visible: false,
+      is_featured: false,
+      updated_at: new Date().toISOString(),
+    };
+
     const { error } = await supabase
       .from("success_stories")
-      .update({
-        status: "hidden",
-        is_visible: false,
-        is_featured: false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", storyId);
+      .update(archivePayload)
+      .eq("id", story.id);
 
     if (error) {
       showMessage("تعذر أرشفة قصة النجاح. يرجى المحاولة مرة أخرى.", "error");
       return;
     }
 
-    if (editingId === storyId) {
+    await logAdminActivity({
+      action: "archive_success_story",
+      module: "success_stories",
+      adminEmail,
+      recordId: story.id,
+      details: "إخفاء وأرشفة قصة نجاح من لوحة الإدارة",
+      oldData: getSuccessStorySnapshot(story),
+      newData: {
+        ...getSuccessStorySnapshot(story),
+        ...archivePayload,
+      },
+    });
+
+    if (editingId === story.id) {
       resetForm({ keepMessage: true });
     }
 
     await loadStories();
-    showMessage("تم إخفاء قصة النجاح وأرشفتها بأمان.", "success");
+    showMessage("تم إخفاء قصة النجاح وأرشفته بأمان.", "success");
   }
 
   const filteredStories = useMemo(() => {
@@ -705,10 +774,10 @@ export default function AdminSuccessStoriesPage() {
                   key={story.id}
                   story={story}
                   onEdit={() => editStory(story)}
-                  onDelete={() => deleteStory(story.id)}
+                  onDelete={() => deleteStory(story)}
                   onToggleVisible={() =>
                     quickUpdateStory(
-                      story.id,
+                      story,
                       {
                         is_visible: story.is_visible === false,
                       },
@@ -719,7 +788,7 @@ export default function AdminSuccessStoriesPage() {
                   }
                   onToggleFeatured={() =>
                     quickUpdateStory(
-                      story.id,
+                      story,
                       {
                         is_featured: story.is_featured !== true,
                       },
@@ -730,7 +799,7 @@ export default function AdminSuccessStoriesPage() {
                   }
                   onPublish={() =>
                     quickUpdateStory(
-                      story.id,
+                      story,
                       {
                         status: "published",
                         is_visible: true,
@@ -740,7 +809,7 @@ export default function AdminSuccessStoriesPage() {
                   }
                   onHide={() =>
                     quickUpdateStory(
-                      story.id,
+                      story,
                       {
                         status: "hidden",
                         is_visible: false,
@@ -798,9 +867,7 @@ function StoryAdminCard({
           </h3>
 
           <p className="mt-2 text-sm text-white/50">
-            {story.person_name || "بدون اسم"} —{" "}
-            {story.country || "بدون دولة"} —{" "}
-            {story.platform || "بدون منصة"}
+            {story.person_name || "بدون اسم"} — {story.country || "بدون دولة"} — {story.platform || "بدون منصة"}
           </p>
 
           {story.result_summary && (
