@@ -91,6 +91,25 @@ function groupFaqs(faqs: FaqItem[]) {
   }, {});
 }
 
+function buildFaqStructuredData(faqs: FaqItem[]) {
+  const mainEntity = faqs
+    .filter((faq) => faq.question && faq.answer)
+    .map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    }));
+
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity,
+  }).replace(/</g, "\\u003c");
+}
+
 async function getFaqPageData() {
   const [pageData, settingsResult, faqsResult] = await Promise.all([
     getCmsPageWithSections("faq"),
@@ -154,9 +173,14 @@ export default async function FaqPage() {
   const title = page?.title || faqIntro.title;
   const intro = page?.content || faqIntro.content;
   const groupedFaqs = groupFaqs(faqs);
+  const faqStructuredData = buildFaqStructuredData(faqs);
 
   return (
     <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: faqStructuredData }}
+      />
       <FaqBackground />
 
       <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
