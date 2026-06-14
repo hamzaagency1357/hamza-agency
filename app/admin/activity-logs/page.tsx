@@ -179,7 +179,7 @@ export default function AdminActivityLogsPage() {
 
   useEffect(() => {
     async function checkAccess() {
-      const access = await requireAdminModuleAccess("dashboard");
+      const access = await requireAdminModuleAccess("activity_logs");
 
       if (!access.isAuthorized || !access.profile) {
         setIsAuthorized(false);
