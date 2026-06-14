@@ -20,6 +20,31 @@ const filters: { key: FilterKey; label: string }[] = [
   { key: "other", label: "أخرى" },
 ];
 
+const moduleLabels: Record<string, string> = {
+  agency_applications: "طلبات الانضمام",
+  service_requests: "طلبات الخدمات",
+  programs: "البرامج",
+  pages: "الصفحات",
+  sections: "الأقسام",
+  media: "الوسائط",
+  announcements: "الإعلانات",
+  jobs: "الوظائف",
+  job_applications: "طلبات الوظائف",
+  reviews: "التقييمات",
+  success_stories: "قصص النجاح",
+  partners: "الشركاء",
+  gallery_items: "المعرض",
+  settings: "الإعدادات",
+  admin_users: "المستخدمون الإداريون",
+  permissions: "الصلاحيات",
+  backups: "النسخ الاحتياطي",
+  activity_logs: "سجل النشاطات",
+  knowledge_base: "قاعدة المعرفة",
+  faqs: "الأسئلة الشائعة",
+  ai_conversations: "محادثات الدعم الذكي",
+  ai_unanswered_questions: "أسئلة الدعم الذكي غير المجابة",
+};
+
 function getStringValue(row: ActivityLogRow, keys: string[], fallback = "") {
   for (const key of keys) {
     const value = row[key];
@@ -32,8 +57,33 @@ function getStringValue(row: ActivityLogRow, keys: string[], fallback = "") {
   return fallback;
 }
 
+function getNestedValue(source: unknown, keys: string[]) {
+  if (!source || typeof source !== "object") return undefined;
+
+  const record = source as Record<string, unknown>;
+
+  for (const key of keys) {
+    const value = record[key];
+    if (value !== null && value !== undefined && value !== "") return value;
+  }
+
+  return undefined;
+}
+
+function hasRawValue(value: unknown) {
+  return value !== null && value !== undefined && value !== "";
+}
+
 function getDateValue(row: ActivityLogRow) {
   return getStringValue(row, ["created_at", "createdAt", "timestamp", "date"], "");
+}
+
+function getLogTime(row: ActivityLogRow) {
+  const value = getDateValue(row);
+  if (!value) return null;
+
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? null : time;
 }
 
 function formatDate(value: string) {
@@ -50,7 +100,7 @@ function formatDate(value: string) {
 }
 
 function formatRawValue(value: unknown) {
-  if (value === null || value === undefined || value === "") return "غير متوفر";
+  if (!hasRawValue(value)) return "غير متوفر";
 
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
     return String(value);
@@ -123,32 +173,12 @@ function getModuleName(row: ActivityLogRow) {
   return getStringValue(row, ["module", "table_name", "table", "entity", "entity_type", "resource"], "النظام");
 }
 
+function getModuleLabelFromName(moduleName: string) {
+  return moduleLabels[moduleName] || moduleName;
+}
+
 function getModuleLabel(row: ActivityLogRow) {
-  const moduleName = getModuleName(row);
-
-  const labels: Record<string, string> = {
-    agency_applications: "طلبات الانضمام",
-    service_requests: "طلبات الخدمات",
-    programs: "البرامج",
-    pages: "الصفحات",
-    media: "الوسائط",
-    announcements: "الإعلانات",
-    jobs: "الوظائف",
-    job_applications: "طلبات الوظائف",
-    reviews: "التقييمات",
-    success_stories: "قصص النجاح",
-    partners: "الشركاء",
-    gallery_items: "المعرض",
-    settings: "الإعدادات",
-    admin_users: "المستخدمون الإداريون",
-    backups: "النسخ الاحتياطي",
-    activity_logs: "سجل النشاطات",
-    knowledge_base: "قاعدة المعرفة",
-    ai_conversations: "محادثات الدعم الذكي",
-    ai_unanswered_questions: "أسئلة الدعم الذكي غير المجابة",
-  };
-
-  return labels[moduleName] || moduleName;
+  return getModuleLabelFromName(getModuleName(row));
 }
 
 function getActor(row: ActivityLogRow) {
@@ -168,13 +198,31 @@ function getDetails(row: ActivityLogRow) {
     row.details ??
     row.description ??
     row.notes ??
-    row.metadata ??
-    row.payload ??
-    row.new_values ??
-    row.new_data ??
-    row.old_values ??
-    row.old_data ??
+    getNestedValue(row.metadata, ["details", "description", "notes"]) ??
+    getNestedValue(row.payload, ["details", "description", "notes"]) ??
     ""
+  );
+}
+
+function getOldData(row: ActivityLogRow) {
+  return (
+    row.old_data ??
+    row.old_values ??
+    row.oldData ??
+    row.oldValues ??
+    getNestedValue(row.metadata, ["oldData", "old_data", "oldValues", "old_values"]) ??
+    getNestedValue(row.payload, ["oldData", "old_data", "oldValues", "old_values"])
+  );
+}
+
+function getNewData(row: ActivityLogRow) {
+  return (
+    row.new_data ??
+    row.new_values ??
+    row.newData ??
+    row.newValues ??
+    getNestedValue(row.metadata, ["newData", "new_data", "newValues", "new_values"]) ??
+    getNestedValue(row.payload, ["newData", "new_data", "newValues", "new_values"])
   );
 }
 
@@ -188,6 +236,10 @@ export default function AdminActivityLogsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [moduleFilter, setModuleFilter] = useState("all");
+  const [actorFilter, setActorFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -247,14 +299,40 @@ export default function AdminActivityLogsPage() {
     setLogs((data || []) as ActivityLogRow[]);
   }
 
+  const moduleOptions = useMemo(() => {
+    const options = new Map<string, string>();
+
+    logs.forEach((log) => {
+      const moduleName = getModuleName(log);
+      if (moduleName && moduleName !== "النظام") {
+        options.set(moduleName, getModuleLabelFromName(moduleName));
+      }
+    });
+
+    return Array.from(options.entries()).sort((a, b) => a[1].localeCompare(b[1], "ar"));
+  }, [logs]);
+
+  const actorOptions = useMemo(() => {
+    return Array.from(new Set(logs.map(getActor).filter((actor) => actor && actor !== "غير محدد"))).sort((a, b) =>
+      a.localeCompare(b, "ar")
+    );
+  }, [logs]);
+
   const filteredLogs = useMemo(() => {
     const query = search.trim().toLowerCase();
+    const fromTime = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null;
+    const toTime = dateTo ? new Date(`${dateTo}T23:59:59`).getTime() : null;
 
     return logs.filter((log) => {
       const category = getActionCategory(log);
       const matchesFilter = filter === "all" || category === filter;
+      const matchesModule = moduleFilter === "all" || getModuleName(log) === moduleFilter;
+      const matchesActor = actorFilter === "all" || getActor(log) === actorFilter;
+      const logTime = getLogTime(log);
+      const matchesDateFrom = fromTime === null || (logTime !== null && logTime >= fromTime);
+      const matchesDateTo = toTime === null || (logTime !== null && logTime <= toTime);
 
-      if (!matchesFilter) return false;
+      if (!matchesFilter || !matchesModule || !matchesActor || !matchesDateFrom || !matchesDateTo) return false;
       if (!query) return true;
 
       const text = [
@@ -263,18 +341,28 @@ export default function AdminActivityLogsPage() {
         getActor(log),
         getRecordId(log),
         formatRawValue(getDetails(log)),
+        formatRawValue(getOldData(log)),
+        formatRawValue(getNewData(log)),
       ]
         .join(" ")
         .toLowerCase();
 
       return text.includes(query);
     });
-  }, [logs, filter, search]);
+  }, [logs, filter, moduleFilter, actorFilter, dateFrom, dateTo, search]);
 
   const createCount = logs.filter((log) => getActionCategory(log) === "create").length;
   const updateCount = logs.filter((log) => getActionCategory(log) === "update").length;
   const deleteCount = logs.filter((log) => getActionCategory(log) === "delete").length;
   const systemCount = logs.filter((log) => getActionCategory(log) === "system").length;
+
+  function resetAdvancedFilters() {
+    setModuleFilter("all");
+    setActorFilter("all");
+    setDateFrom("");
+    setDateTo("");
+    setSearch("");
+  }
 
   if (isCheckingAuth) {
     return (
@@ -357,7 +445,7 @@ export default function AdminActivityLogsPage() {
           <StatCard label="النظام" value={systemCount} tone="cyan" />
         </div>
 
-        <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="mb-6 grid gap-4">
           <div className="flex flex-wrap gap-3">
             {filters.map((item) => (
               <FilterButton
@@ -370,12 +458,67 @@ export default function AdminActivityLogsPage() {
             ))}
           </div>
 
+          <div className="grid gap-3 rounded-3xl border border-white/10 bg-white/[0.035] p-4 lg:grid-cols-5">
+            <select
+              value={moduleFilter}
+              onChange={(event) => setModuleFilter(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none focus:border-purple-300/50"
+            >
+              <option value="all">كل الأقسام</option>
+              {moduleOptions.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={actorFilter}
+              onChange={(event) => setActorFilter(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none focus:border-purple-300/50"
+            >
+              <option value="all">كل المدراء</option>
+              {actorOptions.map((actor) => (
+                <option key={actor} value={actor}>
+                  {actor}
+                </option>
+              ))}
+            </select>
+
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(event) => setDateFrom(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none focus:border-purple-300/50"
+              aria-label="من تاريخ"
+            />
+
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(event) => setDateTo(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none focus:border-purple-300/50"
+              aria-label="إلى تاريخ"
+            />
+
+            <button
+              onClick={resetAdvancedFilters}
+              className="rounded-2xl border border-yellow-400/20 bg-yellow-500/10 px-4 py-3 font-black text-yellow-100 hover:bg-yellow-500/20"
+            >
+              مسح الفلاتر
+            </button>
+          </div>
+
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="بحث في السجل..."
+            placeholder="بحث في السجل، القسم، المدير، رقم العنصر، أو البيانات..."
             className="w-full rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-white outline-none placeholder:text-white/35 focus:border-purple-300/50"
           />
+        </div>
+
+        <div className="mb-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-sm text-white/55">
+          النتائج المعروضة: <span className="font-black text-white" dir="ltr">{filteredLogs.length}</span> من <span className="font-black text-white" dir="ltr">{logs.length}</span>
         </div>
 
         <div className="grid gap-4">
@@ -388,6 +531,10 @@ export default function AdminActivityLogsPage() {
           {filteredLogs.map((log, index) => {
             const category = getActionCategory(log);
             const details = getDetails(log);
+            const oldData = getOldData(log);
+            const newData = getNewData(log);
+            const hasOldData = hasRawValue(oldData);
+            const hasNewData = hasRawValue(newData);
 
             return (
               <article
@@ -403,16 +550,21 @@ export default function AdminActivityLogsPage() {
                       </span>
                     </div>
 
-                    <h2 className="text-2xl font-black">{getActor(log)}</h2>
+                    <h2 className="break-words text-2xl font-black">{getActor(log)}</h2>
                     <div className="mt-2 grid gap-2 text-sm text-white/55 md:grid-cols-2">
                       <div>رقم العنصر: <span className="text-white/80">{getRecordId(log)}</span></div>
                       <div>التاريخ: <span className="text-white/80">{formatDate(getDateValue(log))}</span></div>
                     </div>
 
-                    {details !== "" && (
-                      <pre className="mt-4 max-h-56 overflow-auto whitespace-pre-wrap rounded-2xl border border-white/10 bg-black/30 p-4 text-left text-xs leading-6 text-white/65" dir="ltr">
-                        {formatRawValue(details)}
-                      </pre>
+                    {hasRawValue(details) && (
+                      <ActivityDataBlock label="التفاصيل" value={details} />
+                    )}
+
+                    {(hasOldData || hasNewData) && (
+                      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                        <ActivityDataBlock label="قبل التغيير" value={oldData} muted={!hasOldData} />
+                        <ActivityDataBlock label="بعد التغيير" value={newData} muted={!hasNewData} />
+                      </div>
                     )}
                   </div>
 
@@ -426,6 +578,20 @@ export default function AdminActivityLogsPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+function ActivityDataBlock({ label, value, muted = false }: { label: string; value: unknown; muted?: boolean }) {
+  return (
+    <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4">
+      <div className="mb-3 text-xs font-black text-white/45">{label}</div>
+      <pre
+        className={`max-h-64 overflow-auto whitespace-pre-wrap text-left text-xs leading-6 ${muted ? "text-white/35" : "text-white/70"}`}
+        dir="ltr"
+      >
+        {formatRawValue(value)}
+      </pre>
+    </div>
   );
 }
 
