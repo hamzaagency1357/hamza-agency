@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AiSupportClient from "@/components/AiSupportClient";
 
 const aiSupportFeatures = [
   {
@@ -57,13 +58,11 @@ export default function AiSupportPage() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-4xl text-lg leading-9 text-white/72 md:text-xl">
-            هذه الصفحة توضّح مسار الدعم الذكي المخطط داخل وكالة حمزة. الهدف هو مساعدة الزائر على فهم البرامج والخدمات وخطوات المتابعة بسرعة، مع تحويل الحالات الخاصة إلى واتساب رسمي عند الحاجة.
+            هذه الصفحة توضّح مسار الدعم الذكي داخل وكالة حمزة. الهدف هو مساعدة الزائر على فهم البرامج والخدمات وخطوات المتابعة بسرعة، مع تحويل الحالات الخاصة إلى واتساب رسمي عند الحاجة.
           </p>
-
-          <div className="mx-auto mt-6 max-w-4xl rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-5 text-sm leading-7 text-yellow-50/80">
-            ملاحظة مهمة: هذه المرحلة تعريفية وتنظيمية. لم يتم تفعيل محادثة ذكاء صناعي مباشرة داخل الموقع بعد، وسيتم اختبار أي ربط فعلي قبل اعتماده للزوار.
-          </div>
         </header>
+
+        <AiSupportClient />
 
         <section className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {aiSupportFeatures.map((feature) => (
@@ -87,7 +86,7 @@ export default function AiSupportPage() {
         </section>
 
         <section className="mt-10 rounded-[2rem] border border-purple-400/20 bg-purple-500/10 p-7 backdrop-blur">
-          <h2 className="text-3xl font-black">خطوات التفعيل المقترحة</h2>
+          <h2 className="text-3xl font-black">خطوات التفعيل المعتمدة</h2>
 
           <div className="mt-6 grid gap-4 md:grid-cols-5">
             {implementationSteps.map((step, index) => (
@@ -104,7 +103,7 @@ export default function AiSupportPage() {
         <section className="mt-10 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
           <h2 className="text-3xl font-black text-green-100">تحتاج دعماً مباشراً الآن؟</h2>
           <p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">
-            قبل تفعيل الدعم الآلي الكامل، يبقى واتساب هو المسار الرسمي للتواصل مع فريق وكالة حمزة وتأكيد التفاصيل.
+            واتساب هو المسار الرسمي للتواصل مع فريق وكالة حمزة وتأكيد التفاصيل.
           </p>
           <a
             href="https://wa.me/905011730377"
