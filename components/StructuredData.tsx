@@ -150,6 +150,27 @@ const programMetaBySlug: Record<string, PageMeta> = {
   },
 };
 
+const jobsStructuredData = [
+  {
+    title: "مسؤول متابعة صناع محتوى",
+    description: "متابعة صناع المحتوى، تنظيم الطلبات، والتواصل اليومي مع المتقدمين ضمن وكالة حمزة.",
+    department: "إدارة الوكالة",
+    employmentType: "OTHER",
+  },
+  {
+    title: "مسؤول برنامج",
+    description: "متابعة برنامج محدد ومراجعة طلبات الانضمام والحالات التشغيلية ضمن وكالة حمزة.",
+    department: "البرامج",
+    employmentType: "PART_TIME",
+  },
+  {
+    title: "دعم خدمات رقمية",
+    description: "متابعة طلبات الخدمات الرقمية والتأكد من اكتمال المعلومات قبل المراجعة الإدارية.",
+    department: "الخدمات الرقمية",
+    employmentType: "CONTRACTOR",
+  },
+];
+
 function normalizePath(pathname: string) {
   if (!pathname || pathname === "/") return "/";
 
@@ -346,6 +367,33 @@ function buildServiceRequestJsonLd() {
   };
 }
 
+function buildJobsJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@graph": jobsStructuredData.map((job, index) => ({
+      "@type": "JobPosting",
+      "@id": `${siteUrl}/jobs#job-${index + 1}`,
+      title: job.title,
+      description: job.description,
+      employmentType: job.employmentType,
+      industry: job.department,
+      jobLocationType: "TELECOMMUTE",
+      applicantLocationRequirements: {
+        "@type": "Country",
+        name: "Remote",
+      },
+      hiringOrganization: {
+        "@type": "Organization",
+        "@id": organizationId,
+        name: "HAMZA AGENCY",
+        sameAs: siteUrl,
+        logo: logoUrl,
+      },
+      url: `${siteUrl}/jobs`,
+    })),
+  };
+}
+
 function buildExtraJsonLd(pathname: string, meta: PageMeta) {
   const extras = [];
 
@@ -359,6 +407,10 @@ function buildExtraJsonLd(pathname: string, meta: PageMeta) {
 
   if (pathname === "/service-request") {
     extras.push(buildServiceRequestJsonLd());
+  }
+
+  if (pathname === "/jobs") {
+    extras.push(buildJobsJsonLd());
   }
 
   return extras;
