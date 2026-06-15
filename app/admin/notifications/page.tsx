@@ -313,6 +313,37 @@ export default function AdminNotificationsPage() {
     loadPersistentStates();
   }, [isAuthorized, adminEmail]);
 
+  useEffect(() => {
+    if (!isAuthorized || !supabase) return;
+
+    const refreshNotifications = () => {
+      void loadNotifications();
+    };
+
+    const channel = supabase
+      .channel("hamza-admin-notifications-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "agency_applications" },
+        refreshNotifications
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "service_requests" },
+        refreshNotifications
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "job_applications" },
+        refreshNotifications
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [isAuthorized]);
+
   async function loadPersistentStates() {
     const localStates = readStoredStates();
     setStates(localStates);
