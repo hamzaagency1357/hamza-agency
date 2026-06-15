@@ -333,25 +333,17 @@ export default function AdminNotificationsPage() {
         return;
       }
 
-      const remoteStates = ((data || []) as NotificationDbRow[]).reduce(
-        (acc, row) => {
-          const notificationKey = getRowNotificationKey(row);
-          const rowEmail = getRowAdminEmail(row);
+      const remoteStates: Record<string, NotificationState> = {};
+      ((data || []) as NotificationDbRow[]).forEach((row) => {
+        const notificationKey = getRowNotificationKey(row);
+        const rowEmail = getRowAdminEmail(row);
 
-          if (!notificationKey) return acc;
-          if (rowEmail && rowEmail !== adminEmail) return acc;
+        if (!notificationKey) return;
+        if (rowEmail && rowEmail !== adminEmail) return;
 
-          const state = getRowState(row);
-          if (state.deleted) {
-            acc[notificationKey] = { ...state, deleted: true };
-          } else {
-            acc[notificationKey] = state;
-          }
-
-          return acc;
-        },
-        {} as Record<string, NotificationState>
-      );
+        const state = getRowState(row);
+        remoteStates[notificationKey] = state.deleted ? { ...state, deleted: true } : state;
+      });
 
       const nextStates = mergeStates(localStates, remoteStates);
       setStates(nextStates);
