@@ -9,6 +9,7 @@ import { requireAdminModuleAccess } from "@/lib/adminAccess";
 
 type NotificationType = "application" | "service_request" | "job_application";
 type NotificationFilter = "all" | "unread" | "read" | "archived" | "high" | NotificationType;
+type PersistenceMode = "checking" | "supabase" | "local";
 
 type NotificationItem = {
   id: string;
@@ -19,12 +20,17 @@ type NotificationItem = {
   createdAt: string | null;
   href: string;
   priority: "high" | "normal";
+  sourceTable: "agency_applications" | "service_requests" | "job_applications";
+  sourceId: number;
 };
 
 type NotificationState = {
   read?: boolean;
   archived?: boolean;
+  deleted?: boolean;
 };
+
+type NotificationDbRow = Record<string, unknown>;
 
 type ApplicationRow = {
   id: number;
@@ -53,9 +59,10 @@ type JobApplicationRow = {
   created_at: string | null;
 };
 
-type Tone = "red" | "purple" | "yellow" | "green" | "blue" | "cyan";
+type Tone = "red" | "purple" | "yellow" | "green" | "blue" | "cyan" | "slate";
 
 const STORAGE_KEY = "hamza_admin_notification_state_v1";
+const NOTIFICATIONS_TABLE = "notifications";
 
 function formatDate(value: string | null) {
   if (!value) return "غير متوفر";
@@ -109,6 +116,161 @@ function writeStoredStates(states: Record<string, NotificationState>) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(states));
 }
 
+function asString(value: unknown) {
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+  return "";
+}
+
+function asBoolean(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    if (["true", "1", "yes"].includes(value.toLowerCase())) return true;
+    if (["false", "0", "no"].includes(value.toLowerCase())) return false;
+  }
+  return undefined;
+}
+
+function readMetadata(row: NotificationDbRow) {
+  const metadata = row.metadata || row.payload || row.details;
+  if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
+    return metadata as Record<string, unknown>;
+  }
+  return {} as Record<string, unknown>;
+}
+
+function getRowNotificationKey(row: NotificationDbRow) {
+  const metadata = readMetadata(row);
+
+  return (
+    asString(row.notification_key) ||
+    asString(row.item_key) ||
+    asString(row.state_key) ||
+    asString(metadata.notificationKey) ||
+    asString(metadata.notification_key) ||
+    asString(metadata.itemId) ||
+    asString(metadata.id)
+  );
+}
+
+function getRowAdminEmail(row: NotificationDbRow) {
+  const metadata = readMetadata(row);
+
+  return (
+    asString(row.admin_email) ||
+    asString(row.actor_email) ||
+    asString(row.user_email) ||
+    asString(metadata.adminEmail) ||
+    asString(metadata.admin_email)
+  );
+}
+
+function getRowState(row: NotificationDbRow): NotificationState {
+  const metadata = readMetadata(row);
+
+  return {
+    read:
+      asBoolean(row.is_read) ??
+      asBoolean(row.read) ??
+      asBoolean(metadata.read) ??
+      asBoolean(metadata.is_read),
+    archived:
+      asBoolean(row.is_archived) ??
+      asBoolean(row.archived) ??
+      asBoolean(metadata.archived) ??
+      asBoolean(metadata.is_archived),
+    deleted:
+      asBoolean(row.is_deleted) ??
+      asBoolean(row.deleted) ??
+      asBoolean(metadata.deleted) ??
+      asBoolean(metadata.is_deleted),
+  };
+}
+
+function mergeStates(
+  localStates: Record<string, NotificationState>,
+  remoteStates: Record<string, NotificationState>
+) {
+  return Object.fromEntries(
+    Object.entries({ ...localStates, ...remoteStates }).map(([key, value]) => [
+      key,
+      {
+        ...localStates[key],
+        ...value,
+      },
+    ])
+  ) as Record<string, NotificationState>;
+}
+
+function buildNotificationStatePayload(
+  item: NotificationItem,
+  state: NotificationState,
+  adminEmail: string,
+  allowedKeys?: string[]
+) {
+  const now = new Date().toISOString();
+  const metadata = {
+    notificationKey: item.id,
+    adminEmail,
+    sourceTable: item.sourceTable,
+    sourceId: item.sourceId,
+    read: Boolean(state.read),
+    archived: Boolean(state.archived),
+    deleted: Boolean(state.deleted),
+  };
+
+  const candidates: Record<string, unknown> = {
+    notification_key: item.id,
+    item_key: item.id,
+    state_key: item.id,
+    type: item.type,
+    title: item.title,
+    description: item.description,
+    message: item.description,
+    content: item.description,
+    href: item.href,
+    target_url: item.href,
+    link: item.href,
+    status: item.status,
+    priority: item.priority,
+    source_table: item.sourceTable,
+    source_id: String(item.sourceId),
+    admin_email: adminEmail,
+    user_email: adminEmail,
+    is_read: Boolean(state.read),
+    read: Boolean(state.read),
+    is_archived: Boolean(state.archived),
+    archived: Boolean(state.archived),
+    is_deleted: Boolean(state.deleted),
+    deleted: Boolean(state.deleted),
+    metadata,
+    payload: metadata,
+    updated_at: now,
+    created_at: now,
+  };
+
+  if (!allowedKeys?.length) return candidates;
+
+  return Object.fromEntries(
+    Object.entries(candidates).filter(([key]) => allowedKeys.includes(key))
+  ) as Record<string, unknown>;
+}
+
+function rowMatchesNotification(row: NotificationDbRow, item: NotificationItem, adminEmail: string) {
+  const rowKey = getRowNotificationKey(row);
+  const rowEmail = getRowAdminEmail(row);
+
+  if (rowKey && rowKey !== item.id) return false;
+  if (rowEmail && rowEmail !== adminEmail) return false;
+
+  const metadata = readMetadata(row);
+  const sourceTable = asString(row.source_table) || asString(metadata.sourceTable) || asString(metadata.source_table);
+  const sourceId = asString(row.source_id) || asString(metadata.sourceId) || asString(metadata.source_id);
+
+  if (rowKey === item.id) return true;
+  return sourceTable === item.sourceTable && sourceId === String(item.sourceId);
+}
+
 export default function AdminNotificationsPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -120,6 +282,7 @@ export default function AdminNotificationsPage() {
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<NotificationFilter>("all");
   const [search, setSearch] = useState("");
+  const [persistenceMode, setPersistenceMode] = useState<PersistenceMode>("checking");
 
   useEffect(() => {
     setStates(readStoredStates());
@@ -147,21 +310,121 @@ export default function AdminNotificationsPage() {
   useEffect(() => {
     if (!isAuthorized) return;
     loadNotifications();
-  }, [isAuthorized]);
+    loadPersistentStates();
+  }, [isAuthorized, adminEmail]);
+
+  async function loadPersistentStates() {
+    const localStates = readStoredStates();
+    setStates(localStates);
+
+    if (!supabase || !adminEmail) {
+      setPersistenceMode("local");
+      return;
+    }
+
+    try {
+      const { data, error: remoteError } = await supabase
+        .from(NOTIFICATIONS_TABLE)
+        .select("*")
+        .limit(1000);
+
+      if (remoteError) {
+        setPersistenceMode("local");
+        return;
+      }
+
+      const remoteStates = ((data || []) as NotificationDbRow[]).reduce(
+        (acc, row) => {
+          const notificationKey = getRowNotificationKey(row);
+          const rowEmail = getRowAdminEmail(row);
+
+          if (!notificationKey) return acc;
+          if (rowEmail && rowEmail !== adminEmail) return acc;
+
+          const state = getRowState(row);
+          if (state.deleted) {
+            acc[notificationKey] = { ...state, deleted: true };
+          } else {
+            acc[notificationKey] = state;
+          }
+
+          return acc;
+        },
+        {} as Record<string, NotificationState>
+      );
+
+      const nextStates = mergeStates(localStates, remoteStates);
+      setStates(nextStates);
+      writeStoredStates(nextStates);
+      setPersistenceMode("supabase");
+    } catch {
+      setPersistenceMode("local");
+    }
+  }
 
   function persistStates(nextStates: Record<string, NotificationState>) {
     setStates(nextStates);
     writeStoredStates(nextStates);
   }
 
+  async function persistStateToSupabase(item: NotificationItem, nextState: NotificationState) {
+    if (!supabase || !adminEmail) {
+      setPersistenceMode("local");
+      return;
+    }
+
+    try {
+      const { data, error: readError } = await supabase
+        .from(NOTIFICATIONS_TABLE)
+        .select("*")
+        .limit(1000);
+
+      if (readError) {
+        setPersistenceMode("local");
+        return;
+      }
+
+      const rows = (data || []) as NotificationDbRow[];
+      const existingRow = rows.find((row) => rowMatchesNotification(row, item, adminEmail));
+      const knownKeys = existingRow ? Object.keys(existingRow) : rows[0] ? Object.keys(rows[0]) : undefined;
+      const payload = buildNotificationStatePayload(item, nextState, adminEmail, knownKeys);
+
+      if (existingRow && existingRow.id !== undefined) {
+        const { error: updateError } = await supabase
+          .from(NOTIFICATIONS_TABLE)
+          .update(payload as never)
+          .eq("id", existingRow.id as never);
+
+        setPersistenceMode(updateError ? "local" : "supabase");
+        return;
+      }
+
+      const { error: insertError } = await supabase
+        .from(NOTIFICATIONS_TABLE)
+        .insert(payload as never);
+
+      setPersistenceMode(insertError ? "local" : "supabase");
+    } catch {
+      setPersistenceMode("local");
+    }
+  }
+
   function updateState(id: string, patch: NotificationState) {
-    persistStates({
+    const item = items.find((entry) => entry.id === id);
+    const nextItemState = {
+      ...states[id],
+      ...patch,
+    };
+    const nextStates = {
       ...states,
-      [id]: {
-        ...states[id],
-        ...patch,
-      },
-    });
+      [id]: nextItemState,
+    };
+
+    persistStates(nextStates);
+
+    if (item) {
+      void persistStateToSupabase(item, nextItemState);
+    }
   }
 
   function markAsRead(id: string) {
@@ -173,30 +436,39 @@ export default function AdminNotificationsPage() {
   }
 
   function archiveItem(id: string) {
-    updateState(id, { archived: true, read: true });
+    updateState(id, { archived: true, read: true, deleted: false });
   }
 
   function restoreItem(id: string) {
-    updateState(id, { archived: false });
+    updateState(id, { archived: false, deleted: false });
   }
 
   function markAllAsRead() {
     const nextStates = { ...states };
     items.forEach((item) => {
-      nextStates[item.id] = {
+      if (isDeleted(item)) return;
+      const nextItemState = {
         ...nextStates[item.id],
         read: true,
       };
+      nextStates[item.id] = nextItemState;
+      void persistStateToSupabase(item, nextItemState);
     });
     persistStates(nextStates);
   }
 
   function clearArchived() {
     const nextStates = { ...states };
-    Object.keys(nextStates).forEach((id) => {
-      if (nextStates[id]?.archived) {
-        delete nextStates[id];
-      }
+    items.forEach((item) => {
+      if (!isArchived(item)) return;
+      const nextItemState = {
+        ...nextStates[item.id],
+        read: true,
+        archived: true,
+        deleted: true,
+      };
+      nextStates[item.id] = nextItemState;
+      void persistStateToSupabase(item, nextItemState);
     });
     persistStates(nextStates);
   }
@@ -250,6 +522,8 @@ export default function AdminNotificationsPage() {
         createdAt: item.created_at,
         href: "/admin/applications",
         priority: isHighPriority(item.status) ? "high" as const : "normal" as const,
+        sourceTable: "agency_applications" as const,
+        sourceId: item.id,
       })
     );
 
@@ -263,6 +537,8 @@ export default function AdminNotificationsPage() {
         createdAt: item.created_at,
         href: "/admin/service-requests",
         priority: isHighPriority(item.status) ? "high" as const : "normal" as const,
+        sourceTable: "service_requests" as const,
+        sourceId: item.id,
       })
     );
 
@@ -276,6 +552,8 @@ export default function AdminNotificationsPage() {
         createdAt: item.created_at,
         href: "/admin/jobs",
         priority: isHighPriority(item.status) ? "high" as const : "normal" as const,
+        sourceTable: "job_applications" as const,
+        sourceId: item.id,
       })
     );
 
@@ -296,12 +574,19 @@ export default function AdminNotificationsPage() {
     return Boolean(states[item.id]?.archived);
   }
 
+  function isDeleted(item: NotificationItem) {
+    return Boolean(states[item.id]?.deleted);
+  }
+
   const filteredItems = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return items.filter((item) => {
       const itemRead = Boolean(states[item.id]?.read);
       const itemArchived = Boolean(states[item.id]?.archived);
+      const itemDeleted = Boolean(states[item.id]?.deleted);
+
+      if (itemDeleted) return false;
 
       if (filter === "archived") {
         if (!itemArchived) return false;
@@ -325,11 +610,12 @@ export default function AdminNotificationsPage() {
     });
   }, [items, states, filter, search]);
 
-  const activeItems = items.filter((item) => !isArchived(item));
+  const visibleItems = items.filter((item) => !isDeleted(item));
+  const activeItems = visibleItems.filter((item) => !isArchived(item));
   const highCount = activeItems.filter((item) => item.priority === "high").length;
   const unreadCount = activeItems.filter((item) => !isRead(item)).length;
   const readCount = activeItems.filter((item) => isRead(item)).length;
-  const archivedCount = items.filter((item) => isArchived(item)).length;
+  const archivedCount = visibleItems.filter((item) => isArchived(item)).length;
   const applicationCount = activeItems.filter((item) => item.type === "application").length;
   const serviceCount = activeItems.filter((item) => item.type === "service_request").length;
   const jobCount = activeItems.filter((item) => item.type === "job_application").length;
@@ -355,7 +641,7 @@ export default function AdminNotificationsPage() {
               مركز الإشعارات المتقدم
             </div>
             <h1 className="text-4xl font-black md:text-5xl">Admin Notifications Center</h1>
-            <p className="mt-3 text-white/55">آخر الطلبات والتنبيهات التشغيلية مع إدارة القراءة والأرشفة.</p>
+            <p className="mt-3 text-white/55">آخر الطلبات والتنبيهات التشغيلية مع إدارة القراءة والأرشفة والحفظ الدائم عند توفره.</p>
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -379,8 +665,13 @@ export default function AdminNotificationsPage() {
           </div>
         </div>
 
-        <div className="mb-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-sm text-white/55">
-          حساب الإدارة: <span className="text-white">{adminEmail}</span>
+        <div className="mb-6 grid gap-4 md:grid-cols-2">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-sm text-white/55">
+            حساب الإدارة: <span className="break-all text-white">{adminEmail}</span>
+          </div>
+          <div className={`rounded-3xl border p-5 text-sm ${persistenceMode === "supabase" ? "border-green-400/20 bg-green-500/10 text-green-100" : persistenceMode === "checking" ? "border-yellow-400/20 bg-yellow-500/10 text-yellow-100" : "border-white/10 bg-white/[0.04] text-white/55"}`}>
+            حالة الحفظ: {persistenceMode === "supabase" ? "Supabase + local fallback" : persistenceMode === "checking" ? "جاري الفحص" : "تخزين محلي احتياطي"}
+          </div>
         </div>
 
         {error && (
@@ -426,7 +717,7 @@ export default function AdminNotificationsPage() {
             onClick={clearArchived}
             className="mb-6 rounded-full border border-red-400/20 bg-red-500/10 px-5 py-3 text-sm font-black text-red-100"
           >
-            تنظيف المؤرشف من الواجهة
+            تنظيف المؤرشف من المركز
           </button>
         )}
 
@@ -540,6 +831,7 @@ function toneClass(tone: Tone) {
     green: "border-green-400/20 bg-green-500/10 text-green-100",
     blue: "border-blue-400/20 bg-blue-500/10 text-blue-100",
     cyan: "border-cyan-400/20 bg-cyan-500/10 text-cyan-100",
+    slate: "border-white/10 bg-white/[0.04] text-white/65",
   };
 
   return classes[tone];
