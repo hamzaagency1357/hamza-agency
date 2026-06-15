@@ -17,6 +17,7 @@ const adminLinks = [
   { label: "الإعلانات", href: "/admin/announcements" },
   { label: "الإعدادات", href: "/admin/settings" },
   { label: "الترجمات", href: "/admin/translations" },
+  { label: "White Label", href: "/admin/white-label" },
   { label: "الوظائف", href: "/admin/jobs" },
   { label: "التقييمات", href: "/admin/reviews" },
   { label: "قصص النجاح", href: "/admin/success-stories" },
