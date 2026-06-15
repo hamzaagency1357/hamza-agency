@@ -19,6 +19,7 @@ const adminLinks = [
   { label: "الترجمات", href: "/admin/translations" },
   { label: "White Label", href: "/admin/white-label" },
   { label: "منشئ الصفحات", href: "/admin/page-builder" },
+  { label: "التجربة البصرية", href: "/admin/visual-experience" },
   { label: "الوظائف", href: "/admin/jobs" },
   { label: "التقييمات", href: "/admin/reviews" },
   { label: "قصص النجاح", href: "/admin/success-stories" },
