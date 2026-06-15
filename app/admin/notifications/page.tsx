@@ -314,13 +314,14 @@ export default function AdminNotificationsPage() {
   }, [isAuthorized, adminEmail]);
 
   useEffect(() => {
-    if (!isAuthorized || !supabase) return;
+    const supabaseClient = supabase;
+    if (!isAuthorized || !supabaseClient) return;
 
     const refreshNotifications = () => {
       void loadNotifications();
     };
 
-    const channel = supabase
+    const channel = supabaseClient
       .channel("hamza-admin-notifications-realtime")
       .on(
         "postgres_changes",
@@ -340,7 +341,7 @@ export default function AdminNotificationsPage() {
       .subscribe();
 
     return () => {
-      void supabase.removeChannel(channel);
+      void supabaseClient.removeChannel(channel);
     };
   }, [isAuthorized]);
 
