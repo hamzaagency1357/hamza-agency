@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 
 type AuditRow = Record<string, unknown>;
 type Tone = "purple" | "green" | "blue" | "yellow" | "red" | "cyan";
+type DiffItem = { key: string; beforeValue: string; afterValue: string };
 
 function getText(row: AuditRow, keys: string[], fallback = "") {
   for (const key of keys) {
@@ -18,8 +19,26 @@ function getText(row: AuditRow, keys: string[], fallback = "") {
   return fallback;
 }
 
+function getObject(row: AuditRow, keys: string[]) {
+  for (const key of keys) {
+    const value = row[key];
+    if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
+  }
+  return null;
+}
+
 function getDate(row: AuditRow) {
   return getText(row, ["created_at", "createdAt", "date"], "");
+}
+
+function formatValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return "غير قابل للعرض";
+  }
 }
 
 function formatDate(value: string) {
@@ -41,6 +60,20 @@ function actionTone(action: string): Tone {
   return "purple";
 }
 
+function getDiff(row: AuditRow): DiffItem[] {
+  const before = getObject(row, ["old_data", "oldData", "before"]);
+  const after = getObject(row, ["new_data", "newData", "after"]);
+  const keys = new Set([...Object.keys(before || {}), ...Object.keys(after || {})]);
+
+  return Array.from(keys)
+    .map((key) => ({
+      key,
+      beforeValue: formatValue(before?.[key]),
+      afterValue: formatValue(after?.[key]),
+    }))
+    .filter((item) => item.beforeValue !== item.afterValue);
+}
+
 export default function AdminAuditModePage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -53,6 +86,7 @@ export default function AdminAuditModePage() {
   const [search, setSearch] = useState("");
   const [moduleFilter, setModuleFilter] = useState("all");
   const [actionFilter, setActionFilter] = useState("all");
+  const [selectedLog, setSelectedLog] = useState<AuditRow | null>(null);
 
   useEffect(() => {
     async function checkAccess() {
@@ -124,18 +158,21 @@ export default function AdminAuditModePage() {
       const details = getText(row, ["details", "description", "message"], "");
       const admin = getText(row, ["admin_email", "adminEmail", "email"], "");
       const recordId = getText(row, ["record_id", "entity_id", "id"], "");
+      const diffText = getDiff(row).map((item) => `${item.key} ${item.beforeValue} ${item.afterValue}`).join(" ");
 
       if (moduleFilter !== "all" && moduleName !== moduleFilter) return false;
       if (actionFilter !== "all" && !action.toLowerCase().includes(actionFilter)) return false;
       if (!query) return true;
 
-      return [action, moduleName, details, admin, recordId].join(" ").toLowerCase().includes(query);
+      return [action, moduleName, details, admin, recordId, diffText].join(" ").toLowerCase().includes(query);
     });
   }, [logs, search, moduleFilter, actionFilter]);
 
   const riskyCount = filteredLogs.filter((row) => actionTone(getText(row, ["action", "event", "operation"], "")) === "red").length;
   const updateCount = filteredLogs.filter((row) => actionTone(getText(row, ["action", "event", "operation"], "")) === "yellow").length;
   const createCount = filteredLogs.filter((row) => actionTone(getText(row, ["action", "event", "operation"], "")) === "blue").length;
+  const withDiffCount = filteredLogs.filter((row) => getDiff(row).length > 0).length;
+  const selectedDiff = selectedLog ? getDiff(selectedLog) : [];
 
   if (isCheckingAuth) {
     return (
@@ -175,7 +212,7 @@ export default function AdminAuditModePage() {
             </div>
             <h1 className="text-4xl font-black md:text-5xl">وضع التدقيق المتقدم</h1>
             <p className="mt-3 max-w-3xl leading-8 text-white/55">
-              عرض فعلي لسجلات Activity Logs مع بحث وفلاتر للعمليات الإدارية.
+              عرض فعلي لسجلات Activity Logs مع مقارنة old/new وفلاتر للعمليات الإدارية.
             </p>
           </div>
 
@@ -198,8 +235,9 @@ export default function AdminAuditModePage() {
 
         {error && <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">{error}</div>}
 
-        <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <StatCard label="السجلات" value={filteredLogs.length} tone="purple" />
+          <StatCard label="فيها فروقات" value={withDiffCount} tone="cyan" />
           <StatCard label="إضافات" value={createCount} tone="blue" />
           <StatCard label="تعديلات" value={updateCount} tone="yellow" />
           <StatCard label="حساسة" value={riskyCount} tone="red" />
@@ -220,34 +258,60 @@ export default function AdminAuditModePage() {
           </select>
         </section>
 
-        <section className="grid gap-4">
-          {filteredLogs.length === 0 && <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center text-white/55">لا توجد سجلات مطابقة.</div>}
-          {filteredLogs.map((row, index) => {
-            const action = getText(row, ["action", "event", "operation"], "عملية");
-            const moduleName = getText(row, ["module", "entity_type", "section"], "غير محدد");
-            const tone = actionTone(action);
-            const key = `${getText(row, ["id", "record_id"], String(index))}-${index}`;
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <section className="grid gap-4">
+            {filteredLogs.length === 0 && <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center text-white/55">لا توجد سجلات مطابقة.</div>}
+            {filteredLogs.map((row, index) => {
+              const action = getText(row, ["action", "event", "operation"], "عملية");
+              const moduleName = getText(row, ["module", "entity_type", "section"], "غير محدد");
+              const tone = actionTone(action);
+              const diff = getDiff(row);
+              const key = `${getText(row, ["id", "record_id"], String(index))}-${index}`;
 
-            return (
-              <article key={key} className={`rounded-3xl border p-5 ${toneClass(tone)}`}>
-                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <div className="mb-2 flex flex-wrap gap-2 text-xs font-black">
-                      <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1">{moduleName}</span>
-                      <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1">{getText(row, ["record_id", "entity_id", "id"], "—")}</span>
+              return (
+                <article key={key} className={`rounded-3xl border p-5 ${toneClass(tone)}`}>
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <div className="mb-2 flex flex-wrap gap-2 text-xs font-black">
+                        <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1">{moduleName}</span>
+                        <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1">{getText(row, ["record_id", "entity_id", "id"], "—")}</span>
+                        <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1">{diff.length} فرق</span>
+                      </div>
+                      <h2 className="text-2xl font-black">{action}</h2>
+                      <p className="mt-2 leading-7 opacity-75">{getText(row, ["details", "description", "message"], "بدون تفاصيل")}</p>
+                      <div className="mt-3 grid gap-2 text-sm opacity-70 md:grid-cols-2">
+                        <div>{getText(row, ["admin_email", "adminEmail", "email"], "غير معروف")}</div>
+                        <div>{formatDate(getDate(row))}</div>
+                      </div>
                     </div>
-                    <h2 className="text-2xl font-black">{action}</h2>
-                    <p className="mt-2 leading-7 opacity-75">{getText(row, ["details", "description", "message"], "بدون تفاصيل")}</p>
-                    <div className="mt-3 grid gap-2 text-sm opacity-70 md:grid-cols-2">
-                      <div>{getText(row, ["admin_email", "adminEmail", "email"], "غير معروف")}</div>
-                      <div>{formatDate(getDate(row))}</div>
+                    <button type="button" onClick={() => setSelectedLog(row)} className="rounded-full border border-white/10 bg-black/25 px-5 py-3 text-sm font-black">
+                      عرض الفروقات
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </section>
+
+          <aside className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 xl:sticky xl:top-6 xl:self-start">
+            <h2 className="text-2xl font-black">مقارنة old / new</h2>
+            {!selectedLog && <p className="mt-4 leading-8 text-white/55">اختر سجلاً من القائمة لعرض الفروقات.</p>}
+            {selectedLog && (
+              <div className="mt-5 grid gap-3">
+                {selectedDiff.length === 0 && <div className="rounded-2xl border border-white/10 bg-black/25 p-4 text-white/55">لا توجد فروقات old/new واضحة لهذا السجل.</div>}
+                {selectedDiff.map((item) => (
+                  <div key={item.key} className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                    <div className="font-black text-yellow-100">{item.key}</div>
+                    <div className="mt-3 grid gap-2 text-xs leading-6">
+                      <div className="rounded-xl bg-red-500/10 p-3 text-red-100">قبل: {item.beforeValue}</div>
+                      <div className="rounded-xl bg-green-500/10 p-3 text-green-100">بعد: {item.afterValue}</div>
                     </div>
                   </div>
-                </div>
-              </article>
-            );
-          })}
-        </section>
+                ))}
+              </div>
+            )}
+          </aside>
+        </div>
       </section>
     </main>
   );
