@@ -203,7 +203,7 @@ export default function AdminExportCenterPage() {
 
   useEffect(() => {
     async function checkAccess() {
-      const access = await requireAdminModuleAccess("dashboard");
+      const access = await requireAdminModuleAccess("export_center");
 
       if (!access.isAuthorized || !access.profile) {
         setIsAuthorized(false);
