@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type Tone = "purple" | "green" | "yellow" | "red" | "cyan";
 
@@ -20,6 +21,25 @@ type WhiteLabelDraft = {
   packageType: string;
   notes: string;
   checklist: Record<string, boolean>;
+};
+
+type WhiteLabelProjectRow = {
+  id: string;
+  agency_name: string | null;
+  owner_name: string | null;
+  owner_email: string | null;
+  domain: string | null;
+  default_language: string | null;
+  enabled_languages: string[] | null;
+  primary_color: string | null;
+  accent_color: string | null;
+  package_type: string | null;
+  status: string | null;
+  notes: string | null;
+  checklist: Record<string, boolean> | null;
+  is_active: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
 };
 
 const STORAGE_KEY = "hamza_white_label_setup_v1";
@@ -50,22 +70,77 @@ const defaultDraft: WhiteLabelDraft = {
   checklist: Object.fromEntries(checklistItems.map((item) => [item.key, false])),
 };
 
+function normalizeDraft(value: Partial<WhiteLabelDraft>): WhiteLabelDraft {
+  return {
+    ...defaultDraft,
+    ...value,
+    enabledLanguages:
+      Array.isArray(value.enabledLanguages) && value.enabledLanguages.length > 0
+        ? value.enabledLanguages
+        : defaultDraft.enabledLanguages,
+    checklist: {
+      ...defaultDraft.checklist,
+      ...(value.checklist || {}),
+    },
+  };
+}
+
 function safeParse(value: string | null): WhiteLabelDraft {
   if (!value) return defaultDraft;
   try {
-    return { ...defaultDraft, ...(JSON.parse(value) as Partial<WhiteLabelDraft>) };
+    return normalizeDraft(JSON.parse(value) as Partial<WhiteLabelDraft>);
   } catch {
     return defaultDraft;
   }
+}
+
+function rowToDraft(row: WhiteLabelProjectRow): WhiteLabelDraft {
+  return normalizeDraft({
+    agencyName: row.agency_name || "",
+    ownerName: row.owner_name || "",
+    ownerEmail: row.owner_email || "",
+    domain: row.domain || "",
+    defaultLanguage: row.default_language || "ar",
+    enabledLanguages: row.enabled_languages || defaultDraft.enabledLanguages,
+    primaryColor: row.primary_color || defaultDraft.primaryColor,
+    accentColor: row.accent_color || defaultDraft.accentColor,
+    status: row.status || "draft",
+    packageType: row.package_type || "standard",
+    notes: row.notes || "",
+    checklist: row.checklist || defaultDraft.checklist,
+  });
+}
+
+function draftToPayload(draft: WhiteLabelDraft, adminEmail: string) {
+  return {
+    agency_name: draft.agencyName.trim(),
+    owner_name: draft.ownerName.trim(),
+    owner_email: draft.ownerEmail.trim(),
+    domain: draft.domain.trim(),
+    default_language: draft.defaultLanguage,
+    enabled_languages: draft.enabledLanguages,
+    primary_color: draft.primaryColor,
+    accent_color: draft.accentColor,
+    package_type: draft.packageType,
+    status: draft.status,
+    notes: draft.notes.trim(),
+    checklist: draft.checklist,
+    updated_by: adminEmail || null,
+  };
 }
 
 export default function AdminWhiteLabelPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isLoadingProject, setIsLoadingProject] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [storageMode, setStorageMode] = useState("احتياطي محلي");
   const [draft, setDraft] = useState<WhiteLabelDraft>(defaultDraft);
   const [message, setMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     async function checkAccess() {
@@ -78,10 +153,45 @@ export default function AdminWhiteLabelPage() {
         return;
       }
 
-      setAdminEmail(access.profile.email || access.user?.email || "");
+      const email = access.profile.email || access.user?.email || "";
+      setAdminEmail(email);
       setIsAuthorized(true);
       setIsCheckingAuth(false);
-      setDraft(safeParse(window.localStorage.getItem(STORAGE_KEY)));
+
+      const localDraft = safeParse(window.localStorage.getItem(STORAGE_KEY));
+      setDraft(localDraft);
+
+      if (!isSupabaseConfigured || !supabase) {
+        setStorageMode("احتياطي محلي — Supabase غير مهيأ");
+        return;
+      }
+
+      setIsLoadingProject(true);
+      const { data, error } = await supabase
+        .from("white_label_projects")
+        .select("id, agency_name, owner_name, owner_email, domain, default_language, enabled_languages, primary_color, accent_color, package_type, status, notes, checklist, is_active, created_at, updated_at")
+        .eq("is_active", true)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      setIsLoadingProject(false);
+
+      if (error) {
+        setStorageMode("احتياطي محلي — تعذر قراءة Supabase");
+        setErrorMessage(`تعذر تحميل White Label من Supabase: ${error.message}`);
+        return;
+      }
+
+      if (data) {
+        const remoteDraft = rowToDraft(data as WhiteLabelProjectRow);
+        setProjectId((data as WhiteLabelProjectRow).id);
+        setDraft(remoteDraft);
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteDraft));
+        setStorageMode("Supabase دائم");
+      } else {
+        setStorageMode("Supabase دائم — لا يوجد سجل بعد");
+      }
     }
 
     checkAccess();
@@ -94,6 +204,8 @@ export default function AdminWhiteLabelPage() {
 
   function updateDraft<K extends keyof WhiteLabelDraft>(key: K, value: WhiteLabelDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
+    setMessage("");
+    setErrorMessage("");
   }
 
   function toggleLanguage(language: string) {
@@ -104,6 +216,8 @@ export default function AdminWhiteLabelPage() {
         : [...current.enabledLanguages, language];
       return { ...current, enabledLanguages };
     });
+    setMessage("");
+    setErrorMessage("");
   }
 
   function toggleChecklist(key: string) {
@@ -111,11 +225,52 @@ export default function AdminWhiteLabelPage() {
       ...current,
       checklist: { ...current.checklist, [key]: !current.checklist?.[key] },
     }));
+    setMessage("");
+    setErrorMessage("");
   }
 
-  function saveDraft() {
+  async function saveDraft() {
+    setMessage("");
+    setErrorMessage("");
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-    setMessage("تم حفظ إعدادات White Label محلياً داخل المتصفح.");
+
+    if (!isSupabaseConfigured || !supabase) {
+      setStorageMode("احتياطي محلي — Supabase غير مهيأ");
+      setMessage("تم حفظ نسخة احتياطية محلية فقط لأن Supabase غير مهيأ.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    const payload = draftToPayload(draft, adminEmail);
+    const result = projectId
+      ? await supabase
+          .from("white_label_projects")
+          .update(payload)
+          .eq("id", projectId)
+          .select("id, agency_name, owner_name, owner_email, domain, default_language, enabled_languages, primary_color, accent_color, package_type, status, notes, checklist, is_active, created_at, updated_at")
+          .maybeSingle()
+      : await supabase
+          .from("white_label_projects")
+          .insert({ ...payload, created_by: adminEmail || null })
+          .select("id, agency_name, owner_name, owner_email, domain, default_language, enabled_languages, primary_color, accent_color, package_type, status, notes, checklist, is_active, created_at, updated_at")
+          .maybeSingle();
+
+    setIsSaving(false);
+
+    if (result.error || !result.data) {
+      setStorageMode("احتياطي محلي — فشل حفظ Supabase");
+      setErrorMessage(`تم حفظ نسخة احتياطية محلية، لكن فشل حفظ Supabase: ${result.error?.message || "لا توجد بيانات راجعة"}`);
+      return;
+    }
+
+    const savedRow = result.data as WhiteLabelProjectRow;
+    const savedDraft = rowToDraft(savedRow);
+    setProjectId(savedRow.id);
+    setDraft(savedDraft);
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(savedDraft));
+    setStorageMode("Supabase دائم");
+    setMessage("تم حفظ إعدادات White Label في Supabase مع تحديث النسخة الاحتياطية المحلية.");
   }
 
   function exportDraft() {
@@ -150,13 +305,13 @@ export default function AdminWhiteLabelPage() {
             </div>
             <h1 className="text-4xl font-black md:text-5xl">تجهيز نسخة وكالة للبيع</h1>
             <p className="mt-3 max-w-3xl leading-8 text-white/55">
-              لوحة داخلية لتجهيز نسخة وكالة ثانية: الاسم، الدومين، الألوان، اللغات، حالة النسخة، وقائمة التسليم.
+              لوحة داخلية لتجهيز نسخة وكالة ثانية. الحفظ الأساسي الآن دائم في Supabase، ولا يتم تطبيق أي إعداد على الموقع العام بدون موافقة لاحقة.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <button onClick={saveDraft} className="rounded-full bg-gradient-to-r from-yellow-500 to-purple-600 px-6 py-3 font-black text-white">
-              حفظ محلي
+            <button onClick={saveDraft} disabled={isSaving || isLoadingProject} className="rounded-full bg-gradient-to-r from-yellow-500 to-purple-600 px-6 py-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-60">
+              {isSaving ? "جارٍ الحفظ..." : "حفظ دائم"}
             </button>
             <button onClick={exportDraft} className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">
               تصدير JSON
@@ -167,11 +322,22 @@ export default function AdminWhiteLabelPage() {
           </div>
         </div>
 
-        <div className="mb-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-sm text-white/55">
-          حساب الإدارة: <span className="text-white">{adminEmail}</span>
+        <div className="mb-6 grid gap-4 md:grid-cols-2">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-sm text-white/55">
+            حساب الإدارة: <span className="text-white">{adminEmail}</span>
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-sm text-white/55">
+            مصدر الحفظ: <span className="text-white">{storageMode}</span>
+          </div>
         </div>
 
+        {isLoadingProject && <div className="mb-6 rounded-3xl border border-purple-400/25 bg-purple-500/10 p-5 text-purple-100">جاري تحميل إعدادات White Label من Supabase...</div>}
         {message && <div className="mb-6 rounded-3xl border border-green-400/25 bg-green-500/10 p-5 text-green-100">{message}</div>}
+        {errorMessage && <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">{errorMessage}</div>}
+
+        <div className="mb-8 rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-5 text-sm leading-7 text-yellow-100">
+          هذه الصفحة تحفظ تجهيز نسخة White Label فقط. لا تغيّر اسم HAMZA AGENCY أو الشعار أو الألوان العامة ولا تربط دومينات ولا تنشئ نسخ عامة تلقائياً.
+        </div>
 
         <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard label="نسبة الجاهزية" value={completion} suffix="%" tone="green" />
@@ -196,6 +362,7 @@ export default function AdminWhiteLabelPage() {
                   <option value="draft">مسودة</option>
                   <option value="review">قيد المراجعة</option>
                   <option value="ready">جاهزة للتسليم</option>
+                  <option value="archived">مؤرشفة</option>
                 </select>
               </label>
 
