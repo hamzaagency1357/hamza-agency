@@ -79,19 +79,12 @@ export function buildTrashPayload(input: Omit<MoveRecordToTrashInput, "supabase"
   const title = input.title?.trim() || inferTitle(originalData, `${tableName} #${recordId}`);
 
   return {
-    entity_type: tableName,
-    table_name: tableName,
-    record_id: recordId,
-    entity_id: recordId,
+    item_type: tableName,
+    item_id: recordId,
     item_title: title,
-    title,
-    payload: originalData,
-    data: originalData,
+    item_data: originalData,
     deleted_by: input.adminEmail || "unknown_admin",
-    admin_email: input.adminEmail || "unknown_admin",
-    reason: input.reason || "Moved to trash from admin helper",
     deleted_at: deletedAt,
-    created_at: deletedAt,
   };
 }
 
