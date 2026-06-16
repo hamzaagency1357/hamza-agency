@@ -25,9 +25,9 @@ const helperText: Record<SiteLanguage, string> = {
 };
 
 const scopeText: Record<SiteLanguage, string> = {
-  ar: "تبديل اتجاه وأزرار الواجهة حالياً، والمحتوى العربي هو النسخة الرسمية.",
-  en: "Changes interface direction/buttons for now. Arabic content is the official version.",
-  tr: "Şimdilik arayüz yönünü/düğmeleri değiştirir. Resmi içerik Arapçadır.",
+  ar: "يدعم تبديل الواجهة وبعض الصفحات المترجمة. المحتوى غير المترجم يبقى بالعربية أو النص الأصلي.",
+  en: "Switches the interface and supported translated pages. Untranslated content stays in Arabic or its original text.",
+  tr: "Arayüzü ve desteklenen çeviri sayfalarını değiştirir. Çevrilmeyen içerik Arapça veya özgün metin olarak kalır.",
 };
 
 function isSupportedLanguage(value: string | null): value is SiteLanguage {
