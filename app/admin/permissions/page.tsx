@@ -151,7 +151,7 @@ export default function AdminPermissionsPage() {
 
   useEffect(() => {
     async function checkAccess() {
-      const access = await requireAdminModuleAccess("dashboard");
+      const access = await requireAdminModuleAccess("permissions");
 
       if (!access.isAuthorized || !access.profile) {
         setIsAuthorized(false);
