@@ -217,12 +217,15 @@ export default function AdminTranslationsPage() {
     setIsLoading(false);
 
     if (programsResult.error || faqsResult.error || knowledgeResult.error) {
-      setError("تعذر تحميل المحتوى القابل للترجمة.");
-      return;
-    }
+      const details = [
+        programsResult.error ? `programs: ${programsResult.error.message}` : "",
+        faqsResult.error ? `faqs: ${faqsResult.error.message}` : "",
+        knowledgeResult.error ? `knowledge_base: ${knowledgeResult.error.message}` : "",
+      ]
+        .filter(Boolean)
+        .join(" | ");
 
-    if (translationsResult.error) {
-      setError("تعذر تحميل الترجمات من Supabase. تأكد أن جدول content_translations موجود وأن الصلاحيات مفعلة.");
+      setError(`تعذر تحميل المحتوى القابل للترجمة. ${details}`);
       return;
     }
 
@@ -263,12 +266,18 @@ export default function AdminTranslationsPage() {
     });
 
     const loadedItems = [...programItems, ...faqItems, ...knowledgeItems];
-    const remotePack = buildPackFromRows((translationsResult.data || []) as TranslationRow[]);
+    const remotePack = translationsResult.error
+      ? {}
+      : buildPackFromRows((translationsResult.data || []) as TranslationRow[]);
     const localBackup = safeParse(window.localStorage.getItem(STORAGE_KEY));
 
     setItems(loadedItems);
     setPack(mergePacks(remotePack, localBackup));
-    setStorageMode("supabase");
+    setStorageMode(translationsResult.error ? "backup" : "supabase");
+
+    if (translationsResult.error) {
+      setError(`تم تحميل المحتوى، لكن تعذر تحميل الترجمات من Supabase. التفاصيل: ${translationsResult.error.message}`);
+    }
 
     if (!selectedKey && loadedItems[0]) {
       setSelectedKey(loadedItems[0].key);
