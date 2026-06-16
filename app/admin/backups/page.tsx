@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
 
 type BackupRow = Record<string, unknown>;
+type ExportedRow = Record<string, unknown>;
 type FilterKey = "all" | "completed" | "pending" | "failed" | "manual" | "auto";
-type Tone = "green" | "blue" | "yellow" | "red" | "purple" | "slate";
+type Tone = "green" | "blue" | "yellow" | "red" | "purple" | "slate" | "cyan";
 
 type BackupTableDefinition = {
   table: string;
@@ -22,7 +22,7 @@ type BackupTableResult = {
   label: string;
   status: "success" | "error";
   count: number;
-  rows: Record<string, unknown>[];
+  rows: ExportedRow[];
   error: string | null;
 };
 
@@ -45,12 +45,18 @@ const backupTables: BackupTableDefinition[] = [
   { table: "agency_applications", label: "طلبات الانضمام", critical: true },
   { table: "service_requests", label: "طلبات الخدمات", critical: true },
   { table: "jobs", label: "الوظائف" },
+  { table: "job_applications", label: "طلبات الوظائف" },
   { table: "reviews", label: "التقييمات" },
   { table: "success_stories", label: "قصص النجاح" },
   { table: "partners", label: "الشركاء" },
   { table: "gallery_items", label: "المعرض" },
   { table: "faqs", label: "الأسئلة الشائعة" },
   { table: "knowledge_base", label: "قاعدة المعرفة" },
+  { table: "content_translations", label: "ترجمات المحتوى" },
+  { table: "white_label_projects", label: "مشاريع White Label" },
+  { table: "page_builder_sections", label: "أقسام Page Builder" },
+  { table: "visual_experience_settings", label: "إعدادات Visual Experience" },
+  { table: "trash_items", label: "سلة المحذوفات" },
   { table: "admin_users", label: "حسابات الإدارة" },
   { table: "admin_permissions", label: "صلاحيات الإدارة" },
   { table: "activity_logs", label: "سجل النشاطات" },
@@ -70,6 +76,7 @@ function getString(row: BackupRow, keys: string[], fallback = "") {
     if (typeof value === "string" && value.trim()) return value.trim();
     if (typeof value === "number" || typeof value === "boolean") return String(value);
   }
+
   return fallback;
 }
 
@@ -83,6 +90,7 @@ function formatDate(value: string) {
 function formatValue(value: unknown) {
   if (value === null || value === undefined || value === "") return "غير متوفر";
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+
   try {
     return JSON.stringify(value, null, 2);
   } catch {
@@ -112,7 +120,6 @@ function getStatusKey(row: BackupRow): FilterKey {
 
 function getBackupMode(row: BackupRow): FilterKey {
   const mode = getString(row, ["mode", "type", "backup_type", "source"], "").toLowerCase();
-  if (["manual", "admin", "user"].some((word) => mode.includes(word))) return "manual";
   if (["auto", "automatic", "scheduled", "system"].some((word) => mode.includes(word))) return "auto";
   return "manual";
 }
@@ -189,7 +196,7 @@ async function exportTableRows(tableDefinition: BackupTableDefinition): Promise<
     };
   }
 
-  const rows: Record<string, unknown>[] = [];
+  const rows: ExportedRow[] = [];
 
   for (let page = 0; page < maxBackupPagesPerTable; page += 1) {
     const from = page * backupPageSize;
@@ -207,9 +214,8 @@ async function exportTableRows(tableDefinition: BackupTableDefinition): Promise<
       };
     }
 
-    const pageRows = ((data || []) as Record<string, unknown>[]);
+    const pageRows = (data || []) as ExportedRow[];
     rows.push(...pageRows);
-
     if (pageRows.length < backupPageSize) break;
   }
 
@@ -288,10 +294,7 @@ export default function AdminBackupsPage() {
       return;
     }
 
-    const sortedBackups = ((data || []) as BackupRow[])
-      .slice()
-      .sort((first, second) => getTimeValue(second) - getTimeValue(first));
-
+    const sortedBackups = ((data || []) as BackupRow[]).slice().sort((first, second) => getTimeValue(second) - getTimeValue(first));
     setBackups(sortedBackups);
   }
 
@@ -350,18 +353,12 @@ export default function AdminBackupsPage() {
 
     const exportedTables = results.filter((item) => item.status === "success");
     const failedTables = results.filter((item) => item.status === "error");
-    const failedCriticalTables = failedTables.filter((item) =>
-      backupTables.some((table) => table.table === item.table && table.critical)
-    );
+    const failedCriticalTables = failedTables.filter((item) => backupTables.some((table) => table.table === item.table && table.critical));
     const totalRows = exportedTables.reduce((sum, item) => sum + item.count, 0);
-    const backupStatus = failedCriticalTables.length
-      ? "failed"
-      : failedTables.length
-        ? "completed_with_warnings"
-        : "completed";
+    const backupStatus = failedCriticalTables.length ? "failed" : failedTables.length ? "completed_with_warnings" : "completed";
 
     const backupPayload = {
-      schema_version: 2,
+      schema_version: 3,
       backup_code: backupCode,
       project: "HAMZA AGENCY",
       created_at: createdAt,
@@ -373,6 +370,7 @@ export default function AdminBackupsPage() {
       total_rows: totalRows,
       page_size: backupPageSize,
       tables: results,
+      notes: "This backup may contain sensitive operational and admin data. Store it securely and do not upload it publicly.",
     };
 
     const fileName = `hamza-agency-backup-${createdAt.slice(0, 10)}-${backupCode}.json`;
@@ -386,6 +384,7 @@ export default function AdminBackupsPage() {
       created_by: adminEmail,
       size_bytes: sizeBytes,
       details: {
+        schema_version: 3,
         tables: exportedTables.map((item) => ({ table: item.table, label: item.label, count: item.count })),
         failed_tables: failedTables.map((item) => ({ table: item.table, label: item.label, error: item.error })),
         total_rows: totalRows,
@@ -425,14 +424,12 @@ export default function AdminBackupsPage() {
       const statusKey = getStatusKey(backup);
       const modeKey = getBackupMode(backup);
       const matchesFilter = filter === "all" || statusKey === filter || modeKey === filter;
-
       if (!matchesFilter) return false;
       if (!query) return true;
 
       const text = [getTitle(backup), getBackupCode(backup), getStatusLabel(backup), getCreatedBy(backup), formatValue(getDetails(backup))]
         .join(" ")
         .toLowerCase();
-
       return text.includes(query);
     });
   }, [backups, filter, search]);
@@ -480,7 +477,7 @@ export default function AdminBackupsPage() {
             </div>
             <h1 className="text-4xl font-black md:text-5xl">نظام Backup JSON</h1>
             <p className="mt-3 max-w-3xl leading-8 text-white/55">
-              إنشاء نسخة JSON فعلية للجداول الأساسية والإدارية المتاحة، مع تنزيل الملف مباشرة وتسجيل العملية داخل لوحة الإدارة عندما يسمح جدول backups بذلك.
+              إنشاء نسخة JSON فعلية للجداول الأساسية والإدارية المتاحة، مع تضمين جداول الترجمة وWhite Label وPage Builder وVisual Experience والسلة.
             </p>
           </div>
 
@@ -527,12 +524,18 @@ export default function AdminBackupsPage() {
           <StatCard label="يدوية" value={manualCount} tone="blue" />
         </div>
 
-        <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="flex flex-wrap gap-3">
+        <section className="mb-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
+          <div className="mb-4 flex flex-wrap gap-2">
             {filters.map((item) => (
-              <FilterButton key={item.key} active={filter === item.key} onClick={() => setFilter(item.key)}>
+              <button
+                key={item.key}
+                onClick={() => setFilter(item.key)}
+                className={`rounded-full border px-4 py-2 text-sm font-black ${
+                  filter === item.key ? "border-emerald-300/40 bg-emerald-500/15 text-emerald-100" : "border-white/10 bg-black/20 text-white/55"
+                }`}
+              >
                 {item.label}
-              </FilterButton>
+              </button>
             ))}
           </div>
 
@@ -540,49 +543,44 @@ export default function AdminBackupsPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="بحث في النسخ الاحتياطية..."
-            className="w-full rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-white outline-none placeholder:text-white/35 focus:border-emerald-300/50"
+            className="w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none placeholder:text-white/35 focus:border-emerald-300/40"
           />
-        </div>
+        </section>
 
-        <div className="grid gap-4">
-          {filteredBackups.length === 0 && !error && (
-            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center text-white/55">
+        <section className="grid gap-4">
+          {filteredBackups.length === 0 ? (
+            <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 text-center text-white/55">
               لا توجد سجلات نسخ احتياطي مطابقة حالياً.
             </div>
-          )}
-
-          {filteredBackups.map((backup, index) => {
-            const details = getDetails(backup);
-            return (
-              <article key={getString(backup, ["id"], String(index))} className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur transition hover:border-emerald-400/40 hover:bg-emerald-500/10">
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-3 flex flex-wrap items-center gap-2">
-                      <Badge tone={getTone(backup)}>{getStatusLabel(backup)}</Badge>
-                      <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-black text-white/60">
-                        {getBackupMode(backup) === "auto" ? "تلقائية" : "يدوية"}
-                      </span>
+          ) : (
+            filteredBackups.map((backup, index) => (
+              <article key={`${getBackupCode(backup)}-${index}`} className={`rounded-[2rem] border p-5 ${toneClass(getTone(backup))}`}>
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <div className="mb-3 inline-flex rounded-full border border-white/10 bg-black/20 px-4 py-1 text-sm font-black">
+                      {getStatusLabel(backup)} · {getBackupMode(backup) === "auto" ? "تلقائية" : "يدوية"}
                     </div>
-
                     <h2 className="text-2xl font-black">{getTitle(backup)}</h2>
-                    <div className="mt-2 grid gap-2 text-sm text-white/55 md:grid-cols-4">
-                      <div>الكود: <span className="text-white/80">{getBackupCode(backup)}</span></div>
-                      <div>الحجم: <span className="text-white/80">{getSize(backup)}</span></div>
-                      <div>بواسطة: <span className="text-white/80">{getCreatedBy(backup)}</span></div>
-                      <div>التاريخ: <span className="text-white/80">{formatDate(getCreatedAt(backup))}</span></div>
-                    </div>
+                    <p className="mt-3 text-sm opacity-75">الكود: {getBackupCode(backup)}</p>
+                  </div>
 
-                    {details !== "" && (
-                      <pre className="mt-4 max-h-56 overflow-auto whitespace-pre-wrap rounded-2xl border border-white/10 bg-black/30 p-4 text-left text-xs leading-6 text-white/65" dir="ltr">
-                        {formatValue(details)}
-                      </pre>
-                    )}
+                  <div className="text-sm opacity-75 md:text-left">
+                    <div>{formatDate(getCreatedAt(backup))}</div>
+                    <div className="mt-1">الحجم: {getSize(backup)}</div>
+                    <div className="mt-1">بواسطة: {getCreatedBy(backup)}</div>
                   </div>
                 </div>
+
+                <details className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <summary className="cursor-pointer font-black">تفاصيل النسخة</summary>
+                  <pre dir="ltr" className="mt-4 max-h-80 overflow-auto whitespace-pre-wrap text-xs leading-6 text-white/70">
+                    {formatValue(getDetails(backup))}
+                  </pre>
+                </details>
               </article>
-            );
-          })}
-        </div>
+            ))
+          )}
+        </section>
       </section>
     </main>
   );
@@ -590,26 +588,14 @@ export default function AdminBackupsPage() {
 
 function StatCard({ label, value, tone }: { label: string; value: number; tone: Tone }) {
   return (
-    <div className={`rounded-3xl border p-5 ${toneSoftClasses(tone)}`}>
+    <div className={`rounded-3xl border p-5 ${toneClass(tone)}`}>
       <div className="text-sm font-bold opacity-75">{label}</div>
       <div className="mt-2 text-4xl font-black" dir="ltr">{value}</div>
     </div>
   );
 }
 
-function FilterButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button onClick={onClick} className={active ? "rounded-full bg-emerald-600 px-5 py-3 text-sm font-black text-white" : "rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-bold text-white/65"}>
-      {children}
-    </button>
-  );
-}
-
-function Badge({ children, tone }: { children: ReactNode; tone: Tone }) {
-  return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${toneSoftClasses(tone)}`}>{children}</span>;
-}
-
-function toneSoftClasses(tone: Tone) {
+function toneClass(tone: Tone) {
   const classes: Record<Tone, string> = {
     green: "border-green-400/20 bg-green-500/10 text-green-100",
     blue: "border-blue-400/20 bg-blue-500/10 text-blue-100",
@@ -617,6 +603,7 @@ function toneSoftClasses(tone: Tone) {
     red: "border-red-400/20 bg-red-500/10 text-red-100",
     purple: "border-purple-400/20 bg-purple-500/10 text-purple-100",
     slate: "border-slate-400/20 bg-slate-500/10 text-slate-100",
+    cyan: "border-cyan-400/20 bg-cyan-500/10 text-cyan-100",
   };
 
   return classes[tone];
