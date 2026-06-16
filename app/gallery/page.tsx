@@ -91,7 +91,7 @@ const fallbackItems: GalleryItem[] = [
     external_url: null,
     alt_text: "مؤثر بصري للبث المباشر",
     button_label: "شاهد البرامج",
-    button_url: "/partners",
+    button_url: "/programs",
     status: "published",
     is_visible: true,
     is_featured: true,
