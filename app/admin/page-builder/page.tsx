@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type SectionType = "hero" | "text" | "cards" | "cta" | "faq";
 type PageStatus = "draft" | "review" | "ready";
-type Tone = "purple" | "green" | "yellow" | "cyan";
+type Tone = "purple" | "green" | "yellow" | "cyan" | "red";
 
 type BuilderSection = {
   id: string;
@@ -17,6 +18,7 @@ type BuilderSection = {
 };
 
 type BuilderDraft = {
+  pageId: number | null;
   pageTitle: string;
   slug: string;
   status: PageStatus;
@@ -26,9 +28,33 @@ type BuilderDraft = {
   sections: BuilderSection[];
 };
 
+type PageItem = {
+  id: number;
+  title: string | null;
+  slug: string | null;
+  content: string | null;
+  seo_title: string | null;
+  seo_description: string | null;
+  is_published: boolean | null;
+  sort_order: number | null;
+};
+
+type PageBuilderSectionRow = {
+  id: string;
+  page_id: number;
+  section_type: SectionType | string;
+  section_key: string | null;
+  title: string | null;
+  body: string | null;
+  sort_order: number | null;
+  language: string | null;
+  is_visible: boolean | null;
+};
+
 const STORAGE_KEY = "hamza_page_builder_draft_v1";
 
 const defaultDraft: BuilderDraft = {
+  pageId: null,
   pageTitle: "صفحة جديدة",
   slug: "new-page",
   status: "draft",
@@ -49,11 +75,20 @@ const sectionTypes: { type: SectionType; label: string }[] = [
   { type: "faq", label: "FAQ" },
 ];
 
+function normalizeDraft(value: Partial<BuilderDraft>): BuilderDraft {
+  return {
+    ...defaultDraft,
+    ...value,
+    pageId: typeof value.pageId === "number" ? value.pageId : defaultDraft.pageId,
+    language: value.language === "en" || value.language === "tr" ? value.language : "ar",
+    sections: Array.isArray(value.sections) && value.sections.length > 0 ? value.sections : defaultDraft.sections,
+  };
+}
+
 function safeParse(value: string | null): BuilderDraft {
   if (!value) return defaultDraft;
   try {
-    const parsed = JSON.parse(value) as Partial<BuilderDraft>;
-    return { ...defaultDraft, ...parsed, sections: parsed.sections || defaultDraft.sections };
+    return normalizeDraft(JSON.parse(value) as Partial<BuilderDraft>);
   } catch {
     return defaultDraft;
   }
@@ -68,13 +103,48 @@ function newSection(type: SectionType): BuilderSection {
   };
 }
 
+function pageToDraft(page: PageItem, current: BuilderDraft): BuilderDraft {
+  return {
+    ...current,
+    pageId: page.id,
+    pageTitle: page.title || "صفحة بدون عنوان",
+    slug: page.slug || "",
+    status: page.is_published === false ? "draft" : current.status === "review" ? "review" : "ready",
+    seoTitle: page.seo_title || "",
+    seoDescription: page.seo_description || "",
+  };
+}
+
+function sectionRowsToDraftSections(rows: PageBuilderSectionRow[]): BuilderSection[] {
+  if (!rows.length) return defaultDraft.sections;
+
+  return rows.map((row, index) => {
+    const sectionType = sectionTypes.some((item) => item.type === row.section_type)
+      ? (row.section_type as SectionType)
+      : "text";
+
+    return {
+      id: row.section_key || `${sectionType}-${row.id || index}`,
+      type: sectionType,
+      title: row.title || sectionTypes.find((item) => item.type === sectionType)?.label || "Section",
+      body: row.body || "",
+    };
+  });
+}
+
 export default function AdminPageBuilderPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isLoadingPages, setIsLoadingPages] = useState(false);
+  const [isLoadingSections, setIsLoadingSections] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
+  const [pages, setPages] = useState<PageItem[]>([]);
   const [draft, setDraft] = useState<BuilderDraft>(defaultDraft);
+  const [storageMode, setStorageMode] = useState("احتياطي محلي");
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function checkAccess() {
@@ -87,51 +157,218 @@ export default function AdminPageBuilderPage() {
         return;
       }
 
-      setAdminEmail(access.profile.email || access.user?.email || "");
-      setDraft(safeParse(window.localStorage.getItem(STORAGE_KEY)));
+      const email = access.profile.email || access.user?.email || "";
+      const localDraft = safeParse(window.localStorage.getItem(STORAGE_KEY));
+
+      setAdminEmail(email);
+      setDraft(localDraft);
       setIsAuthorized(true);
       setIsCheckingAuth(false);
+
+      await loadPages(localDraft);
     }
 
     checkAccess();
   }, [router]);
 
+  async function loadPages(baseDraft = draft) {
+    if (!isSupabaseConfigured || !supabase) {
+      setStorageMode("احتياطي محلي — Supabase غير مهيأ");
+      setError("تعذر تحميل الصفحات لأن Supabase غير مهيأ.");
+      return;
+    }
+
+    setIsLoadingPages(true);
+    setError("");
+
+    const { data, error: pagesError } = await supabase
+      .from("pages")
+      .select("id, title, slug, content, seo_title, seo_description, is_published, sort_order")
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    setIsLoadingPages(false);
+
+    if (pagesError) {
+      setStorageMode("احتياطي محلي — تعذر قراءة pages");
+      setError(`تعذر تحميل صفحات CMS: ${pagesError.message}`);
+      return;
+    }
+
+    const loadedPages = (data || []) as PageItem[];
+    setPages(loadedPages);
+
+    if (!loadedPages.length) {
+      setStorageMode("Supabase دائم — لا توجد صفحات CMS بعد");
+      setError("لا توجد صفحات في جدول pages. أنشئ صفحة أولاً من /admin/pages ثم ارجع إلى Page Builder.");
+      return;
+    }
+
+    const selectedPage = loadedPages.find((page) => page.id === baseDraft.pageId) || loadedPages[0];
+    const nextDraft = pageToDraft(selectedPage, baseDraft);
+    setDraft(nextDraft);
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextDraft));
+    setStorageMode("Supabase دائم — اختر صفحة واحفظ أقسامها");
+  }
+
+  useEffect(() => {
+    if (!isAuthorized || !draft.pageId) return;
+    loadSections(draft.pageId, draft.language);
+  }, [isAuthorized, draft.pageId, draft.language]);
+
+  async function loadSections(pageId: number, language: string) {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    setIsLoadingSections(true);
+    setError("");
+
+    const { data, error: sectionsError } = await supabase
+      .from("page_builder_sections")
+      .select("id, page_id, section_type, section_key, title, body, sort_order, language, is_visible")
+      .eq("page_id", pageId)
+      .eq("language", language)
+      .order("sort_order", { ascending: true });
+
+    setIsLoadingSections(false);
+
+    if (sectionsError) {
+      setStorageMode("احتياطي محلي — تعذر قراءة الأقسام");
+      setError(`تعذر تحميل أقسام Page Builder من Supabase: ${sectionsError.message}`);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      setDraft((current) => {
+        const nextDraft = {
+          ...current,
+          sections: sectionRowsToDraftSections(data as PageBuilderSectionRow[]),
+        };
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextDraft));
+        return nextDraft;
+      });
+      setStorageMode("Supabase دائم");
+    } else {
+      setDraft((current) => {
+        const nextDraft = {
+          ...current,
+          sections: defaultDraft.sections,
+        };
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextDraft));
+        return nextDraft;
+      });
+      setStorageMode("Supabase دائم — لا توجد أقسام محفوظة لهذه الصفحة بعد");
+    }
+  }
+
   const completion = useMemo(() => {
-    const required = [draft.pageTitle, draft.slug, draft.seoTitle, draft.seoDescription, ...draft.sections.map((section) => section.title + section.body)];
+    const required = [
+      draft.pageTitle,
+      draft.slug,
+      draft.seoTitle,
+      draft.seoDescription,
+      ...draft.sections.map((section) => section.title + section.body),
+    ];
     const done = required.filter((value) => value.trim()).length;
     return Math.round((done / Math.max(required.length, 1)) * 100);
   }, [draft]);
 
-  function updateSection(id: string, key: keyof BuilderSection, value: string) {
-    setDraft((current) => ({
-      ...current,
-      sections: current.sections.map((section) => (section.id === id ? { ...section, [key]: value } : section)),
-    }));
+  function updateDraft(nextDraft: BuilderDraft) {
+    setDraft(nextDraft);
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextDraft));
+    setMessage("");
+    setError("");
   }
 
-  function moveSection(id: string, direction: "up" | "down") {
-    setDraft((current) => {
-      const sections = [...current.sections];
-      const index = sections.findIndex((section) => section.id === id);
-      const targetIndex = direction === "up" ? index - 1 : index + 1;
-      if (index < 0 || targetIndex < 0 || targetIndex >= sections.length) return current;
-      const [item] = sections.splice(index, 1);
-      sections.splice(targetIndex, 0, item);
-      return { ...current, sections };
+  function updateSection(id: string, key: keyof BuilderSection, value: string) {
+    updateDraft({
+      ...draft,
+      sections: draft.sections.map((section) => (section.id === id ? { ...section, [key]: value } : section)),
     });
   }
 
+  function moveSection(id: string, direction: "up" | "down") {
+    const sections = [...draft.sections];
+    const index = sections.findIndex((section) => section.id === id);
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (index < 0 || targetIndex < 0 || targetIndex >= sections.length) return;
+    const [item] = sections.splice(index, 1);
+    sections.splice(targetIndex, 0, item);
+    updateDraft({ ...draft, sections });
+  }
+
   function removeSection(id: string) {
-    setDraft((current) => ({ ...current, sections: current.sections.filter((section) => section.id !== id) }));
+    updateDraft({ ...draft, sections: draft.sections.filter((section) => section.id !== id) });
   }
 
   function addSection(type: SectionType) {
-    setDraft((current) => ({ ...current, sections: [...current.sections, newSection(type)] }));
+    updateDraft({ ...draft, sections: [...draft.sections, newSection(type)] });
   }
 
-  function saveDraft() {
+  function selectPage(pageId: number) {
+    const selectedPage = pages.find((page) => page.id === pageId);
+    if (!selectedPage) return;
+    const nextDraft = pageToDraft(selectedPage, { ...draft, pageId });
+    updateDraft(nextDraft);
+  }
+
+  async function saveDraft() {
+    setMessage("");
+    setError("");
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-    setMessage("تم حفظ مسودة Page Builder محلياً.");
+
+    if (!isSupabaseConfigured || !supabase) {
+      setStorageMode("احتياطي محلي — Supabase غير مهيأ");
+      setMessage("تم حفظ نسخة احتياطية محلية فقط لأن Supabase غير مهيأ.");
+      return;
+    }
+
+    if (!draft.pageId) {
+      setError("اختر صفحة من صفحات CMS أولاً قبل حفظ الأقسام.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    const deleteResult = await supabase
+      .from("page_builder_sections")
+      .delete()
+      .eq("page_id", draft.pageId)
+      .eq("language", draft.language);
+
+    if (deleteResult.error) {
+      setIsSaving(false);
+      setStorageMode("احتياطي محلي — فشل تنظيف الأقسام القديمة");
+      setError(`تعذر تحديث الأقسام القديمة: ${deleteResult.error.message}`);
+      return;
+    }
+
+    if (draft.sections.length > 0) {
+      const payload = draft.sections.map((section, index) => ({
+        page_id: draft.pageId,
+        section_type: section.type,
+        section_key: section.id,
+        title: section.title.trim(),
+        body: section.body.trim(),
+        sort_order: index + 1,
+        language: draft.language,
+        is_visible: true,
+        created_by: adminEmail || null,
+        updated_by: adminEmail || null,
+      }));
+
+      const insertResult = await supabase.from("page_builder_sections").insert(payload);
+
+      if (insertResult.error) {
+        setIsSaving(false);
+        setStorageMode("احتياطي محلي — فشل حفظ Supabase");
+        setError(`تم حفظ نسخة احتياطية محلية، لكن فشل حفظ الأقسام في Supabase: ${insertResult.error.message}`);
+        return;
+      }
+    }
+
+    setIsSaving(false);
+    setStorageMode("Supabase دائم");
+    setMessage("تم حفظ أقسام Page Builder في Supabase مع تحديث النسخة الاحتياطية المحلية. لم يتم نشر أي تغيير على الموقع العام بعد.");
   }
 
   function exportDraft() {
@@ -166,49 +403,81 @@ export default function AdminPageBuilderPage() {
             </div>
             <h1 className="text-4xl font-black md:text-5xl">منشئ الصفحات المتقدم</h1>
             <p className="mt-3 max-w-3xl leading-8 text-white/55">
-              مساحة آمنة لتجهيز صفحات مرنة بأقسام جاهزة وحفظها كمسودة JSON قبل ربطها بالنشر العام.
+              محرر أقسام دائم مرتبط بصفحات CMS الموجودة. الحفظ يتم في Supabase، ولا يتم عرض الأقسام على الموقع العام إلا بخطوة نشر لاحقة مستقلة.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <button onClick={saveDraft} className="rounded-full bg-gradient-to-r from-purple-600 to-yellow-500 px-6 py-3 font-black text-white">
-              حفظ محلي
+            <button onClick={saveDraft} disabled={isSaving || isLoadingPages || isLoadingSections} className="rounded-full bg-gradient-to-r from-purple-600 to-yellow-500 px-6 py-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-60">
+              {isSaving ? "جارٍ الحفظ..." : "حفظ دائم"}
             </button>
             <button onClick={exportDraft} className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">
               تصدير JSON
             </button>
+            <Link href="/admin/pages" className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">
+              إدارة الصفحات
+            </Link>
             <Link href="/admin" className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">
               لوحة الإدارة
             </Link>
           </div>
         </div>
 
-        <div className="mb-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-sm text-white/55">
-          حساب الإدارة: <span className="text-white">{adminEmail}</span>
+        <div className="mb-6 grid gap-4 md:grid-cols-2">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-sm text-white/55">
+            حساب الإدارة: <span className="text-white">{adminEmail}</span>
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-sm text-white/55">
+            مصدر الحفظ: <span className="text-white">{storageMode}</span>
+          </div>
         </div>
 
-        {message && <div className="mb-6 rounded-3xl border border-green-400/25 bg-green-500/10 p-5 text-green-100">{message}</div>}
+        {(message || error) && (
+          <div className={`mb-6 rounded-3xl border p-5 ${error ? "border-red-400/25 bg-red-500/10 text-red-100" : "border-green-400/25 bg-green-500/10 text-green-100"}`}>
+            {error || message}
+          </div>
+        )}
+
+        <div className="mb-8 rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-5 text-sm leading-7 text-yellow-100">
+          هذه الخطوة تحفظ أقسام Page Builder فقط داخل الإدارة. لا يتم تعديل SEO أو slug أو محتوى جدول pages من هنا، ولا يتم نشر الأقسام على الموقع العام بعد.
+        </div>
 
         <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard label="نسبة الجاهزية" value={completion} suffix="%" tone="green" />
           <StatCard label="عدد الأقسام" value={draft.sections.length} tone="purple" />
-          <StatCard label="حالة الصفحة" value={draft.status === "ready" ? 100 : draft.status === "review" ? 70 : 30} suffix="%" tone="yellow" />
+          <StatCard label="صفحات CMS" value={pages.length} tone="yellow" />
           <StatCard label="اللغة" value={draft.language === "ar" ? 1 : draft.language === "en" ? 2 : 3} tone="cyan" />
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
           <section className="grid gap-5 rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
+            <label className="grid gap-2 text-sm font-black text-white/70">
+              الصفحة المرتبطة من CMS
+              <select
+                value={draft.pageId || ""}
+                onChange={(event) => selectPage(Number(event.target.value))}
+                className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none"
+              >
+                {pages.length === 0 && <option value="">لا توجد صفحات</option>}
+                {pages.map((page) => (
+                  <option key={page.id} value={page.id}>
+                    {page.title || "بدون عنوان"} — /{page.slug || ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="عنوان الصفحة" value={draft.pageTitle} onChange={(value) => setDraft((current) => ({ ...current, pageTitle: value }))} />
-              <Field label="رابط الصفحة / Slug" value={draft.slug} onChange={(value) => setDraft((current) => ({ ...current, slug: value }))} />
-              <Field label="SEO Title" value={draft.seoTitle} onChange={(value) => setDraft((current) => ({ ...current, seoTitle: value }))} />
-              <Field label="SEO Description" value={draft.seoDescription} onChange={(value) => setDraft((current) => ({ ...current, seoDescription: value }))} />
+              <ReadOnlyField label="عنوان الصفحة" value={draft.pageTitle} />
+              <ReadOnlyField label="رابط الصفحة / Slug" value={`/${draft.slug}`} />
+              <ReadOnlyField label="SEO Title" value={draft.seoTitle || "غير مكتمل"} />
+              <ReadOnlyField label="SEO Description" value={draft.seoDescription || "غير مكتمل"} />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <label className="grid gap-2 text-sm font-black text-white/70">
-                حالة الصفحة
-                <select value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value as PageStatus }))} className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none">
+                حالة تجهيز الأقسام
+                <select value={draft.status} onChange={(event) => updateDraft({ ...draft, status: event.target.value as PageStatus })} className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none">
                   <option value="draft">مسودة</option>
                   <option value="review">مراجعة</option>
                   <option value="ready">جاهزة</option>
@@ -216,8 +485,8 @@ export default function AdminPageBuilderPage() {
               </label>
 
               <label className="grid gap-2 text-sm font-black text-white/70">
-                اللغة
-                <select value={draft.language} onChange={(event) => setDraft((current) => ({ ...current, language: event.target.value }))} className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none">
+                لغة الأقسام
+                <select value={draft.language} onChange={(event) => updateDraft({ ...draft, language: event.target.value })} className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none">
                   <option value="ar">العربية</option>
                   <option value="en">English</option>
                   <option value="tr">Türkçe</option>
@@ -293,6 +562,15 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
   );
 }
 
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <label className="grid gap-2 text-sm font-black text-white/70">
+      {label}
+      <input value={value} readOnly className="h-14 rounded-2xl border border-white/10 bg-black/20 px-5 text-white/60 outline-none" />
+    </label>
+  );
+}
+
 function StatCard({ label, value, tone, suffix = "" }: { label: string; value: number; tone: Tone; suffix?: string }) {
   return (
     <div className={`rounded-3xl border p-5 ${toneClass(tone)}`}>
@@ -308,6 +586,7 @@ function toneClass(tone: Tone) {
     green: "border-green-400/20 bg-green-500/10 text-green-100",
     yellow: "border-yellow-400/20 bg-yellow-500/10 text-yellow-100",
     cyan: "border-cyan-400/20 bg-cyan-500/10 text-cyan-100",
+    red: "border-red-400/20 bg-red-500/10 text-red-100",
   };
   return classes[tone];
 }
