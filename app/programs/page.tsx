@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import ProgramsGridWithTranslations from "@/components/ProgramsGridWithTranslations";
 
 type Program = {
   id: number;
@@ -138,57 +139,6 @@ async function getProgramMedia(): Promise<ProgramMedia[]> {
   return (data as ProgramMedia[]).filter((item) => Boolean(item.file_url));
 }
 
-function normalizeKey(value: string | null | undefined) {
-  return (value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-function isImageMedia(item: ProgramMedia) {
-  const fileType = (item.file_type || "").toLowerCase();
-  const fileUrl = item.file_url || "";
-
-  return (
-    fileType === "image" ||
-    fileType === "logo" ||
-    fileType.startsWith("image") ||
-    /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileUrl)
-  );
-}
-
-function getProgramLogoUrl(program: Program, mediaItems: ProgramMedia[]) {
-  const slug = normalizeKey(program.slug);
-  const name = normalizeKey(program.name);
-
-  const scoredItems = mediaItems
-    .filter(isImageMedia)
-    .map((item) => {
-      const pageSlug = normalizeKey(item.page_slug);
-      const category = normalizeKey(item.category);
-      const mediaName = normalizeKey(item.name || item.alt_text || "");
-      const combined = `${pageSlug} ${category} ${mediaName}`;
-
-      let score = 0;
-
-      if (pageSlug === slug) score += 10;
-      if (pageSlug === `program-${slug}` || pageSlug === `programs-${slug}`) score += 9;
-      if (combined.includes(slug)) score += 6;
-      if (name && combined.includes(name)) score += 4;
-      if (combined.includes("program-logo") || combined.includes("programs-logo")) score += 4;
-      if (combined.includes("logo")) score += 2;
-      if (combined.includes("program")) score += 1;
-
-      return { item, score };
-    })
-    .filter(({ score }) => score >= 6)
-    .sort((a, b) => b.score - a.score);
-
-  return scoredItems[0]?.item.file_url || null;
-}
-
 export default async function ProgramsPage() {
   const [programs, mediaItems] = await Promise.all([getPrograms(), getProgramMedia()]);
 
@@ -226,75 +176,7 @@ export default async function ProgramsPage() {
           ))}
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {programs.map((program) => {
-            const visual = getProgramVisual(program.slug, program.name);
-            const logoUrl = getProgramLogoUrl(program, mediaItems);
-            const programHref = program.slug ? `/programs/${program.slug}` : "/programs";
-
-            return (
-              <Link
-                key={program.id}
-                href={programHref}
-                className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-black/35 p-6 shadow-[0_0_35px_rgba(168,85,247,0.10)] backdrop-blur transition hover:-translate-y-1 hover:border-purple-400/50 hover:bg-purple-500/10"
-              >
-                <div
-                  className="absolute inset-x-0 top-0 h-1"
-                  style={{
-                    background: `linear-gradient(90deg, ${visual.accent}, ${visual.secondary})`,
-                  }}
-                />
-
-                <div className="mb-6 flex items-center justify-between gap-3">
-                  <div
-                    className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl text-2xl font-black shadow-[0_0_28px_rgba(168,85,247,0.18)]"
-                    style={{
-                      background: logoUrl
-                        ? "rgba(255,255,255,0.06)"
-                        : `linear-gradient(135deg, ${visual.accent}, ${visual.secondary})`,
-                    }}
-                  >
-                    {logoUrl ? (
-                      <img
-                        src={logoUrl}
-                        alt={`${program.name} logo`}
-                        className="h-full w-full object-contain p-2"
-                      />
-                    ) : (
-                      visual.icon
-                    )}
-                  </div>
-
-                  <span className={getStatusClass(program.status)}>
-                    {getStatusLabel(program.status)}
-                  </span>
-                </div>
-
-                <div className="mb-3 inline-flex rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-bold text-white/55">
-                  {visual.label}
-                </div>
-
-                <h2 className="text-3xl font-black">{program.name}</h2>
-
-                <p className="mt-4 min-h-24 leading-8 text-white/70">
-                  {program.short_description ||
-                    program.description ||
-                    "برنامج متاح حالياً ضمن وكالة حمزة لصناع المحتوى."}
-                </p>
-
-                <div className="mt-6 flex items-center justify-between gap-3">
-                  <div className="text-sm text-white/45">
-                    اضغط لعرض الشروط والتفاصيل
-                  </div>
-
-                  <div className="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-5 py-3 text-sm font-black transition group-hover:scale-105">
-                    التفاصيل
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+        <ProgramsGridWithTranslations programs={programs} mediaItems={mediaItems} />
 
         <div className="mt-14 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-7 text-center backdrop-blur">
           <h2 className="text-2xl font-black text-yellow-100">
@@ -317,87 +199,6 @@ export default async function ProgramsPage() {
       </section>
     </main>
   );
-}
-
-function getProgramVisual(slug: string, name: string) {
-  const key = (slug || name || "").toLowerCase();
-
-  if (key.includes("tiktok")) {
-    return {
-      icon: "♪",
-      label: "فيديوهات قصيرة",
-      accent: "#ff2f8b",
-      secondary: "#22d3ee",
-    };
-  }
-
-  if (key.includes("bigo")) {
-    return {
-      icon: "LIVE",
-      label: "بث مباشر",
-      accent: "#38bdf8",
-      secondary: "#8b5cf6",
-    };
-  }
-
-  if (key.includes("yaahlan")) {
-    return {
-      icon: "Y",
-      label: "مجتمع وبث",
-      accent: "#f59e0b",
-      secondary: "#8b5cf6",
-    };
-  }
-
-  if (key.includes("xena")) {
-    return {
-      icon: "X",
-      label: "برنامج صناع المحتوى",
-      accent: "#a855f7",
-      secondary: "#06b6d4",
-    };
-  }
-
-  if (key.includes("catchii")) {
-    return {
-      icon: "C",
-      label: "محتوى اجتماعي",
-      accent: "#ec4899",
-      secondary: "#facc15",
-    };
-  }
-
-  return {
-    icon: "H",
-    label: "برنامج وكالة",
-    accent: "#7c3aed",
-    secondary: "#d4af37",
-  };
-}
-
-function getStatusLabel(status: string | null) {
-  const value = (status || "active").toLowerCase();
-
-  if (value === "limited") return "قبول محدود";
-  if (value === "paused") return "متوقف مؤقتاً";
-  if (value === "inactive") return "غير متاح";
-  if (value === "closed") return "مغلق";
-
-  return "متاح الآن";
-}
-
-function getStatusClass(status: string | null) {
-  const value = (status || "active").toLowerCase();
-
-  if (value === "limited") {
-    return "rounded-full border border-yellow-400/30 bg-yellow-500/10 px-4 py-2 text-sm font-bold text-yellow-200";
-  }
-
-  if (value === "paused" || value === "inactive" || value === "closed") {
-    return "rounded-full border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-bold text-red-200";
-  }
-
-  return "rounded-full border border-green-400/30 bg-green-500/10 px-4 py-2 text-sm font-bold text-green-200";
 }
 
 function ProgramsBackground() {
