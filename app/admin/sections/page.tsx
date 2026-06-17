@@ -62,6 +62,58 @@ const sectionTypes = [
   { value: "custom", label: "Custom" },
 ];
 
+const settingsExamples: Record<string, string> = {
+  hero: JSON.stringify(
+    {
+      eyebrow: "HAMZA AGENCY",
+      buttonText: "انضم الآن",
+      buttonUrl: "/apply",
+      backgroundMediaUrl: "",
+    },
+    null,
+    2
+  ),
+  cta: JSON.stringify(
+    {
+      buttonText: "تواصل عبر واتساب",
+      buttonUrl: "https://wa.me/",
+      variant: "primary",
+    },
+    null,
+    2
+  ),
+  media: JSON.stringify(
+    {
+      imageUrl: "",
+      alt: "HAMZA AGENCY",
+      caption: "",
+    },
+    null,
+    2
+  ),
+  cards: JSON.stringify(
+    {
+      cards: [
+        { title: "الميزة الأولى", text: "شرح مختصر" },
+        { title: "الميزة الثانية", text: "شرح مختصر" },
+      ],
+    },
+    null,
+    2
+  ),
+  faq: JSON.stringify(
+    {
+      items: [
+        { question: "السؤال الأول؟", answer: "الإجابة المختصرة." },
+        { question: "السؤال الثاني؟", answer: "الإجابة المختصرة." },
+      ],
+    },
+    null,
+    2
+  ),
+  default: "{}",
+};
+
 function createEmptyForm(pageId = "", sortOrder = "1"): SectionForm {
   return {
     page_id: pageId,
@@ -153,6 +205,10 @@ function getPageLabel(page: PageRow | null) {
   return `${page.title || "بدون عنوان"} — ${getPublicPath(page.slug)}`;
 }
 
+function getSettingsExample(sectionType: string) {
+  return settingsExamples[sectionType] || settingsExamples.default;
+}
+
 export default function AdminPublishedSectionsPage() {
   const router = useRouter();
 
@@ -239,6 +295,13 @@ export default function AdminPublishedSectionsPage() {
       pages: pages.length,
     };
   }, [sections, pages]);
+
+  const normalizedKeyPreview = useMemo(() => normalizeSectionKey(form.section_key), [form.section_key]);
+  const settingsValidation = useMemo(() => parseSettingsJson(form.settings), [form.settings]);
+  const isSectionKeyReady = Boolean(normalizedKeyPreview && isSafeSectionKey(normalizedKeyPreview));
+  const isEditingKeyChanged = Boolean(
+    editingSection && normalizedKeyPreview && normalizedKeyPreview !== (editingSection.section_key || "")
+  );
 
   async function loadPages() {
     if (!isSupabaseConfigured || !supabase) {
@@ -380,6 +443,13 @@ export default function AdminPublishedSectionsPage() {
       settings: formatSettings(section.settings),
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function applySettingsExample() {
+    setForm((current) => ({
+      ...current,
+      settings: getSettingsExample(current.section_type),
+    }));
   }
 
   async function saveSection(event: FormEvent<HTMLFormElement>) {
@@ -562,16 +632,16 @@ export default function AdminPublishedSectionsPage() {
             <div>
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 <span className="rounded-full border border-purple-400/30 bg-purple-500/15 px-4 py-2 text-sm font-bold text-purple-100">
-                  16B — Published Sections Manager
+                  16D — CMS Safety UX
                 </span>
                 <span className="rounded-full border border-yellow-400/25 bg-yellow-500/10 px-4 py-2 text-sm font-bold text-yellow-100">
-                  جدول النشر العام sections
+                  إدارة آمنة للأقسام المنشورة
                 </span>
               </div>
 
               <h1 className="text-4xl font-black leading-tight md:text-5xl">إدارة الأقسام المنشورة</h1>
               <p className="mt-4 max-w-3xl leading-8 text-white/62">
-                صفحة إدارة دائمة للأقسام التي يقرأها الموقع من جدول sections. هذه الخطوة لا تعدّل صفحات الموقع العامة ولا تضيف روابط تنقل، بل تجهز التحكم الإداري الأساسي قبل ربط الواجهة لاحقاً.
+                صفحة إدارة دائمة للأقسام التي يقرأها الموقع من جدول sections. تم تحسينها لتقليل أخطاء الإدخال، توضيح مفاتيح الأقسام، وفحص JSON قبل الحفظ.
               </p>
               <p className="mt-3 text-sm text-white/45">الأدمن: {adminEmail || "غير متوفر"}</p>
             </div>
@@ -608,8 +678,19 @@ export default function AdminPublishedSectionsPage() {
           </div>
         </section>
 
-        <section className="mb-6 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-5 leading-8 text-yellow-50">
-          <strong>ملاحظة مهمة:</strong> هذه الصفحة تدير الأقسام المنشورة داخل قاعدة البيانات فقط. لا يوجد حذف نهائي، ولا يوجد تعديل SQL، ولا يوجد ربط جديد مع الموقع العام في هذه الخطوة.
+        <section className="mb-6 grid gap-4 lg:grid-cols-3">
+          <SafetyNotice
+            title="لا يوجد حذف نهائي"
+            text="الإدارة هنا تسمح بالإضافة، التعديل، والإخفاء فقط. الحذف النهائي مؤجل حتى نظام سلة محذوفات كامل للأقسام."
+          />
+          <SafetyNotice
+            title="section_key مفتاح حساس"
+            text="لا تغيّر مفتاح قسم منشور إذا كانت الواجهة العامة تعتمد عليه. غيّر النصوص والمحتوى بدلاً منه."
+          />
+          <SafetyNotice
+            title="settings كائن JSON فقط"
+            text="استخدم {} أو كائناً منظماً للصور والأزرار والروابط. أي JSON خاطئ سيتم منعه قبل الحفظ."
+          />
         </section>
 
         {(message || error) && (
@@ -661,7 +742,7 @@ export default function AdminPublishedSectionsPage() {
               <div>
                 <h2 className="text-2xl font-black">{editingSection ? "تعديل قسم منشور" : "إضافة قسم منشور"}</h2>
                 <p className="mt-2 text-sm leading-7 text-white/50">
-                  اكتب بيانات القسم كما يجب أن تحفظ في جدول sections. حقل settings مخصص للصور، الخلفيات، الأزرار، الروابط، أو أي إعدادات مستقبلية.
+                  الحقول التقنية محفوظة كما هي في قاعدة البيانات، لكن تمت إضافة فحص مباشر وملاحظات حتى لا يتم كسر الأقسام المنشورة بالخطأ.
                 </p>
               </div>
               <button
@@ -673,9 +754,13 @@ export default function AdminPublishedSectionsPage() {
               </button>
             </div>
 
+            <div className="mb-5 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4 text-sm leading-7 text-cyan-50">
+              <strong>طريقة العمل الآمنة:</strong> اختر الصفحة، اكتب مفتاحاً ثابتاً بالإنجليزية، اكتب النصوص، ثم احفظ. استخدم الإخفاء بدلاً من الحذف عندما تريد تعطيل قسم مؤقتاً.
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
               <label className="grid gap-2 text-sm font-black text-white/70">
-                page_id
+                الصفحة المرتبطة — page_id
                 <select
                   value={form.page_id}
                   onChange={(event) => updateField("page_id", event.target.value)}
@@ -690,24 +775,26 @@ export default function AdminPublishedSectionsPage() {
               </label>
 
               <AdminInput
-                label="sort_order"
+                label="ترتيب الظهور — sort_order"
                 value={form.sort_order}
                 onChange={(value) => updateField("sort_order", value)}
                 type="number"
                 min="0"
                 placeholder="1"
+                help="الأصغر يظهر أولاً. استخدم 10، 20، 30 لتسهيل إدخال أقسام بينية لاحقاً."
               />
 
               <AdminInput
-                label="section_key"
+                label="مفتاح القسم — section_key"
                 value={form.section_key}
                 onChange={(value) => updateField("section_key", value)}
                 placeholder="home-hero"
                 dir="ltr"
+                help="حروف إنجليزية صغيرة، أرقام، شرطة - أو underscore فقط. لا تستخدم مسافات أو رموز."
               />
 
               <label className="grid gap-2 text-sm font-black text-white/70">
-                section_type
+                نوع القسم — section_type
                 <select
                   value={form.section_type}
                   onChange={(event) => updateField("section_type", event.target.value)}
@@ -719,26 +806,52 @@ export default function AdminPublishedSectionsPage() {
                     </option>
                   ))}
                 </select>
+                <span className="text-xs leading-6 text-white/40">اختر النوع الأقرب لطبيعة القسم حتى يسهل ربطه بالواجهة لاحقاً.</span>
               </label>
+            </div>
 
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <ValidationBox
+                label="معاينة section_key بعد التنظيف"
+                value={normalizedKeyPreview || "لم يتم إدخال مفتاح بعد"}
+                ok={isSectionKeyReady}
+                message={isSectionKeyReady ? "المفتاح آمن للحفظ." : "اكتب مفتاحاً آمناً قبل الحفظ."}
+              />
+              <ValidationBox
+                label="حالة settings JSON"
+                value={settingsValidation.ok ? "JSON صحيح" : "JSON غير صحيح"}
+                ok={settingsValidation.ok}
+                message={settingsValidation.ok ? "يمكن حفظ settings بأمان." : settingsValidation.message}
+              />
+            </div>
+
+            {isEditingKeyChanged && (
+              <div className="mt-4 rounded-2xl border border-yellow-400/30 bg-yellow-500/10 p-4 text-sm font-bold leading-7 text-yellow-100">
+                تنبيه: أنت تغيّر section_key لقسم موجود. لا تفعل ذلك إلا إذا كنت متأكداً أن الواجهة العامة لا تعتمد على المفتاح القديم.
+              </div>
+            )}
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
               <AdminInput
-                label="title"
+                label="العنوان الظاهر — title"
                 value={form.title}
                 onChange={(value) => updateField("title", value)}
                 placeholder="عنوان القسم"
+                help="هذا النص هو العنوان الإداري/الظاهر للقسم."
               />
 
               <AdminInput
-                label="subtitle"
+                label="الوصف الفرعي — subtitle"
                 value={form.subtitle}
                 onChange={(value) => updateField("subtitle", value)}
                 placeholder="وصف قصير أو سطر فرعي"
+                help="اختياري، ويمكن تركه فارغاً."
               />
             </div>
 
             <div className="mt-4 grid gap-4">
               <label className="grid gap-2 text-sm font-black text-white/70">
-                content
+                المحتوى الرئيسي — content
                 <textarea
                   value={form.content}
                   onChange={(event) => updateField("content", event.target.value)}
@@ -746,10 +859,11 @@ export default function AdminPublishedSectionsPage() {
                   className="resize-y rounded-2xl border border-white/10 bg-black/40 px-5 py-4 leading-8 text-white outline-none placeholder:text-white/25"
                   placeholder="اكتب محتوى القسم هنا..."
                 />
+                <span className="text-xs leading-6 text-white/40">استخدم هذا الحقل للنص الرئيسي. التفاصيل المركبة مثل الأزرار والصور مكانها settings.</span>
               </label>
 
               <label className="grid gap-2 text-sm font-black text-white/70">
-                settings JSON
+                إعدادات متقدمة — settings JSON
                 <textarea
                   value={form.settings}
                   onChange={(event) => updateField("settings", event.target.value)}
@@ -759,6 +873,19 @@ export default function AdminPublishedSectionsPage() {
                   placeholder={'{"buttonText":"انضم الآن","buttonUrl":"/apply"}'}
                 />
               </label>
+
+              <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 md:grid-cols-[1fr_auto] md:items-center">
+                <div className="text-sm leading-7 text-white/55">
+                  مثال مناسب لنوع القسم الحالي: <span className="font-bold text-white">{form.section_type}</span>. يمكن تطبيق المثال ثم تعديله حسب الحاجة.
+                </div>
+                <button
+                  type="button"
+                  onClick={applySettingsExample}
+                  className="rounded-2xl border border-cyan-400/25 bg-cyan-500/10 px-5 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-500/15"
+                >
+                  تطبيق مثال settings
+                </button>
+              </div>
 
               <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm font-black text-white/75">
                 <input
@@ -789,15 +916,15 @@ export default function AdminPublishedSectionsPage() {
             </div>
           </form>
 
-          <aside className="rounded-[2rem] border border-white/10 bg-black/35 p-5 md:p-6">
-            <h2 className="text-2xl font-black">قواعد السلامة</h2>
-            <div className="mt-4 grid gap-3 text-sm leading-7 text-white/58">
-              <SafetyItem text="لا يوجد حذف نهائي من هذه الصفحة." />
-              <SafetyItem text="section_key يتم حفظه بصيغة آمنة فقط." />
-              <SafetyItem text="settings يجب أن يكون JSON Object صحيح." />
-              <SafetyItem text="الصلاحية المستخدمة حالياً هي pages بدون تعديل نظام الصلاحيات." />
-              <SafetyItem text="لا يتم نشر أي ربط جديد مع الصفحة الرئيسية في هذه الخطوة." />
+          <aside className="grid gap-4 rounded-[2rem] border border-white/10 bg-black/35 p-5 md:p-6">
+            <div>
+              <h2 className="text-2xl font-black">دليل سريع للأدمن</h2>
+              <p className="mt-2 text-sm leading-7 text-white/50">هذه الملاحظات تمنع الأخطاء التي قد تكسر الربط لاحقاً عند تحويل الصفحات إلى No-Code كامل.</p>
             </div>
+            <GuideItem title="section_key" text="ثبّته مرة واحدة ولا تغيّره بعد ربطه بالواجهة العامة. مثال: home-hero أو about-values." />
+            <GuideItem title="section_type" text="استخدم نوعاً واضحاً: hero، content، cards، cta، faq. هذا يساعد مرحلة الربط العامة لاحقاً." />
+            <GuideItem title="settings" text="مكان الأزرار، الروابط، الصور، الخلفيات، والقوائم المركبة. يجب أن يبقى JSON Object صحيحاً." />
+            <GuideItem title="is_visible" text="استخدمه لإخفاء قسم مؤقتاً بدون حذف أو تخريب البيانات." />
           </aside>
         </section>
 
@@ -903,6 +1030,7 @@ function AdminInput({
   type = "text",
   min,
   dir,
+  help,
 }: {
   label: string;
   value: string;
@@ -911,6 +1039,7 @@ function AdminInput({
   type?: string;
   min?: string;
   dir?: "ltr" | "rtl" | "auto";
+  help?: string;
 }) {
   return (
     <label className="grid gap-2 text-sm font-black text-white/70">
@@ -924,6 +1053,7 @@ function AdminInput({
         className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-white outline-none placeholder:text-white/25"
         placeholder={placeholder}
       />
+      {help && <span className="text-xs leading-6 text-white/40">{help}</span>}
     </label>
   );
 }
@@ -940,10 +1070,46 @@ function StatusBadge({ visible }: { visible: boolean }) {
   );
 }
 
-function SafetyItem({ text }: { text: string }) {
+function SafetyNotice({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-5 leading-7 text-yellow-50">
+      <div className="font-black">{title}</div>
+      <p className="mt-2 text-sm text-yellow-50/75">{text}</p>
+    </div>
+  );
+}
+
+function ValidationBox({
+  label,
+  value,
+  ok,
+  message,
+}: {
+  label: string;
+  value: string;
+  ok: boolean;
+  message: string;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border p-4 text-sm leading-7 ${
+        ok ? "border-green-400/25 bg-green-500/10 text-green-100" : "border-yellow-400/25 bg-yellow-500/10 text-yellow-100"
+      }`}
+    >
+      <div className="font-black">{label}</div>
+      <div className="mt-1 break-words font-mono text-xs" dir="ltr">
+        {value}
+      </div>
+      <div className="mt-2 text-xs opacity-80">{message}</div>
+    </div>
+  );
+}
+
+function GuideItem({ title, text }: { title: string; text: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      {text}
+      <div className="font-black text-white">{title}</div>
+      <p className="mt-2 text-sm leading-7 text-white/55">{text}</p>
     </div>
   );
 }
