@@ -22,6 +22,8 @@ type SettingItem = {
   is_public: boolean | null;
 };
 
+type SettingControl = "text" | "textarea" | "json" | "color" | "toggle" | "select" | "url" | "email" | "number";
+
 type SettingDraft = {
   value: string;
   groupName: string;
@@ -57,9 +59,18 @@ type SectionDefinition = {
 type SettingMeta = {
   label: string;
   hint: string;
-  control?: "text" | "textarea" | "color" | "toggle" | "select" | "url" | "email" | "number";
+  control?: SettingControl;
   placeholder?: string;
   options?: { label: string; value: string }[];
+};
+
+type NavigationDefaultSetting = {
+  setting_key: string;
+  setting_value: string;
+  label_ar: string;
+  label_en: string;
+  description: string;
+  sort_order: number;
 };
 
 const sectionDefinitions: SectionDefinition[] = [
@@ -78,6 +89,14 @@ const sectionDefinitions: SectionDefinition[] = [
     icon: "☎",
     description: "أرقام واتساب، البريد الإلكتروني، وأوقات المتابعة.",
     tone: "from-emerald-500/20 to-green-500/10 border-emerald-400/25",
+  },
+  {
+    key: "navigation",
+    label: "إدارة روابط الموقع",
+    shortLabel: "تنقل",
+    icon: "☰",
+    description: "إعدادات JSON لإدارة روابط الهيدر، الفوتر، والقائمة السريعة قبل ربطها بالموقع العام.",
+    tone: "from-indigo-500/20 to-cyan-500/10 border-indigo-400/25",
   },
   {
     key: "footer",
@@ -161,6 +180,105 @@ const sectionDefinitions: SectionDefinition[] = [
   },
 ];
 
+const defaultHeaderLinks = [
+  { label: "الرئيسية", href: "/", type: "internal", isVisible: true, sortOrder: 1 },
+  { label: "البرامج", href: "/programs", type: "internal", isVisible: true, sortOrder: 2 },
+  { label: "من نحن", href: "/about", type: "internal", isVisible: true, sortOrder: 3 },
+  { label: "الخدمات", href: "/services", type: "internal", isVisible: true, sortOrder: 4 },
+  { label: "الخدمات الرقمية", href: "/digital-services", type: "internal", isVisible: true, sortOrder: 5 },
+  { label: "طلب خدمة", href: "/service-request", type: "internal", isVisible: true, sortOrder: 6 },
+  { label: "تتبع طلب خدمة", href: "/service-status", type: "internal", isVisible: true, sortOrder: 7 },
+  { label: "تتبع طلب الانضمام", href: "/application-status", type: "internal", isVisible: true, sortOrder: 8 },
+  { label: "الوظائف", href: "/jobs", type: "internal", isVisible: true, sortOrder: 9 },
+  { label: "اتصل بنا", href: "/contact", type: "internal", isVisible: true, sortOrder: 10 },
+];
+
+const defaultFooterLinks = [
+  { label: "سياسة الخصوصية", href: "/privacy-policy", type: "legal", isVisible: true, sortOrder: 1 },
+  { label: "الشروط والأحكام", href: "/terms-and-conditions", type: "legal", isVisible: true, sortOrder: 2 },
+  { label: "سياسة الذكاء الاصطناعي", href: "/ai-policy", type: "legal", isVisible: true, sortOrder: 3 },
+];
+
+const defaultQuickNavGroups = [
+  {
+    title: "أساسيات الوكالة",
+    isVisible: true,
+    sortOrder: 1,
+    links: [
+      { label: "الرئيسية", href: "/", type: "internal", isVisible: true, sortOrder: 1 },
+      { label: "البرامج", href: "/programs", type: "internal", isVisible: true, sortOrder: 2 },
+      { label: "من نحن", href: "/about", type: "internal", isVisible: true, sortOrder: 3 },
+      { label: "الخدمات", href: "/services", type: "internal", isVisible: true, sortOrder: 4 },
+      { label: "تواصل معنا", href: "/contact", type: "internal", isVisible: true, sortOrder: 5 },
+    ],
+  },
+  {
+    title: "الطلبات والمتابعة",
+    isVisible: true,
+    sortOrder: 2,
+    links: [
+      { label: "طلب خدمة", href: "/service-request", type: "internal", isVisible: true, sortOrder: 1 },
+      { label: "تتبع طلب خدمة", href: "/service-status", type: "internal", isVisible: true, sortOrder: 2 },
+      { label: "تتبع طلب الانضمام", href: "/application-status", type: "internal", isVisible: true, sortOrder: 3 },
+      { label: "الوظائف", href: "/jobs", type: "internal", isVisible: true, sortOrder: 4 },
+    ],
+  },
+  {
+    title: "الثقة والمحتوى",
+    isVisible: true,
+    sortOrder: 3,
+    links: [
+      { label: "التقييمات", href: "/reviews", type: "internal", isVisible: true, sortOrder: 1 },
+      { label: "قصص النجاح", href: "/success-stories", type: "internal", isVisible: true, sortOrder: 2 },
+      { label: "الشركاء", href: "/partners", type: "internal", isVisible: true, sortOrder: 3 },
+      { label: "المعرض", href: "/gallery", type: "internal", isVisible: true, sortOrder: 4 },
+      { label: "مركز المعرفة", href: "/knowledge-center", type: "internal", isVisible: true, sortOrder: 5 },
+      { label: "الأسئلة الشائعة", href: "/faq", type: "internal", isVisible: true, sortOrder: 6 },
+    ],
+  },
+];
+
+const defaultCtaLinks = [
+  { key: "primary_join", label: "انضم الآن", href: "/apply", type: "cta", isVisible: true, sortOrder: 1 },
+  { key: "view_programs", label: "عرض البرامج", href: "/programs", type: "cta", isVisible: true, sortOrder: 2 },
+  { key: "contact", label: "تواصل معنا", href: "/contact", type: "cta", isVisible: true, sortOrder: 3 },
+];
+
+const navigationDefaultSettings: NavigationDefaultSetting[] = [
+  {
+    setting_key: "public_header_links_json",
+    setting_value: JSON.stringify(defaultHeaderLinks, null, 2),
+    label_ar: "روابط الهيدر العامة",
+    label_en: "Public Header Links",
+    description: "JSON لإدارة روابط الهيدر العامة: الاسم، الرابط، الظهور، والترتيب. لن يقرأه الموقع العام إلا بعد خطوة الربط اللاحقة.",
+    sort_order: 10,
+  },
+  {
+    setting_key: "public_footer_links_json",
+    setting_value: JSON.stringify(defaultFooterLinks, null, 2),
+    label_ar: "روابط الفوتر القانونية",
+    label_en: "Public Footer Links",
+    description: "JSON لإدارة روابط الفوتر والصفحات القانونية من لوحة التحكم.",
+    sort_order: 20,
+  },
+  {
+    setting_key: "public_quick_nav_groups_json",
+    setting_value: JSON.stringify(defaultQuickNavGroups, null, 2),
+    label_ar: "مجموعات قائمة الموقع السريعة",
+    label_en: "Public Quick Navigation Groups",
+    description: "JSON لإدارة مجموعات PublicQuickNav وروابطها وترتيبها وإظهارها أو إخفائها.",
+    sort_order: 30,
+  },
+  {
+    setting_key: "public_cta_links_json",
+    setting_value: JSON.stringify(defaultCtaLinks, null, 2),
+    label_ar: "أزرار وروابط CTA العامة",
+    label_en: "Public CTA Links",
+    description: "JSON لإدارة أزرار الدعوة لاتخاذ إجراء مثل انضم الآن، عرض البرامج، تواصل معنا.",
+    sort_order: 40,
+  },
+];
+
 const settingMeta: Record<string, SettingMeta> = {
   site_name: {
     label: "اسم الموقع الرسمي",
@@ -179,11 +297,6 @@ const settingMeta: Record<string, SettingMeta> = {
     hint: "الاسم الإنجليزي المستخدم في الواجهات وبيانات المشاركة.",
     control: "text",
     placeholder: "HAMZA AGENCY",
-  },
-  agency_manager_name: {
-    label: "تعريف إدارة الوكالة",
-    hint: "نص تعريفي إداري يظهر عند الحاجة داخل صفحات الوكالة.",
-    control: "text",
   },
   site_tagline_ar: {
     label: "الوصف المختصر للموقع",
@@ -213,11 +326,6 @@ const settingMeta: Record<string, SettingMeta> = {
     control: "email",
     placeholder: "name@example.com",
   },
-  support_email: {
-    label: "بريد الدعم",
-    hint: "بريد دعم موجود من الإعدادات السابقة، يبقى قابلاً للإدارة.",
-    control: "email",
-  },
   working_hours: {
     label: "أوقات المتابعة",
     hint: "نص يوضح طريقة متابعة الرسائل والطلبات.",
@@ -237,6 +345,30 @@ const settingMeta: Record<string, SettingMeta> = {
     label: "نص زر واتساب في الفوتر",
     hint: "النص المستخدم لزر التواصل السريع.",
     control: "text",
+  },
+  public_header_links_json: {
+    label: "روابط الهيدر العامة",
+    hint: "قائمة JSON تدير روابط الهيدر. الربط بالموقع العام سيتم في خطوة لاحقة.",
+    control: "json",
+    placeholder: JSON.stringify(defaultHeaderLinks, null, 2),
+  },
+  public_footer_links_json: {
+    label: "روابط الفوتر القانونية",
+    hint: "قائمة JSON تدير روابط الفوتر والصفحات القانونية.",
+    control: "json",
+    placeholder: JSON.stringify(defaultFooterLinks, null, 2),
+  },
+  public_quick_nav_groups_json: {
+    label: "مجموعات قائمة الموقع السريعة",
+    hint: "JSON يدير مجموعات PublicQuickNav وروابطها.",
+    control: "json",
+    placeholder: JSON.stringify(defaultQuickNavGroups, null, 2),
+  },
+  public_cta_links_json: {
+    label: "أزرار وروابط CTA العامة",
+    hint: "JSON يدير أزرار الدعوة لاتخاذ إجراء في الصفحات العامة.",
+    control: "json",
+    placeholder: JSON.stringify(defaultCtaLinks, null, 2),
   },
   social_tiktok_url: {
     label: "رابط TikTok",
@@ -353,16 +485,6 @@ const settingMeta: Record<string, SettingMeta> = {
     hint: "إرشادات داخلية لضبط طريقة رد الدعم الذكي.",
     control: "textarea",
   },
-  ai_knowledge_base_enabled: {
-    label: "تفعيل قاعدة المعرفة للذكاء الاصطناعي",
-    hint: "يسمح للدعم الذكي بالاعتماد على محتوى مركز المعرفة.",
-    control: "toggle",
-  },
-  ai_unanswered_capture_enabled: {
-    label: "حفظ الأسئلة غير المجابة",
-    hint: "يجمع الأسئلة التي تحتاج مراجعة إدارية لتحسين الدعم.",
-    control: "toggle",
-  },
   maintenance_mode: {
     label: "وضع الصيانة",
     hint: "إعداد داخلي لإظهار رسالة صيانة عند تفعيله.",
@@ -378,21 +500,12 @@ const settingMeta: Record<string, SettingMeta> = {
     hint: "الرسالة التي تظهر عند تفعيل وضع الصيانة.",
     control: "textarea",
   },
-  maintenance_mode_message: {
-    label: "رسالة الصيانة القديمة",
-    hint: "رسالة صيانة موجودة من الإعدادات السابقة.",
-    control: "textarea",
-  },
-  maintenance_mode_whatsapp_enabled: {
-    label: "إظهار واتساب أثناء الصيانة",
-    hint: "يسمح بإظهار خيار التواصل أثناء وضع الصيانة.",
-    control: "toggle",
-  },
 };
 
 const inputTypeOptions = [
   { label: "نص قصير", value: "text" },
   { label: "نص طويل", value: "textarea" },
+  { label: "JSON منظم", value: "json" },
   { label: "رابط", value: "url" },
   { label: "بريد إلكتروني", value: "email" },
   { label: "لون", value: "color" },
@@ -427,6 +540,7 @@ export default function AdminSettingsPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isPreparingNavigation, setIsPreparingNavigation] = useState(false);
   const [showAdvancedForm, setShowAdvancedForm] = useState(false);
 
   useEffect(() => {
@@ -457,7 +571,7 @@ export default function AdminSettingsPage() {
     setIsLoading(true);
     setError("");
 
-    const { data, error } = await supabase
+    const { data, error: loadError } = await supabase
       .from("settings")
       .select(
         "id, created_at, updated_at, setting_key, setting_value, setting_group, group_name, label_ar, label_en, description, input_type, sort_order, is_public"
@@ -469,7 +583,7 @@ export default function AdminSettingsPage() {
 
     setIsLoading(false);
 
-    if (error) {
+    if (loadError) {
       setError("تعذر تحميل الإعدادات. يرجى التأكد من صلاحيات جدول settings.");
       return;
     }
@@ -498,8 +612,21 @@ export default function AdminSettingsPage() {
     setDrafts(nextDrafts);
   }
 
+  const navigationKeys = useMemo(
+    () => new Set(navigationDefaultSettings.map((setting) => setting.setting_key)),
+    []
+  );
+
+  const missingNavigationSettings = useMemo(() => {
+    const existingKeys = new Set(settings.map((setting) => setting.setting_key || ""));
+    return navigationDefaultSettings.filter((setting) => !existingKeys.has(setting.setting_key));
+  }, [settings]);
+
   const orderedGroupKeys = useMemo(() => {
     const presentGroups = new Set(settings.map((setting) => getGroupKey(setting)));
+    if (missingNavigationSettings.length < navigationDefaultSettings.length) {
+      presentGroups.add("navigation");
+    }
 
     const knownGroups = sectionDefinitions
       .map((section) => section.key)
@@ -510,7 +637,7 @@ export default function AdminSettingsPage() {
     );
 
     return [...knownGroups, ...unknownGroups];
-  }, [settings]);
+  }, [settings, missingNavigationSettings.length]);
 
   const filteredSettings = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -540,11 +667,10 @@ export default function AdminSettingsPage() {
 
   const publicCount = settings.filter((setting) => setting.is_public).length;
   const privateCount = settings.filter((setting) => !setting.is_public).length;
+  const navigationCount = settings.filter((setting) => getGroupKey(setting) === "navigation").length;
   const footerAndContactCount = settings.filter((setting) =>
     ["contact", "footer", "social"].includes(getGroupKey(setting))
   ).length;
-  const visibleGroupCount = orderedGroupKeys.filter((groupKey) => settingsByGroup[groupKey]?.length)
-    .length;
 
   function updateDraft(id: number, key: keyof SettingDraft, value: string | boolean) {
     setDrafts((current) => ({
@@ -569,13 +695,23 @@ export default function AdminSettingsPage() {
     setMessage("");
     setError("");
 
+    const key = setting.setting_key || "";
     const cleanGroupName = draft.groupName.trim() || "custom";
-    const cleanInputType = draft.inputType.trim() || "text";
+    const cleanInputType = normalizeInputType(draft.inputType.trim() || "text");
+
+    if (requiresJsonValidation(key, cleanGroupName, cleanInputType)) {
+      const jsonValidation = validateJsonValue(draft.value);
+      if (!jsonValidation.ok) {
+        setError(`JSON غير صحيح في ${draft.labelAr || key}: ${jsonValidation.message}`);
+        return;
+      }
+    }
+
     const payload = {
       setting_value: draft.value,
       setting_group: cleanGroupName,
       group_name: cleanGroupName,
-      label_ar: draft.labelAr.trim() || prettifyKey(setting.setting_key || ""),
+      label_ar: draft.labelAr.trim() || prettifyKey(key),
       label_en: draft.labelEn.trim(),
       description: draft.description.trim(),
       input_type: cleanInputType,
@@ -584,9 +720,9 @@ export default function AdminSettingsPage() {
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from("settings").update(payload).eq("id", setting.id);
+    const { error: saveError } = await supabase.from("settings").update(payload).eq("id", setting.id);
 
-    if (error) {
+    if (saveError) {
       setError("فشل حفظ الإعداد. يرجى التأكد من صلاحيات جدول settings.");
       return;
     }
@@ -611,9 +747,16 @@ export default function AdminSettingsPage() {
     setError("");
 
     const newKey = newSetting.setting_key.trim();
+    const cleanGroupName = newSetting.group_name.trim() || "custom";
+    const cleanInputType = normalizeInputType(newSetting.input_type.trim() || "text");
 
     if (!newKey) {
       setError("يرجى كتابة مفتاح الإعداد.");
+      return;
+    }
+
+    if (!/^[a-z0-9_\-]+$/.test(newKey)) {
+      setError("مفتاح الإعداد يجب أن يكون آمناً بالإنجليزية، مثل public_header_links_json.");
       return;
     }
 
@@ -622,7 +765,14 @@ export default function AdminSettingsPage() {
       return;
     }
 
-    const cleanGroupName = newSetting.group_name.trim() || "custom";
+    if (requiresJsonValidation(newKey, cleanGroupName, cleanInputType)) {
+      const jsonValidation = validateJsonValue(newSetting.setting_value);
+      if (!jsonValidation.ok) {
+        setError(`JSON غير صحيح: ${jsonValidation.message}`);
+        return;
+      }
+    }
+
     const payload = {
       setting_key: newKey,
       setting_value: newSetting.setting_value.trim(),
@@ -631,15 +781,15 @@ export default function AdminSettingsPage() {
       label_ar: newSetting.label_ar.trim() || prettifyKey(newKey),
       label_en: newSetting.label_en.trim(),
       description: newSetting.description.trim(),
-      input_type: newSetting.input_type.trim() || "text",
+      input_type: cleanInputType,
       sort_order: Number.parseInt(newSetting.sort_order, 10) || 100,
       is_public: Boolean(newSetting.is_public),
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from("settings").insert(payload);
+    const { error: createError } = await supabase.from("settings").insert(payload);
 
-    if (error) {
+    if (createError) {
       setError("فشل إضافة الإعداد. تأكد أن صلاحيات جدول settings صحيحة.");
       return;
     }
@@ -651,13 +801,55 @@ export default function AdminSettingsPage() {
     await loadSettings();
   }
 
-  async function logActivity(
-    action: string,
-    entityType: string,
-    entityId: string,
-    oldData: string,
-    newData: string
-  ) {
+  async function prepareNavigationSettings() {
+    if (!supabase) return;
+
+    setMessage("");
+    setError("");
+    setIsPreparingNavigation(true);
+
+    const existingKeys = new Set(settings.map((setting) => setting.setting_key || ""));
+    const missingSettings = navigationDefaultSettings.filter((setting) => !existingKeys.has(setting.setting_key));
+
+    if (!missingSettings.length) {
+      setIsPreparingNavigation(false);
+      setMessage("إعدادات روابط الموقع موجودة مسبقاً ولا تحتاج إنشاء جديد.");
+      setActiveGroup("navigation");
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const payload = missingSettings.map((setting) => ({
+      setting_key: setting.setting_key,
+      setting_value: setting.setting_value,
+      setting_group: "navigation",
+      group_name: "navigation",
+      label_ar: setting.label_ar,
+      label_en: setting.label_en,
+      description: setting.description,
+      input_type: "json",
+      sort_order: setting.sort_order,
+      is_public: true,
+      updated_at: now,
+    }));
+
+    const { error: insertError } = await supabase.from("settings").insert(payload);
+
+    setIsPreparingNavigation(false);
+
+    if (insertError) {
+      setError("فشل تجهيز إعدادات روابط الموقع. تحقق من صلاحيات جدول settings.");
+      return;
+    }
+
+    await logActivity("create_navigation_settings", "settings", "navigation", "", JSON.stringify(payload));
+
+    setMessage(`تم تجهيز ${payload.length} إعدادات لروابط الموقع داخل Settings CMS.`);
+    setActiveGroup("navigation");
+    await loadSettings();
+  }
+
+  async function logActivity(action: string, entityType: string, entityId: string, oldData: string, newData: string) {
     if (!supabase) return;
 
     await supabase.from("activity_logs").insert({
@@ -754,6 +946,32 @@ export default function AdminSettingsPage() {
       );
     }
 
+    if (control === "json") {
+      const jsonValidation = validateJsonValue(draft.value);
+
+      return (
+        <div className="grid gap-3">
+          <textarea
+            value={draft.value}
+            onChange={(event) => updateDraft(setting.id, "value", event.target.value)}
+            placeholder={meta.placeholder || "[]"}
+            dir="ltr"
+            className="min-h-56 w-full rounded-3xl border border-white/10 bg-black/35 p-4 font-mono text-sm leading-7 outline-none focus:border-purple-400"
+          />
+          <div
+            className={classNames(
+              "rounded-2xl border p-3 text-sm font-bold",
+              jsonValidation.ok
+                ? "border-emerald-400/25 bg-emerald-500/10 text-emerald-100"
+                : "border-yellow-400/25 bg-yellow-500/10 text-yellow-100"
+            )}
+          >
+            {jsonValidation.ok ? "JSON صحيح وجاهز للحفظ." : `JSON غير صحيح: ${jsonValidation.message}`}
+          </div>
+        </div>
+      );
+    }
+
     if (control === "textarea") {
       return (
         <textarea
@@ -778,10 +996,7 @@ export default function AdminSettingsPage() {
 
   if (isCheckingAuth) {
     return (
-      <main
-        dir="rtl"
-        className="flex min-h-screen items-center justify-center overflow-x-hidden bg-[#070009] text-white"
-      >
+      <main dir="rtl" className="flex min-h-screen items-center justify-center overflow-x-hidden bg-[#070009] text-white">
         <div className="rounded-[2rem] border border-purple-500/25 bg-black/45 p-8 text-center shadow-[0_0_90px_rgba(124,58,237,0.22)]">
           <div className="mb-3 text-sm text-purple-200">HAMZA AGENCY</div>
           <div className="text-2xl font-black">جاري التحقق من صلاحية الدخول...</div>
@@ -801,7 +1016,7 @@ export default function AdminSettingsPage() {
             <div>
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 <span className="rounded-full border border-purple-400/30 bg-purple-500/15 px-4 py-2 text-sm font-bold text-purple-100">
-                  Core CMS Foundation
+                  17B — Navigation Settings Foundation
                 </span>
                 <span className="rounded-full border border-emerald-400/25 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-100">
                   Settings CMS
@@ -810,8 +1025,7 @@ export default function AdminSettingsPage() {
 
               <h1 className="text-3xl font-black leading-tight md:text-5xl">إعدادات الموقع</h1>
               <p className="mt-4 max-w-3xl leading-8 text-white/62">
-                مركز منظم لإدارة هوية HAMZA AGENCY، التواصل، الفوتر، الروابط الاجتماعية،
-                SEO، الذكاء الاصطناعي، ووضع الصيانة من لوحة واحدة.
+                مركز منظم لإدارة هوية HAMZA AGENCY، التواصل، الفوتر، روابط الموقع، SEO، الذكاء الاصطناعي، ووضع الصيانة من لوحة واحدة.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-3 text-sm text-white/50">
@@ -853,28 +1067,30 @@ export default function AdminSettingsPage() {
 
         <section className="mb-6 grid gap-4 md:grid-cols-4">
           <StatCard title="كل الإعدادات" value={settings.length} note="إجمالي القيم" />
-          <StatCard title="عامة للموقع" value={publicCount} note="تقرأها الواجهة" />
-          <StatCard title="داخلية" value={privateCount} note="للإدارة فقط" />
+          <StatCard title="عامة للموقع" value={publicCount} note="تقرأها الواجهة لاحقاً" />
+          <StatCard title="إعدادات التنقل" value={navigationCount} note="أساس No-Code Navigation" />
           <StatCard title="التواصل والفوتر" value={footerAndContactCount} note="جاهزة للإدارة" />
         </section>
 
         <section className="mb-6 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-[2rem] border border-purple-500/20 bg-black/40 p-5 backdrop-blur-xl md:p-6">
+          <div className="rounded-[2rem] border border-indigo-400/20 bg-indigo-500/10 p-5 md:p-6">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
               <div>
-                <h2 className="text-2xl font-black">إدارة منظمة حسب التصنيفات</h2>
-                <p className="mt-2 leading-7 text-white/55">
-                  تعرض هذه الصفحة الحقول الجديدة مثل التصنيف، التسمية العربية، نوع الحقل،
-                  والترتيب، مع إبقاء المفاتيح التقنية قابلة للفحص عند الحاجة.
+                <h2 className="text-2xl font-black">إدارة روابط الموقع</h2>
+                <p className="mt-2 leading-7 text-white/60">
+                  هذه الخطوة تجهز إعدادات الهيدر، الفوتر، PublicQuickNav، وأزرار CTA داخل جدول settings فقط. ربط الموقع العام بهذه القيم سيتم لاحقاً بخطوة مستقلة.
+                </p>
+                <p className="mt-2 text-sm text-white/45">
+                  المتبقي للتجهيز: {missingNavigationSettings.length} من {navigationDefaultSettings.length}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={loadSettings}
-                disabled={isLoading}
-                className="rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-6 py-4 font-black shadow-[0_0_35px_rgba(168,85,247,0.25)] disabled:opacity-60"
+                onClick={prepareNavigationSettings}
+                disabled={isPreparingNavigation || isLoading}
+                className="rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-500 px-6 py-4 font-black text-white shadow-[0_0_35px_rgba(34,211,238,0.16)] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isLoading ? "جاري التحديث..." : "تحديث الإعدادات"}
+                {isPreparingNavigation ? "جاري التجهيز..." : "تجهيز إعدادات التنقل"}
               </button>
             </div>
           </div>
@@ -882,8 +1098,7 @@ export default function AdminSettingsPage() {
           <div className="rounded-[2rem] border border-amber-400/20 bg-amber-500/10 p-5 md:p-6">
             <div className="text-sm font-bold text-amber-100">تنظيم مهم</div>
             <p className="mt-2 leading-7 text-white/62">
-              تظهر الإعدادات القديمة والجديدة معاً لضمان عدم كسر أي صفحة. يتم توحيد الأسماء
-              بشكل نهائي ضمن مراجعة الجودة الشاملة.
+              لن تتغير روابط الموقع العامة الآن. بعد فحص إعدادات JSON من الإدارة، نربط القراءة في الهيدر والفوتر والقائمة السريعة بخطوة منفصلة.
             </p>
           </div>
         </section>
@@ -897,13 +1112,23 @@ export default function AdminSettingsPage() {
               className="w-full rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
             />
 
-            <button
-              type="button"
-              onClick={() => setShowAdvancedForm((current) => !current)}
-              className="rounded-2xl border border-purple-400/25 bg-purple-500/15 px-5 py-4 font-black text-purple-100"
-            >
-              {showAdvancedForm ? "إخفاء إضافة إعداد" : "إضافة إعداد مخصص"}
-            </button>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={loadSettings}
+                disabled={isLoading}
+                className="rounded-2xl border border-purple-400/25 bg-purple-500/15 px-5 py-4 font-black text-purple-100 disabled:opacity-60"
+              >
+                {isLoading ? "جاري التحديث..." : "تحديث الإعدادات"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAdvancedForm((current) => !current)}
+                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 font-black text-white/80"
+              >
+                {showAdvancedForm ? "إخفاء إضافة إعداد" : "إضافة إعداد مخصص"}
+              </button>
+            </div>
           </div>
 
           <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
@@ -934,7 +1159,7 @@ export default function AdminSettingsPage() {
                 <input
                   value={newSetting.setting_key}
                   onChange={(event) => updateNewSetting("setting_key", event.target.value)}
-                  placeholder="footer_text"
+                  placeholder="public_header_links_json"
                   className="w-full rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
                 />
               </label>
@@ -1003,6 +1228,7 @@ export default function AdminSettingsPage() {
                   value={newSetting.setting_value}
                   onChange={(event) => updateNewSetting("setting_value", event.target.value)}
                   placeholder="قيمة الإعداد"
+                  dir={newSetting.input_type === "json" ? "ltr" : "rtl"}
                   className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/35 p-4 outline-none focus:border-purple-400"
                 />
               </label>
@@ -1042,7 +1268,7 @@ export default function AdminSettingsPage() {
         <section className="space-y-5">
           {filteredSettings.length === 0 ? (
             <div className="rounded-[2rem] border border-white/10 bg-black/35 p-8 text-center text-white/55">
-              لا توجد إعدادات مطابقة. جرّب تغيير البحث أو التصنيف.
+              لا توجد إعدادات مطابقة. جرّب تغيير البحث أو التصنيف، أو اضغط تجهيز إعدادات التنقل إذا كانت غير موجودة.
             </div>
           ) : (
             orderedGroupKeys.map((groupKey) => {
@@ -1100,13 +1326,14 @@ export default function AdminSettingsPage() {
                                 >
                                   {draft.isPublic ? "عام" : "داخلي"}
                                 </span>
+                                {navigationKeys.has(key) && (
+                                  <span className="rounded-full border border-cyan-400/25 bg-cyan-500/10 px-3 py-1 text-xs font-bold text-cyan-100">
+                                    Navigation JSON
+                                  </span>
+                                )}
                               </div>
-                              <h3 className="text-xl font-black leading-8">
-                                {draft.labelAr || meta.label}
-                              </h3>
-                              <p className="mt-1 leading-7 text-white/55">
-                                {draft.description || meta.hint}
-                              </p>
+                              <h3 className="text-xl font-black leading-8">{draft.labelAr || meta.label}</h3>
+                              <p className="mt-1 leading-7 text-white/55">{draft.description || meta.hint}</p>
                             </div>
                           </div>
 
@@ -1115,9 +1342,7 @@ export default function AdminSettingsPage() {
 
                             <div className="grid gap-3 md:grid-cols-2">
                               <label>
-                                <span className="mb-2 block text-sm font-bold text-white/70">
-                                  التسمية العربية
-                                </span>
+                                <span className="mb-2 block text-sm font-bold text-white/70">التسمية العربية</span>
                                 <input
                                   value={draft.labelAr}
                                   onChange={(event) => updateDraft(setting.id, "labelAr", event.target.value)}
@@ -1126,9 +1351,7 @@ export default function AdminSettingsPage() {
                               </label>
 
                               <label>
-                                <span className="mb-2 block text-sm font-bold text-white/70">
-                                  التصنيف
-                                </span>
+                                <span className="mb-2 block text-sm font-bold text-white/70">التصنيف</span>
                                 <select
                                   value={draft.groupName}
                                   onChange={(event) => updateDraft(setting.id, "groupName", event.target.value)}
@@ -1143,9 +1366,7 @@ export default function AdminSettingsPage() {
                               </label>
 
                               <label>
-                                <span className="mb-2 block text-sm font-bold text-white/70">
-                                  نوع الحقل
-                                </span>
+                                <span className="mb-2 block text-sm font-bold text-white/70">نوع الحقل</span>
                                 <select
                                   value={draft.inputType}
                                   onChange={(event) => updateDraft(setting.id, "inputType", event.target.value)}
@@ -1170,9 +1391,7 @@ export default function AdminSettingsPage() {
                             </div>
 
                             <div>
-                              <label className="mb-2 block text-sm font-bold text-white/70">
-                                الشرح الإداري
-                              </label>
+                              <label className="mb-2 block text-sm font-bold text-white/70">الشرح الإداري</label>
                               <textarea
                                 value={draft.description}
                                 onChange={(event) => updateDraft(setting.id, "description", event.target.value)}
@@ -1245,7 +1464,7 @@ function getSettingMeta(key: string, setting?: SettingItem): SettingMeta {
     ({
       label: prettifyKey(key),
       hint: "إعداد مخصص يمكن التحكم به من لوحة الإدارة.",
-      control: "textarea",
+      control: key.endsWith("_json") ? "json" : "textarea",
     } satisfies SettingMeta);
 
   return {
@@ -1269,22 +1488,23 @@ function resolveSection(key: string): SectionDefinition {
   );
 }
 
-function resolveControl(key: string, value: string, inputType: string, meta: SettingMeta) {
+function resolveControl(key: string, value: string, inputType: string, meta: SettingMeta): SettingControl {
   const normalized = normalizeControl(inputType || meta.control);
   if (normalized) return normalized;
+  if (key.endsWith("_json")) return "json";
   if (key.includes("color")) return "color";
   if (["true", "false"].includes(value.toLowerCase())) return "toggle";
   if (value.length > 80 || value.includes(",")) return "textarea";
   return "text";
 }
 
-function normalizeControl(value?: string | null): SettingMeta["control"] | undefined {
+function normalizeControl(value?: string | null): SettingControl | undefined {
   if (!value) return undefined;
   const normalized = value.trim().toLowerCase();
   if (normalized === "boolean") return "toggle";
   if (normalized === "long_text") return "textarea";
-  if (["text", "textarea", "color", "toggle", "select", "url", "email", "number"].includes(normalized)) {
-    return normalized as SettingMeta["control"];
+  if (["text", "textarea", "json", "color", "toggle", "select", "url", "email", "number"].includes(normalized)) {
+    return normalized as SettingControl;
   }
   return undefined;
 }
@@ -1292,7 +1512,7 @@ function normalizeControl(value?: string | null): SettingMeta["control"] | undef
 function normalizeInputType(value?: string | null) {
   const normalized = value?.trim().toLowerCase() || "text";
   if (normalized === "toggle") return "boolean";
-  if (["text", "textarea", "url", "email", "color", "boolean", "select", "number"].includes(normalized)) {
+  if (["text", "textarea", "json", "url", "email", "color", "boolean", "select", "number"].includes(normalized)) {
     return normalized;
   }
   return "text";
@@ -1313,6 +1533,25 @@ function defaultDraft(): SettingDraft {
     sortOrder: "100",
     isPublic: false,
   };
+}
+
+function requiresJsonValidation(key: string, groupName: string, inputType: string) {
+  return inputType === "json" || key.endsWith("_json") || groupName === "navigation";
+}
+
+function validateJsonValue(value: string): { ok: true } | { ok: false; message: string } {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return { ok: false, message: "القيمة فارغة وليست JSON صالحاً." };
+  }
+
+  try {
+    JSON.parse(trimmed);
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "تحقق من الأقواس، الفواصل، وعلامات الاقتباس." };
+  }
 }
 
 function isEnabledValue(value: string) {
