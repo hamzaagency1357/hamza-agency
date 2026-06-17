@@ -414,6 +414,37 @@ export default function HomePage() {
     }
   }, [settings]);
 
+  const ctaLinksFromSettings = useMemo(() => {
+    const rawValue = settings.find((item) => item.setting_key === "public_cta_links_json")?.setting_value;
+
+    if (!rawValue?.trim()) {
+      return defaultPublicNavigationConfig.ctaLinks;
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue) as PublicNavigationLink[];
+      const normalized = normalizePublicNavigationConfig({
+        ...defaultPublicNavigationConfig,
+        ctaLinks: parsed,
+      });
+
+      const safeLinks = normalized.ctaLinks.filter((link) => !link.href.startsWith("/admin"));
+      return safeLinks.length ? safeLinks : defaultPublicNavigationConfig.ctaLinks;
+    } catch {
+      return defaultPublicNavigationConfig.ctaLinks;
+    }
+  }, [settings]);
+
+  const primaryJoinCta =
+    ctaLinksFromSettings.find((link) => link.key === "primary_join") ||
+    ctaLinksFromSettings.find((link) => link.href === "/apply") ||
+    { key: "primary_join", label: "انضم الآن", href: "/apply", type: "cta", isVisible: true, sortOrder: 1 };
+
+  const viewProgramsCta =
+    ctaLinksFromSettings.find((link) => link.key === "view_programs") ||
+    ctaLinksFromSettings.find((link) => link.href === "/programs") ||
+    { key: "view_programs", label: "عرض البرامج", href: "/programs", type: "cta", isVisible: true, sortOrder: 2 };
+
   const logoMedia = getMediaByPurpose({ category: "logo", nameIncludes: "logo" });
 
   const homeBackgroundMedia =
@@ -615,18 +646,22 @@ export default function HomePage() {
           </p>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <button
-              onClick={() => setShowJoinForm(true)}
-              className="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-9 py-4 text-lg font-bold shadow-[0_0_40px_rgba(168,85,247,0.45)] transition hover:scale-[1.03]"
-            >
-              انضم الآن
-            </button>
-            <Link
-              href="/programs"
-              className="rounded-full border border-white/15 bg-white/[0.05] px-9 py-4 text-lg font-bold text-white/80 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10"
-            >
-              عرض البرامج
-            </Link>
+            {primaryJoinCta.isVisible !== false && (
+              <button
+                onClick={() => setShowJoinForm(true)}
+                className="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-9 py-4 text-lg font-bold shadow-[0_0_40px_rgba(168,85,247,0.45)] transition hover:scale-[1.03]"
+              >
+                {primaryJoinCta.label}
+              </button>
+            )}
+            {viewProgramsCta.isVisible !== false && (
+              <Link
+                href={viewProgramsCta.href}
+                className="rounded-full border border-white/15 bg-white/[0.05] px-9 py-4 text-lg font-bold text-white/80 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10"
+              >
+                {viewProgramsCta.label}
+              </Link>
+            )}
           </div>
         </div>
       </section>
@@ -666,14 +701,16 @@ export default function HomePage() {
           ))}
         </div>
 
-        <div className="mt-10 text-center">
-          <Link
-            href="/programs"
-            className="inline-flex rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 font-black shadow-[0_0_35px_rgba(168,85,247,0.22)]"
-          >
-            عرض كل البرامج
-          </Link>
-        </div>
+        {viewProgramsCta.isVisible !== false && (
+          <div className="mt-10 text-center">
+            <Link
+              href={viewProgramsCta.href}
+              className="inline-flex rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 font-black shadow-[0_0_35px_rgba(168,85,247,0.22)]"
+            >
+              {viewProgramsCta.label}
+            </Link>
+          </div>
+        )}
       </section>
 
       <section className="relative z-20 mx-auto max-w-6xl px-5 pb-24">
