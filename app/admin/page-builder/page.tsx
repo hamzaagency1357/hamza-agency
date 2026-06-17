@@ -51,6 +51,21 @@ type PageBuilderSectionRow = {
   is_visible: boolean | null;
 };
 
+type PublishedSectionRow = {
+  id: number;
+  page_id: number | null;
+  section_key: string | null;
+  section_type: string | null;
+  title: string | null;
+  subtitle: string | null;
+  content: string | null;
+  sort_order: number | null;
+  is_visible: boolean | null;
+  settings: Record<string, unknown> | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
 const STORAGE_KEY = "hamza_page_builder_draft_v1";
 
 const defaultDraft: BuilderDraft = {
@@ -92,6 +107,31 @@ function safeParse(value: string | null): BuilderDraft {
   } catch {
     return defaultDraft;
   }
+}
+
+function normalizeSectionKey(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9_-]/g, "")
+    .replace(/[-_]{2,}/g, "-")
+    .replace(/^[-_]+|[-_]+$/g, "");
+}
+
+function createUniqueSectionKey(baseValue: string, fallback: string, usedKeys: Set<string>) {
+  const fallbackKey = normalizeSectionKey(fallback) || "section";
+  const baseKey = normalizeSectionKey(baseValue) || fallbackKey;
+  let candidate = baseKey;
+  let suffix = 2;
+
+  while (usedKeys.has(candidate)) {
+    candidate = `${baseKey}-${suffix}`;
+    suffix += 1;
+  }
+
+  usedKeys.add(candidate);
+  return candidate;
 }
 
 function newSection(type: SectionType): BuilderSection {
@@ -139,6 +179,7 @@ export default function AdminPageBuilderPage() {
   const [isLoadingPages, setIsLoadingPages] = useState(false);
   const [isLoadingSections, setIsLoadingSections] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
   const [pages, setPages] = useState<PageItem[]>([]);
   const [draft, setDraft] = useState<BuilderDraft>(defaultDraft);
@@ -371,6 +412,154 @@ export default function AdminPageBuilderPage() {
     setMessage("تم حفظ أقسام Page Builder في Supabase مع تحديث النسخة الاحتياطية المحلية. لم يتم نشر أي تغيير على الموقع العام بعد.");
   }
 
+  async function publishDraftToSections() {
+    setMessage("");
+    setError("");
+
+    if (!isSupabaseConfigured || !supabase) {
+      setStorageMode("احتياطي محلي — Supabase غير مهيأ");
+      setError("لا يمكن النشر لأن Supabase غير مهيأ.");
+      return;
+    }
+
+    if (!draft.pageId) {
+      setError("اختر صفحة من صفحات CMS قبل النشر إلى الأقسام المنشورة.");
+      return;
+    }
+
+    if (!draft.sections.length) {
+      setError("لا توجد أقسام في Page Builder لنشرها.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "سيتم نشر أقسام Page Builder الحالية إلى جدول sections لهذه الصفحة.\n\nسيتم تحديث الأقسام المطابقة حسب section_key، وإضافة الأقسام الجديدة، وإخفاء الأقسام المنشورة القديمة غير الموجودة في المسودة بدون حذف نهائي.\n\nهل تريد المتابعة؟"
+    );
+
+    if (!confirmed) return;
+
+    setIsPublishing(true);
+    setStorageMode("Supabase دائم — جاري النشر إلى sections");
+
+    const { data: existingData, error: existingError } = await supabase
+      .from("sections")
+      .select("id, page_id, section_key, section_type, title, subtitle, content, sort_order, is_visible, settings, created_at, updated_at")
+      .eq("page_id", draft.pageId)
+      .order("sort_order", { ascending: true });
+
+    if (existingError) {
+      setIsPublishing(false);
+      setStorageMode("Supabase دائم — فشل قراءة الأقسام المنشورة");
+      setError(`تعذر قراءة جدول sections قبل النشر: ${existingError.message}`);
+      return;
+    }
+
+    const existingSections = (existingData || []) as PublishedSectionRow[];
+    const existingByKey = new Map<string, PublishedSectionRow>();
+    existingSections.forEach((section) => {
+      if (section.section_key && !existingByKey.has(section.section_key)) {
+        existingByKey.set(section.section_key, section);
+      }
+    });
+
+    const now = new Date().toISOString();
+    const publishedKeys = new Set<string>();
+    const usedKeys = new Set<string>();
+    let createdCount = 0;
+    let updatedCount = 0;
+    let hiddenCount = 0;
+
+    for (const [index, section] of draft.sections.entries()) {
+      const sectionKey = createUniqueSectionKey(section.id, `${section.type}-${index + 1}`, usedKeys);
+      publishedKeys.add(sectionKey);
+
+      const existingSection = existingByKey.get(sectionKey);
+      const payload = {
+        page_id: draft.pageId,
+        section_key: sectionKey,
+        section_type: section.type,
+        title: section.title.trim() || sectionTypes.find((item) => item.type === section.type)?.label || "Section",
+        subtitle: "",
+        content: section.body.trim(),
+        sort_order: index + 1,
+        is_visible: true,
+        settings: {
+          source: "page_builder",
+          language: draft.language,
+          page_slug: draft.slug,
+          builder_section_id: section.id,
+          published_at: now,
+        },
+        updated_at: now,
+      };
+
+      const result = existingSection
+        ? await supabase.from("sections").update(payload).eq("id", existingSection.id)
+        : await supabase.from("sections").insert(payload);
+
+      if (result.error) {
+        setIsPublishing(false);
+        setStorageMode("Supabase دائم — فشل النشر إلى sections");
+        setError(`فشل نشر القسم "${section.title || sectionKey}": ${result.error.message}`);
+        return;
+      }
+
+      if (existingSection) updatedCount += 1;
+      else createdCount += 1;
+    }
+
+    const sectionsToHide = existingSections.filter(
+      (section) => section.section_key && !publishedKeys.has(section.section_key) && section.is_visible !== false
+    );
+
+    for (const section of sectionsToHide) {
+      const result = await supabase
+        .from("sections")
+        .update({
+          is_visible: false,
+          updated_at: now,
+        })
+        .eq("id", section.id);
+
+      if (result.error) {
+        setIsPublishing(false);
+        setStorageMode("Supabase دائم — تم النشر جزئياً مع فشل إخفاء قسم قديم");
+        setError(`تم نشر الأقسام الجديدة، لكن فشل إخفاء القسم القديم "${section.section_key}": ${result.error.message}`);
+        return;
+      }
+
+      hiddenCount += 1;
+    }
+
+    await logActivity(
+      "publish_page_builder_to_sections",
+      "sections",
+      String(draft.pageId),
+      JSON.stringify(existingSections),
+      JSON.stringify({ page_id: draft.pageId, language: draft.language, createdCount, updatedCount, hiddenCount, publishedKeys: Array.from(publishedKeys) })
+    );
+
+    setIsPublishing(false);
+    setStorageMode("Supabase دائم — تم النشر إلى sections");
+    setMessage(
+      `تم النشر إلى الأقسام المنشورة بنجاح. تم تحديث ${updatedCount}، إضافة ${createdCount}، وإخفاء ${hiddenCount} بدون حذف نهائي.`
+    );
+  }
+
+  async function logActivity(action: string, entityType: string, entityId: string, oldData: string, newData: string) {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    await supabase.from("activity_logs").insert({
+      admin_email: adminEmail,
+      action,
+      entity_type: entityType,
+      entity_id: entityId,
+      old_data: oldData,
+      new_data: newData,
+      ip_address: "",
+    });
+  }
+
   function exportDraft() {
     const blob = new Blob([JSON.stringify(draft, null, 2)], { type: "application/json;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -403,17 +592,23 @@ export default function AdminPageBuilderPage() {
             </div>
             <h1 className="text-4xl font-black md:text-5xl">منشئ الصفحات المتقدم</h1>
             <p className="mt-3 max-w-3xl leading-8 text-white/55">
-              محرر أقسام دائم مرتبط بصفحات CMS الموجودة. الحفظ يتم في Supabase، ولا يتم عرض الأقسام على الموقع العام إلا بخطوة نشر لاحقة مستقلة.
+              محرر أقسام دائم مرتبط بصفحات CMS الموجودة. الحفظ يتم في Page Builder، ويمكن نشر النسخة الجاهزة إلى جدول sections بخطوة إدارية مستقلة.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <button onClick={saveDraft} disabled={isSaving || isLoadingPages || isLoadingSections} className="rounded-full bg-gradient-to-r from-purple-600 to-yellow-500 px-6 py-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-60">
+            <button onClick={saveDraft} disabled={isSaving || isPublishing || isLoadingPages || isLoadingSections} className="rounded-full bg-gradient-to-r from-purple-600 to-yellow-500 px-6 py-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-60">
               {isSaving ? "جارٍ الحفظ..." : "حفظ دائم"}
+            </button>
+            <button onClick={publishDraftToSections} disabled={isSaving || isPublishing || isLoadingPages || isLoadingSections || !draft.pageId} className="rounded-full border border-green-400/25 bg-green-500/10 px-6 py-3 font-black text-green-100 disabled:cursor-not-allowed disabled:opacity-60">
+              {isPublishing ? "جارٍ النشر..." : "نشر إلى الأقسام المنشورة"}
             </button>
             <button onClick={exportDraft} className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">
               تصدير JSON
             </button>
+            <Link href="/admin/sections" className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">
+              الأقسام المنشورة
+            </Link>
             <Link href="/admin/pages" className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">
               إدارة الصفحات
             </Link>
@@ -439,7 +634,7 @@ export default function AdminPageBuilderPage() {
         )}
 
         <div className="mb-8 rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-5 text-sm leading-7 text-yellow-100">
-          هذه الخطوة تحفظ أقسام Page Builder فقط داخل الإدارة. لا يتم تعديل SEO أو slug أو محتوى جدول pages من هنا، ولا يتم نشر الأقسام على الموقع العام بعد.
+          النشر إلى sections يؤثر على جدول النشر العام للأقسام. لا يتم حذف أي قسم نهائياً: الأقسام القديمة غير الموجودة في المسودة يتم إخفاؤها فقط، ويمكن مراجعتها من صفحة الأقسام المنشورة.
         </div>
 
         <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -512,11 +707,14 @@ export default function AdminPageBuilderPage() {
                     <span className="rounded-full border border-purple-400/20 bg-purple-500/10 px-3 py-1 text-xs font-black text-purple-100">
                       {index + 1} / {section.type}
                     </span>
+                    <span className="mr-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-bold text-white/45" dir="ltr">
+                      {normalizeSectionKey(section.id)}
+                    </span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button type="button" onClick={() => moveSection(section.id, "up")} className="rounded-full border border-white/10 px-4 py-2 text-xs font-bold text-white/70">أعلى</button>
                     <button type="button" onClick={() => moveSection(section.id, "down")} className="rounded-full border border-white/10 px-4 py-2 text-xs font-bold text-white/70">أسفل</button>
-                    <button type="button" onClick={() => removeSection(section.id)} className="rounded-full border border-red-400/20 bg-red-500/10 px-4 py-2 text-xs font-bold text-red-100">حذف</button>
+                    <button type="button" onClick={() => removeSection(section.id)} className="rounded-full border border-red-400/20 bg-red-500/10 px-4 py-2 text-xs font-bold text-red-100">حذف من المسودة</button>
                   </div>
                 </div>
 
@@ -543,6 +741,7 @@ export default function AdminPageBuilderPage() {
                 <div key={section.id} className="rounded-2xl border border-white/10 bg-black/25 p-4">
                   <div className="text-xs font-black text-purple-100">{section.type}</div>
                   <div className="mt-2 font-black">{section.title}</div>
+                  <div className="mt-2 text-xs text-white/35" dir="ltr">{normalizeSectionKey(section.id)}</div>
                 </div>
               ))}
             </div>
