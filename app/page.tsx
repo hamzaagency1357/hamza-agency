@@ -4,6 +4,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import {
+  defaultPublicNavigationConfig,
+  normalizePublicNavigationConfig,
+  type PublicNavigationLink,
+} from "@/lib/publicNavigation";
 
 type Program = {
   id: number;
@@ -75,10 +80,10 @@ const mainNavigationLinks = [
   { label: "اتصل بنا", href: "/contact" },
 ];
 
-const footerLegalLinks = [
-  { label: "سياسة الخصوصية", href: "/privacy-policy" },
-  { label: "الشروط والأحكام", href: "/terms-and-conditions" },
-  { label: "AI Policy", href: "/ai-policy" },
+const footerLegalLinks: PublicNavigationLink[] = [
+  { label: "سياسة الخصوصية", href: "/privacy-policy", type: "legal", isVisible: true, sortOrder: 1 },
+  { label: "الشروط والأحكام", href: "/terms-and-conditions", type: "legal", isVisible: true, sortOrder: 2 },
+  { label: "AI Policy", href: "/ai-policy", type: "legal", isVisible: true, sortOrder: 3 },
 ];
 
 const fallbackPrograms: Program[] = [
@@ -365,6 +370,27 @@ export default function HomePage() {
       announcementAnimation: normalizeAnnouncementAnimation(getSetting(["announcement_bar_animation", "announcement_animation"], "marquee")),
       announcementSpeed: Number(getSetting(["announcement_bar_speed", "announcement_speed"], "22")),
     };
+  }, [settings]);
+
+  const footerLegalLinksFromSettings = useMemo(() => {
+    const rawValue = settings.find((item) => item.setting_key === "public_footer_links_json")?.setting_value;
+
+    if (!rawValue?.trim()) {
+      return footerLegalLinks;
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue) as PublicNavigationLink[];
+      const normalized = normalizePublicNavigationConfig({
+        ...defaultPublicNavigationConfig,
+        footerLinks: parsed,
+      });
+
+      const safeLinks = normalized.footerLinks.filter((link) => !link.href.startsWith("/admin"));
+      return safeLinks.length ? safeLinks : footerLegalLinks;
+    } catch {
+      return footerLegalLinks;
+    }
   }, [settings]);
 
   const logoMedia = getMediaByPurpose({ category: "logo", nameIncludes: "logo" });
@@ -746,11 +772,23 @@ export default function HomePage() {
           <div>
             <h3 className="font-black text-white">الصفحات القانونية</h3>
             <div className="mt-4 grid gap-3 text-white/60">
-              {footerLegalLinks.map((link) => (
-                <Link key={link.href} href={link.href} className="transition hover:text-yellow-200">
-                  {link.label}
-                </Link>
-              ))}
+              {footerLegalLinksFromSettings.map((link) =>
+                link.href.startsWith("/") || link.href.startsWith("#") ? (
+                  <Link key={link.href} href={link.href} className="transition hover:text-yellow-200">
+                    {link.label}
+                  </Link>
+                ) : (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    target={link.target || "_blank"}
+                    rel={link.rel || "noreferrer"}
+                    className="transition hover:text-yellow-200"
+                  >
+                    {link.label}
+                  </a>
+                )
+              )}
             </div>
           </div>
 
