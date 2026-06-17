@@ -393,6 +393,27 @@ export default function HomePage() {
     }
   }, [settings]);
 
+  const headerLinksFromSettings = useMemo(() => {
+    const rawValue = settings.find((item) => item.setting_key === "public_header_links_json")?.setting_value;
+
+    if (!rawValue?.trim()) {
+      return mainNavigationLinks;
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue) as PublicNavigationLink[];
+      const normalized = normalizePublicNavigationConfig({
+        ...defaultPublicNavigationConfig,
+        headerLinks: parsed,
+      });
+
+      const safeLinks = normalized.headerLinks.filter((link) => !link.href.startsWith("/admin"));
+      return safeLinks.length ? safeLinks : mainNavigationLinks;
+    } catch {
+      return mainNavigationLinks;
+    }
+  }, [settings]);
+
   const logoMedia = getMediaByPurpose({ category: "logo", nameIncludes: "logo" });
 
   const homeBackgroundMedia =
@@ -520,7 +541,7 @@ export default function HomePage() {
         </Link>
 
         <div className="hidden items-center gap-2 lg:flex">
-          {mainNavigationLinks.map((link) => (
+          {headerLinksFromSettings.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -534,7 +555,7 @@ export default function HomePage() {
 
       <div className="relative z-20 mx-auto mb-4 max-w-7xl px-5 lg:hidden">
         <div className="flex gap-2 overflow-x-auto pb-2">
-          {mainNavigationLinks.map((link) => (
+          {headerLinksFromSettings.map((link) => (
             <Link
               key={link.href}
               href={link.href}
