@@ -2,70 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
-
-type PublicLink = {
-  label: string;
-  href: string;
-};
-
-type PublicLinkGroup = {
-  title: string;
-  links: PublicLink[];
-};
-
-const publicLinkGroups: PublicLinkGroup[] = [
-  {
-    title: "أساسيات الوكالة",
-    links: [
-      { label: "الرئيسية", href: "/" },
-      { label: "البرامج", href: "/programs" },
-      { label: "من نحن", href: "/about" },
-      { label: "الخدمات", href: "/services" },
-      { label: "الخدمات الرقمية", href: "/digital-services" },
-      { label: "تواصل معنا", href: "/contact" },
-    ],
-  },
-  {
-    title: "تفاصيل البرامج",
-    links: [
-      { label: "TikTok", href: "/programs/tiktok" },
-      { label: "BIGO LIVE", href: "/programs/bigo-live" },
-      { label: "Yaahlan", href: "/programs/yaahlan" },
-      { label: "Xena", href: "/programs/xena" },
-      { label: "Catchii", href: "/programs/catchii" },
-    ],
-  },
-  {
-    title: "الطلبات والمتابعة",
-    links: [
-      { label: "طلب خدمة", href: "/service-request" },
-      { label: "تتبع طلب خدمة", href: "/service-status" },
-      { label: "تتبع طلب الانضمام", href: "/application-status" },
-      { label: "الوظائف", href: "/jobs" },
-    ],
-  },
-  {
-    title: "الثقة والمحتوى",
-    links: [
-      { label: "التقييمات", href: "/reviews" },
-      { label: "قصص النجاح", href: "/success-stories" },
-      { label: "الشركاء والبرامج", href: "/partners" },
-      { label: "المعرض", href: "/gallery" },
-      { label: "مركز المعرفة", href: "/knowledge-center" },
-      { label: "الأسئلة الشائعة", href: "/faq" },
-      { label: "الدعم الذكي", href: "/ai-support" },
-    ],
-  },
-  {
-    title: "معلومات قانونية",
-    links: [
-      { label: "سياسة الخصوصية", href: "/privacy-policy" },
-      { label: "الشروط والأحكام", href: "/terms-and-conditions" },
-      { label: "سياسة الذكاء الاصطناعي", href: "/ai-policy" },
-    ],
-  },
-];
+import { useEffect, useMemo, useState } from "react";
+import {
+  defaultPublicNavigationConfig,
+  getPublicNavigationConfig,
+  type PublicNavigationGroup,
+  type PublicNavigationLink,
+} from "@/lib/publicNavigation";
 
 const hiddenPublicQuickNavRoutes = ["/maintenance"];
 const containerClassName =
@@ -91,9 +34,85 @@ function getLinkClassName(active: boolean) {
   return `${linkBaseClassName} ${active ? activeLinkClassName : inactiveLinkClassName}`;
 }
 
+function isSafePublicHref(href: string) {
+  if (!href || href.startsWith("/admin")) return false;
+  return href.startsWith("/") || href.startsWith("#") || href.startsWith("https://") || href.startsWith("http://") || href.startsWith("mailto:") || href.startsWith("tel:");
+}
+
+function sanitizePublicQuickNavGroups(groups: PublicNavigationGroup[]) {
+  return groups
+    .map((group) => ({
+      ...group,
+      links: group.links.filter((link) => isSafePublicHref(link.href) && link.isVisible !== false),
+    }))
+    .filter((group) => group.isVisible !== false && group.links.length > 0);
+}
+
+function isInternalHref(href: string) {
+  return href.startsWith("/") || href.startsWith("#");
+}
+
+function PublicQuickNavLink({
+  link,
+  active,
+  onClick,
+}: {
+  link: PublicNavigationLink;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const className = getLinkClassName(active);
+  const content = (
+    <>
+      <span className="block">{link.label}</span>
+      <span className="mt-1 block text-[11px] font-normal text-white/38" dir="ltr">
+        {link.href}
+      </span>
+    </>
+  );
+
+  if (isInternalHref(link.href)) {
+    return (
+      <Link href={link.href} onClick={onClick} className={className}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <a href={link.href} target={link.target || "_blank"} rel={link.rel || "noreferrer"} onClick={onClick} className={className}>
+      {content}
+    </a>
+  );
+}
+
 export default function PublicQuickNav() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [quickNavGroups, setQuickNavGroups] = useState<PublicNavigationGroup[]>(
+    defaultPublicNavigationConfig.quickNavGroups
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadNavigation() {
+      const config = await getPublicNavigationConfig();
+      if (!isMounted) return;
+      setQuickNavGroups(sanitizePublicQuickNavGroups(config.quickNavGroups));
+    }
+
+    loadNavigation();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const visibleGroups = useMemo(() => {
+    const sanitizedGroups = sanitizePublicQuickNavGroups(quickNavGroups);
+    return sanitizedGroups.length ? sanitizedGroups : defaultPublicNavigationConfig.quickNavGroups;
+  }, [quickNavGroups]);
 
   if (shouldHidePublicQuickNav(pathname)) return null;
 
@@ -107,30 +126,25 @@ export default function PublicQuickNav() {
             </div>
             <div className="mt-1 text-sm font-black text-white">قائمة الموقع</div>
             <p className="mt-2 text-xs leading-6 text-white/55">
-              تنقل سريع بين جميع صفحات الموقع العامة، بدون روابط لوحة الإدارة.
+              تنقل سريع بين صفحات الموقع العامة، بدون روابط لوحة الإدارة.
             </p>
           </div>
 
           <nav className="grid gap-4">
-            {publicLinkGroups.map((group) => (
+            {visibleGroups.map((group) => (
               <div key={group.title} className="grid gap-2">
                 <div className={groupTitleClassName}>{group.title}</div>
 
                 {group.links.map((link) => {
-                  const active = isActiveLink(pathname, link.href);
+                  const active = isInternalHref(link.href) ? isActiveLink(pathname, link.href) : false;
 
                   return (
-                    <Link
-                      key={link.href}
-                      href={link.href}
+                    <PublicQuickNavLink
+                      key={`${group.title}-${link.href}-${link.label}`}
+                      link={link}
+                      active={active}
                       onClick={() => setIsOpen(false)}
-                      className={getLinkClassName(active)}
-                    >
-                      <span className="block">{link.label}</span>
-                      <span className="mt-1 block text-[11px] font-normal text-white/38" dir="ltr">
-                        {link.href}
-                      </span>
-                    </Link>
+                    />
                   );
                 })}
               </div>
