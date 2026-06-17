@@ -782,7 +782,7 @@ export default function HomePage() {
           <div>
             <h3 className="font-black text-white">روابط الموقع</h3>
             <div className="mt-4 grid gap-3 text-white/60">
-              {mainNavigationLinks.map((link) => (
+              {headerLinksFromSettings.map((link) => (
                 <Link key={link.href} href={link.href} className="transition hover:text-purple-200">
                   {link.label}
                 </Link>
