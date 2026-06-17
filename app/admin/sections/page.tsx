@@ -1,16 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
 
 type PageRow = {
   id: number;
   title: string | null;
   slug: string | null;
+  is_published: boolean | null;
+  sort_order: number | null;
 };
+
+type SectionSettings = Record<string, unknown>;
 
 type SectionRow = {
   id: number;
@@ -22,6 +27,7 @@ type SectionRow = {
   content: string | null;
   sort_order: number | null;
   is_visible: boolean | null;
+  settings: SectionSettings | null;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -35,150 +41,335 @@ type SectionForm = {
   content: string;
   sort_order: string;
   is_visible: boolean;
+  settings: string;
 };
 
-const emptyForm: SectionForm = {
-  page_id: "",
-  section_key: "",
-  section_type: "content",
-  title: "",
-  subtitle: "",
-  content: "",
-  sort_order: "1",
-  is_visible: true,
-};
+type JsonParseResult =
+  | { ok: true; data: SectionSettings }
+  | { ok: false; message: string };
 
 const sectionTypes = [
   { value: "hero", label: "Hero" },
-  { value: "content", label: "محتوى" },
-  { value: "cards", label: "بطاقات" },
-  { value: "steps", label: "خطوات" },
-  { value: "faq", label: "FAQ" },
+  { value: "content", label: "Content" },
+  { value: "text", label: "Text" },
+  { value: "cards", label: "Cards" },
+  { value: "features", label: "Features" },
+  { value: "stats", label: "Stats" },
+  { value: "steps", label: "Steps" },
   { value: "cta", label: "CTA" },
-  { value: "media", label: "وسائط" },
-  { value: "custom", label: "مخصص" },
+  { value: "faq", label: "FAQ" },
+  { value: "media", label: "Media" },
+  { value: "custom", label: "Custom" },
 ];
 
-function normalizeKey(value: string) {
+function createEmptyForm(pageId = "", sortOrder = "1"): SectionForm {
+  return {
+    page_id: pageId,
+    section_key: "",
+    section_type: "content",
+    title: "",
+    subtitle: "",
+    content: "",
+    sort_order: sortOrder,
+    is_visible: true,
+    settings: "{}",
+  };
+}
+
+function normalizeSectionKey(value: string) {
   return value
     .trim()
     .toLowerCase()
     .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+    .replace(/[^a-z0-9_-]/g, "")
+    .replace(/[-_]{2,}/g, "-")
+    .replace(/^[-_]+|[-_]+$/g, "");
+}
+
+function isSafeSectionKey(value: string) {
+  return /^[a-z0-9][a-z0-9_-]{0,119}$/.test(value);
+}
+
+function normalizeSectionType(value: string) {
+  const normalized = normalizeSectionKey(value);
+  return normalized || "content";
+}
+
+function parseSettingsJson(value: string): JsonParseResult {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return { ok: true, data: {} };
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+
+    if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object") {
+      return {
+        ok: false,
+        message: "حقل settings يجب أن يكون JSON Object مثل {} وليس نصاً أو رقماً أو قائمة.",
+      };
+    }
+
+    return { ok: true, data: parsed as SectionSettings };
+  } catch {
+    return {
+      ok: false,
+      message: "حقل settings يحتوي JSON غير صحيح. صحح الأقواس أو الفواصل ثم أعد الحفظ.",
+    };
+  }
+}
+
+function formatSettings(value: SectionSettings | null) {
+  if (!value) return "{}";
+
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return "{}";
+  }
 }
 
 function formatDate(value: string | null) {
   if (!value) return "غير متوفر";
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "غير متوفر";
-  return new Intl.DateTimeFormat("ar", { dateStyle: "medium", timeStyle: "short" }).format(date);
+
+  return new Intl.DateTimeFormat("ar", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
 }
 
-function getPageTitle(pages: PageRow[], pageId: number | null) {
-  const page = pages.find((item) => item.id === pageId);
-  return page?.title || page?.slug || "غير مرتبطة بصفحة";
+function getPublicPath(slug: string | null) {
+  if (!slug || slug === "home" || slug === "homepage") return "/";
+  return `/${slug}`;
 }
 
-function isArchivedSection(section: SectionRow) {
-  return Boolean(section.section_key?.startsWith("archived-") || section.title?.startsWith("محذوف -"));
+function getPageLabel(page: PageRow | null) {
+  if (!page) return "اختر صفحة";
+  return `${page.title || "بدون عنوان"} — ${getPublicPath(page.slug)}`;
 }
 
-export default function AdminSectionsPage() {
+export default function AdminPublishedSectionsPage() {
   const router = useRouter();
-  const [checking, setChecking] = useState(true);
-  const [authorized, setAuthorized] = useState(false);
+
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
+
   const [pages, setPages] = useState<PageRow[]>([]);
+  const [selectedPageId, setSelectedPageId] = useState("");
   const [sections, setSections] = useState<SectionRow[]>([]);
   const [editingSection, setEditingSection] = useState<SectionRow | null>(null);
-  const [form, setForm] = useState<SectionForm>(emptyForm);
+  const [form, setForm] = useState<SectionForm>(createEmptyForm());
+
   const [search, setSearch] = useState("");
-  const [pageFilter, setPageFilter] = useState("all");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [isLoadingPages, setIsLoadingPages] = useState(false);
+  const [isLoadingSections, setIsLoadingSections] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     async function checkAccess() {
       const access = await requireAdminModuleAccess("pages");
+
       if (!access.isAuthorized || !access.profile) {
-        router.replace("/admin/login");
+        setIsAuthorized(false);
+        setIsCheckingAuth(false);
+        router.replace(access.reason === "forbidden" ? "/admin" : "/admin/login");
         return;
       }
+
       setAdminEmail(access.profile.email || access.user?.email || "");
-      setAuthorized(true);
-      setChecking(false);
+      setIsAuthorized(true);
+      setIsCheckingAuth(false);
     }
+
     checkAccess();
   }, [router]);
 
   useEffect(() => {
-    if (!authorized) return;
-    loadData();
-  }, [authorized]);
+    if (!isAuthorized) return;
+    loadPages();
+  }, [isAuthorized]);
 
-  async function loadData() {
-    if (!supabase) return;
-    setLoading(true);
-    setError("");
+  useEffect(() => {
+    if (!isAuthorized || !selectedPageId) return;
+    loadSections(Number(selectedPageId));
+  }, [isAuthorized, selectedPageId]);
 
-    const [pagesResult, sectionsResult] = await Promise.all([
-      supabase.from("pages").select("id, title, slug").order("sort_order", { ascending: true }),
-      supabase
-        .from("sections")
-        .select("id, page_id, section_key, section_type, title, subtitle, content, sort_order, is_visible, created_at, updated_at")
-        .order("page_id", { ascending: true })
-        .order("sort_order", { ascending: true }),
-    ]);
-
-    setLoading(false);
-
-    if (pagesResult.error) {
-      setError("تعذر تحميل الصفحات. تحقق من صلاحيات جدول pages.");
-      return;
-    }
-
-    if (sectionsResult.error) {
-      setPages((pagesResult.data || []) as PageRow[]);
-      setError("تعذر تحميل الأقسام. تحقق من جدول sections وصلاحياته في Supabase.");
-      return;
-    }
-
-    setPages((pagesResult.data || []) as PageRow[]);
-    setSections((sectionsResult.data || []) as SectionRow[]);
-  }
+  const selectedPage = useMemo(
+    () => pages.find((page) => String(page.id) === selectedPageId) || null,
+    [pages, selectedPageId]
+  );
 
   const filteredSections = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const normalizedSearch = search.trim().toLowerCase();
+
     return sections.filter((section) => {
-      const pageMatch = pageFilter === "all" || String(section.page_id || "") === pageFilter;
-      const text = `${section.title || ""} ${section.subtitle || ""} ${section.content || ""} ${section.section_key || ""} ${getPageTitle(pages, section.page_id)}`.toLowerCase();
-      return pageMatch && (!query || text.includes(query));
+      const sectionText = `${section.section_key || ""} ${section.section_type || ""} ${section.title || ""} ${
+        section.subtitle || ""
+      } ${section.content || ""}`.toLowerCase();
+
+      return !normalizedSearch || sectionText.includes(normalizedSearch);
     });
-  }, [sections, pages, search, pageFilter]);
+  }, [sections, search]);
 
-  const visibleCount = sections.filter((section) => section.is_visible !== false && !isArchivedSection(section)).length;
-  const hiddenCount = sections.filter((section) => section.is_visible === false && !isArchivedSection(section)).length;
-  const archivedCount = sections.filter((section) => isArchivedSection(section)).length;
+  const nextSortOrder = useMemo(() => {
+    const maxSortOrder = sections.reduce((max, section) => {
+      const value = Number(section.sort_order || 0);
+      return Number.isFinite(value) && value > max ? value : max;
+    }, 0);
 
-  function updateField(key: keyof SectionForm, value: string | boolean) {
-    setForm((current) => ({ ...current, [key]: value }));
+    return String(maxSortOrder + 1);
+  }, [sections]);
+
+  const stats = useMemo(() => {
+    const visible = sections.filter((section) => section.is_visible !== false).length;
+    const hidden = sections.filter((section) => section.is_visible === false).length;
+
+    return {
+      total: sections.length,
+      visible,
+      hidden,
+      pages: pages.length,
+    };
+  }, [sections, pages]);
+
+  async function loadPages() {
+    if (!isSupabaseConfigured || !supabase) {
+      showError("الاتصال بقاعدة البيانات غير مفعل.");
+      return;
+    }
+
+    setIsLoadingPages(true);
+    setError("");
+
+    const { data, error: pagesError } = await supabase
+      .from("pages")
+      .select("id, title, slug, is_published, sort_order")
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    setIsLoadingPages(false);
+
+    if (pagesError) {
+      showError("تعذر تحميل الصفحات. تحقق من صلاحيات جدول pages.");
+      return;
+    }
+
+    const loadedPages = (data || []) as PageRow[];
+    setPages(loadedPages);
+
+    if (!loadedPages.length) {
+      setSelectedPageId("");
+      setSections([]);
+      setForm(createEmptyForm());
+      showError("لا توجد صفحات في جدول pages. أنشئ الصفحات الأساسية أولاً من إدارة الصفحات.");
+      return;
+    }
+
+    const currentPage = loadedPages.find((page) => String(page.id) === selectedPageId);
+    const nextPage = currentPage || loadedPages[0];
+    const nextPageId = String(nextPage.id);
+
+    setSelectedPageId(nextPageId);
+    setForm((current) => ({
+      ...current,
+      page_id: current.page_id || nextPageId,
+    }));
   }
 
-  function clearForm() {
+  async function loadSections(pageId: number) {
+    if (!isSupabaseConfigured || !supabase) {
+      showError("الاتصال بقاعدة البيانات غير مفعل.");
+      return;
+    }
+
+    setIsLoadingSections(true);
+    setError("");
+
+    const { data, error: sectionsError } = await supabase
+      .from("sections")
+      .select(
+        "id, page_id, section_key, section_type, title, subtitle, content, sort_order, is_visible, settings, created_at, updated_at"
+      )
+      .eq("page_id", pageId)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    setIsLoadingSections(false);
+
+    if (sectionsError) {
+      setSections([]);
+      showError("تعذر تحميل أقسام الصفحة من جدول sections. إذا ظهرت هذه المشكلة أثناء الاختبار نراجع SQL في خطوة مستقلة.");
+      return;
+    }
+
+    const loadedSections = (data || []) as SectionRow[];
+    setSections(loadedSections);
+
+    if (!editingSection) {
+      const maxSortOrder = loadedSections.reduce((max, section) => {
+        const value = Number(section.sort_order || 0);
+        return Number.isFinite(value) && value > max ? value : max;
+      }, 0);
+
+      setForm(createEmptyForm(String(pageId), String(maxSortOrder + 1)));
+    }
+  }
+
+  function showSuccess(text: string) {
+    setError("");
+    setMessage(text);
+  }
+
+  function showError(text: string) {
+    setMessage("");
+    setError(text);
+  }
+
+  function updateField(key: keyof SectionForm, value: string | boolean) {
+    setForm((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  function selectPage(pageId: string) {
+    setSelectedPageId(pageId);
     setEditingSection(null);
-    setForm(emptyForm);
+    setSections([]);
+    setMessage("");
+    setError("");
+    setForm(createEmptyForm(pageId));
+  }
+
+  function startNewSection() {
+    if (!selectedPageId) {
+      showError("اختر صفحة قبل إضافة قسم جديد.");
+      return;
+    }
+
+    setEditingSection(null);
+    setMessage("");
+    setError("");
+    setForm(createEmptyForm(selectedPageId, nextSortOrder));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function editSection(section: SectionRow) {
+    const pageId = section.page_id ? String(section.page_id) : selectedPageId;
+
     setEditingSection(section);
-    setMessage(`أنت الآن تعدّل القسم: ${section.title || "بدون عنوان"}`);
+    setMessage(`أنت الآن تعدّل القسم: ${section.title || section.section_key || "بدون عنوان"}`);
     setError("");
     setForm({
-      page_id: section.page_id ? String(section.page_id) : "",
+      page_id: pageId,
       section_key: section.section_key || "",
       section_type: section.section_type || "content",
       title: section.title || "",
@@ -186,50 +377,79 @@ export default function AdminSectionsPage() {
       content: section.content || "",
       sort_order: String(section.sort_order || 1),
       is_visible: section.is_visible !== false,
+      settings: formatSettings(section.settings),
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function saveSection(event: FormEvent) {
+  async function saveSection(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase) return;
+
+    if (!isSupabaseConfigured || !supabase) {
+      showError("الاتصال بقاعدة البيانات غير مفعل.");
+      return;
+    }
 
     setMessage("");
     setError("");
 
-    const pageId = form.page_id ? Number(form.page_id) : null;
-    const sectionKey = normalizeKey(form.section_key || form.title);
+    const pageId = Number(form.page_id || selectedPageId);
+    const sectionKey = normalizeSectionKey(form.section_key);
+    const sectionType = normalizeSectionType(form.section_type);
+    const sortOrder = Number(form.sort_order);
+    const settingsResult = parseSettingsJson(form.settings);
 
-    if (!form.title.trim()) {
-      setError("يرجى كتابة عنوان القسم.");
+    if (!pageId || !pages.some((page) => page.id === pageId)) {
+      showError("اختر صفحة صحيحة قبل حفظ القسم.");
       return;
     }
 
-    if (!sectionKey) {
-      setError("يرجى كتابة مفتاح صحيح للقسم باللغة الإنجليزية.");
+    if (!sectionKey || !isSafeSectionKey(sectionKey)) {
+      showError("section_key مطلوب ويجب أن يكون آمناً بالإنجليزية، مثل: home-hero أو services_cta.");
+      return;
+    }
+
+    if (!sectionType || !isSafeSectionKey(sectionType)) {
+      showError("section_type مطلوب ويجب أن يكون آمناً، مثل: hero أو content أو cta.");
+      return;
+    }
+
+    if (!form.title.trim()) {
+      showError("يرجى كتابة عنوان القسم.");
+      return;
+    }
+
+    if (!Number.isFinite(sortOrder) || sortOrder < 0) {
+      showError("sort_order يجب أن يكون رقماً صحيحاً أكبر من أو يساوي صفر.");
+      return;
+    }
+
+    if (!settingsResult.ok) {
+      showError(settingsResult.message);
       return;
     }
 
     const duplicate = sections.find(
-      (section) => section.page_id === pageId && section.section_key === sectionKey && section.id !== editingSection?.id
+      (section) => section.section_key === sectionKey && section.id !== editingSection?.id
     );
 
     if (duplicate) {
-      setError("يوجد قسم بنفس المفتاح داخل هذه الصفحة.");
+      showError("يوجد قسم آخر بنفس section_key داخل هذه الصفحة. اختر مفتاحاً مختلفاً.");
       return;
     }
 
-    setSaving(true);
+    setIsSaving(true);
 
     const payload = {
       page_id: pageId,
       section_key: sectionKey,
-      section_type: form.section_type,
+      section_type: sectionType,
       title: form.title.trim(),
       subtitle: form.subtitle.trim(),
       content: form.content.trim(),
-      sort_order: Number(form.sort_order || 1),
+      sort_order: Math.floor(sortOrder),
       is_visible: form.is_visible,
+      settings: settingsResult.data,
       updated_at: new Date().toISOString(),
     };
 
@@ -237,100 +457,70 @@ export default function AdminSectionsPage() {
       ? await supabase.from("sections").update(payload).eq("id", editingSection.id)
       : await supabase.from("sections").insert(payload);
 
-    setSaving(false);
+    setIsSaving(false);
 
     if (result.error) {
-      setError("فشل حفظ القسم. تحقق من جدول sections وصلاحياته في Supabase.");
+      showError("فشل حفظ القسم. تحقق من صلاحيات جدول sections. إذا كانت المشكلة SQL نوقف ونراجعها في خطوة مستقلة.");
       return;
     }
 
     await logActivity(
-      editingSection ? "update_section" : "create_section",
+      editingSection ? "update_published_section" : "create_published_section",
       "sections",
       editingSection?.id ? String(editingSection.id) : sectionKey,
       editingSection ? JSON.stringify(editingSection) : "",
       JSON.stringify(payload)
     );
 
-    clearForm();
-    setMessage(editingSection ? "تم تحديث القسم بنجاح." : "تمت إضافة القسم بنجاح.");
-    await loadData();
+    setEditingSection(null);
+    setForm(createEmptyForm(String(pageId)));
+    showSuccess(editingSection ? "تم تحديث القسم المنشور بنجاح." : "تمت إضافة القسم المنشور بنجاح.");
+    await loadSections(pageId);
   }
 
-  async function toggleSection(section: SectionRow) {
-    if (!supabase) return;
+  async function toggleSectionVisibility(section: SectionRow) {
+    if (!isSupabaseConfigured || !supabase) {
+      showError("الاتصال بقاعدة البيانات غير مفعل.");
+      return;
+    }
+
     setMessage("");
     setError("");
 
     const nextValue = section.is_visible === false;
-    const { error } = await supabase
-      .from("sections")
-      .update({ is_visible: nextValue, updated_at: new Date().toISOString() })
-      .eq("id", section.id);
-
-    if (error) {
-      setError("فشل تحديث حالة القسم.");
-      return;
-    }
-
-    await logActivity(
-      "toggle_section_visibility",
-      "sections",
-      String(section.id),
-      JSON.stringify(section),
-      JSON.stringify({ is_visible: nextValue })
-    );
-
-    setMessage(nextValue ? "تم إظهار القسم بنجاح." : "تم إخفاء القسم بنجاح.");
-    await loadData();
-  }
-
-  async function archiveSection(section: SectionRow) {
-    if (!supabase) return;
-
-    const sectionTitle = section.title || section.section_key || `قسم رقم ${section.id}`;
-    const confirmed = window.confirm(
-      `هل تريد حذف القسم "${sectionTitle}" من الصفحة؟\n\nسيتم إخفاؤه وأرشفته بدون مسح بياناته من قاعدة البيانات.`
-    );
-
-    if (!confirmed) return;
-
-    setMessage("");
-    setError("");
-
     const payload = {
-      title: `محذوف - ${sectionTitle}`,
-      section_key: `archived-${section.id}-${section.section_key || "section"}`,
-      is_visible: false,
-      sort_order: 9999,
+      is_visible: nextValue,
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from("sections").update(payload).eq("id", section.id);
+    const { error: updateError } = await supabase.from("sections").update(payload).eq("id", section.id);
 
-    if (error) {
-      setError("فشل حذف القسم بشكل آمن. تحقق من صلاحيات جدول sections.");
+    if (updateError) {
+      showError("فشل تحديث حالة القسم. تحقق من صلاحيات جدول sections.");
       return;
     }
 
     await logActivity(
-      "archive_section",
+      "toggle_published_section_visibility",
       "sections",
       String(section.id),
       JSON.stringify(section),
       JSON.stringify(payload)
     );
 
-    if (editingSection?.id === section.id) {
-      clearForm();
-    }
-
-    setMessage("تم حذف القسم من الواجهة وأرشفته بأمان.");
-    await loadData();
+    showSuccess(nextValue ? "تم إظهار القسم بنجاح." : "تم إخفاء القسم بنجاح بدون حذف.");
+    await loadSections(section.page_id || Number(selectedPageId));
   }
 
-  async function logActivity(action: string, entityType: string, entityId: string, oldData: string, newData: string) {
-    if (!supabase) return;
+  async function logActivity(
+    action: string,
+    entityType: string,
+    entityId: string,
+    oldData: string,
+    newData: string
+  ) {
+    if (!isSupabaseConfigured || !supabase) return;
+
     await supabase.from("activity_logs").insert({
       admin_email: adminEmail,
       action,
@@ -348,256 +538,412 @@ export default function AdminSectionsPage() {
     router.replace("/admin/login");
   }
 
-  if (checking) {
+  if (isCheckingAuth) {
     return (
       <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white">
-        <div className="rounded-[2rem] border border-purple-500/25 bg-black/45 p-8 text-center">
+        <div className="rounded-[2rem] border border-purple-500/25 bg-black/45 p-8 text-center shadow-[0_0_80px_rgba(124,58,237,0.18)]">
           <div className="mb-3 text-sm font-black tracking-[0.25em] text-yellow-200">HAMZA AGENCY</div>
-          <div className="text-2xl font-black">جاري التحقق من صلاحية الدخول...</div>
+          <div className="text-2xl font-black">جاري التحقق من صلاحية إدارة الأقسام...</div>
         </div>
       </main>
     );
   }
 
+  if (!isAuthorized) return null;
+
   return (
     <main dir="rtl" className="min-h-screen overflow-x-hidden bg-[#070009] text-white">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#4c0a77_0%,#09000d_45%,#000_100%)]" />
+      <div className="fixed inset-0 -z-10 bg-[linear-gradient(135deg,rgba(212,175,55,0.07),transparent_30%,rgba(124,58,237,0.09)_70%,transparent)]" />
 
       <div className="mx-auto max-w-7xl px-4 py-5 md:px-6 md:py-7">
-        <section className="mb-6 rounded-[2rem] border border-purple-500/20 bg-black/40 p-6 shadow-[0_0_80px_rgba(124,58,237,0.14)] backdrop-blur-xl md:p-8">
-          <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+        <section className="mb-6 overflow-hidden rounded-[2rem] border border-purple-500/20 bg-black/40 p-6 shadow-[0_0_80px_rgba(124,58,237,0.14)] backdrop-blur-xl md:p-8">
+          <div className="grid gap-6 xl:grid-cols-[1fr_auto] xl:items-center">
             <div>
               <div className="mb-4 flex flex-wrap items-center gap-3">
-                <span className="rounded-full border border-purple-400/30 bg-purple-500/15 px-4 py-2 text-sm font-bold text-purple-100">Core CMS Foundation</span>
-                <span className="rounded-full border border-yellow-400/25 bg-yellow-500/10 px-4 py-2 text-sm font-bold text-yellow-100">Sections CMS</span>
+                <span className="rounded-full border border-purple-400/30 bg-purple-500/15 px-4 py-2 text-sm font-bold text-purple-100">
+                  16B — Published Sections Manager
+                </span>
+                <span className="rounded-full border border-yellow-400/25 bg-yellow-500/10 px-4 py-2 text-sm font-bold text-yellow-100">
+                  جدول النشر العام sections
+                </span>
               </div>
-              <h1 className="text-4xl font-black leading-tight md:text-5xl">إدارة أقسام الصفحات</h1>
+
+              <h1 className="text-4xl font-black leading-tight md:text-5xl">إدارة الأقسام المنشورة</h1>
               <p className="mt-4 max-w-3xl leading-8 text-white/62">
-                هذه الصفحة تنظّم أقسام كل صفحة، مثل الواجهة الرئيسية، البطاقات، الخطوات، الأسئلة، والدعوات، وهي الأساس العملي للـ Page Builder.
+                صفحة إدارة دائمة للأقسام التي يقرأها الموقع من جدول sections. هذه الخطوة لا تعدّل صفحات الموقع العامة ولا تضيف روابط تنقل، بل تجهز التحكم الإداري الأساسي قبل ربط الواجهة لاحقاً.
               </p>
-              <p className="mt-3 text-sm text-white/45">الأدمن: {adminEmail}</p>
+              <p className="mt-3 text-sm text-white/45">الأدمن: {adminEmail || "غير متوفر"}</p>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
-              <button type="button" onClick={loadData} disabled={loading} className="rounded-2xl border border-purple-300/25 bg-purple-500/10 px-5 py-3 font-black text-purple-100 disabled:opacity-60">
-                {loading ? "جاري التحديث..." : "تحديث الأقسام"}
+            <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
+              <button
+                type="button"
+                onClick={loadPages}
+                disabled={isLoadingPages || isLoadingSections}
+                className="rounded-2xl border border-purple-300/25 bg-purple-500/10 px-5 py-3 font-black text-purple-100 transition hover:bg-purple-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isLoadingPages || isLoadingSections ? "جاري التحديث..." : "تحديث البيانات"}
               </button>
-              <Link href="/admin/pages" className="rounded-2xl border border-cyan-300/20 bg-cyan-500/10 px-5 py-3 text-center font-bold text-cyan-100">إدارة الصفحات</Link>
-              <Link href="/admin" className="rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-center font-bold text-white/80">لوحة التحكم</Link>
-              <button type="button" onClick={logout} className="rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-3 font-bold text-red-100">تسجيل الخروج</button>
+              <Link
+                href="/admin/pages"
+                className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 px-5 py-3 text-center font-bold text-yellow-100 transition hover:bg-yellow-500/15"
+              >
+                إدارة الصفحات
+              </Link>
+              <Link
+                href="/admin"
+                className="rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-center font-bold text-white/80 transition hover:bg-white/10"
+              >
+                لوحة التحكم
+              </Link>
+              <button
+                type="button"
+                onClick={logout}
+                className="rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-3 font-bold text-red-100 transition hover:bg-red-500/20"
+              >
+                تسجيل الخروج
+              </button>
             </div>
           </div>
         </section>
 
-        <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <StatCard title="كل الأقسام" value={sections.length} tone="purple" />
-          <StatCard title="ظاهرة" value={visibleCount} tone="green" />
-          <StatCard title="مخفية" value={hiddenCount} tone="yellow" />
-          <StatCard title="محذوفة بأمان" value={archivedCount} tone="red" />
-          <StatCard title="الصفحات" value={pages.length} tone="blue" />
+        <section className="mb-6 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-5 leading-8 text-yellow-50">
+          <strong>ملاحظة مهمة:</strong> هذه الصفحة تدير الأقسام المنشورة داخل قاعدة البيانات فقط. لا يوجد حذف نهائي، ولا يوجد تعديل SQL، ولا يوجد ربط جديد مع الموقع العام في هذه الخطوة.
         </section>
 
         {(message || error) && (
-          <section className={`mb-6 rounded-3xl border p-5 font-bold leading-8 ${error ? "border-red-400/25 bg-red-500/10 text-red-100" : "border-green-400/25 bg-green-500/10 text-green-100"}`}>
+          <section
+            className={`mb-6 rounded-[2rem] border p-5 font-bold leading-8 ${
+              error
+                ? "border-red-400/30 bg-red-500/10 text-red-100"
+                : "border-green-400/30 bg-green-500/10 text-green-100"
+            }`}
+          >
             {error || message}
           </section>
         )}
 
-        <section className="mb-8 rounded-[2rem] border border-purple-500/20 bg-black/40 p-5 shadow-[0_0_70px_rgba(124,58,237,0.1)] backdrop-blur md:p-6">
-          <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
-            <div>
-              <h2 className="text-3xl font-black">{editingSection ? "تعديل قسم" : "إضافة قسم جديد"}</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-7 text-white/52">اختر الصفحة، نوع القسم، عنوانه، محتواه، وترتيبه.</p>
-            </div>
-            {editingSection && (
-              <button type="button" onClick={clearForm} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 font-bold text-white/75">إلغاء التعديل</button>
-            )}
-          </div>
+        <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="صفحات CMS" value={stats.pages} />
+          <StatCard label="أقسام هذه الصفحة" value={stats.total} />
+          <StatCard label="أقسام ظاهرة" value={stats.visible} />
+          <StatCard label="أقسام مخفية" value={stats.hidden} />
+        </section>
 
-          <form onSubmit={saveSection} className="grid gap-5">
+        <section className="mb-6 grid gap-4 rounded-[2rem] border border-white/10 bg-black/35 p-5 md:grid-cols-[minmax(0,1fr)_minmax(260px,360px)]">
+          <label className="grid gap-2 text-sm font-black text-white/70">
+            الصفحة المراد إدارة أقسامها
+            <select
+              value={selectedPageId}
+              onChange={(event) => selectPage(event.target.value)}
+              className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-white outline-none"
+            >
+              {pages.length === 0 && <option value="">لا توجد صفحات</option>}
+              {pages.map((page) => (
+                <option key={page.id} value={page.id}>
+                  {getPageLabel(page)} {page.is_published === false ? "— غير منشورة" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="rounded-2xl border border-purple-400/20 bg-purple-500/10 p-4 text-sm leading-7 text-purple-50">
+            <div className="font-black">الصفحة الحالية</div>
+            <div className="mt-1 text-white/80">{getPageLabel(selectedPage)}</div>
+            <div className="mt-1 text-white/50">الأقسام تعرض حسب sort_order من الأصغر إلى الأكبر.</div>
+          </div>
+        </section>
+
+        <section className="mb-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <form onSubmit={saveSection} className="rounded-[2rem] border border-white/10 bg-black/35 p-5 md:p-6">
+            <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-2xl font-black">{editingSection ? "تعديل قسم منشور" : "إضافة قسم منشور"}</h2>
+                <p className="mt-2 text-sm leading-7 text-white/50">
+                  اكتب بيانات القسم كما يجب أن تحفظ في جدول sections. حقل settings مخصص للصور، الخلفيات، الأزرار، الروابط، أو أي إعدادات مستقبلية.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={startNewSection}
+                className="rounded-2xl border border-white/15 bg-white/5 px-5 py-3 font-bold text-white/80 transition hover:bg-white/10"
+              >
+                قسم جديد
+              </button>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="الصفحة المرتبطة">
-                <select value={form.page_id} onChange={(event) => updateField("page_id", event.target.value)} className="input-control">
-                  <option value="">بدون صفحة</option>
+              <label className="grid gap-2 text-sm font-black text-white/70">
+                page_id
+                <select
+                  value={form.page_id}
+                  onChange={(event) => updateField("page_id", event.target.value)}
+                  className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-white outline-none"
+                >
                   {pages.map((page) => (
-                    <option key={page.id} value={page.id}>{page.title || page.slug || `Page ${page.id}`}</option>
+                    <option key={page.id} value={page.id}>
+                      {getPageLabel(page)}
+                    </option>
                   ))}
                 </select>
-              </Field>
+              </label>
 
-              <Field label="نوع القسم">
-                <select value={form.section_type} onChange={(event) => updateField("section_type", event.target.value)} className="input-control">
-                  {sectionTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+              <AdminInput
+                label="sort_order"
+                value={form.sort_order}
+                onChange={(value) => updateField("sort_order", value)}
+                type="number"
+                min="0"
+                placeholder="1"
+              />
+
+              <AdminInput
+                label="section_key"
+                value={form.section_key}
+                onChange={(value) => updateField("section_key", value)}
+                placeholder="home-hero"
+                dir="ltr"
+              />
+
+              <label className="grid gap-2 text-sm font-black text-white/70">
+                section_type
+                <select
+                  value={form.section_type}
+                  onChange={(event) => updateField("section_type", event.target.value)}
+                  className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-white outline-none"
+                >
+                  {sectionTypes.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label} — {item.value}
+                    </option>
+                  ))}
                 </select>
-              </Field>
+              </label>
 
-              <Field label="عنوان القسم">
-                <input value={form.title} onChange={(event) => updateField("title", event.target.value)} placeholder="عنوان القسم" className="input-control" />
-              </Field>
+              <AdminInput
+                label="title"
+                value={form.title}
+                onChange={(value) => updateField("title", value)}
+                placeholder="عنوان القسم"
+              />
 
-              <Field label="مفتاح القسم">
-                <input value={form.section_key} onChange={(event) => updateField("section_key", event.target.value)} placeholder="hero" dir="ltr" className="input-control text-left" />
-              </Field>
+              <AdminInput
+                label="subtitle"
+                value={form.subtitle}
+                onChange={(value) => updateField("subtitle", value)}
+                placeholder="وصف قصير أو سطر فرعي"
+              />
             </div>
 
-            <Field label="العنوان الفرعي">
-              <input value={form.subtitle} onChange={(event) => updateField("subtitle", event.target.value)} placeholder="وصف قصير للقسم" className="input-control" />
-            </Field>
+            <div className="mt-4 grid gap-4">
+              <label className="grid gap-2 text-sm font-black text-white/70">
+                content
+                <textarea
+                  value={form.content}
+                  onChange={(event) => updateField("content", event.target.value)}
+                  rows={7}
+                  className="resize-y rounded-2xl border border-white/10 bg-black/40 px-5 py-4 leading-8 text-white outline-none placeholder:text-white/25"
+                  placeholder="اكتب محتوى القسم هنا..."
+                />
+              </label>
 
-            <Field label="محتوى القسم">
-              <textarea value={form.content} onChange={(event) => updateField("content", event.target.value)} placeholder="محتوى القسم..." rows={7} className="input-control leading-8" />
-            </Field>
+              <label className="grid gap-2 text-sm font-black text-white/70">
+                settings JSON
+                <textarea
+                  value={form.settings}
+                  onChange={(event) => updateField("settings", event.target.value)}
+                  rows={8}
+                  dir="ltr"
+                  className="resize-y rounded-2xl border border-white/10 bg-black/40 px-5 py-4 font-mono text-sm leading-7 text-white outline-none placeholder:text-white/25"
+                  placeholder={'{"buttonText":"انضم الآن","buttonUrl":"/apply"}'}
+                />
+              </label>
 
-            <div className="grid gap-4 md:grid-cols-[1fr_1.4fr]">
-              <Field label="الترتيب">
-                <input value={form.sort_order} onChange={(event) => updateField("sort_order", event.target.value)} type="number" min="1" className="input-control" />
-              </Field>
-
-              <button type="button" onClick={() => updateField("is_visible", !form.is_visible)} className={`rounded-3xl border p-4 text-right ${form.is_visible ? "border-green-400/25 bg-green-500/10 text-green-100" : "border-white/10 bg-white/[0.04] text-white/55"}`}>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-black">حالة الظهور</span>
-                  <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-bold">{form.is_visible ? "ظاهر" : "مخفي"}</span>
-                </div>
-                <p className="mt-2 text-sm leading-6 opacity-75">يمكن إخفاء القسم من الواجهة بدون إزالة بياناته.</p>
-              </button>
+              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm font-black text-white/75">
+                <input
+                  type="checkbox"
+                  checked={form.is_visible}
+                  onChange={(event) => updateField("is_visible", event.target.checked)}
+                  className="h-5 w-5 accent-purple-500"
+                />
+                إظهار القسم على الموقع عندما تقرأ الصفحة العامة من sections
+              </label>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <button type="submit" disabled={saving} className="rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 font-black text-white disabled:opacity-60">
-                {saving ? "جارٍ الحفظ..." : editingSection ? "حفظ التعديل" : "إضافة القسم"}
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="submit"
+                disabled={isSaving || !selectedPageId}
+                className="rounded-2xl bg-gradient-to-r from-purple-600 to-yellow-500 px-6 py-4 font-black text-white shadow-[0_18px_40px_rgba(124,58,237,0.22)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSaving ? "جارٍ الحفظ..." : editingSection ? "حفظ التعديل" : "إضافة القسم"}
               </button>
-              <button type="button" onClick={clearForm} className="rounded-2xl border border-white/15 bg-white/5 px-6 py-4 font-bold text-white/70">تفريغ النموذج</button>
+              <button
+                type="button"
+                onClick={startNewSection}
+                className="rounded-2xl border border-white/15 bg-white/5 px-6 py-4 font-bold text-white/75 transition hover:bg-white/10"
+              >
+                إلغاء/تفريغ النموذج
+              </button>
             </div>
           </form>
-        </section>
 
-        <section className="rounded-[2rem] border border-purple-500/20 bg-black/40 p-5 shadow-[0_0_70px_rgba(124,58,237,0.1)] backdrop-blur md:p-6">
-          <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_300px_300px] lg:items-end">
-            <div>
-              <h2 className="text-3xl font-black">قائمة الأقسام</h2>
-              <p className="mt-2 text-white/55">استعرض الأقسام حسب الصفحة، حالة الظهور، نوع القسم، والترتيب.</p>
+          <aside className="rounded-[2rem] border border-white/10 bg-black/35 p-5 md:p-6">
+            <h2 className="text-2xl font-black">قواعد السلامة</h2>
+            <div className="mt-4 grid gap-3 text-sm leading-7 text-white/58">
+              <SafetyItem text="لا يوجد حذف نهائي من هذه الصفحة." />
+              <SafetyItem text="section_key يتم حفظه بصيغة آمنة فقط." />
+              <SafetyItem text="settings يجب أن يكون JSON Object صحيح." />
+              <SafetyItem text="الصلاحية المستخدمة حالياً هي pages بدون تعديل نظام الصلاحيات." />
+              <SafetyItem text="لا يتم نشر أي ربط جديد مع الصفحة الرئيسية في هذه الخطوة." />
             </div>
-            <select value={pageFilter} onChange={(event) => setPageFilter(event.target.value)} className="input-control">
-              <option value="all">كل الصفحات</option>
-              {pages.map((page) => <option key={page.id} value={page.id}>{page.title || page.slug || `Page ${page.id}`}</option>)}
-            </select>
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="بحث في الأقسام..." className="input-control" />
-          </div>
-
-          <div className="overflow-x-auto rounded-3xl border border-white/10">
-            <table className="w-full min-w-[980px]">
-              <thead>
-                <tr className="border-b border-purple-500/20 bg-white/[0.03] text-sm text-white/55">
-                  <th className="p-4 text-right">القسم</th>
-                  <th className="p-4 text-right">الصفحة</th>
-                  <th className="p-4 text-right">النوع</th>
-                  <th className="p-4 text-right">الحالة</th>
-                  <th className="p-4 text-right">الترتيب</th>
-                  <th className="p-4 text-right">آخر تحديث</th>
-                  <th className="p-4 text-right">الإجراءات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSections.length === 0 ? (
-                  <tr><td colSpan={7} className="p-8 text-center text-white/50">لا توجد أقسام مطابقة.</td></tr>
-                ) : (
-                  filteredSections.map((section) => {
-                    const archived = isArchivedSection(section);
-
-                    return (
-                      <tr key={section.id} className="border-b border-white/5 align-top last:border-b-0">
-                        <td className="p-4">
-                          <div className="font-black text-white">{section.title || "بدون عنوان"}</div>
-                          <div className="mt-1 font-mono text-xs text-purple-200" dir="ltr">{section.section_key || "-"}</div>
-                          <div className="mt-2 max-w-sm text-sm leading-6 text-white/45">{section.subtitle || section.content || "لا يوجد محتوى بعد."}</div>
-                        </td>
-                        <td className="p-4 text-white/70">{getPageTitle(pages, section.page_id)}</td>
-                        <td className="p-4 text-sm text-white/60">{section.section_type || "content"}</td>
-                        <td className="p-4">{archived ? <ArchivedBadge /> : <StatusBadge active={section.is_visible !== false} />}</td>
-                        <td className="p-4 text-white/70">{section.sort_order || 1}</td>
-                        <td className="p-4 text-sm text-white/45">{formatDate(section.updated_at || section.created_at)}</td>
-                        <td className="p-4">
-                          <div className="flex flex-wrap gap-2">
-                            <button type="button" onClick={() => editSection(section)} className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-sm font-bold text-purple-100">تعديل</button>
-                            {!archived && (
-                              <>
-                                <button type="button" onClick={() => toggleSection(section)} className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm font-bold text-yellow-100">{section.is_visible !== false ? "إخفاء" : "إظهار"}</button>
-                                <button type="button" onClick={() => archiveSection(section)} className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-bold text-red-100">حذف آمن</button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+          </aside>
         </section>
 
-        <style jsx>{`
-          .input-control {
-            width: 100%;
-            border-radius: 1.25rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(0, 0, 0, 0.32);
-            padding: 1rem;
-            color: white;
-            outline: none;
-          }
-          .input-control:focus {
-            border-color: rgba(192, 132, 252, 0.85);
-            background: rgba(0, 0, 0, 0.46);
-          }
-          .input-control::placeholder {
-            color: rgba(255, 255, 255, 0.32);
-          }
-        `}</style>
+        <section className="rounded-[2rem] border border-white/10 bg-black/35 p-5 md:p-6">
+          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-2xl font-black">أقسام الصفحة المحددة</h2>
+              <p className="mt-2 text-sm text-white/50">{getPageLabel(selectedPage)}</p>
+            </div>
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="بحث داخل الأقسام..."
+              className="w-full rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-white outline-none placeholder:text-white/25 md:max-w-sm"
+            />
+          </div>
+
+          {isLoadingSections ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center text-white/60">
+              جاري تحميل الأقسام...
+            </div>
+          ) : filteredSections.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center text-white/60">
+              لا توجد أقسام مطابقة لهذه الصفحة حالياً.
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {filteredSections.map((section) => (
+                <article
+                  key={section.id}
+                  className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 transition hover:border-purple-300/25"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <StatusBadge visible={section.is_visible !== false} />
+                        <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs font-bold text-white/60">
+                          sort_order: {section.sort_order ?? 0}
+                        </span>
+                        <span className="rounded-full border border-purple-400/20 bg-purple-500/10 px-3 py-1 text-xs font-bold text-purple-100">
+                          {section.section_type || "content"}
+                        </span>
+                      </div>
+
+                      <h3 className="break-words text-xl font-black text-white">{section.title || "بدون عنوان"}</h3>
+                      <p className="mt-2 break-words text-sm text-yellow-100/80" dir="ltr">
+                        {section.section_key || "no-key"}
+                      </p>
+                      {section.subtitle && <p className="mt-3 leading-7 text-white/55">{section.subtitle}</p>}
+                      {section.content && <p className="mt-3 line-clamp-3 leading-7 text-white/45">{section.content}</p>}
+
+                      <div className="mt-4 grid gap-2 text-xs text-white/35 md:grid-cols-2">
+                        <div>Created: {formatDate(section.created_at)}</div>
+                        <div>Updated: {formatDate(section.updated_at)}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+                      <button
+                        type="button"
+                        onClick={() => editSection(section)}
+                        className="rounded-2xl border border-purple-300/25 bg-purple-500/10 px-5 py-3 font-bold text-purple-100 transition hover:bg-purple-500/15"
+                      >
+                        تعديل
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleSectionVisibility(section)}
+                        className={`rounded-2xl border px-5 py-3 font-bold transition ${
+                          section.is_visible === false
+                            ? "border-green-400/25 bg-green-500/10 text-green-100 hover:bg-green-500/15"
+                            : "border-yellow-400/25 bg-yellow-500/10 text-yellow-100 hover:bg-yellow-500/15"
+                        }`}
+                      >
+                        {section.is_visible === false ? "إظهار" : "إخفاء"}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-black text-white/78">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function StatCard({ title, value, tone }: { title: string; value: number; tone: string }) {
-  const toneClass =
-    tone === "green"
-      ? "border-green-400/20 bg-green-500/10 text-green-100"
-      : tone === "yellow"
-        ? "border-yellow-400/20 bg-yellow-500/10 text-yellow-100"
-        : tone === "blue"
-          ? "border-blue-400/20 bg-blue-500/10 text-blue-100"
-          : tone === "red"
-            ? "border-red-400/20 bg-red-500/10 text-red-100"
-            : "border-purple-400/20 bg-purple-500/10 text-purple-100";
-
-  return (
-    <div className={`rounded-3xl border p-5 ${toneClass}`}>
-      <div className="text-3xl font-black">{value}</div>
-      <div className="mt-2 text-sm font-bold opacity-80">{title}</div>
+    <div className="rounded-[2rem] border border-white/10 bg-black/35 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.2)]">
+      <div className="text-sm font-bold text-white/45">{label}</div>
+      <div className="mt-2 text-4xl font-black text-white">{value}</div>
     </div>
   );
 }
 
-function StatusBadge({ active }: { active: boolean }) {
-  return active ? (
-    <span className="inline-flex rounded-full border border-green-400/25 bg-green-500/10 px-3 py-1 text-xs font-bold text-green-100">ظاهر</span>
-  ) : (
-    <span className="inline-flex rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-xs font-bold text-white/55">مخفي</span>
+function AdminInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+  min,
+  dir,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+  min?: string;
+  dir?: "ltr" | "rtl" | "auto";
+}) {
+  return (
+    <label className="grid gap-2 text-sm font-black text-white/70">
+      {label}
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        type={type}
+        min={min}
+        dir={dir}
+        className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-white outline-none placeholder:text-white/25"
+        placeholder={placeholder}
+      />
+    </label>
   );
 }
 
-function ArchivedBadge() {
+function StatusBadge({ visible }: { visible: boolean }) {
+  return visible ? (
+    <span className="rounded-full border border-green-400/25 bg-green-500/10 px-3 py-1 text-xs font-black text-green-100">
+      ظاهر
+    </span>
+  ) : (
+    <span className="rounded-full border border-red-400/25 bg-red-500/10 px-3 py-1 text-xs font-black text-red-100">
+      مخفي
+    </span>
+  );
+}
+
+function SafetyItem({ text }: { text: string }) {
   return (
-    <span className="inline-flex rounded-full border border-red-400/25 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-100">محذوف بأمان</span>
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      {text}
+    </div>
   );
 }
