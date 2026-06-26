@@ -27,68 +27,27 @@ type ExistingHomepageSetting = {
 };
 
 const homepageStatDefinitions: HomepageStatDefinition[] = [
-  {
-    key: "home_stat_1_number",
-    value: "+7000",
-    label: "رقم صناع المحتوى",
-    description: "الرقم الأول الظاهر في الصفحة الرئيسية.",
-    sortOrder: 50,
-  },
-  {
-    key: "home_stat_1_label",
-    value: "صانع محتوى",
-    label: "تسمية صناع المحتوى",
-    description: "تسمية الرقم الأول الظاهر في الصفحة الرئيسية.",
-    sortOrder: 60,
-  },
-  {
-    key: "home_stat_2_number",
-    value: "+5",
-    label: "رقم المنصات المتاحة",
-    description: "الرقم الثاني الظاهر في الصفحة الرئيسية.",
-    sortOrder: 70,
-  },
-  {
-    key: "home_stat_2_label",
-    value: "منصات متاحة",
-    label: "تسمية المنصات المتاحة",
-    description: "تسمية الرقم الثاني الظاهر في الصفحة الرئيسية.",
-    sortOrder: 80,
-  },
-  {
-    key: "home_stat_3_number",
-    value: "24/7",
-    label: "رقم الدعم والمتابعة",
-    description: "الرقم الثالث الظاهر في الصفحة الرئيسية.",
-    sortOrder: 90,
-  },
-  {
-    key: "home_stat_3_label",
-    value: "دعم ومتابعة",
-    label: "تسمية الدعم والمتابعة",
-    description: "تسمية الرقم الثالث الظاهر في الصفحة الرئيسية.",
-    sortOrder: 100,
-  },
-  {
-    key: "home_stat_4_number",
-    value: "+500",
-    label: "رقم فرص النجاح الشهرية",
-    description: "الرقم الرابع الظاهر في الصفحة الرئيسية.",
-    sortOrder: 110,
-  },
-  {
-    key: "home_stat_4_label",
-    value: "فرصة نجاح شهرية",
-    label: "تسمية فرص النجاح الشهرية",
-    description: "تسمية الرقم الرابع الظاهر في الصفحة الرئيسية.",
-    sortOrder: 120,
-  },
+  { key: "home_stat_1_number", value: "+7000", label: "رقم صناع المحتوى", description: "الرقم الأول الظاهر في الصفحة الرئيسية.", sortOrder: 50 },
+  { key: "home_stat_1_label", value: "صانع محتوى", label: "تسمية صناع المحتوى", description: "تسمية الرقم الأول الظاهر في الصفحة الرئيسية.", sortOrder: 60 },
+  { key: "home_stat_2_number", value: "+5", label: "رقم المنصات المتاحة", description: "الرقم الثاني الظاهر في الصفحة الرئيسية.", sortOrder: 70 },
+  { key: "home_stat_2_label", value: "منصات متاحة", label: "تسمية المنصات المتاحة", description: "تسمية الرقم الثاني الظاهر في الصفحة الرئيسية.", sortOrder: 80 },
+  { key: "home_stat_3_number", value: "24/7", label: "رقم الدعم والمتابعة", description: "الرقم الثالث الظاهر في الصفحة الرئيسية.", sortOrder: 90 },
+  { key: "home_stat_3_label", value: "دعم ومتابعة", label: "تسمية الدعم والمتابعة", description: "تسمية الرقم الثالث الظاهر في الصفحة الرئيسية.", sortOrder: 100 },
+  { key: "home_stat_4_number", value: "+500", label: "رقم فرص النجاح الشهرية", description: "الرقم الرابع الظاهر في الصفحة الرئيسية.", sortOrder: 110 },
+  { key: "home_stat_4_label", value: "فرصة نجاح شهرية", label: "تسمية فرص النجاح الشهرية", description: "تسمية الرقم الرابع الظاهر في الصفحة الرئيسية.", sortOrder: 120 },
 ];
 
 function buildDefaultValues() {
   return homepageStatDefinitions.reduce<Record<string, string>>((values, definition) => {
     values[definition.key] = definition.value;
     return values;
+  }, {});
+}
+
+function toSettingsMap(data: ExistingHomepageSetting[]) {
+  return data.reduce<Record<string, ExistingHomepageSetting>>((result, setting) => {
+    result[setting.setting_key] = setting;
+    return result;
   }, {});
 }
 
@@ -277,20 +236,12 @@ export default function FinalVisualPolish() {
         }
 
         @media (max-width: 1024px) {
-          .hfp-card-stack {
-            display: none;
-          }
-
-          .hfp-orbit-one,
-          .hfp-orbit-two {
-            opacity: 0.2;
-          }
+          .hfp-card-stack { display: none; }
+          .hfp-orbit-one, .hfp-orbit-two { opacity: 0.2; }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .hamza-final-polish * {
-            animation: none !important;
-          }
+          .hamza-final-polish * { animation: none !important; }
         }
       `}</style>
     </>
@@ -322,13 +273,11 @@ function HomepageStatsSettingsPanel() {
         return;
       }
 
+      const keys = homepageStatDefinitions.map((definition) => definition.key);
       const { data, error: readError } = await client
         .from("settings")
         .select("id, setting_key, setting_value")
-        .in(
-          "setting_key",
-          homepageStatDefinitions.map((definition) => definition.key)
-        );
+        .in("setting_key", keys);
 
       if (readError) {
         if (isMounted) {
@@ -340,13 +289,8 @@ function HomepageStatsSettingsPanel() {
         return;
       }
 
-      const existing = ((data || []) as ExistingHomepageSetting[]).reduce<Record<string, ExistingHomepageSetting>>(
-        (result, setting) => {
-          result[setting.setting_key] = setting;
-          return result;
-        },
-        {}
-      );
+      let records = (data || []) as ExistingHomepageSetting[];
+      const existing = toSettingsMap(records);
       const missing = homepageStatDefinitions.filter((definition) => !existing[definition.key]);
 
       if (missing.length) {
@@ -371,32 +315,46 @@ function HomepageStatsSettingsPanel() {
           if (isMounted) {
             setIsAuthorized(true);
             setAdminEmail(access.profile.email || "");
-            setError("تعذر تجهيز بعض إحصاءات الصفحة الرئيسية. يمكنك المحاولة من زر الحفظ لاحقاً.");
+            setError("تعذر تجهيز بعض إحصاءات الصفحة الرئيسية. حاول إعادة فتح الصفحة قبل الحفظ.");
             setIsLoading(false);
           }
           return;
         }
 
-        payload.forEach((setting, index) => {
-          existing[setting.setting_key] = {
-            id: -index - 1,
-            setting_key: setting.setting_key,
-            setting_value: setting.setting_value,
-          };
-        });
+        const { data: refreshedData, error: refreshError } = await client
+          .from("settings")
+          .select("id, setting_key, setting_value")
+          .in("setting_key", keys);
+
+        if (refreshError) {
+          if (isMounted) {
+            setIsAuthorized(true);
+            setAdminEmail(access.profile.email || "");
+            setError("تم تجهيز الإحصاءات، لكن تعذر تثبيت سجلاتها للحفظ. أعد فتح الصفحة قبل التعديل.");
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        records = (refreshedData || []) as ExistingHomepageSetting[];
       }
 
+      const actualSettings = toSettingsMap(records);
       const nextValues = buildDefaultValues();
-      Object.values(existing).forEach((setting) => {
+      Object.values(actualSettings).forEach((setting) => {
         if (setting.setting_value !== null) nextValues[setting.setting_key] = setting.setting_value;
       });
 
       if (isMounted) {
         setIsAuthorized(true);
         setAdminEmail(access.profile.email || "");
-        setSavedSettings(existing);
+        setSavedSettings(actualSettings);
         setValues(nextValues);
-        setMessage(missing.length ? "تم تجهيز الإحصاءات الناقصة بالقيم الافتراضية الجديدة. يمكنك تعديلها وحفظها في أي وقت." : "إحصاءات الصفحة الرئيسية جاهزة للتعديل في أي وقت.");
+        setMessage(
+          missing.length
+            ? "تم تجهيز الإحصاءات الناقصة بالقيم الافتراضية الجديدة. يمكنك تعديلها وحفظها في أي وقت."
+            : "إحصاءات الصفحة الرئيسية جاهزة للتعديل في أي وقت."
+        );
         setIsLoading(false);
       }
     }
@@ -419,47 +377,33 @@ function HomepageStatsSettingsPanel() {
       return;
     }
 
+    const missingSavedKeys = homepageStatDefinitions.filter((definition) => !savedSettings[definition.key]);
+    if (missingSavedKeys.length) {
+      setError("تعذر التحقق من سجلات الإحصاءات. حدّث صفحة Settings ثم حاول الحفظ مرة أخرى.");
+      return;
+    }
+
     setIsSaving(true);
     setMessage("");
     setError("");
 
     const now = new Date().toISOString();
+    const nextValues: Record<string, string> = {};
 
     for (const definition of homepageStatDefinitions) {
-      const existing = savedSettings[definition.key];
+      const setting = savedSettings[definition.key];
       const value = values[definition.key]?.trim() || definition.value;
+      nextValues[definition.key] = value;
 
-      if (existing && existing.id > 0) {
-        const { error: updateError } = await client
-          .from("settings")
-          .update({ setting_value: value, updated_at: now })
-          .eq("id", existing.id);
+      const { error: updateError } = await client
+        .from("settings")
+        .update({ setting_value: value, updated_at: now })
+        .eq("id", setting.id);
 
-        if (updateError) {
-          setIsSaving(false);
-          setError("فشل حفظ أحد الإعدادات. لم يتم إكمال العملية.");
-          return;
-        }
-      } else {
-        const { error: insertError } = await client.from("settings").insert({
-          setting_key: definition.key,
-          setting_value: value,
-          setting_group: "homepage",
-          group_name: "homepage",
-          label_ar: definition.label,
-          label_en: "",
-          description: definition.description,
-          input_type: "text",
-          sort_order: definition.sortOrder,
-          is_public: true,
-          updated_at: now,
-        });
-
-        if (insertError) {
-          setIsSaving(false);
-          setError("فشل إنشاء أحد الإعدادات الناقصة. لم يتم إكمال العملية.");
-          return;
-        }
+      if (updateError) {
+        setIsSaving(false);
+        setError("فشل حفظ أحد الإعدادات. حدّث الصفحة قبل محاولة جديدة.");
+        return;
       }
     }
 
@@ -469,10 +413,11 @@ function HomepageStatsSettingsPanel() {
       entity_type: "settings",
       entity_id: "homepage_stats",
       old_data: "",
-      new_data: JSON.stringify(values),
+      new_data: JSON.stringify(nextValues),
       ip_address: "",
     });
 
+    setValues(nextValues);
     setIsSaving(false);
     setMessage("تم حفظ أرقام وتسميات الصفحة الرئيسية. حدّث الصفحة الرئيسية لمشاهدة القيم الجديدة.");
   }
