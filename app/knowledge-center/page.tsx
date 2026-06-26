@@ -1,4 +1,5 @@
 import Link from "next/link";
+import KnowledgeListWithTranslations from "@/components/KnowledgeListWithTranslations";
 import { supabase } from "@/lib/supabase";
 import {
   findCmsSection,
@@ -140,7 +141,6 @@ export default async function KnowledgeCenterPage() {
     ["primary_whatsapp", "whatsapp", "support_whatsapp"],
     "+905011730377"
   );
-
   const cleanWhatsapp = whatsapp.replace(/[^\d]/g, "");
 
   const knowledgeIntro = getSectionContent(findCmsSection(sections, "knowledge-intro"), {
@@ -216,33 +216,7 @@ export default async function KnowledgeCenterPage() {
           </p>
         </div>
 
-        <div className="mt-10 space-y-8">
-          {Object.entries(groupedKnowledge).map(([category, items]) => (
-            <div key={category} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur">
-              <div className="mb-6 inline-flex rounded-full border border-yellow-400/20 bg-yellow-500/10 px-4 py-2 text-sm font-bold text-yellow-100">
-                {category}
-              </div>
-
-              <div className="grid gap-5 md:grid-cols-2">
-                {items.map((item) => (
-                  <article key={item.id} className="rounded-2xl border border-white/10 bg-black/25 p-5">
-                    <h2 className="text-2xl font-black">
-                      {item.title || "مقال من مركز المعرفة"}
-                    </h2>
-
-                    {item.summary && (
-                      <p className="mt-4 leading-8 text-purple-100/80">{item.summary}</p>
-                    )}
-
-                    <p className="mt-4 whitespace-pre-wrap leading-9 text-white/68">
-                      {item.content || "المحتوى غير متوفر حالياً."}
-                    </p>
-                  </article>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <KnowledgeListWithTranslations knowledge={knowledge} />
 
         <div className="mt-10 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
           <h2 className="text-3xl font-black">هل تحتاج مساعدة مباشرة؟</h2>
