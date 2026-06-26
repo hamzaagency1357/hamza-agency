@@ -1,6 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { supabase } from "@/lib/supabase";
 
 const polishCards = [
   { label: "Creators", value: "إدارة صناع المحتوى" },
@@ -9,9 +12,90 @@ const polishCards = [
   { label: "Growth", value: "نمو واحتراف" },
 ];
 
+type HomepageStatDefinition = {
+  key: string;
+  value: string;
+  label: string;
+  description: string;
+  sortOrder: number;
+};
+
+type ExistingHomepageSetting = {
+  id: number;
+  setting_key: string;
+  setting_value: string | null;
+};
+
+const homepageStatDefinitions: HomepageStatDefinition[] = [
+  {
+    key: "home_stat_1_number",
+    value: "+7000",
+    label: "رقم صناع المحتوى",
+    description: "الرقم الأول الظاهر في الصفحة الرئيسية.",
+    sortOrder: 50,
+  },
+  {
+    key: "home_stat_1_label",
+    value: "صانع محتوى",
+    label: "تسمية صناع المحتوى",
+    description: "تسمية الرقم الأول الظاهر في الصفحة الرئيسية.",
+    sortOrder: 60,
+  },
+  {
+    key: "home_stat_2_number",
+    value: "+5",
+    label: "رقم المنصات المتاحة",
+    description: "الرقم الثاني الظاهر في الصفحة الرئيسية.",
+    sortOrder: 70,
+  },
+  {
+    key: "home_stat_2_label",
+    value: "منصات متاحة",
+    label: "تسمية المنصات المتاحة",
+    description: "تسمية الرقم الثاني الظاهر في الصفحة الرئيسية.",
+    sortOrder: 80,
+  },
+  {
+    key: "home_stat_3_number",
+    value: "24/7",
+    label: "رقم الدعم والمتابعة",
+    description: "الرقم الثالث الظاهر في الصفحة الرئيسية.",
+    sortOrder: 90,
+  },
+  {
+    key: "home_stat_3_label",
+    value: "دعم ومتابعة",
+    label: "تسمية الدعم والمتابعة",
+    description: "تسمية الرقم الثالث الظاهر في الصفحة الرئيسية.",
+    sortOrder: 100,
+  },
+  {
+    key: "home_stat_4_number",
+    value: "+500",
+    label: "رقم فرص النجاح الشهرية",
+    description: "الرقم الرابع الظاهر في الصفحة الرئيسية.",
+    sortOrder: 110,
+  },
+  {
+    key: "home_stat_4_label",
+    value: "فرصة نجاح شهرية",
+    label: "تسمية فرص النجاح الشهرية",
+    description: "تسمية الرقم الرابع الظاهر في الصفحة الرئيسية.",
+    sortOrder: 120,
+  },
+];
+
+function buildDefaultValues() {
+  return homepageStatDefinitions.reduce<Record<string, string>>((values, definition) => {
+    values[definition.key] = definition.value;
+    return values;
+  }, {});
+}
+
 export default function FinalVisualPolish() {
   const pathname = usePathname();
 
+  if (pathname === "/admin/settings") return <HomepageStatsSettingsPanel />;
   if (pathname.startsWith("/admin") || pathname === "/maintenance") return null;
 
   return (
@@ -210,5 +294,241 @@ export default function FinalVisualPolish() {
         }
       `}</style>
     </>
+  );
+}
+
+function HomepageStatsSettingsPanel() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [adminEmail, setAdminEmail] = useState("");
+  const [savedSettings, setSavedSettings] = useState<Record<string, ExistingHomepageSetting>>({});
+  const [values, setValues] = useState<Record<string, string>>(buildDefaultValues());
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadHomepageStatsSettings() {
+      const access = await requireAdminModuleAccess("settings");
+      const client = supabase;
+
+      if (!access.isAuthorized || !access.profile || !client) {
+        if (isMounted) {
+          setIsAuthorized(false);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      const { data, error: readError } = await client
+        .from("settings")
+        .select("id, setting_key, setting_value")
+        .in(
+          "setting_key",
+          homepageStatDefinitions.map((definition) => definition.key)
+        );
+
+      if (readError) {
+        if (isMounted) {
+          setIsAuthorized(true);
+          setAdminEmail(access.profile.email || "");
+          setError("تعذر تحميل إعدادات الإحصاءات من قاعدة البيانات.");
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      const existing = ((data || []) as ExistingHomepageSetting[]).reduce<Record<string, ExistingHomepageSetting>>(
+        (result, setting) => {
+          result[setting.setting_key] = setting;
+          return result;
+        },
+        {}
+      );
+      const missing = homepageStatDefinitions.filter((definition) => !existing[definition.key]);
+
+      if (missing.length) {
+        const now = new Date().toISOString();
+        const payload = missing.map((definition) => ({
+          setting_key: definition.key,
+          setting_value: definition.value,
+          setting_group: "homepage",
+          group_name: "homepage",
+          label_ar: definition.label,
+          label_en: "",
+          description: definition.description,
+          input_type: "text",
+          sort_order: definition.sortOrder,
+          is_public: true,
+          updated_at: now,
+        }));
+
+        const { error: insertError } = await client.from("settings").insert(payload);
+
+        if (insertError) {
+          if (isMounted) {
+            setIsAuthorized(true);
+            setAdminEmail(access.profile.email || "");
+            setError("تعذر تجهيز بعض إحصاءات الصفحة الرئيسية. يمكنك المحاولة من زر الحفظ لاحقاً.");
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        payload.forEach((setting, index) => {
+          existing[setting.setting_key] = {
+            id: -index - 1,
+            setting_key: setting.setting_key,
+            setting_value: setting.setting_value,
+          };
+        });
+      }
+
+      const nextValues = buildDefaultValues();
+      Object.values(existing).forEach((setting) => {
+        if (setting.setting_value !== null) nextValues[setting.setting_key] = setting.setting_value;
+      });
+
+      if (isMounted) {
+        setIsAuthorized(true);
+        setAdminEmail(access.profile.email || "");
+        setSavedSettings(existing);
+        setValues(nextValues);
+        setMessage(missing.length ? "تم تجهيز الإحصاءات الناقصة بالقيم الافتراضية الجديدة. يمكنك تعديلها وحفظها في أي وقت." : "إحصاءات الصفحة الرئيسية جاهزة للتعديل في أي وقت.");
+        setIsLoading(false);
+      }
+    }
+
+    loadHomepageStatsSettings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  function updateValue(key: string, value: string) {
+    setValues((current) => ({ ...current, [key]: value }));
+  }
+
+  async function saveHomepageStats() {
+    const client = supabase;
+    if (!client) {
+      setError("الاتصال بقاعدة البيانات غير مفعل.");
+      return;
+    }
+
+    setIsSaving(true);
+    setMessage("");
+    setError("");
+
+    const now = new Date().toISOString();
+
+    for (const definition of homepageStatDefinitions) {
+      const existing = savedSettings[definition.key];
+      const value = values[definition.key]?.trim() || definition.value;
+
+      if (existing && existing.id > 0) {
+        const { error: updateError } = await client
+          .from("settings")
+          .update({ setting_value: value, updated_at: now })
+          .eq("id", existing.id);
+
+        if (updateError) {
+          setIsSaving(false);
+          setError("فشل حفظ أحد الإعدادات. لم يتم إكمال العملية.");
+          return;
+        }
+      } else {
+        const { error: insertError } = await client.from("settings").insert({
+          setting_key: definition.key,
+          setting_value: value,
+          setting_group: "homepage",
+          group_name: "homepage",
+          label_ar: definition.label,
+          label_en: "",
+          description: definition.description,
+          input_type: "text",
+          sort_order: definition.sortOrder,
+          is_public: true,
+          updated_at: now,
+        });
+
+        if (insertError) {
+          setIsSaving(false);
+          setError("فشل إنشاء أحد الإعدادات الناقصة. لم يتم إكمال العملية.");
+          return;
+        }
+      }
+    }
+
+    await client.from("activity_logs").insert({
+      admin_email: adminEmail,
+      action: "update_homepage_stats",
+      entity_type: "settings",
+      entity_id: "homepage_stats",
+      old_data: "",
+      new_data: JSON.stringify(values),
+      ip_address: "",
+    });
+
+    setIsSaving(false);
+    setMessage("تم حفظ أرقام وتسميات الصفحة الرئيسية. حدّث الصفحة الرئيسية لمشاهدة القيم الجديدة.");
+  }
+
+  if (isLoading || !isAuthorized) return null;
+
+  const statPairs = [
+    [homepageStatDefinitions[0], homepageStatDefinitions[1]],
+    [homepageStatDefinitions[2], homepageStatDefinitions[3]],
+    [homepageStatDefinitions[4], homepageStatDefinitions[5]],
+    [homepageStatDefinitions[6], homepageStatDefinitions[7]],
+  ];
+
+  return (
+    <aside
+      dir="rtl"
+      className="fixed bottom-5 left-4 right-4 z-[80] rounded-[1.75rem] border border-fuchsia-400/30 bg-[#170020]/95 p-4 text-white shadow-[0_0_55px_rgba(217,70,239,0.2)] backdrop-blur-xl md:left-auto md:right-6 md:w-[460px]"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-lg font-black text-fuchsia-100">إحصاءات الصفحة الرئيسية</div>
+          <p className="mt-1 text-sm leading-6 text-white/60">هذه القيم تظهر في البطاقات الأربع تحت هيرو الصفحة الرئيسية.</p>
+        </div>
+        <span className="rounded-full border border-fuchsia-300/25 bg-fuchsia-500/10 px-3 py-1 text-xs font-bold text-fuchsia-100">No-Code</span>
+      </div>
+
+      {message && <div className="mt-3 rounded-2xl border border-emerald-400/25 bg-emerald-500/10 p-3 text-sm leading-6 text-emerald-100">{message}</div>}
+      {error && <div className="mt-3 rounded-2xl border border-red-400/25 bg-red-500/10 p-3 text-sm leading-6 text-red-100">{error}</div>}
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {statPairs.map(([numberDefinition, labelDefinition]) => (
+          <div key={numberDefinition.key} className="rounded-2xl border border-white/10 bg-black/25 p-3">
+            <label className="block text-xs font-bold text-white/60">{numberDefinition.label}</label>
+            <input
+              value={values[numberDefinition.key] || ""}
+              onChange={(event) => updateValue(numberDefinition.key, event.target.value)}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-black/35 px-3 py-2 text-center text-lg font-black outline-none focus:border-fuchsia-300/60"
+            />
+            <label className="mt-3 block text-xs font-bold text-white/60">{labelDefinition.label}</label>
+            <input
+              value={values[labelDefinition.key] || ""}
+              onChange={(event) => updateValue(labelDefinition.key, event.target.value)}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-black/35 px-3 py-2 text-sm outline-none focus:border-fuchsia-300/60"
+            />
+          </div>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={saveHomepageStats}
+        disabled={isSaving}
+        className="mt-4 w-full rounded-2xl bg-gradient-to-r from-fuchsia-600 to-purple-600 px-5 py-3 font-black shadow-[0_0_28px_rgba(217,70,239,0.24)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {isSaving ? "جاري الحفظ..." : "حفظ أرقام الصفحة الرئيسية"}
+      </button>
+    </aside>
   );
 }
