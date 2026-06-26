@@ -1,4 +1,5 @@
 import Link from "next/link";
+import FaqListWithTranslations from "@/components/FaqListWithTranslations";
 import { supabase } from "@/lib/supabase";
 import {
   findCmsSection,
@@ -82,15 +83,6 @@ function getSetting(settings: Setting[], keys: string[], fallback: string) {
   return fallback;
 }
 
-function groupFaqs(faqs: FaqItem[]) {
-  return faqs.reduce<Record<string, FaqItem[]>>((groups, faq) => {
-    const category = faq.category || "أسئلة عامة";
-    if (!groups[category]) groups[category] = [];
-    groups[category].push(faq);
-    return groups;
-  }, {});
-}
-
 function buildFaqStructuredData(faqs: FaqItem[]) {
   const mainEntity = faqs
     .filter((faq) => faq.question && faq.answer)
@@ -153,7 +145,6 @@ export default async function FaqPage() {
     ["primary_whatsapp", "whatsapp", "support_whatsapp"],
     "+905011730377"
   );
-
   const cleanWhatsapp = whatsapp.replace(/[^\d]/g, "");
 
   const faqIntro = getSectionContent(findCmsSection(sections, "faq-intro"), {
@@ -172,7 +163,6 @@ export default async function FaqPage() {
 
   const title = page?.title || faqIntro.title;
   const intro = page?.content || faqIntro.content;
-  const groupedFaqs = groupFaqs(faqs);
   const faqStructuredData = buildFaqStructuredData(faqs);
 
   return (
@@ -210,26 +200,7 @@ export default async function FaqPage() {
           <p className="mt-4 max-w-4xl leading-9 text-white/75">{faqList.content}</p>
         </div>
 
-        <div className="mt-10 space-y-8">
-          {Object.entries(groupedFaqs).map(([category, items]) => (
-            <div key={category} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur">
-              <div className="mb-6 inline-flex rounded-full border border-yellow-400/20 bg-yellow-500/10 px-4 py-2 text-sm font-bold text-yellow-100">
-                {category}
-              </div>
-
-              <div className="grid gap-4">
-                {items.map((faq) => (
-                  <div key={faq.id} className="rounded-2xl border border-white/10 bg-black/25 p-5">
-                    <h2 className="text-2xl font-black">{faq.question || "سؤال شائع"}</h2>
-                    <p className="mt-4 whitespace-pre-wrap leading-9 text-white/70">
-                      {faq.answer || "الإجابة غير متوفرة حالياً."}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <FaqListWithTranslations faqs={faqs} />
 
         <div className="mt-10 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
           <h2 className="text-3xl font-black">تواصل معنا مباشرة</h2>
