@@ -342,22 +342,20 @@ Commit:
 7. JobPosting structured data مضاف لصفحة `/jobs`.
 8. Organization وWebSite وWebPage وBreadcrumbList موجودة من المكوّن العام.
 
+### Final Documentation
+
+- تم إنشاء الدليل التشغيلي النهائي: `docs/HAMZA_AGENCY_OPERATIONS_GUIDE.md`.
+- يشمل دليل التشغيل، لوحة الإدارة، Supabase، Vercel، التراجع الآمن، SEO، Search Console، الأمن، النسخ الاحتياطي، المنجز، المؤجل، والإعدادات الخارجية.
+- Commit: `c3727a794c2eb51a1402c6b26006cddd689c8491` — Add final operations guide.
+- الحالة: Vercel Ready / Success.
+
 ---
 
 ## ما لم يغلق بعد — القائمة النهائية الحالية
 
 ### داخل المشروع / تشغيل وفحص
 
-1. Final Documentation.
-   - دليل التشغيل.
-   - دليل لوحة الإدارة.
-   - ملاحظات Supabase.
-   - ملاحظات Vercel.
-   - ملاحظات Search Console.
-   - ملاحظات الأمان.
-   - قائمة المنجز والمؤجل.
-
-2. Visual / Responsive QA العملي من جهاز صاحب المشروع.
+1. Visual / Responsive QA العملي من جهاز صاحب المشروع.
    - فحص `/`.
    - فحص `/programs`.
    - فحص `/service-request`.
@@ -367,20 +365,20 @@ Commit:
    - فحص `/admin/backups`.
    - التركيز على الأزرار العائمة وLanguage Switcher وAI Support وواتساب وعدم وجود horizontal scroll.
 
-3. اختبار حفظ Visual Experience عملياً.
+2. اختبار حفظ Visual Experience عملياً.
    - الضغط على حفظ دائم.
    - تحديث الصفحة.
    - التأكد من بقاء الإعدادات.
 
-4. اختبار FAQ Admin عملياً.
+3. اختبار FAQ Admin عملياً.
    - إضافة سؤال من `/admin/faqs`.
    - التأكد من ظهوره في `/faq`.
 
-5. اختبار reset password عملياً.
+4. اختبار reset password عملياً.
    - التأكد من Supabase redirect URLs.
    - تجربة إعادة التعيين من الموقع.
 
-6. تعديلات fallback في `app/page.tsx`.
+5. تعديلات fallback في `app/page.tsx`.
    - تحديث أرقام fallback.
    - تحديث fallback عنوان الهيرو.
    - تغيير FAQ إلى الأسئلة الشائعة في fallback.
@@ -411,7 +409,7 @@ Commit:
 
 ## خلاصة الحالة النهائية
 
-تم إنجاز وإغلاق: Backup System، Roles / Permissions Deep Test، Export Center permission fix، Permissions page protection fix، Public Text Audit جزئياً مع إصلاح المعرض، Visual / Responsive code audit، Security Advisor، Trash System كمرحلة أولى، وباقي التحسينات المتقدمة السابقة.
+تم إنجاز وإغلاق: Backup System، Roles / Permissions Deep Test، Export Center permission fix، Permissions page protection fix، Public Text Audit جزئياً مع إصلاح المعرض، Visual / Responsive code audit، Security Advisor، Trash System كمرحلة أولى، Final Documentation، وباقي التحسينات المتقدمة السابقة.
 
 لا يوجد حالياً بند تطوير كود ضروري يمنع الإطلاق.
-المشروع الآن في مرحلة: Final Documentation + Visual QA العملي + External Setup.
+المشروع الآن في مرحلة: Visual QA العملي + External Setup، مع تحسينات اختيارية لاحقة موثقة أعلاه.
