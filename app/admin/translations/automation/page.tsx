@@ -76,7 +76,8 @@ export default function TranslationAutomationPage() {
   }, [isAuthorized]);
 
   async function loadAutomationData() {
-    if (!supabase) {
+    const client = supabase;
+    if (!client) {
       setError("الاتصال بقاعدة البيانات غير مفعل.");
       setIsLoading(false);
       return;
@@ -89,7 +90,7 @@ export default function TranslationAutomationPage() {
       const [automationStatus, ...sourceResults] = await Promise.all([
         getTranslationAutomationStatus(),
         ...TRANSLATION_SOURCE_DEFINITIONS.map((source) =>
-          supabase.from(source.table).select("id").limit(300)
+          client.from(source.table).select("id").limit(300)
         ),
       ]);
 
