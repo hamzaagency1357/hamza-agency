@@ -82,6 +82,8 @@ body > div:not(.hamza-visual-background-presets):not(.hamza-final-polish) {
 }
 
 .public-site-page h1 span {
+  display: block;
+  margin-top: clamp(1.25rem, 4vw, 2rem);
   background: linear-gradient(90deg, #d8b4fe 0%, #ffffff 42%, #fde68a 100%) !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
