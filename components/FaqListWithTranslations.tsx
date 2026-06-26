@@ -108,7 +108,7 @@ export default function FaqListWithTranslations({ faqs }: { faqs: FaqItem[] }) {
   }, [language, faqs]);
 
   const groupedFaqs = useMemo(() => {
-    const displayFaqs = faqs.map((faq) => {
+    const displayFaqs: DisplayFaq[] = faqs.map((faq) => {
       const translation = translations[String(faq.id)] || {};
       const hasPublishedTranslation = Boolean(
         translation.title?.trim() && translation.summary?.trim() && translation.content?.trim()
