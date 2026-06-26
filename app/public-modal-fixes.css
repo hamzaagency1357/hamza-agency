@@ -3,3 +3,8 @@ main > div.fixed.inset-0.z-50.overflow-y-auto.bg-black\/80 {
   display: block !important;
   visibility: visible !important;
 }
+
+/* Homepage statistics are managed through the regular Settings cards, not a floating overlay. */
+aside[dir="rtl"][class*="z-[80]"] {
+  display: none !important;
+}
