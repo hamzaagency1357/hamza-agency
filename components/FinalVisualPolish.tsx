@@ -167,6 +167,13 @@ export default function FinalVisualPolish() {
         .hfp-mini-card-3 { top: 164px; --rotate: 5deg; animation-delay: -3s; }
         .hfp-mini-card-4 { top: 246px; right: 18px; --rotate: -4deg; animation-delay: -4.5s; }
 
+        ${pathname === "/" ? `
+          main[dir="rtl"] section.grid.max-w-6xl > div > div.text-4xl.font-black {
+            direction: ltr;
+            unicode-bidi: isolate;
+          }
+        ` : ""}
+
         @keyframes hfpFloatOne {
           0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.42; }
           50% { transform: translate3d(2.5rem, -1.4rem, 0) scale(1.08); opacity: 0.68; }
