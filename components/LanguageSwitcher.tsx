@@ -2,59 +2,20 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-
-type SiteLanguage = "ar" | "en" | "tr";
-
-const storageKey = "hamza-agency-language";
-
-const languages: {
-  code: SiteLanguage;
-  label: string;
-  shortLabel: string;
-  dir: "rtl" | "ltr";
-}[] = [
-  { code: "ar", label: "العربية", shortLabel: "AR", dir: "rtl" },
-  { code: "en", label: "English", shortLabel: "EN", dir: "ltr" },
-  { code: "tr", label: "Türkçe", shortLabel: "TR", dir: "ltr" },
-];
+import {
+  applySiteLanguage,
+  getStoredSiteLanguage,
+  setStoredSiteLanguage,
+  SITE_LANGUAGES,
+  type SiteLanguage,
+} from "@/lib/i18n/locale";
+import { getStaticCopy } from "@/lib/i18n/staticCopy";
 
 const helperText: Record<SiteLanguage, string> = {
   ar: "واجهة اللغة",
   en: "Language UI",
   tr: "Dil arayüzü",
 };
-
-const scopeText: Record<SiteLanguage, string> = {
-  ar: "يدعم تبديل الواجهة وبعض الصفحات المترجمة. المحتوى غير المترجم يبقى بالعربية أو النص الأصلي.",
-  en: "Switches the interface and supported translated pages. Untranslated content stays in Arabic or its original text.",
-  tr: "Arayüzü ve desteklenen çeviri sayfalarını değiştirir. Çevrilmeyen içerik Arapça veya özgün metin olarak kalır.",
-};
-
-function isSupportedLanguage(value: string | null): value is SiteLanguage {
-  return value === "ar" || value === "en" || value === "tr";
-}
-
-function detectPreferredLanguage(): SiteLanguage {
-  if (typeof window === "undefined") return "ar";
-
-  const savedLanguage = window.localStorage.getItem(storageKey);
-  if (isSupportedLanguage(savedLanguage)) return savedLanguage;
-
-  const browserLanguage = window.navigator.language.toLowerCase();
-  if (browserLanguage.startsWith("tr")) return "tr";
-  if (browserLanguage.startsWith("en")) return "en";
-
-  return "ar";
-}
-
-function applyDocumentLanguage(language: SiteLanguage) {
-  const languageDefinition = languages.find((item) => item.code === language) || languages[0];
-
-  document.documentElement.lang = languageDefinition.code;
-  document.documentElement.dir = languageDefinition.dir;
-  document.body.dir = languageDefinition.dir;
-  document.body.dataset.siteLanguage = languageDefinition.code;
-}
 
 export default function LanguageSwitcher() {
   const pathname = usePathname();
@@ -63,17 +24,15 @@ export default function LanguageSwitcher() {
   const [showScope, setShowScope] = useState(false);
 
   useEffect(() => {
-    const preferredLanguage = detectPreferredLanguage();
+    const preferredLanguage = getStoredSiteLanguage();
     setLanguage(preferredLanguage);
-    applyDocumentLanguage(preferredLanguage);
+    applySiteLanguage(preferredLanguage);
     setIsReady(true);
   }, []);
 
   useEffect(() => {
     if (!isReady) return;
-    applyDocumentLanguage(language);
-    window.localStorage.setItem(storageKey, language);
-    window.dispatchEvent(new CustomEvent("hamza-language-change", { detail: { language } }));
+    setStoredSiteLanguage(language);
   }, [language, isReady]);
 
   if (pathname.startsWith("/admin") || pathname === "/maintenance") return null;
@@ -95,7 +54,7 @@ export default function LanguageSwitcher() {
             {helperText[language]}
           </button>
 
-          {languages.map((item) => {
+          {SITE_LANGUAGES.map((item) => {
             const active = item.code === language;
 
             return (
@@ -118,7 +77,7 @@ export default function LanguageSwitcher() {
 
         {showScope && (
           <div className="mt-1 max-w-56 px-3 pb-2 text-[11px] leading-5 text-white/48" dir={language === "ar" ? "rtl" : "ltr"}>
-            {scopeText[language]}
+            {getStaticCopy(language, "languageScope")}
           </div>
         )}
       </div>
