@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
 import { logAdminActivity } from "@/lib/adminActivityLogger";
+import { moveRecordToTrash } from "@/lib/adminTrash";
 
 type Program = {
   id: number;
@@ -114,6 +115,7 @@ export default function AdminProgramsPage() {
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
+  const [trashingProgramId, setTrashingProgramId] = useState<number | null>(null);
   const [form, setForm] = useState<ProgramForm>(emptyForm);
 
   useEffect(() => {
@@ -273,6 +275,77 @@ export default function AdminProgramsPage() {
     await loadPrograms();
   }
 
+  async function moveProgramToTrash(program: Program) {
+    if (!supabase) return;
+
+    const confirmed = window.confirm(
+      `سيتم نقل برنامج "${program.name}" إلى سلة المحذوفات. سيتم حفظ نسخة كاملة منه أولاً، ثم إخفاؤه وتعطيله من الموقع. يمكن استرجاعه لاحقاً من سلة المحذوفات. هل تريد المتابعة؟`
+    );
+
+    if (!confirmed) return;
+
+    const snapshot = getProgramSnapshot(program);
+    setMessage("");
+    setTrashingProgramId(program.id);
+
+    try {
+      const trashResult = await moveRecordToTrash({
+        supabase,
+        tableName: "programs",
+        recordId: program.id,
+        title: program.name,
+        record: snapshot,
+        adminEmail,
+        reason: "نقل برنامج إلى السلة من لوحة الإدارة",
+      });
+
+      if (!trashResult.success) {
+        setMessage(`تعذر نقل البرنامج إلى السلة: ${trashResult.error || "خطأ غير معروف"}`);
+        return;
+      }
+
+      const { error } = await supabase
+        .from("programs")
+        .update({
+          is_visible: false,
+          is_active: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", program.id);
+
+      if (error) {
+        setMessage(
+          "تم حفظ نسخة البرنامج داخل السلة، لكن تعذر إخفاؤه وتعطيله. البرنامج ما زال موجوداً؛ لا تعاود النقل قبل مراجعة السلة."
+        );
+        return;
+      }
+
+      await logAdminActivity({
+        action: "archive_program_to_trash",
+        module: "programs",
+        adminEmail,
+        recordId: program.id,
+        details: "نقل برنامج إلى السلة ثم إخفاؤه وتعطيله",
+        oldData: snapshot,
+        newData: {
+          ...snapshot,
+          is_visible: false,
+          is_active: false,
+        },
+      });
+
+      if (editingProgram?.id === program.id) {
+        setEditingProgram(null);
+        setForm(emptyForm);
+      }
+
+      await loadPrograms();
+      setMessage("تم نقل البرنامج إلى سلة المحذوفات وإخفاؤه وتعطيله. يمكنك استرجاعه من صفحة السلة.");
+    } finally {
+      setTrashingProgramId(null);
+    }
+  }
+
   async function logout() {
     if (!supabase) return;
     await supabase.auth.signOut();
@@ -386,14 +459,22 @@ export default function AdminProgramsPage() {
                     <td className="p-3">{program.is_active ? "نعم" : "لا"}</td>
                     <td className="p-3">
                       <div className="flex flex-wrap gap-2">
-                        <button onClick={() => startEdit(program)} className="rounded-lg border border-purple-500/30 px-3 py-1">
+                        <button onClick={() => startEdit(program)} disabled={Boolean(trashingProgramId)} className="rounded-lg border border-purple-500/30 px-3 py-1 disabled:cursor-not-allowed disabled:opacity-45">
                           تعديل
                         </button>
-                        <button onClick={() => toggleProgram(program, "is_visible")} className="rounded-lg border border-yellow-500/30 px-3 py-1 text-yellow-200">
+                        <button onClick={() => toggleProgram(program, "is_visible")} disabled={Boolean(trashingProgramId)} className="rounded-lg border border-yellow-500/30 px-3 py-1 text-yellow-200 disabled:cursor-not-allowed disabled:opacity-45">
                           {program.is_visible ? "إخفاء" : "إظهار"}
                         </button>
-                        <button onClick={() => toggleProgram(program, "is_active")} className="rounded-lg border border-green-500/30 px-3 py-1 text-green-200">
+                        <button onClick={() => toggleProgram(program, "is_active")} disabled={Boolean(trashingProgramId)} className="rounded-lg border border-green-500/30 px-3 py-1 text-green-200 disabled:cursor-not-allowed disabled:opacity-45">
                           {program.is_active ? "تعطيل" : "تفعيل"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveProgramToTrash(program)}
+                          disabled={Boolean(trashingProgramId)}
+                          className="rounded-lg border border-red-500/35 px-3 py-1 text-red-200 disabled:cursor-not-allowed disabled:opacity-45"
+                        >
+                          {trashingProgramId === program.id ? "جاري النقل..." : "نقل إلى السلة"}
                         </button>
                         <Link href={`/programs/${program.slug}`} className="rounded-lg border border-white/20 px-3 py-1">
                           عرض
