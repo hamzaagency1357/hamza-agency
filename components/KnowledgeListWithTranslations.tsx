@@ -110,7 +110,7 @@ export default function KnowledgeListWithTranslations({ knowledge }: { knowledge
   }, [knowledge, language]);
 
   const groupedKnowledge = useMemo(() => {
-    const displayKnowledge = knowledge.map((item) => {
+    const displayKnowledge: DisplayKnowledge[] = knowledge.map((item) => {
       const translation = translations[String(item.id)] || {};
       const hasPublishedTranslation = Boolean(
         translation.title?.trim() && translation.summary?.trim() && translation.content?.trim()
