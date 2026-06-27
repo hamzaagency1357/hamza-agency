@@ -21,8 +21,10 @@ type SyncResponse = {
   errors?: Array<{ sourceType: string; sourceId: string; message: string }>;
 };
 
+type TranslationTargetLanguage = "en" | "tr";
+
 type SyncOptions = {
-  languages?: Array<"en" | "tr">;
+  languages: TranslationTargetLanguage[];
 };
 
 async function getAccessToken() {
@@ -43,10 +45,14 @@ async function getAccessToken() {
 
 export async function syncArabicContentTranslations(
   items: SyncItem[],
-  options: SyncOptions = {}
+  options: SyncOptions
 ): Promise<SyncResponse> {
   if (items.length === 0) {
     return { ok: true, results: [] };
+  }
+
+  if (!Array.isArray(options.languages) || options.languages.length === 0) {
+    throw new Error("اختر لغة هدف صريحة قبل تشغيل الترجمة.");
   }
 
   const accessToken = await getAccessToken();
@@ -58,7 +64,7 @@ export async function syncArabicContentTranslations(
     },
     body: JSON.stringify({
       items,
-      languages: options.languages || ["en", "tr"],
+      languages: options.languages,
     }),
   });
 

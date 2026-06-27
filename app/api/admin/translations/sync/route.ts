@@ -65,11 +65,11 @@ function parseSyncItems(value: unknown): SyncItem[] {
   return [...unique.values()].slice(0, MAX_ITEMS_PER_REQUEST);
 }
 
-function parseLanguages(value: unknown): TranslationLanguage[] {
-  if (!Array.isArray(value)) return ["en", "tr"];
+function parseLanguages(value: unknown): TranslationLanguage[] | null {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  if (!value.every(isTranslationLanguage)) return null;
 
-  const languages = value.filter(isTranslationLanguage);
-  return languages.length ? [...new Set(languages)] : ["en", "tr"];
+  return [...new Set(value)];
 }
 
 async function getAuthorizedSupabaseClient(request: NextRequest) {
@@ -228,6 +228,13 @@ export async function POST(request: NextRequest) {
     if (items.length === 0) {
       return NextResponse.json(
         { ok: false, message: "اختر عنصراً واحداً على الأقل للترجمة." },
+        { status: 400 }
+      );
+    }
+
+    if (!languages) {
+      return NextResponse.json(
+        { ok: false, message: "اختر لغة هدف صريحة: الإنجليزية أو التركية." },
         { status: 400 }
       );
     }
