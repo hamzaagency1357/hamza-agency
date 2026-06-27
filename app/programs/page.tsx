@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import ProgramsGridWithTranslations from "@/components/ProgramsGridWithTranslations";
+import ProgramsPageContent from "@/components/ProgramsPageContent";
 
 type Program = {
   id: number;
@@ -93,13 +92,6 @@ const defaultPrograms: Program[] = [
   },
 ];
 
-const platformHighlights = [
-  "تقديم مباشر من الموقع",
-  "مراجعة الطلب من فريق الوكالة",
-  "متابعة عبر واتساب عند الحاجة",
-  "اختيار البرنامج الأنسب لك",
-];
-
 async function getPrograms(): Promise<Program[]> {
   if (!supabase) {
     return defaultPrograms;
@@ -143,60 +135,9 @@ export default async function ProgramsPage() {
   const [programs, mediaItems] = await Promise.all([getPrograms(), getProgramMedia()]);
 
   return (
-    <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
+    <main className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
       <ProgramsBackground />
-
-      <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
-        <div className="mb-14 text-center">
-          <div className="mx-auto mb-5 inline-flex rounded-full border border-purple-400/30 bg-purple-500/10 px-5 py-2 text-sm font-bold text-purple-100 backdrop-blur">
-            برامج وكالة حمزة
-          </div>
-
-          <h1 className="text-4xl font-black leading-tight md:text-6xl">
-            اختر البرنامج المناسب
-            <span className="block bg-gradient-to-r from-purple-300 via-white to-yellow-300 bg-clip-text text-transparent">
-              وابدأ طلب الانضمام
-            </span>
-          </h1>
-
-          <p className="mx-auto mt-6 max-w-3xl text-lg leading-8 text-white/72">
-            استعرض البرامج المتاحة حالياً لدى وكالة حمزة، وتعرّف على طبيعة كل
-            برنامج قبل إرسال طلب الانضمام للفريق المناسب.
-          </p>
-        </div>
-
-        <div className="mb-10 grid gap-4 md:grid-cols-4">
-          {platformHighlights.map((item) => (
-            <div
-              key={item}
-              className="rounded-3xl border border-white/10 bg-white/[0.045] p-5 text-center text-sm font-bold text-white/75 backdrop-blur"
-            >
-              {item}
-            </div>
-          ))}
-        </div>
-
-        <ProgramsGridWithTranslations programs={programs} mediaItems={mediaItems} />
-
-        <div className="mt-14 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-7 text-center backdrop-blur">
-          <h2 className="text-2xl font-black text-yellow-100">
-            لا تعرف أي برنامج مناسب لك؟
-          </h2>
-
-          <p className="mx-auto mt-3 max-w-2xl leading-8 text-white/70">
-            يمكنك اختيار البرنامج الأقرب لك وإرسال الطلب، وسيقوم فريق الوكالة
-            بمراجعة المعلومات والتواصل معك عبر واتساب عند الحاجة.
-          </p>
-
-          <a
-            href="https://wa.me/905011730377"
-            target="_blank"
-            className="mt-6 inline-flex rounded-full bg-green-500 px-7 py-4 font-black text-white shadow-2xl"
-          >
-            تواصل واتساب
-          </a>
-        </div>
-      </section>
+      <ProgramsPageContent programs={programs} mediaItems={mediaItems} />
     </main>
   );
 }

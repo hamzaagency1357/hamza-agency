@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-
-type SiteLanguage = "ar" | "en" | "tr";
+import { getLanguageDirection } from "@/lib/i18n/locale";
+import { getStaticCopy, type StaticCopyKey } from "@/lib/i18n/staticCopy";
+import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
 type Program = {
   id: number;
@@ -38,17 +39,14 @@ type TranslationRow = {
 
 type TranslationMap = Record<string, Partial<Record<TranslationRow["field_name"], string>>>;
 
-const LANGUAGE_STORAGE_KEY = "hamza-agency-language";
+type ProgramVisual = {
+  icon: string;
+  labelKey: StaticCopyKey;
+  accent: string;
+  secondary: string;
+};
 
-function normalizeLanguage(value: string | null): SiteLanguage {
-  if (value === "en" || value === "tr") return value;
-  return "ar";
-}
-
-function getStoredLanguage(): SiteLanguage {
-  if (typeof window === "undefined") return "ar";
-  return normalizeLanguage(window.localStorage.getItem(LANGUAGE_STORAGE_KEY));
-}
+const BRAND_PROGRAM_NAMES = new Set(["tiktok", "bigo-live", "yaahlan", "xena", "catchii"]);
 
 function normalizeKey(value: string | null | undefined) {
   return (value || "")
@@ -101,71 +99,41 @@ function getProgramLogoUrl(program: Program, mediaItems: ProgramMedia[]) {
   return scoredItems[0]?.item.file_url || null;
 }
 
-function getProgramVisual(slug: string, name: string) {
+function getProgramVisual(slug: string, name: string): ProgramVisual {
   const key = (slug || name || "").toLowerCase();
 
   if (key.includes("tiktok")) {
-    return {
-      icon: "♪",
-      label: "فيديوهات قصيرة",
-      accent: "#ff2f8b",
-      secondary: "#22d3ee",
-    };
+    return { icon: "♪", labelKey: "programsVisualShortVideos", accent: "#ff2f8b", secondary: "#22d3ee" };
   }
 
   if (key.includes("bigo")) {
-    return {
-      icon: "LIVE",
-      label: "بث مباشر",
-      accent: "#38bdf8",
-      secondary: "#8b5cf6",
-    };
+    return { icon: "LIVE", labelKey: "programsVisualLiveStream", accent: "#38bdf8", secondary: "#8b5cf6" };
   }
 
   if (key.includes("yaahlan")) {
-    return {
-      icon: "Y",
-      label: "مجتمع وبث",
-      accent: "#f59e0b",
-      secondary: "#8b5cf6",
-    };
+    return { icon: "Y", labelKey: "programsVisualCommunityLive", accent: "#f59e0b", secondary: "#8b5cf6" };
   }
 
   if (key.includes("xena")) {
-    return {
-      icon: "X",
-      label: "برنامج صناع المحتوى",
-      accent: "#a855f7",
-      secondary: "#06b6d4",
-    };
+    return { icon: "X", labelKey: "programsVisualCreators", accent: "#a855f7", secondary: "#06b6d4" };
   }
 
   if (key.includes("catchii")) {
-    return {
-      icon: "C",
-      label: "محتوى اجتماعي",
-      accent: "#ec4899",
-      secondary: "#facc15",
-    };
+    return { icon: "C", labelKey: "programsVisualSocial", accent: "#ec4899", secondary: "#facc15" };
   }
 
-  return {
-    icon: "H",
-    label: "برنامج وكالة",
-    accent: "#7c3aed",
-    secondary: "#d4af37",
-  };
+  return { icon: "H", labelKey: "programsVisualAgency", accent: "#7c3aed", secondary: "#d4af37" };
 }
 
-function getStatusLabel(status: string | null) {
+function getStatusLabelKey(status: string | null): StaticCopyKey {
   const value = (status || "active").toLowerCase();
 
-  if (value === "limited") return "قبول محدود";
-  if (value === "paused") return "متوقف مؤقتاً";
-  if (value === "inactive") return "غير متاح";
-  if (value === "closed") return "مغلق";
+  if (value === "limited") return "programsStatusLimited";
+  if (value === "paused") return "programsStatusPaused";
+  if (value === "inactive") return "programsStatusUnavailable";
+  if (value === "closed") return "programsStatusClosed";
 
-  return "متاح الآن";
+  return "availableNow";
 }
 
 function getStatusClass(status: string | null) {
@@ -192,6 +160,10 @@ function buildTranslationMap(rows: TranslationRow[]) {
   }, {} as TranslationMap);
 }
 
+function isBrandProgram(program: Program) {
+  return BRAND_PROGRAM_NAMES.has(normalizeKey(program.slug)) || BRAND_PROGRAM_NAMES.has(normalizeKey(program.name));
+}
+
 export default function ProgramsGridWithTranslations({
   programs,
   mediaItems,
@@ -199,23 +171,8 @@ export default function ProgramsGridWithTranslations({
   programs: Program[];
   mediaItems: ProgramMedia[];
 }) {
-  const [language, setLanguage] = useState<SiteLanguage>("ar");
+  const language = useSiteLanguage();
   const [translations, setTranslations] = useState<TranslationMap>({});
-
-  useEffect(() => {
-    function syncLanguage() {
-      setLanguage(getStoredLanguage());
-    }
-
-    syncLanguage();
-    window.addEventListener("hamza-language-change", syncLanguage);
-    window.addEventListener("storage", syncLanguage);
-
-    return () => {
-      window.removeEventListener("hamza-language-change", syncLanguage);
-      window.removeEventListener("storage", syncLanguage);
-    };
-  }, []);
 
   useEffect(() => {
     async function loadTranslations() {
@@ -254,21 +211,23 @@ export default function ProgramsGridWithTranslations({
     () =>
       programs.map((program) => {
         const translation = translations[String(program.id)] || {};
+        const hasCompleteCardTranslation =
+          language !== "ar" && Boolean(translation.title?.trim()) && Boolean(translation.summary?.trim());
+        const fallbackSummary =
+          program.short_description || program.description || getStaticCopy("ar", "programsFallbackSummary");
+
         return {
           ...program,
-          displayName: translation.title || program.name,
-          displaySummary:
-            translation.summary ||
-            program.short_description ||
-            program.description ||
-            "برنامج متاح حالياً ضمن وكالة حمزة لصناع المحتوى.",
+          displayName:
+            hasCompleteCardTranslation && !isBrandProgram(program) ? translation.title || program.name : program.name,
+          displaySummary: hasCompleteCardTranslation ? translation.summary || fallbackSummary : fallbackSummary,
         };
       }),
-    [programs, translations]
+    [language, programs, translations]
   );
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div dir={getLanguageDirection(language)} className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {translatedPrograms.map((program) => {
         const visual = getProgramVisual(program.slug, program.name);
         const logoUrl = getProgramLogoUrl(program, mediaItems);
@@ -282,9 +241,7 @@ export default function ProgramsGridWithTranslations({
           >
             <div
               className="absolute inset-x-0 top-0 h-1"
-              style={{
-                background: `linear-gradient(90deg, ${visual.accent}, ${visual.secondary})`,
-              }}
+              style={{ background: `linear-gradient(90deg, ${visual.accent}, ${visual.secondary})` }}
             />
 
             <div className="mb-6 flex items-center justify-between gap-3">
@@ -299,7 +256,7 @@ export default function ProgramsGridWithTranslations({
                 {logoUrl ? (
                   <img
                     src={logoUrl}
-                    alt={`${program.name} logo`}
+                    alt={`${program.name} ${getStaticCopy(language, "programsLogoAlt")}`}
                     className="h-full w-full object-contain p-2"
                   />
                 ) : (
@@ -308,27 +265,23 @@ export default function ProgramsGridWithTranslations({
               </div>
 
               <span className={getStatusClass(program.status)}>
-                {getStatusLabel(program.status)}
+                {getStaticCopy(language, getStatusLabelKey(program.status))}
               </span>
             </div>
 
             <div className="mb-3 inline-flex rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-bold text-white/55">
-              {visual.label}
+              {getStaticCopy(language, visual.labelKey)}
             </div>
 
             <h2 className="text-3xl font-black">{program.displayName}</h2>
 
-            <p className="mt-4 min-h-24 leading-8 text-white/70">
-              {program.displaySummary}
-            </p>
+            <p className="mt-4 min-h-24 leading-8 text-white/70">{program.displaySummary}</p>
 
             <div className="mt-6 flex items-center justify-between gap-3">
-              <div className="text-sm text-white/45">
-                اضغط لعرض الشروط والتفاصيل
-              </div>
+              <div className="text-sm text-white/45">{getStaticCopy(language, "programsDetailsHelper")}</div>
 
               <div className="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-5 py-3 text-sm font-black transition group-hover:scale-105">
-                التفاصيل
+                {getStaticCopy(language, "learnMore")}
               </div>
             </div>
           </Link>
