@@ -1,6 +1,6 @@
 # HAMZA AGENCY — Translation Review Before Publish Policy
 
-**Effective branch:** `feat/translation-engine-foundation`  
+**Effective branch:** `main`  
 **Effective date:** 2026-06-27  
 **Scope:** Automatic translation for `programs`, `faqs`, and `knowledge_base`.
 
@@ -24,6 +24,20 @@ Every translation generated through `POST /api/admin/translations/sync` is saved
 
 The server route enforces these values and does not accept a publication decision from the browser request.
 
+## Monitored test controls
+
+The automation UI starts with no source, item, or target language selected.
+
+For the first monitored run, the UI requires all of the following before it enables the action:
+
+1. One source type.
+2. One specific source item.
+3. One target language: English or Turkish.
+
+The UI submits exactly one item and one target language for this controlled test. The server route rejects requests with no explicit valid target language and never defaults to English and Turkish together.
+
+The server keeps its existing limit of ten unique items per request for later, separately approved operational workflows. This limit does not make the monitored UI a bulk-translation screen.
+
 ## Public visibility
 
 Public translation readers must continue to read only rows that are manually marked as reviewed/published and `is_published = true`.
@@ -34,9 +48,9 @@ Until an administrator reviews and manually publishes a complete translation in 
 
 - Translation access remains limited to active `super_admin` and `deputy_super_admin` accounts at the server route.
 - `OPENAI_API_KEY` remains server-only and is not stored in GitHub or browser code.
-- No automatic translation run was executed while applying this policy.
-- No SQL, database schema, RLS, or `main` branch changes are part of this policy commit.
+- No automatic translation run is part of this UI/API policy change.
+- No SQL, database schema, or RLS change is part of this policy.
 
 ## First monitored test
 
-When a secret is configured in Vercel and Production is ready, the first test must translate one FAQ into one target language only. Confirm it remains `needs_review` and invisible publicly before reviewing and publishing it manually.
+When Production is ready, translate one FAQ into English only. Confirm it remains `needs_review` and invisible publicly before reviewing and publishing it manually.
