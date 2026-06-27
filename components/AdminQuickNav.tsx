@@ -18,6 +18,7 @@ const adminLinks = [
   { label: "الإعدادات", href: "/admin/settings" },
   { label: "إعدادات الصفحة الرئيسية", href: "/admin/settings/homepage" },
   { label: "الترجمات", href: "/admin/translations" },
+  { label: "الترجمة التلقائية", href: "/admin/translations/automation" },
   { label: "White Label", href: "/admin/white-label" },
   { label: "منشئ الصفحات", href: "/admin/page-builder" },
   { label: "التجربة البصرية", href: "/admin/visual-experience" },
