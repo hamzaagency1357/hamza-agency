@@ -153,15 +153,14 @@ export default function TranslationAutomationPage() {
       let completed = 0;
 
       for (const chunk of chunks) {
-        setProgress(`تتم ترجمة ${completed + 1} إلى ${Math.min(completed + chunk.length, selectedItems.length)} من ${selectedItems.length}...`);
+        setProgress(`تتم ترجمة ${completed + 1} إلى ${Math.min(completed + chunk.length, selectedItems.length)} من ${selectedItems.length} وحفظها للمراجعة...`);
         const result = await syncArabicContentTranslations(chunk, {
           languages: ["en", "tr"],
-          publish: true,
         });
         completed += result.results?.length || chunk.length;
       }
 
-      setMessage(`تمت ترجمة ونشر ${selectedItems.length} عنصر إلى الإنجليزية والتركية. ستظهر الترجمات في الصفحات التي تم ربطها بالمحرك.`);
+      setMessage(`تمت ترجمة ${selectedItems.length} عنصر إلى الإنجليزية والتركية وحفظها بحالة تحتاج مراجعة. لن تظهر للعامة قبل المراجعة والنشر اليدوي من لوحة الترجمات.`);
       setProgress("");
     } catch (syncError) {
       setError(syncError instanceof Error ? syncError.message : "تعذرت مزامنة الترجمات التلقائية.");
@@ -210,7 +209,7 @@ export default function TranslationAutomationPage() {
           <div className="text-xl font-black">{isConfigured ? "الترجمة التلقائية جاهزة" : "الترجمة التلقائية غير مفعلة بعد"}</div>
           <p className="mt-3 leading-8 text-white/70">
             {isConfigured
-              ? `الموديل المحدد: ${model || "الافتراضي"}. يمكن الآن ترجمة المحتوى الحالي ومزامنة التعديلات العربية من لوحة الإدارة.`
+              ? `الموديل المحدد: ${model || "الافتراضي"}. ستُحفظ كل ترجمة تلقائية بحالة تحتاج مراجعة، ثم تُراجع وتُنشر يدوياً من لوحة الترجمات.`
               : "يلزم إضافة المتغير السري OPENAI_API_KEY في إعدادات Vercel للإنتاج والمعاينة. لن يُحفظ المفتاح في GitHub أو يظهر في الموقع."}
           </p>
         </div>
@@ -235,16 +234,16 @@ export default function TranslationAutomationPage() {
               </div>
               <div className="mt-6 text-xl font-black">{source.label}</div>
               <p className="mt-3 text-sm leading-7 text-white/55">
-                ترجمة العنوان والملخص والمحتوى إلى الإنجليزية والتركية.
+                ترجمة العنوان والملخص والمحتوى إلى الإنجليزية والتركية وحفظها للمراجعة.
               </p>
             </label>
           ))}
         </section>
 
         <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-          <h2 className="text-2xl font-black">المزامنة الأولى للمحتوى الحالي</h2>
+          <h2 className="text-2xl font-black">الترجمة الأولى للمحتوى الحالي</h2>
           <p className="mt-3 max-w-3xl leading-8 text-white/60">
-            ينفذ النظام الترجمة على دفعات آمنة من عشرة عناصر. الترجمة الناتجة تُنشر تلقائياً كي تظهر فور ربط الصفحة العامة بها، ويمكن تعديلها يدوياً من لوحة الترجمات عند الحاجة.
+            ينفذ النظام الترجمة على دفعات آمنة من عشرة عناصر. تُحفظ الترجمة الناتجة بحالة تحتاج مراجعة ولا تظهر في الصفحات العامة قبل مراجعتها ونشرها يدوياً من لوحة الترجمات.
           </p>
 
           <button
@@ -253,7 +252,7 @@ export default function TranslationAutomationPage() {
             disabled={isSyncing || !isConfigured || selectedItems.length === 0}
             className="mt-6 rounded-full bg-gradient-to-r from-fuchsia-600 to-purple-600 px-7 py-4 font-black text-white shadow-[0_0_35px_rgba(217,70,239,0.3)] transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSyncing ? "جاري الترجمة والمزامنة..." : `ترجمة ${selectedItems.length} عنصر الآن`}
+            {isSyncing ? "جاري الترجمة والحفظ للمراجعة..." : `ترجمة ${selectedItems.length} عنصر وحفظه للمراجعة`}
           </button>
         </section>
 

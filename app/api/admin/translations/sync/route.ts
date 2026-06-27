@@ -26,7 +26,6 @@ type SyncItem = {
 type SyncRequestBody = {
   items?: unknown;
   languages?: unknown;
-  publish?: unknown;
 };
 
 type TranslationLanguage = "en" | "tr";
@@ -160,12 +159,10 @@ async function saveTranslatedSource(
   client: SupabaseClient,
   source: TranslationSourceItem,
   language: TranslationLanguage,
-  adminEmail: string,
-  publish: boolean
+  adminEmail: string
 ) {
   const translated = await translateArabicSource(source, language);
   const now = new Date().toISOString();
-  const status = publish ? "published" : "needs_review";
 
   const rows = [
     { field_name: "title", translated_value: translated.title },
@@ -177,9 +174,9 @@ async function saveTranslatedSource(
     field_name: field.field_name,
     language,
     translated_value: field.translated_value,
-    status,
+    status: "needs_review",
     reviewed: false,
-    is_published: publish,
+    is_published: false,
     created_by: adminEmail,
     updated_by: adminEmail,
     updated_at: now,
@@ -227,7 +224,6 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as SyncRequestBody;
     const items = parseSyncItems(body.items);
     const languages = parseLanguages(body.languages);
-    const publish = body.publish !== false;
 
     if (items.length === 0) {
       return NextResponse.json(
@@ -243,7 +239,7 @@ export async function POST(request: NextRequest) {
       try {
         const source = await loadSource(client, item);
         for (const language of languages) {
-          await saveTranslatedSource(client, source, language, adminEmail, publish);
+          await saveTranslatedSource(client, source, language, adminEmail);
         }
 
         results.push({
@@ -266,8 +262,8 @@ export async function POST(request: NextRequest) {
       errors,
       message:
         errors.length === 0
-          ? "تمت مزامنة الترجمات بنجاح."
-          : `تمت مزامنة ${results.length} عنصر، وتعذر ${errors.length} عنصر.`,
+          ? "تمت ترجمة النصوص وحفظها للمراجعة. راجعها وانشرها يدوياً من لوحة الترجمات."
+          : `تمت ترجمة ${results.length} عنصر وحفظها للمراجعة، وتعذر ${errors.length} عنصر.`,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "تعذر تشغيل مزامنة الترجمة.";

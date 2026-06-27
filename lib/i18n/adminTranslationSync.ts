@@ -23,7 +23,6 @@ type SyncResponse = {
 
 type SyncOptions = {
   languages?: Array<"en" | "tr">;
-  publish?: boolean;
 };
 
 async function getAccessToken() {
@@ -60,7 +59,6 @@ export async function syncArabicContentTranslations(
     body: JSON.stringify({
       items,
       languages: options.languages || ["en", "tr"],
-      publish: options.publish !== false,
     }),
   });
 
