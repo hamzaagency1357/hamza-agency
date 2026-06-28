@@ -1,7 +1,11 @@
 import type { SiteLanguage } from "@/lib/i18n/locale";
-import type { TranslationSourceItem } from "@/lib/i18n/translationSources";
+import {
+  getTranslationFieldNamesForSource,
+  type TranslationFieldName,
+  type TranslationSourceItem,
+} from "@/lib/i18n/translationSources";
 
-type TranslatedFields = Pick<TranslationSourceItem, "title" | "summary" | "content">;
+type TranslatedFields = Partial<Record<TranslationFieldName, string>>;
 
 type OpenAIResponsePayload = {
   output_text?: unknown;
@@ -61,7 +65,7 @@ function parseJsonObject(value: string): Record<string, unknown> {
   return parsed as Record<string, unknown>;
 }
 
-function readTranslatedField(payload: Record<string, unknown>, field: keyof TranslatedFields): string {
+function readTranslatedField(payload: Record<string, unknown>, field: TranslationFieldName): string {
   const value = payload[field];
   return typeof value === "string" ? value.trim() : "";
 }
@@ -75,11 +79,11 @@ export async function translateArabicSource(
     throw new Error("الترجمة التلقائية غير مفعلة بعد. أضف OPENAI_API_KEY في Vercel أولاً.");
   }
 
-  const sourcePayload = {
-    title: cleanSourceText(source.title),
-    summary: cleanSourceText(source.summary),
-    content: cleanSourceText(source.content),
-  };
+  const fieldNames = getTranslationFieldNamesForSource(source.sourceType);
+  const sourcePayload = fieldNames.reduce((payload, field) => {
+    payload[field] = cleanSourceText(source[field] || "");
+    return payload;
+  }, {} as Record<TranslationFieldName, string>);
 
   const model = process.env.TRANSLATION_OPENAI_MODEL?.trim() || "gpt-4.1-mini";
   const targetLanguageName = getTargetLanguageName(targetLanguage);
@@ -98,7 +102,7 @@ export async function translateArabicSource(
         `Translate the Arabic source fields into ${targetLanguageName}.`,
         "Keep brand names, program names, URLs, phone numbers, codes, hashtags, variables, and line breaks unchanged unless a standard localized form is clearly required.",
         "Do not add explanations, warnings, markdown fences, or extra fields.",
-        "Return exactly one JSON object with these string keys: title, summary, content. Return an empty string for every empty source field.",
+        `Return exactly one JSON object with these string keys: ${fieldNames.join(", ")}. Return an empty string for every empty source field.`,
         JSON.stringify(sourcePayload),
       ].join("\n\n"),
     }),
@@ -119,10 +123,8 @@ export async function translateArabicSource(
   }
 
   const translated = parseJsonObject(output);
-
-  return {
-    title: sourcePayload.title ? readTranslatedField(translated, "title") : "",
-    summary: sourcePayload.summary ? readTranslatedField(translated, "summary") : "",
-    content: sourcePayload.content ? readTranslatedField(translated, "content") : "",
-  };
+  return fieldNames.reduce((result, field) => {
+    result[field] = sourcePayload[field] ? readTranslatedField(translated, field) : "";
+    return result;
+  }, {} as TranslatedFields);
 }
