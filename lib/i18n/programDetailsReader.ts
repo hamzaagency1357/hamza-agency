@@ -30,6 +30,12 @@ const requiredFields: ProgramDetailTranslationField[] = [
   "faq",
 ];
 
+function getCurrentProgramSlug() {
+  if (typeof window === "undefined") return "";
+  const segments = window.location.pathname.split("/").filter(Boolean);
+  return segments[segments.length - 1] || "";
+}
+
 export function usePublishedProgramDetailsTranslation(
   sourceId: number | null | undefined,
   language: SiteLanguage
@@ -43,14 +49,31 @@ export function usePublishedProgramDetailsTranslation(
     setIsLoading(false);
 
     async function load() {
-      if (!sourceId || sourceId < 1 || language === "ar" || !isSupabaseConfigured || !supabase) return;
+      if (language === "ar" || !isSupabaseConfigured || !supabase) return;
+
+      const slug = getCurrentProgramSlug();
+      if (!slug) return;
 
       setIsLoading(true);
+      const { data: sourceProgram, error: sourceError } = await supabase
+        .from("programs")
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle();
+
+      if (!active) return;
+
+      const canonicalSourceId = sourceProgram?.id;
+      if (sourceError || !canonicalSourceId) {
+        setIsLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("content_translations")
         .select("field_name, translated_value")
         .eq("source_type", "programs")
-        .eq("source_id", String(sourceId))
+        .eq("source_id", String(canonicalSourceId))
         .eq("language", language)
         .eq("is_published", true)
         .in("status", ["published", "reviewed"])
