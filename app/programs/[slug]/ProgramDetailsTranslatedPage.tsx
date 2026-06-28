@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
 import { getLanguageDirection, type SiteLanguage } from "@/lib/i18n/locale";
+import { getStaticCopy, type StaticCopyKey } from "@/lib/i18n/staticCopy";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
@@ -83,6 +84,13 @@ type Copy = {
 
 const requiredFields: DetailField[] = ["title", "summary", "content", "requirements", "benefits", "updates", "faq"];
 const brandSlugs = new Set(["tiktok", "bigo-live", "yaahlan", "xena", "catchii"]);
+const visualLabelKeys: Record<string, StaticCopyKey> = {
+  tiktok: "programsVisualShortVideos",
+  "bigo-live": "programsVisualLiveStream",
+  yaahlan: "programsVisualCommunityLive",
+  xena: "programsVisualCreators",
+  catchii: "programsVisualSocial",
+};
 
 const programVisuals: Record<string, ProgramVisual> = {
   tiktok: {
@@ -290,6 +298,7 @@ export default function ProgramDetailsTranslatedPage() {
   const language: SiteLanguage = hasCompletePublishedTranslation ? requestedLanguage : "ar";
   const text = copy[language];
   const visual = useMemo(() => programVisuals[slug] || defaultVisual, [slug]);
+  const visualLabel = getStaticCopy(language, visualLabelKeys[slug] || "programsVisualAgency");
   const displayProgram = useMemo(() => {
     if (!program || !hasCompletePublishedTranslation) return program;
     return {
@@ -373,10 +382,10 @@ export default function ProgramDetailsTranslatedPage() {
         <Link href="/programs" className="mb-8 inline-block text-purple-200">{text.back}</Link>
         <div className="relative overflow-hidden rounded-[2rem] border border-purple-400/20 bg-black/40 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur">
           <div className="absolute inset-0 -z-10 bg-gradient-to-br from-white/[0.04] via-transparent to-purple-500/5" />
-          <div className="mb-6 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-bold text-white/75">{hasCompletePublishedTranslation ? visual.label : visual.badge}</div>
+          <div className="mb-6 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-bold text-white/75">{hasCompletePublishedTranslation ? visualLabel : visual.badge}</div>
           {isRefreshing && <div className="mb-4 inline-flex rounded-full border border-purple-400/20 bg-purple-500/10 px-4 py-2 text-xs font-bold text-purple-100">{text.refreshing}</div>}
           <span className={`rounded-full border px-4 py-2 text-sm font-bold ${statusClass}`}>{getStatusLabel(displayProgram.status, text)}</span>
-          <p className="mt-7 text-sm font-bold uppercase tracking-[0.28em] text-purple-200" dir="ltr">{visual.label}</p>
+          <p className="mt-7 text-sm font-bold uppercase tracking-[0.28em] text-purple-200" dir={getLanguageDirection(language)}>{visualLabel}</p>
           <h1 className="mt-4 text-5xl font-black md:text-7xl">{displayProgram.name}</h1>
           <p className="mt-8 max-w-4xl text-xl leading-10 text-white/78">{description}</p>
           <button onClick={() => setShowForm(true)} className="mt-8 w-full rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-5 text-2xl font-black shadow-[0_0_30px_rgba(168,85,247,0.26)] transition hover:scale-[1.01]">{text.join}</button>
