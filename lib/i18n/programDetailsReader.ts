@@ -40,9 +40,10 @@ export function usePublishedProgramDetailsTranslation(
   useEffect(() => {
     let active = true;
     setTranslations({});
+    setIsLoading(false);
 
     async function load() {
-      if (!sourceId || language === "ar" || !isSupabaseConfigured || !supabase) return;
+      if (!sourceId || sourceId < 1 || language === "ar" || !isSupabaseConfigured || !supabase) return;
 
       setIsLoading(true);
       const { data, error } = await supabase
