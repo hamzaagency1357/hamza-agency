@@ -345,7 +345,10 @@ export default function ProgramDetailsPage() {
   const displayUpdates = isComplete ? translations.updates || visual.fallbackUpdates : program.updates || visual.fallbackUpdates;
   const displayFaq = isComplete ? translations.faq || visual.fallbackFaq : program.faq || visual.fallbackFaq;
   const statusLabel = program.status === "limited" ? copy.limited : program.status === "paused" ? copy.paused : copy.available;
-  const visualBadge = isComplete ? (translatedVisualBadges[slug as keyof typeof translatedVisualBadges] || translatedVisualBadges.default)[language] : visual.badge;
+  const visualBadge =
+    isComplete && requestedLanguage !== "ar"
+      ? (translatedVisualBadges[slug as keyof typeof translatedVisualBadges] || translatedVisualBadges.default)[requestedLanguage]
+      : visual.badge;
 
   return (
     <main
