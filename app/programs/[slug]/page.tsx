@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
+import { getLanguageDirection } from "@/lib/i18n/locale";
+import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
+import { programDetailsCopy, usePublishedProgramDetailsTranslation } from "@/lib/i18n/programDetailsReader";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type Program = {
@@ -140,6 +143,15 @@ const programNames: Record<string, string> = {
   catchii: "Catchii",
 };
 
+const translatedVisualBadges = {
+  tiktok: { en: "Short videos", tr: "Kısa videolar" },
+  "bigo-live": { en: "Live streaming", tr: "Canlı yayın" },
+  yaahlan: { en: "Community and live", tr: "Topluluk ve canlı yayın" },
+  xena: { en: "Creator program", tr: "İçerik üreticisi programı" },
+  catchii: { en: "Social content", tr: "Sosyal içerik" },
+  default: { en: "Agency program", tr: "Ajans programı" },
+} as const;
+
 const defaultVisual: ProgramVisual = {
   variant: "programs",
   label: "Creator Agency Program",
@@ -180,6 +192,7 @@ function getFallbackProgram(slug: string): Program | null {
 export default function ProgramDetailsPage() {
   const params = useParams();
   const slug = String(params.slug || "");
+  const requestedLanguage = useSiteLanguage();
 
   const [program, setProgram] = useState<Program | null>(() => getFallbackProgram(slug));
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
@@ -195,6 +208,10 @@ export default function ProgramDetailsPage() {
     previousExperience: "",
     notes: "",
   });
+  const { translations, isComplete, isLoading: isTranslationLoading } = usePublishedProgramDetailsTranslation(
+    program?.id,
+    requestedLanguage
+  );
 
   useEffect(() => {
     const fallbackProgram = getFallbackProgram(slug);
@@ -238,9 +255,11 @@ export default function ProgramDetailsPage() {
       setIsRefreshing(false);
     }
 
-    loadProgramPageData();
+    void loadProgramPageData();
   }, [slug]);
 
+  const language = isComplete ? requestedLanguage : "ar";
+  const copy = programDetailsCopy[language];
   const visual = useMemo(() => programVisuals[slug] || defaultVisual, [slug]);
   const primaryWhatsapp = getSetting(settings, ["primary_whatsapp", "whatsapp", "support_whatsapp"], "+905011730377");
   const backgroundMedia = useMemo(() => findProgramBackground(mediaItems, slug, program?.name || ""), [mediaItems, slug, program?.name]);
@@ -256,19 +275,19 @@ export default function ProgramDetailsPage() {
     if (!program) return;
 
     if (!form.fullName || !form.country || !form.whatsapp) {
-      setMessage("يرجى تعبئة الحقول الأساسية.");
+      setMessage(copy.required);
       return;
     }
 
     if (!isSupabaseConfigured || !supabase) {
-      setMessage("الاتصال بقاعدة البيانات غير مفعل حالياً.");
+      setMessage(copy.databaseUnavailable);
       return;
     }
 
     const duplicateKey = `hamza-agency-${form.whatsapp}-${program.name}`;
 
     if (localStorage.getItem(duplicateKey)) {
-      setMessage("تم إرسال طلب سابق بنفس رقم الواتساب وهذا البرنامج.");
+      setMessage(copy.duplicate);
       return;
     }
 
@@ -288,12 +307,12 @@ export default function ProgramDetailsPage() {
 
     if (error) {
       console.error("Supabase insert error:", error);
-      setMessage("حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.");
+      setMessage(copy.submitError);
       return;
     }
 
     localStorage.setItem(duplicateKey, "true");
-    setMessage("تم استلام طلبك بنجاح. سيقوم فريق الوكالة بمراجعة الطلب وقد يتم التواصل معك عبر واتساب.");
+    setMessage(copy.submitSuccess);
     setForm({ fullName: "", country: "", whatsapp: "", previousExperience: "", notes: "" });
 
     setTimeout(() => {
@@ -316,9 +335,21 @@ export default function ProgramDetailsPage() {
     );
   }
 
+  const isBrandProgram = ["tiktok", "bigo-live", "yaahlan", "xena", "catchii"].includes(program.slug);
+  const displayName = isComplete && !isBrandProgram ? translations.title || program.name : program.name;
+  const displayDescription = isComplete
+    ? translations.content || translations.summary || program.description || program.short_description || visual.fallbackDescription
+    : program.description || program.short_description || visual.fallbackDescription;
+  const displayRequirements = isComplete ? translations.requirements || visual.fallbackRequirements : program.requirements || visual.fallbackRequirements;
+  const displayBenefits = isComplete ? translations.benefits || visual.fallbackBenefits : program.benefits || visual.fallbackBenefits;
+  const displayUpdates = isComplete ? translations.updates || visual.fallbackUpdates : program.updates || visual.fallbackUpdates;
+  const displayFaq = isComplete ? translations.faq || visual.fallbackFaq : program.faq || visual.fallbackFaq;
+  const statusLabel = program.status === "limited" ? copy.limited : program.status === "paused" ? copy.paused : copy.available;
+  const visualBadge = isComplete ? (translatedVisualBadges[slug as keyof typeof translatedVisualBadges] || translatedVisualBadges.default)[language] : visual.badge;
+
   return (
     <main
-      dir="rtl"
+      dir={getLanguageDirection(language)}
       className="relative min-h-screen overflow-hidden bg-[#070009] text-white"
       style={{ "--program-accent": visual.accent, "--program-secondary": visual.secondary } as CSSProperties}
     >
@@ -326,50 +357,52 @@ export default function ProgramDetailsPage() {
       <ProgramBackground media={backgroundMedia} visual={visual} />
 
       <section className="relative z-20 mx-auto max-w-6xl px-5 py-14">
-        <Link href="/programs" className="mb-8 inline-block text-purple-200">← العودة إلى البرامج</Link>
+        <Link href="/programs" className="mb-8 inline-block text-purple-200">{copy.back}</Link>
 
         <div className="relative overflow-hidden rounded-[2rem] border border-purple-400/20 bg-black/40 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur">
           <div className="absolute inset-0 -z-10 bg-gradient-to-br from-white/[0.04] via-transparent to-purple-500/5" />
 
           <div className="mb-6 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-bold text-white/75">
-            {visual.badge}
+            {visualBadge}
           </div>
 
-          {isRefreshing && (
+          {(isRefreshing || isTranslationLoading) && (
             <div className="mb-4 inline-flex rounded-full border border-purple-400/20 bg-purple-500/10 px-4 py-2 text-xs font-bold text-purple-100">
-              تحديث بيانات البرنامج...
+              {copy.refreshing}
             </div>
           )}
 
           <span className="rounded-full border border-green-400/30 bg-green-500/10 px-4 py-2 text-sm font-bold text-green-200">
-            {program.status === "limited" ? "قبول محدود" : program.status === "paused" ? "متوقف مؤقتاً" : "متاح الآن"}
+            {statusLabel}
           </span>
 
-          <p className="mt-7 text-sm font-bold uppercase tracking-[0.28em] text-purple-200" dir="ltr">
-            {visual.label}
-          </p>
+          {!isComplete && (
+            <p className="mt-7 text-sm font-bold uppercase tracking-[0.28em] text-purple-200" dir="ltr">
+              {visual.label}
+            </p>
+          )}
 
-          <h1 className="mt-4 text-5xl font-black md:text-7xl">{program.name}</h1>
+          <h1 className="mt-4 text-5xl font-black md:text-7xl">{displayName}</h1>
 
           <p className="mt-8 max-w-4xl text-xl leading-10 text-white/78">
-            {program.description || program.short_description || visual.fallbackDescription}
+            {displayDescription}
           </p>
 
           <button
             onClick={() => setShowForm(true)}
             className="mt-8 w-full rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-5 text-2xl font-black shadow-[0_0_30px_rgba(168,85,247,0.26)] transition hover:scale-[1.01]"
           >
-            انضم الآن
+            {copy.join}
           </button>
         </div>
 
         <div className="mt-8 grid gap-6 md:grid-cols-2">
-          <InfoCard title="شروط القبول" content={program.requirements || visual.fallbackRequirements} tone="gold" />
-          <InfoCard title="ماذا تقدم وكالة حمزة؟" content={program.benefits || visual.fallbackBenefits} tone="purple" />
+          <InfoCard title={copy.requirements} content={displayRequirements} tone="gold" />
+          <InfoCard title={copy.benefits} content={displayBenefits} tone="purple" />
         </div>
 
-        <InfoCard title="آخر التحديثات" content={program.updates || visual.fallbackUpdates} tone="cyan" />
-        <InfoCard title="الأسئلة الشائعة" content={program.faq || visual.fallbackFaq} tone="pink" />
+        <InfoCard title={copy.updates} content={displayUpdates} tone="cyan" />
+        <InfoCard title={copy.faq} content={displayFaq} tone="pink" />
       </section>
 
       {showForm && (
@@ -383,23 +416,23 @@ export default function ProgramDetailsPage() {
                 }}
                 className="rounded-full border border-white/15 px-5 py-2 text-white/70"
               >
-                إغلاق
+                {copy.close}
               </button>
-              <h2 className="text-3xl font-black">طلب الانضمام إلى {program.name}</h2>
+              <h2 className="text-3xl font-black">{copy.formTitle} {displayName}</h2>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              <input value={form.fullName} onChange={(e) => updateField("fullName", e.target.value)} placeholder="الاسم الثلاثي" className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400" />
-              <input value={form.country} onChange={(e) => updateField("country", e.target.value)} placeholder="الدولة" className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400" />
-              <input value={form.whatsapp} onChange={(e) => updateField("whatsapp", e.target.value)} placeholder="رقم واتساب" className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400" />
+              <input value={form.fullName} onChange={(e) => updateField("fullName", e.target.value)} placeholder={copy.fullName} className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400" />
+              <input value={form.country} onChange={(e) => updateField("country", e.target.value)} placeholder={copy.country} className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400" />
+              <input value={form.whatsapp} onChange={(e) => updateField("whatsapp", e.target.value)} placeholder={copy.whatsapp} className="w-full rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400" />
 
               <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
-                <h3 className="mb-3 text-2xl font-black">خبرات سابقة</h3>
-                <p className="mb-4 text-lg text-purple-200">هل عملت على برامج أو وكالات أخرى سابقاً؟</p>
-                <textarea value={form.previousExperience} onChange={(e) => updateField("previousExperience", e.target.value)} placeholder="اكتب خبراتك السابقة إن وجدت" className="min-h-40 w-full resize-none bg-transparent text-xl outline-none" />
+                <h3 className="mb-3 text-2xl font-black">{copy.experience}</h3>
+                <p className="mb-4 text-lg text-purple-200">{copy.experienceDescription}</p>
+                <textarea value={form.previousExperience} onChange={(e) => updateField("previousExperience", e.target.value)} placeholder={copy.experiencePlaceholder} className="min-h-40 w-full resize-none bg-transparent text-xl outline-none" />
               </div>
 
-              <textarea value={form.notes} onChange={(e) => updateField("notes", e.target.value)} placeholder="ملاحظات إضافية" className="min-h-36 w-full resize-none rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400" />
+              <textarea value={form.notes} onChange={(e) => updateField("notes", e.target.value)} placeholder={copy.notes} className="min-h-36 w-full resize-none rounded-3xl border border-white/10 bg-black/30 p-5 text-xl outline-none focus:border-purple-400" />
 
               {message && (
                 <div className="rounded-3xl border border-yellow-500/40 bg-yellow-500/10 p-5 text-center text-xl font-bold text-yellow-100">
@@ -408,7 +441,7 @@ export default function ProgramDetailsPage() {
               )}
 
               <button type="submit" disabled={isSubmitting} className="w-full rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-5 text-2xl font-black disabled:opacity-60">
-                {isSubmitting ? "جارٍ الإرسال..." : "إرسال الطلب"}
+                {isSubmitting ? copy.submitting : copy.submit}
               </button>
             </form>
           </div>
@@ -416,7 +449,7 @@ export default function ProgramDetailsPage() {
       )}
 
       <a href={`https://wa.me/${primaryWhatsapp.replace(/[^\d]/g, "")}`} target="_blank" className="fixed bottom-5 left-5 z-30 rounded-full bg-green-500 px-5 py-4 text-sm font-black text-white shadow-2xl">
-        واتساب
+        {copy.whatsappCta}
       </a>
     </main>
   );
