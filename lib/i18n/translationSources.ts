@@ -1,5 +1,15 @@
 export type TranslationSourceType = "programs" | "faqs" | "knowledge_base";
-export type TranslationFieldName = "title" | "summary" | "content";
+export type TranslationBaseFieldName = "title" | "summary" | "content";
+export type ProgramDetailTranslationFieldName = "requirements" | "benefits" | "updates" | "faq";
+export type TranslationFieldName = TranslationBaseFieldName | ProgramDetailTranslationFieldName;
+
+const BASE_TRANSLATION_FIELDS: readonly TranslationBaseFieldName[] = ["title", "summary", "content"];
+const PROGRAM_DETAIL_TRANSLATION_FIELDS: readonly ProgramDetailTranslationFieldName[] = [
+  "requirements",
+  "benefits",
+  "updates",
+  "faq",
+];
 
 export type TranslationSourceItem = {
   sourceType: TranslationSourceType;
@@ -7,6 +17,10 @@ export type TranslationSourceItem = {
   title: string;
   summary: string;
   content: string;
+  requirements?: string;
+  benefits?: string;
+  updates?: string;
+  faq?: string;
 };
 
 export type TranslationSourceDefinition = {
@@ -16,6 +30,10 @@ export type TranslationSourceDefinition = {
   titleKeys: readonly string[];
   summaryKeys: readonly string[];
   contentKeys: readonly string[];
+  requirementsKeys?: readonly string[];
+  benefitsKeys?: readonly string[];
+  updatesKeys?: readonly string[];
+  faqKeys?: readonly string[];
 };
 
 export const TRANSLATION_SOURCE_DEFINITIONS: readonly TranslationSourceDefinition[] = [
@@ -26,6 +44,10 @@ export const TRANSLATION_SOURCE_DEFINITIONS: readonly TranslationSourceDefinitio
     titleKeys: ["name", "title"],
     summaryKeys: ["short_description", "summary"],
     contentKeys: ["description", "content"],
+    requirementsKeys: ["requirements"],
+    benefitsKeys: ["benefits"],
+    updatesKeys: ["updates"],
+    faqKeys: ["faq"],
   },
   {
     sourceType: "faqs",
@@ -53,8 +75,21 @@ export function isTranslationSourceType(value: unknown): value is TranslationSou
   return typeof value === "string" && TRANSLATION_SOURCE_TYPES.includes(value as TranslationSourceType);
 }
 
+export function isTranslationFieldName(value: unknown): value is TranslationFieldName {
+  return (
+    typeof value === "string" &&
+    [...BASE_TRANSLATION_FIELDS, ...PROGRAM_DETAIL_TRANSLATION_FIELDS].includes(value as TranslationFieldName)
+  );
+}
+
 export function getTranslationSourceDefinition(sourceType: TranslationSourceType) {
   return TRANSLATION_SOURCE_DEFINITIONS.find((source) => source.sourceType === sourceType) || null;
+}
+
+export function getTranslationFieldNamesForSource(sourceType: TranslationSourceType): TranslationFieldName[] {
+  return sourceType === "programs"
+    ? [...BASE_TRANSLATION_FIELDS, ...PROGRAM_DETAIL_TRANSLATION_FIELDS]
+    : [...BASE_TRANSLATION_FIELDS];
 }
 
 export function getTranslationFieldText(row: Record<string, unknown>, keys: readonly string[]): string {
@@ -75,17 +110,24 @@ export function toTranslationSourceItem(
   const definition = getTranslationSourceDefinition(sourceType);
   if (!definition || !sourceId.trim()) return null;
 
-  const title = getTranslationFieldText(row, definition.titleKeys);
-  const summary = getTranslationFieldText(row, definition.summaryKeys);
-  const content = getTranslationFieldText(row, definition.contentKeys);
-
-  if (!title && !summary && !content) return null;
-
-  return {
+  const item: TranslationSourceItem = {
     sourceType,
     sourceId: sourceId.trim(),
-    title,
-    summary,
-    content,
+    title: getTranslationFieldText(row, definition.titleKeys),
+    summary: getTranslationFieldText(row, definition.summaryKeys),
+    content: getTranslationFieldText(row, definition.contentKeys),
   };
+
+  if (sourceType === "programs") {
+    item.requirements = getTranslationFieldText(row, definition.requirementsKeys || []);
+    item.benefits = getTranslationFieldText(row, definition.benefitsKeys || []);
+    item.updates = getTranslationFieldText(row, definition.updatesKeys || []);
+    item.faq = getTranslationFieldText(row, definition.faqKeys || []);
+  }
+
+  const hasTranslatableText = getTranslationFieldNamesForSource(sourceType).some((field) =>
+    Boolean(item[field]?.trim())
+  );
+
+  return hasTranslatableText ? item : null;
 }
