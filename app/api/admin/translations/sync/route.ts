@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
+  getTranslationFieldNamesForSource,
   getTranslationSourceDefinition,
   isTranslationSourceType,
   toTranslationSourceItem,
@@ -163,17 +164,21 @@ async function saveTranslatedSource(
 ) {
   const translated = await translateArabicSource(source, language);
   const now = new Date().toISOString();
+  const fields = getTranslationFieldNamesForSource(source.sourceType).filter((field) => {
+    const sourceValue = source[field];
+    return typeof sourceValue === "string" && sourceValue.trim().length > 0;
+  });
 
-  const rows = [
-    { field_name: "title", translated_value: translated.title },
-    { field_name: "summary", translated_value: translated.summary },
-    { field_name: "content", translated_value: translated.content },
-  ].map((field) => ({
+  if (fields.length === 0) {
+    throw new Error("لا يحتوي هذا العنصر على حقول قابلة للحفظ.");
+  }
+
+  const rows = fields.map((field) => ({
     source_type: source.sourceType,
     source_id: source.sourceId,
-    field_name: field.field_name,
+    field_name: field,
     language,
-    translated_value: field.translated_value,
+    translated_value: translated[field] || "",
     status: "needs_review",
     reviewed: false,
     is_published: false,
