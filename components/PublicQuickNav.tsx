@@ -9,6 +9,10 @@ import {
   type PublicNavigationGroup,
   type PublicNavigationLink,
 } from "@/lib/publicNavigation";
+import { getLanguageDirection } from "@/lib/i18n/locale";
+import { getSharedNavigationGroupTitle, getSharedNavigationLabel } from "@/lib/i18n/sharedChrome";
+import { getStaticCopy } from "@/lib/i18n/staticCopy";
+import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
 const hiddenPublicQuickNavRoutes = ["/maintenance"];
 const containerClassName =
@@ -56,15 +60,17 @@ function PublicQuickNavLink({
   link,
   active,
   onClick,
+  label,
 }: {
   link: PublicNavigationLink;
   active: boolean;
   onClick: () => void;
+  label: string;
 }) {
   const className = getLinkClassName(active);
   const content = (
     <>
-      <span className="block">{link.label}</span>
+      <span className="block">{label}</span>
       <span className="mt-1 block text-[11px] font-normal text-white/38" dir="ltr">
         {link.href}
       </span>
@@ -88,10 +94,12 @@ function PublicQuickNavLink({
 
 export default function PublicQuickNav() {
   const pathname = usePathname();
+  const language = useSiteLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [quickNavGroups, setQuickNavGroups] = useState<PublicNavigationGroup[]>(
     defaultPublicNavigationConfig.quickNavGroups
   );
+  const copy = (key: Parameters<typeof getStaticCopy>[1]) => getStaticCopy(language, key);
 
   useEffect(() => {
     let isMounted = true;
@@ -102,7 +110,7 @@ export default function PublicQuickNav() {
       setQuickNavGroups(sanitizePublicQuickNavGroups(config.quickNavGroups));
     }
 
-    loadNavigation();
+    void loadNavigation();
 
     return () => {
       isMounted = false;
@@ -117,23 +125,23 @@ export default function PublicQuickNav() {
   if (shouldHidePublicQuickNav(pathname)) return null;
 
   return (
-    <div dir="rtl" className={containerClassName}>
+    <div dir={getLanguageDirection(language)} className={containerClassName}>
       {isOpen && (
         <div className={panelClassName}>
           <div className="mb-3 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3">
             <div className="text-xs font-black uppercase tracking-[0.25em] text-yellow-200">
               HAMZA AGENCY
             </div>
-            <div className="mt-1 text-sm font-black text-white">قائمة الموقع</div>
+            <div className="mt-1 text-sm font-black text-white">{copy("quickNavTitle")}</div>
             <p className="mt-2 text-xs leading-6 text-white/55">
-              تنقل سريع بين صفحات الموقع العامة، بدون روابط لوحة الإدارة.
+              {copy("quickNavDescription")}
             </p>
           </div>
 
           <nav className="grid gap-4">
             {visibleGroups.map((group) => (
               <div key={group.title} className="grid gap-2">
-                <div className={groupTitleClassName}>{group.title}</div>
+                <div className={groupTitleClassName}>{getSharedNavigationGroupTitle(language, group)}</div>
 
                 {group.links.map((link) => {
                   const active = isInternalHref(link.href) ? isActiveLink(pathname, link.href) : false;
@@ -143,6 +151,7 @@ export default function PublicQuickNav() {
                       key={`${group.title}-${link.href}-${link.label}`}
                       link={link}
                       active={active}
+                      label={getSharedNavigationLabel(language, link)}
                       onClick={() => setIsOpen(false)}
                     />
                   );
@@ -156,10 +165,10 @@ export default function PublicQuickNav() {
       <button
         type="button"
         onClick={() => setIsOpen((current) => !current)}
-        aria-label={isOpen ? "إغلاق قائمة الموقع" : "فتح قائمة الموقع"}
+        aria-label={isOpen ? copy("quickNavClose") : copy("quickNavOpen")}
         className="rounded-full border border-yellow-300/40 bg-[#12051f]/95 px-4 py-3 text-xs font-black text-yellow-100 shadow-[0_0_34px_rgba(234,179,8,0.2)] transition hover:bg-purple-900/90 md:px-5 md:text-sm"
       >
-        {isOpen ? "إغلاق القائمة" : "القائمة"}
+        {isOpen ? copy("quickNavClose") : copy("quickNavOpen")}
       </button>
     </div>
   );

@@ -3,14 +3,43 @@ import type { SiteLanguage } from "@/lib/i18n/locale";
 export type StaticCopyKey =
   | "home"
   | "programs"
+  | "about"
   | "services"
+  | "digitalServices"
+  | "serviceRequest"
+  | "serviceStatus"
+  | "applicationStatus"
+  | "jobs"
+  | "reviews"
+  | "successStories"
+  | "partners"
+  | "gallery"
+  | "knowledgeCenter"
+  | "faq"
+  | "aiSupport"
+  | "privacyPolicy"
+  | "termsAndConditions"
+  | "aiPolicy"
   | "contact"
   | "applyNow"
   | "learnMore"
+  | "discoverMore"
+  | "readMore"
+  | "viewAll"
   | "availableNow"
   | "backHome"
   | "whatsapp"
+  | "openWhatsApp"
   | "languageScope"
+  | "languageInterface"
+  | "languageSwitcherLabel"
+  | "quickNavTitle"
+  | "quickNavDescription"
+  | "quickNavOpen"
+  | "quickNavClose"
+  | "footerSiteLinks"
+  | "footerLegalPages"
+  | "footerContact"
   | "programsEyebrow"
   | "programsHeroTitle"
   | "programsHeroAccent"
@@ -42,14 +71,43 @@ const staticCopy: Record<SiteLanguage, StaticCopy> = {
   ar: {
     home: "الرئيسية",
     programs: "البرامج",
+    about: "من نحن",
     services: "الخدمات",
+    digitalServices: "الخدمات الرقمية",
+    serviceRequest: "طلب خدمة",
+    serviceStatus: "تتبع طلب خدمة",
+    applicationStatus: "تتبع طلب الانضمام",
+    jobs: "الوظائف",
+    reviews: "التقييمات",
+    successStories: "قصص النجاح",
+    partners: "الشركاء والبرامج",
+    gallery: "المعرض",
+    knowledgeCenter: "مركز المعرفة",
+    faq: "الأسئلة الشائعة",
+    aiSupport: "الدعم الذكي",
+    privacyPolicy: "سياسة الخصوصية",
+    termsAndConditions: "الشروط والأحكام",
+    aiPolicy: "سياسة الذكاء الاصطناعي",
     contact: "اتصل بنا",
     applyNow: "انضم الآن",
     learnMore: "التفاصيل",
+    discoverMore: "اكتشف المزيد",
+    readMore: "اقرأ المزيد",
+    viewAll: "عرض الكل",
     availableNow: "متاح الآن",
     backHome: "العودة إلى الرئيسية",
     whatsapp: "واتساب",
+    openWhatsApp: "فتح واتساب",
     languageScope: "تتبدل الصفحات التي تم ربطها بالترجمة. أي نص غير مترجم يبقى بالعربية حتى تكتمل ترجمته.",
+    languageInterface: "واجهة اللغة",
+    languageSwitcherLabel: "تبديل لغة الواجهة",
+    quickNavTitle: "قائمة الموقع",
+    quickNavDescription: "تنقل سريع بين صفحات الموقع العامة، بدون روابط لوحة الإدارة.",
+    quickNavOpen: "فتح القائمة",
+    quickNavClose: "إغلاق القائمة",
+    footerSiteLinks: "روابط الموقع",
+    footerLegalPages: "الصفحات القانونية",
+    footerContact: "التواصل",
     programsEyebrow: "برامج وكالة حمزة",
     programsHeroTitle: "اختر البرنامج المناسب",
     programsHeroAccent: "وابدأ طلب الانضمام",
@@ -78,14 +136,43 @@ const staticCopy: Record<SiteLanguage, StaticCopy> = {
   en: {
     home: "Home",
     programs: "Programs",
+    about: "About us",
     services: "Services",
+    digitalServices: "Digital services",
+    serviceRequest: "Request a service",
+    serviceStatus: "Track service request",
+    applicationStatus: "Track application",
+    jobs: "Careers",
+    reviews: "Reviews",
+    successStories: "Success stories",
+    partners: "Partners and programs",
+    gallery: "Gallery",
+    knowledgeCenter: "Knowledge center",
+    faq: "Frequently asked questions",
+    aiSupport: "AI support",
+    privacyPolicy: "Privacy policy",
+    termsAndConditions: "Terms and conditions",
+    aiPolicy: "AI policy",
     contact: "Contact",
     applyNow: "Join now",
     learnMore: "Details",
+    discoverMore: "Discover more",
+    readMore: "Read more",
+    viewAll: "View all",
     availableNow: "Available now",
     backHome: "Back to home",
     whatsapp: "WhatsApp",
+    openWhatsApp: "Open WhatsApp",
     languageScope: "Translated pages switch to the selected language. Any untranslated text remains in Arabic until its translation is ready.",
+    languageInterface: "Language UI",
+    languageSwitcherLabel: "Switch interface language",
+    quickNavTitle: "Site menu",
+    quickNavDescription: "Quick navigation between public website pages, without admin links.",
+    quickNavOpen: "Open menu",
+    quickNavClose: "Close menu",
+    footerSiteLinks: "Site links",
+    footerLegalPages: "Legal pages",
+    footerContact: "Contact",
     programsEyebrow: "HAMZA AGENCY Programs",
     programsHeroTitle: "Choose the right program",
     programsHeroAccent: "and start your application",
@@ -114,14 +201,43 @@ const staticCopy: Record<SiteLanguage, StaticCopy> = {
   tr: {
     home: "Ana sayfa",
     programs: "Programlar",
+    about: "Hakkımızda",
     services: "Hizmetler",
+    digitalServices: "Dijital hizmetler",
+    serviceRequest: "Hizmet talebi",
+    serviceStatus: "Hizmet talibini takip et",
+    applicationStatus: "Başvuruyu takip et",
+    jobs: "Kariyer",
+    reviews: "Yorumlar",
+    successStories: "Başarı hikâyeleri",
+    partners: "İş ortakları ve programlar",
+    gallery: "Galeri",
+    knowledgeCenter: "Bilgi merkezi",
+    faq: "Sık sorulan sorular",
+    aiSupport: "Yapay zekâ desteği",
+    privacyPolicy: "Gizlilik politikası",
+    termsAndConditions: "Şartlar ve koşullar",
+    aiPolicy: "Yapay zekâ politikası",
     contact: "İletişim",
     applyNow: "Şimdi katıl",
     learnMore: "Detaylar",
+    discoverMore: "Daha fazlasını keşfedin",
+    readMore: "Devamını oku",
+    viewAll: "Tümünü görüntüle",
     availableNow: "Şimdi açık",
     backHome: "Ana sayfaya dön",
     whatsapp: "WhatsApp",
+    openWhatsApp: "WhatsApp'ı aç",
     languageScope: "Çevrisi bağlanan sayfalar seçilen dile geçer. Çevrilmemiş metinler çeviri hazır olana kadar Arapça kalır.",
+    languageInterface: "Dil arayüzü",
+    languageSwitcherLabel: "Arayüz dilini değiştir",
+    quickNavTitle: "Site menüsü",
+    quickNavDescription: "Yönetim bağlantıları olmadan genel site sayfaları arasında hızlı gezinme.",
+    quickNavOpen: "Menüyü aç",
+    quickNavClose: "Menüyü kapat",
+    footerSiteLinks: "Site bağlantıları",
+    footerLegalPages: "Yasal sayfalar",
+    footerContact: "İletişim",
     programsEyebrow: "HAMZA AGENCY Programları",
     programsHeroTitle: "Size uygun programı seçin",
     programsHeroAccent: "ve başvurunuzu başlatın",

@@ -8,6 +8,7 @@ import VisualBackgroundPresets from "@/components/VisualBackgroundPresets";
 import FinalVisualPolish from "@/components/FinalVisualPolish";
 import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
 import StructuredData from "@/components/StructuredData";
+import SiteLanguageDocumentSync from "@/components/SiteLanguageDocumentSync";
 import "./globals.css";
 import "./final-fixes.css";
 import "./public-modal-fixes.css";
@@ -112,6 +113,7 @@ export default function RootLayout({
       <body>
         <StructuredData />
         <AuthRecoveryRedirect />
+        <SiteLanguageDocumentSync />
         <PublicDesktopEnhancer />
         <VisualBackgroundPresets />
         <FinalVisualPolish />
