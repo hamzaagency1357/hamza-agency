@@ -1,5 +1,5 @@
 import type { PublicNavigationGroup, PublicNavigationLink } from "@/lib/publicNavigation";
-import type { SiteLanguage } from "@/lib/i18n/locale";
+import { SITE_LANGUAGES, type SiteLanguage } from "@/lib/i18n/locale";
 import { getStaticCopy, type StaticCopyKey } from "@/lib/i18n/staticCopy";
 
 const navigationCopyByHref: Record<string, StaticCopyKey> = {
@@ -39,8 +39,27 @@ const groupCopyByArabicTitle: Record<string, StaticCopyKey> = {
   "معلومات قانونية": "footerLegalPages",
 };
 
+const knownHomeSharedChromeTextKeys: ReadonlyArray<StaticCopyKey> = [
+  "footerSiteLinks",
+  "footerLegalPages",
+  "footerContact",
+  "applyNow",
+  "learnMore",
+  "discoverMore",
+  "readMore",
+  "viewAll",
+  "availableNow",
+  "backHome",
+  "whatsapp",
+  "openWhatsApp",
+];
+
 function normalizeHref(href: string) {
   return href.split("?")[0]?.split("#")[0] || href;
+}
+
+function normalizeText(value: string) {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 export function getSharedNavigationLabel(language: SiteLanguage, link: PublicNavigationLink) {
@@ -51,7 +70,30 @@ export function getSharedNavigationLabel(language: SiteLanguage, link: PublicNav
   return copyKey ? getStaticCopy(language, copyKey) : link.label;
 }
 
+export function getSharedNavigationLabelByHref(language: SiteLanguage, href: string, fallback: string) {
+  const copyKey = navigationCopyByHref[normalizeHref(href)];
+  return copyKey ? getStaticCopy(language, copyKey) : fallback;
+}
+
 export function getSharedNavigationGroupTitle(language: SiteLanguage, group: PublicNavigationGroup) {
   const copyKey = groupCopyByArabicTitle[group.title];
   return copyKey ? getStaticCopy(language, copyKey) : group.title;
+}
+
+/**
+ * Localizes only stable, shared UI labels. Any CMS-managed text that does not
+ * match one of these established labels is intentionally returned unchanged.
+ */
+export function getKnownHomeSharedChromeText(language: SiteLanguage, text: string) {
+  const normalizedText = normalizeText(text);
+
+  for (const key of knownHomeSharedChromeTextKeys) {
+    const isKnownValue = SITE_LANGUAGES.some(
+      ({ code }) => normalizeText(getStaticCopy(code, key)) === normalizedText
+    );
+
+    if (isKnownValue) return getStaticCopy(language, key);
+  }
+
+  return text;
 }
