@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { getLanguageDirection } from "@/lib/i18n/locale";
 import {
   getKnownHomeSharedChromeText,
@@ -20,9 +21,12 @@ function setTextIfChanged(element: HTMLElement, nextText: string) {
  * localized by href, while unknown/custom CMS labels remain untouched.
  */
 export default function HomeSharedChromeTranslationBridge() {
+  const pathname = usePathname();
   const language = useSiteLanguage();
 
   useEffect(() => {
+    if (pathname !== "/") return;
+
     const root = document.querySelector("main");
     if (!root) return;
 
@@ -85,7 +89,7 @@ export default function HomeSharedChromeTranslationBridge() {
     return () => {
       observer.disconnect();
     };
-  }, [language]);
+  }, [language, pathname]);
 
   return null;
 }
