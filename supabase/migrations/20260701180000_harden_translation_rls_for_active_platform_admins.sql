@@ -27,7 +27,7 @@ AS $$
       SELECT 1
       FROM public.admin_users AS au
       WHERE pg_catalog.lower(au.email) = pg_catalog.lower(
-        pg_catalog.coalesce(auth.jwt() ->> 'email', '')
+        coalesce(auth.jwt() ->> 'email', '')
       )
         AND au.is_active IS TRUE
         AND pg_catalog.lower(au.role) IN (
@@ -54,7 +54,7 @@ FOR SELECT
 TO authenticated
 USING (
   pg_catalog.lower(email) = pg_catalog.lower(
-    pg_catalog.coalesce(auth.jwt() ->> 'email', '')
+    coalesce(auth.jwt() ->> 'email', '')
   )
   OR public.is_active_platform_admin()
 );
