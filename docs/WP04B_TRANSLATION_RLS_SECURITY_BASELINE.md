@@ -46,6 +46,22 @@ and status in ('reviewed', 'published')
 
 `TO public` is intentional: published translations are public website content and must remain available whether a visitor is anonymous or has an authenticated Supabase session.
 
+## Fail-closed baseline protections
+
+The migration deliberately fails the whole transaction when the live baseline is not what WP04-A audited:
+
+1. Each of the five broad legacy policies is dropped **without** `IF EXISTS`. A renamed or missing baseline policy stops the transaction instead of silently leaving unknown access in place.
+2. The helper uses `SECURITY DEFINER`, `STABLE`, and the minimal setting:
+
+   ```sql
+   SET search_path = pg_catalog
+   ```
+
+   Every non-`pg_catalog` reference inside the helper is schema-qualified explicitly.
+3. A transaction guard runs after the replacement policies are created and before `COMMIT`. It requires the existing public reader to remain a `SELECT` policy targeted exactly to `public`, and rejects any policy on the three audited tables that targets `authenticated` with a condition equivalent to `USING true` or `WITH CHECK true`.
+
+The guard treats both `true` and `(true)` as broad conditions by removing whitespace and parentheses before exact comparison.
+
 ## Operational effect after a successful manual apply
 
 | Actor | `content_translations` access |
@@ -139,7 +155,7 @@ select
   exists (
     select 1
     from unnest(coalesce(p.proconfig, array[]::text[])) as setting
-    where setting = 'search_path=pg_catalog, public'
+    where setting = 'search_path=pg_catalog'
   ) as has_configured_safe_search_path,
   not has_function_privilege(
     'anon',
@@ -162,7 +178,7 @@ where n.nspname = 'public'
 Expected:
 
 - `security_definer = true`
-- `has_configured_safe_search_path = true`
+- `has_configured_safe_search_path = true` for exactly `search_path=pg_catalog`
 - `anon_cannot_execute = true`
 - `authenticated_can_execute = true`
 
@@ -185,10 +201,10 @@ where schemaname = 'public'
     'program_admins',
     'content_translations'
   )
-  and roles::text = '{authenticated}'
+  and roles @> ARRAY['authenticated']::name[]
   and (
-    coalesce(qual, '') = 'true'
-    or coalesce(with_check, '') = 'true'
+    regexp_replace(coalesce(qual, ''), '[[:space:]()]', '', 'g') = 'true'
+    or regexp_replace(coalesce(with_check, ''), '[[:space:]()]', '', 'g') = 'true'
   )
 order by tablename, policyname;
 ```
@@ -203,6 +219,7 @@ select
   cmd,
   roles::text as roles,
   qual as using_condition,
+  roles = ARRAY['public']::name[] as targets_public_only,
   position('is_published' in lower(coalesce(qual, ''))) > 0
     as checks_is_published,
   position('reviewed' in lower(coalesce(qual, ''))) > 0
@@ -218,7 +235,7 @@ where schemaname = 'public'
 Expected:
 
 - `cmd = SELECT`
-- `roles = {public}`
+- `roles = {public}` and `targets_public_only = true`
 - `checks_is_published = true`
 - `allows_reviewed = true`
 - `allows_published = true`
