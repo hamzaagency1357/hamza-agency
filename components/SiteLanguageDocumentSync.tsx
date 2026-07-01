@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import HomeSharedChromeTranslationBridge from "@/components/HomeSharedChromeTranslationBridge";
 import { applySiteLanguage } from "@/lib/i18n/locale";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
@@ -15,5 +16,5 @@ export default function SiteLanguageDocumentSync() {
     applySiteLanguage(language);
   }, [language]);
 
-  return null;
+  return <HomeSharedChromeTranslationBridge />;
 }
