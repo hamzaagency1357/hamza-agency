@@ -278,6 +278,14 @@ Commit:
 - تم معالجة تحذير Security Definer View يدوياً في Supabase بتحويل views إلى `security_invoker = true`.
 - Security Advisor أظهر: No errors detected حسب التقرير.
 
+### WP04-B Translation RLS Security Baseline
+
+- Applied manually to Supabase Production on `2026-07-01`.
+- RLS hardening validated successfully.
+- Source record: `docs/sql/applied-production/20260701180000_harden_translation_rls_for_active_platform_admins.sql`.
+- Current database workflow remains Manual SQL Workflow documented in Git.
+- Supabase CLI migration history is not established and must not be used without a future baseline/alignment work package.
+
 ---
 
 ## الأشياء المنفذة والمعتمدة — لا نكررها
