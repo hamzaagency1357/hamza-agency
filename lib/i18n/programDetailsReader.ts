@@ -2,25 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { SiteLanguage } from "@/lib/i18n/locale";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import {
+  hasCompletePublishedTranslation,
+  readPublishedTranslations,
+} from "@/lib/i18n/publishedTranslations";
 
-export type ProgramDetailTranslationField =
-  | "title"
-  | "summary"
-  | "content"
-  | "requirements"
-  | "benefits"
-  | "updates"
-  | "faq";
-
-export type ProgramDetailTranslations = Partial<Record<ProgramDetailTranslationField, string>>;
-
-type TranslationRow = {
-  field_name: ProgramDetailTranslationField | null;
-  translated_value: string | null;
-};
-
-const requiredFields: ProgramDetailTranslationField[] = [
+export const PROGRAM_DETAIL_TRANSLATION_FIELDS = [
   "title",
   "summary",
   "content",
@@ -28,13 +15,10 @@ const requiredFields: ProgramDetailTranslationField[] = [
   "benefits",
   "updates",
   "faq",
-];
+] as const;
 
-function getCurrentProgramSlug() {
-  if (typeof window === "undefined") return "";
-  const segments = window.location.pathname.split("/").filter(Boolean);
-  return segments[segments.length - 1] || "";
-}
+export type ProgramDetailTranslationField = (typeof PROGRAM_DETAIL_TRANSLATION_FIELDS)[number];
+export type ProgramDetailTranslations = Partial<Record<ProgramDetailTranslationField, string>>;
 
 export function usePublishedProgramDetailsTranslation(
   sourceId: number | null | undefined,
@@ -44,64 +28,36 @@ export function usePublishedProgramDetailsTranslation(
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    let active = true;
+    let isActive = true;
     setTranslations({});
     setIsLoading(false);
 
-    async function load() {
-      if (language === "ar" || !isSupabaseConfigured || !supabase) return;
-
-      const slug = getCurrentProgramSlug();
-      if (!slug) return;
+    async function loadTranslations() {
+      if (language === "ar" || !sourceId) return;
 
       setIsLoading(true);
-      const { data: sourceProgram, error: sourceError } = await supabase
-        .from("programs")
-        .select("id")
-        .eq("slug", slug)
-        .maybeSingle();
+      const translationMap = await readPublishedTranslations({
+        sourceType: "programs",
+        language,
+        sourceIds: [sourceId],
+        fields: PROGRAM_DETAIL_TRANSLATION_FIELDS,
+      });
 
-      if (!active) return;
+      if (!isActive) return;
 
-      const canonicalSourceId = sourceProgram?.id;
-      if (sourceError || !canonicalSourceId) {
-        setIsLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("content_translations")
-        .select("field_name, translated_value")
-        .eq("source_type", "programs")
-        .eq("source_id", String(canonicalSourceId))
-        .eq("language", language)
-        .eq("is_published", true)
-        .in("status", ["published", "reviewed"])
-        .in("field_name", requiredFields);
-
-      if (!active) return;
-
-      if (!error && data) {
-        const next = (data as TranslationRow[]).reduce((result, row) => {
-          if (row.field_name && row.translated_value?.trim()) {
-            result[row.field_name] = row.translated_value.trim();
-          }
-          return result;
-        }, {} as ProgramDetailTranslations);
-        setTranslations(next);
-      }
-
+      setTranslations(translationMap[String(sourceId)] || {});
       setIsLoading(false);
     }
 
-    void load();
+    void loadTranslations();
+
     return () => {
-      active = false;
+      isActive = false;
     };
-  }, [sourceId, language]);
+  }, [language, sourceId]);
 
   const isComplete = useMemo(
-    () => language !== "ar" && requiredFields.every((field) => Boolean(translations[field]?.trim())),
+    () => language !== "ar" && hasCompletePublishedTranslation(translations, PROGRAM_DETAIL_TRANSLATION_FIELDS),
     [language, translations]
   );
 
