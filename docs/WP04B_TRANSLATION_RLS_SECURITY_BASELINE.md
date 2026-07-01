@@ -1,99 +1,127 @@
 # WP04-B — Translation RLS Security Baseline
 
-## Purpose
+## Final status
 
-This document accompanies:
+**Applied manually to Supabase Production on 2026-07-01.**
 
-`supabase/migrations/20260701180000_harden_translation_rls_for_active_platform_admins.sql`
+- Execution method: Supabase SQL Editor.
+- Result: applied successfully in one transaction with the fail-closed guard.
+- No rollback was run.
+- No translation data was modified during the security apply.
+- No AI Translation was run.
+- No Program Admin translation access was added.
 
-The migration is **prepared for review only**. It has not been executed in Supabase.
+The final historical SQL record is:
 
-Its only purpose is to replace authenticated-wide administrative access on these tables:
+```text
+docs/sql/applied-production/20260701180000_harden_translation_rls_for_active_platform_admins.sql
+```
+
+> **DO NOT RE-RUN.** This is a historical record of Production SQL already applied successfully. It is not a pending Supabase CLI migration.
+
+## Database workflow context
+
+HAMZA AGENCY currently uses **Manual SQL Workflow documented in Git**.
+
+`supabase/migrations/` does not currently represent a reliable Remote Supabase CLI History or an executable migration queue. The WP04-B SQL was therefore moved out of that path after successful manual execution and validation.
+
+A future migration workflow may use Supabase CLI only after a dedicated Production Schema Baseline and Migration History Alignment work package is approved and completed.
+
+## Scope that was applied
+
+The SQL hardened access on:
 
 - `public.admin_users`
 - `public.program_admins`
 - `public.content_translations`
 
-with an explicit active-platform-admin allowlist:
+The helper `public.is_active_platform_admin()` grants elevated access only when all of the following are true:
 
-- `super_admin`
-- `deputy_super_admin`
+- a valid Auth session exists;
+- JWT email matches `public.admin_users.email`;
+- `is_active IS TRUE`;
+- normalized role is exactly `super_admin` or `deputy_super_admin`.
 
-A platform admin is allowed only when the JWT email matches `public.admin_users.email`, `is_active IS TRUE`, and the role is in the explicit allowlist.
-
-## Explicit non-goals
-
-This migration does **not**:
-
-- change `content_translations` schema, constraints, values, indexes, or conflict keys;
-- add `category`, `meta_title`, `meta_description`, `needs_update`, `archived`, or `sections`;
-- add Foreign Keys or Program Admin scope;
-- grant any translation access to `program_admin`;
-- create a DELETE policy;
-- change the public published-reader policy;
-- modify application code, AI configuration, Vercel configuration, or production data.
+It is `SECURITY DEFINER`, `STABLE`, uses `search_path=pg_catalog`, exposes no Execute grant to `anon`, and does not grant Program Admin any translation administration access.
 
 ## Public Reader contract
 
-The existing policy named `Public can read published content translations` is intentionally not dropped or changed.
-
-It remains `TO public` and must continue to allow only:
+The existing Policy remains intentionally unchanged:
 
 ```sql
-is_published = true
-and status in ('reviewed', 'published')
+TO public
+USING (
+  is_published = true
+  AND status IN ('reviewed', 'published')
+)
 ```
 
-`TO public` is intentional: published translations are public website content and must remain available whether a visitor is anonymous or has an authenticated Supabase session.
+Published content remains available to both anonymous visitors and authenticated non-admin visitors. Drafts, needs-review rows, unpublished rows, and broad administrative reads remain unavailable through the public reader.
 
-## Fail-closed baseline protections
+## Validation results — all passed
 
-The migration deliberately fails the whole transaction when the live baseline is not what WP04-A audited:
+### Validation 1 — RLS state
 
-1. Each of the five broad legacy policies is dropped **without** `IF EXISTS`. A renamed or missing baseline policy stops the transaction instead of silently leaving unknown access in place.
-2. The helper uses `SECURITY DEFINER`, `STABLE`, and the minimal setting:
+RLS is enabled on:
 
-   ```sql
-   SET search_path = pg_catalog
-   ```
+- `admin_users`
+- `program_admins`
+- `content_translations`
 
-   Every non-`pg_catalog` reference inside the helper is schema-qualified explicitly.
-3. A transaction guard runs after the replacement policies are created and before `COMMIT`. It requires the existing public reader to remain a `SELECT` policy targeted exactly to `public`, and rejects any policy on the three audited tables that targets `authenticated` with a condition equivalent to `USING true` or `WITH CHECK true`.
+`FORCE ROW LEVEL SECURITY` is not enabled.
 
-The guard treats both `true` and `(true)` as broad conditions by removing whitespace and parentheses before exact comparison.
+### Validation 2 — final Policy contract
 
-## Operational effect after a successful manual apply
+The final restrictive policies were present for active platform administrators, and the existing Public Reader remained present for `content_translations`.
 
-| Actor | `content_translations` access |
-|---|---|
-| Public visitor, anonymous or authenticated | Published/reviewed public rows only, through the unchanged public policy |
-| Authenticated non-admin | Published/reviewed public rows only; no administrative read, insert, or update |
-| Active `super_admin` | Administrative select, insert, update across all translations |
-| Active `deputy_super_admin` | Administrative select, insert, update across all translations |
-| Inactive admin | Public-reader behavior only; no administrative access |
-| `program_admin` | Public-reader behavior only; no translation administration in Phase 1 |
-| AI Translation route | Continues to work only for active Super/Deputy Admin because its server-side check and RLS allowlist match |
+### Validation 3 — authorization helper
 
-The admin application currently looks up `admin_users` by JWT email. The tightened `admin_users` policy therefore allows an authenticated user to read only their own profile row, while an active Super/Deputy Admin can read all admin profiles.
+Verified on Production:
 
-## Pre-apply checklist
+- `security_definer = true`
+- function owner = `postgres`
+- function configuration includes `search_path=pg_catalog`
+- configured safe search path check = `true`
+- `anon_cannot_execute = true`
+- `authenticated_can_execute = true`
 
-Before a manual Supabase execution, confirm all items:
+### Validation 4 — no remaining authenticated-wide policy
 
-1. The live policies still have the names audited in WP04-A.
-2. The live public reader still has the exact published/reviewed condition.
-3. The current active Super Admin can sign in successfully.
-4. No Program Admin scoped-access requirement is being introduced in this execution.
-5. No application code change is bundled with the SQL apply.
-6. A project owner is ready to run the validation SQL below immediately after apply.
+The wide-policy detector returned no rows for `admin_users`, `program_admins`, and `content_translations`. No audited policy remained equivalent to `USING true` or `WITH CHECK true` for authenticated access.
 
----
+### Validation 5 — Public Reader remains fail-closed
 
-# Post-apply validation SQL — read-only
+Verified on Production:
 
-Run the following statements only **after** the migration is manually applied. Every statement is `SELECT` only.
+- command = `SELECT`
+- role target = `{public}`
+- public-only target check = `true`
+- `is_published` is required
+- both `reviewed` and `published` statuses are required by the public policy condition
 
-## 1. Confirm RLS remains enabled
+## Operational test results — all passed
+
+The following pages opened successfully without saving, editing, publishing, deleting, or triggering AI:
+
+- `/programs`
+- `/programs/tiktok`
+- `/faq`
+- `/knowledge-center`
+- `/admin/translations`
+- `/admin/translations/automation`
+
+Translation behavior verified:
+
+- TikTok English rendered the complete seven-field published translation.
+- TikTok Turkish fell back to Arabic when Turkish translation was incomplete.
+- FAQ and Knowledge Center retained Arabic fallback when a complete published translation was unavailable.
+- No public Draft or `needs_review` translation became visible.
+
+## Historical read-only validation SQL
+
+These statements are preserved for audit and future verification. They do not modify data.
+
+### 1. Confirm RLS remains enabled
 
 ```sql
 select
@@ -112,9 +140,7 @@ where n.nspname = 'public'
 order by c.relname;
 ```
 
-Expected: all three rows show `rls_enabled = true`; the migration does not enable `FORCE ROW LEVEL SECURITY`.
-
-## 2. Inspect the final policy contract
+### 2. Inspect the Policy contract
 
 ```sql
 select
@@ -134,16 +160,7 @@ where schemaname = 'public'
 order by tablename, policyname;
 ```
 
-Expected final policies include:
-
-- `Active platform admins can read admin users`
-- `Active platform admins can manage program admin mappings`
-- `Active platform admins can read content translations`
-- `Active platform admins can insert content translations`
-- `Active platform admins can update content translations`
-- unchanged `Public can read published content translations`
-
-## 3. Confirm helper security properties and function grants
+### 3. Confirm helper security properties and function grants
 
 ```sql
 select
@@ -175,16 +192,7 @@ where n.nspname = 'public'
   and pg_get_function_identity_arguments(p.oid) = '';
 ```
 
-Expected:
-
-- `security_definer = true`
-- `has_configured_safe_search_path = true` for exactly `search_path=pg_catalog`
-- `anon_cannot_execute = true`
-- `authenticated_can_execute = true`
-
-The owner is displayed for audit. The owner must be a controlled project database owner, not an untrusted application role.
-
-## 4. Detect any remaining authenticated-wide policy conditions
+### 4. Detect any remaining authenticated-wide policy conditions
 
 ```sql
 select
@@ -209,9 +217,7 @@ where schemaname = 'public'
 order by tablename, policyname;
 ```
 
-Expected: zero rows.
-
-## 5. Confirm the unchanged Public Reader remains fail-closed
+### 5. Confirm the Public Reader remains fail-closed
 
 ```sql
 select
@@ -232,37 +238,13 @@ where schemaname = 'public'
   and policyname = 'Public can read published content translations';
 ```
 
-Expected:
+## Emergency rollback SQL — historical only
 
-- `cmd = SELECT`
-- `roles = {public}` and `targets_public_only = true`
-- `checks_is_published = true`
-- `allows_reviewed = true`
-- `allows_published = true`
-
-## 6. Manual application tests after SQL validation
-
-Do not create test accounts unless separately approved.
-
-| Existing account type | Expected result |
-|---|---|
-| Current active Super Admin | `/admin/translations` loads and can read/save translations; `/admin/translations/automation` authorization passes |
-| Existing active Deputy Super Admin, when one exists | Same translation access as Super Admin |
-| Existing Program Admin, when one exists | No administrative translation access |
-| Existing inactive admin, when one exists | No administrative translation access |
-| Authenticated non-admin, when one exists | No administrative translation access; published public translations remain readable by public pages |
-| Public visitor | `/programs`, `/programs/tiktok`, `/faq`, and `/knowledge-center` still read only published/reviewed translations |
-
----
-
-# Emergency rollback SQL
-
-> **Warning:** This rollback intentionally restores the prior, broader authenticated access. Use it only for a verified operational failure that blocks essential administration, and investigate immediately afterward. It does not change data, tables, columns, constraints, or the public reader.
+> **Warning:** This rollback restores the broader pre-WP04-B policies. It must not be run automatically or for a speculative issue. It requires a separate operational decision after evidence of an actual failure.
 
 ```sql
 begin;
 
--- Remove all policies that depend on the helper before dropping it.
 drop policy if exists "Active platform admins can read admin users"
   on public.admin_users;
 
@@ -278,7 +260,6 @@ drop policy if exists "Active platform admins can insert content translations"
 drop policy if exists "Active platform admins can update content translations"
   on public.content_translations;
 
--- Restore only the exact broad policies audited before WP04-B.
 create policy allow_authenticated_admin_users_select
 on public.admin_users
 for select
@@ -311,13 +292,8 @@ to authenticated
 using (true)
 with check (true);
 
--- The public published-reader policy was never changed by WP04-B.
 revoke all on function public.is_active_platform_admin() from authenticated;
 drop function if exists public.is_active_platform_admin();
 
 commit;
 ```
-
-## Rollback verification
-
-After an emergency rollback, re-run policy inspection only to confirm the expected previous policies exist. Do not leave the broader policies in place longer than necessary.
