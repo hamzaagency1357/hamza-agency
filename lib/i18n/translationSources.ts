@@ -1,4 +1,4 @@
-export type TranslationSourceType = "programs" | "faqs" | "knowledge_base";
+export type TranslationSourceType = "programs" | "pages" | "faqs" | "knowledge_base";
 export type TranslationBaseFieldName = "title" | "summary" | "content";
 export type ProgramDetailTranslationFieldName = "requirements" | "benefits" | "updates" | "faq";
 export type TranslationFieldName = TranslationBaseFieldName | ProgramDetailTranslationFieldName;
@@ -26,7 +26,7 @@ export type TranslationSourceItem = {
 export type TranslationSourceDefinition = {
   sourceType: TranslationSourceType;
   label: string;
-  table: "programs" | "faqs" | "knowledge_base";
+  table: "programs" | "pages" | "faqs" | "knowledge_base";
   titleKeys: readonly string[];
   summaryKeys: readonly string[];
   contentKeys: readonly string[];
@@ -48,6 +48,14 @@ export const TRANSLATION_SOURCE_DEFINITIONS: readonly TranslationSourceDefinitio
     benefitsKeys: ["benefits"],
     updatesKeys: ["updates"],
     faqKeys: ["faq"],
+  },
+  {
+    sourceType: "pages",
+    label: "صفحات CMS",
+    table: "pages",
+    titleKeys: ["title"],
+    summaryKeys: ["seo_description", "summary"],
+    contentKeys: ["content"],
   },
   {
     sourceType: "faqs",
