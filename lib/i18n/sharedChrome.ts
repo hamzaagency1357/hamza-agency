@@ -4,6 +4,7 @@ import { getStaticCopy, type StaticCopyKey } from "@/lib/i18n/staticCopy";
 
 const navigationCopyByHref: Record<string, StaticCopyKey> = {
   "/": "home",
+  "/apply": "applyNow",
   "/programs": "programs",
   "/about": "about",
   "/services": "services",
@@ -49,6 +50,11 @@ export function getSharedNavigationLabel(language: SiteLanguage, link: PublicNav
     navigationCopyByHref[normalizeHref(link.href)];
 
   return copyKey ? getStaticCopy(language, copyKey) : link.label;
+}
+
+export function getSharedNavigationLabelByHref(language: SiteLanguage, href: string, fallback: string) {
+  const copyKey = navigationCopyByHref[normalizeHref(href)];
+  return copyKey ? getStaticCopy(language, copyKey) : fallback;
 }
 
 export function getSharedNavigationGroupTitle(language: SiteLanguage, group: PublicNavigationGroup) {

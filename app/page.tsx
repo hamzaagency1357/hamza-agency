@@ -3,12 +3,16 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { getLanguageDirection } from "@/lib/i18n/locale";
+import { getSharedNavigationLabelByHref } from "@/lib/i18n/sharedChrome";
+import { getStaticCopy } from "@/lib/i18n/staticCopy";
+import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 import {
   defaultPublicNavigationConfig,
   normalizePublicNavigationConfig,
   type PublicNavigationLink,
 } from "@/lib/publicNavigation";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type Program = {
   id: number;
@@ -161,6 +165,7 @@ const whyUsItems = [
 ];
 
 export default function HomePage() {
+  const language = useSiteLanguage();
   const [showSplash, setShowSplash] = useState(true);
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -460,6 +465,8 @@ export default function HomePage() {
     getSetting([`home_stat_${index + 1}_number`], fallbackNumber),
     getSetting([`home_stat_${index + 1}_label`], fallbackLabel),
   ]);
+  const getSharedLabel = (href: string, fallback: string) =>
+    getSharedNavigationLabelByHref(language, href, fallback);
 
   const updateField = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -526,7 +533,7 @@ export default function HomePage() {
 
   return (
     <main
-      dir="rtl"
+      dir={getLanguageDirection(language)}
       className="relative min-h-screen overflow-hidden bg-[#070009] text-white"
       style={{ "--primary": publicSettings.primaryColor, "--secondary": publicSettings.secondaryColor } as CSSProperties}
     >
@@ -578,7 +585,7 @@ export default function HomePage() {
               href={link.href}
               className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white/70 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-white"
             >
-              {link.label}
+              {getSharedLabel(link.href, link.label)}
             </Link>
           ))}
         </div>
@@ -592,7 +599,7 @@ export default function HomePage() {
               href={link.href}
               className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white/75 backdrop-blur"
             >
-              {link.label}
+              {getSharedLabel(link.href, link.label)}
             </Link>
           ))}
         </div>
@@ -651,7 +658,7 @@ export default function HomePage() {
                 onClick={() => setShowJoinForm(true)}
                 className="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-9 py-4 text-lg font-bold shadow-[0_0_40px_rgba(168,85,247,0.45)] transition hover:scale-[1.03]"
               >
-                {primaryJoinCta.label}
+                {getSharedLabel(primaryJoinCta.href, primaryJoinCta.label)}
               </button>
             )}
             {viewProgramsCta.isVisible !== false && (
@@ -659,7 +666,7 @@ export default function HomePage() {
                 href={viewProgramsCta.href}
                 className="rounded-full border border-white/15 bg-white/[0.05] px-9 py-4 text-lg font-bold text-white/80 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10"
               >
-                {viewProgramsCta.label}
+                {getSharedLabel(viewProgramsCta.href, viewProgramsCta.label)}
               </Link>
             )}
           </div>
@@ -707,7 +714,7 @@ export default function HomePage() {
               href={viewProgramsCta.href}
               className="inline-flex rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 font-black shadow-[0_0_35px_rgba(168,85,247,0.22)]"
             >
-              {viewProgramsCta.label}
+              {getSharedLabel(viewProgramsCta.href, viewProgramsCta.label)}
             </Link>
           </div>
         )}
@@ -726,13 +733,13 @@ export default function HomePage() {
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             <Link href="/about" className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center font-bold text-white/75 transition hover:border-purple-400/50">
-              تعرف علينا
+              {getSharedLabel("/about", "تعرف علينا")}
             </Link>
             <Link href="/services" className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center font-bold text-white/75 transition hover:border-purple-400/50">
-              خدمات الوكالة
+              {getSharedLabel("/services", "خدمات الوكالة")}
             </Link>
             <Link href="/contact" className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center font-bold text-white/75 transition hover:border-purple-400/50">
-              تواصل معنا
+              {getSharedLabel("/contact", "تواصل معنا")}
             </Link>
           </div>
         </div>
@@ -790,7 +797,7 @@ export default function HomePage() {
       )}
 
       <a href={`https://wa.me/${publicSettings.cleanWhatsapp}`} target="_blank" className="fixed bottom-5 left-5 z-30 rounded-full bg-green-500 px-5 py-4 text-sm font-black text-white shadow-2xl">
-        واتساب
+        {getStaticCopy(language, "whatsapp")}
       </a>
 
       <footer className="relative z-20 border-t border-white/10 bg-black/25 px-5 py-10 backdrop-blur">
@@ -817,23 +824,23 @@ export default function HomePage() {
           </div>
 
           <div>
-            <h3 className="font-black text-white">روابط الموقع</h3>
+            <h3 className="font-black text-white">{getStaticCopy(language, "footerSiteLinks")}</h3>
             <div className="mt-4 grid gap-3 text-white/60">
               {headerLinksFromSettings.map((link) => (
                 <Link key={link.href} href={link.href} className="transition hover:text-purple-200">
-                  {link.label}
+                  {getSharedLabel(link.href, link.label)}
                 </Link>
               ))}
             </div>
           </div>
 
           <div>
-            <h3 className="font-black text-white">الصفحات القانونية</h3>
+            <h3 className="font-black text-white">{getStaticCopy(language, "footerLegalPages")}</h3>
             <div className="mt-4 grid gap-3 text-white/60">
               {footerLegalLinksFromSettings.map((link) =>
                 link.href.startsWith("/") || link.href.startsWith("#") ? (
                   <Link key={link.href} href={link.href} className="transition hover:text-yellow-200">
-                    {link.label}
+                    {getSharedLabel(link.href, link.label)}
                   </Link>
                 ) : (
                   <a
@@ -851,7 +858,7 @@ export default function HomePage() {
           </div>
 
           <div>
-            <h3 className="font-black text-white">التواصل</h3>
+            <h3 className="font-black text-white">{getStaticCopy(language, "footerContact")}</h3>
             <p className="mt-4 text-white/60">{publicSettings.whatsapp}</p>
             <p className="mt-2 break-all text-white/50">{publicSettings.contactEmail}</p>
             <p className="mt-3 leading-7 text-white/45">{publicSettings.workingHours}</p>
