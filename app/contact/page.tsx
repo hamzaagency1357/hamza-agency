@@ -27,7 +27,7 @@ type ContactCard = {
   href: string;
   external: boolean;
   visible: boolean;
-  cmsSourceKey?: "whatsapp-support";
+  cmsSourceKey?: string;
 };
 
 function getSectionContent(section: CmsSection | null, fallback: { title: string; subtitle: string; content: string }) {
