@@ -26,6 +26,7 @@ type TargetLanguage = "en" | "tr";
 
 const emptyCounts: SourceCount = {
   programs: 0,
+  pages: 0,
   faqs: 0,
   knowledge_base: 0,
 };
@@ -75,12 +76,12 @@ export default function TranslationAutomationPage() {
       setIsCheckingAccess(false);
     }
 
-    checkAccess();
+    void checkAccess();
   }, [router]);
 
   useEffect(() => {
     if (!isAuthorized) return;
-    loadAutomationData();
+    void loadAutomationData();
   }, [isAuthorized]);
 
   async function loadAutomationData() {
@@ -97,9 +98,7 @@ export default function TranslationAutomationPage() {
     try {
       const [automationStatus, ...sourceResults] = await Promise.all([
         getTranslationAutomationStatus(),
-        ...TRANSLATION_SOURCE_DEFINITIONS.map((source) =>
-          client.from(source.table).select("*").limit(300)
-        ),
+        ...TRANSLATION_SOURCE_DEFINITIONS.map((source) => client.from(source.table).select("*").limit(300)),
       ]);
 
       const nextItems: SyncItem[] = [];
@@ -178,7 +177,9 @@ export default function TranslationAutomationPage() {
         { languages: [targetLanguage] }
       );
 
-      setMessage(`تمت ترجمة العنصر المحدد إلى ${targetLanguageLabels[targetLanguage]} وحفظه بحالة تحتاج مراجعة. لن يظهر للعامة قبل المراجعة والنشر اليدوي من لوحة الترجمات.`);
+      setMessage(
+        `تمت ترجمة العنصر المحدد إلى ${targetLanguageLabels[targetLanguage]} وحفظه بحالة تحتاج مراجعة. لن يظهر للعامة قبل المراجعة والنشر اليدوي من لوحة المحتوى المناسبة.`
+      );
       setProgress("");
     } catch (syncError) {
       setError(syncError instanceof Error ? syncError.message : "تعذرت مزامنة الترجمة التلقائية.");
@@ -202,7 +203,7 @@ export default function TranslationAutomationPage() {
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#070009] p-5 pb-36 text-white md:p-8">
-      <section className="mx-auto max-w-5xl">
+      <section className="mx-auto max-w-6xl">
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <div className="mb-3 inline-flex rounded-full border border-fuchsia-400/25 bg-fuchsia-500/10 px-5 py-2 text-sm font-bold text-fuchsia-100">
@@ -215,6 +216,9 @@ export default function TranslationAutomationPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <Link href="/admin/translations/cms" className="rounded-full border border-cyan-400/25 bg-cyan-500/10 px-6 py-3 font-bold text-cyan-50">
+              ترجمة صفحات CMS
+            </Link>
             <Link href="/admin/translations" className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">
               لوحة الترجمات اليدوية
             </Link>
@@ -237,7 +241,7 @@ export default function TranslationAutomationPage() {
         {error && <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">{error}</div>}
         {progress && <div className="mb-6 rounded-3xl border border-cyan-400/25 bg-cyan-500/10 p-5 text-cyan-100">{progress}</div>}
 
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {TRANSLATION_SOURCE_DEFINITIONS.map((source) => {
             const active = selectedSourceType === source.sourceType;
 
@@ -255,9 +259,7 @@ export default function TranslationAutomationPage() {
                   <span className={`h-5 w-5 rounded-full border-2 ${active ? "border-fuchsia-200 bg-fuchsia-500" : "border-white/35"}`} aria-hidden="true" />
                 </div>
                 <div className="mt-6 text-xl font-black">{source.label}</div>
-                <p className="mt-3 text-sm leading-7 text-white/55">
-                  اختر هذا المصدر أولاً، ثم اختر عنصراً واحداً فقط منه.
-                </p>
+                <p className="mt-3 text-sm leading-7 text-white/55">اختر هذا المصدر أولاً، ثم اختر عنصراً واحداً فقط منه.</p>
               </button>
             );
           })}
@@ -265,9 +267,7 @@ export default function TranslationAutomationPage() {
 
         <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
           <h2 className="text-2xl font-black">1. اختر عنصراً واحداً</h2>
-          <p className="mt-3 leading-8 text-white/60">
-            لا يتم تحديد أي عنصر تلقائياً. هذا الاختيار يقيّد الاختبار الحالي بعنصر واحد فقط.
-          </p>
+          <p className="mt-3 leading-8 text-white/60">لا يتم تحديد أي عنصر تلقائياً. هذا الاختيار يقيّد الاختبار الحالي بعنصر واحد فقط.</p>
           <select
             value={selectedSourceId}
             onChange={(event) => setSelectedSourceId(event.target.value)}
@@ -285,9 +285,7 @@ export default function TranslationAutomationPage() {
 
         <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
           <h2 className="text-2xl font-black">2. اختر لغة الهدف</h2>
-          <p className="mt-3 leading-8 text-white/60">
-            لا توجد لغة افتراضية. يجب اختيار الإنجليزية أو التركية صراحةً قبل الإرسال.
-          </p>
+          <p className="mt-3 leading-8 text-white/60">لا توجد لغة افتراضية. يجب اختيار الإنجليزية أو التركية صراحةً قبل الإرسال.</p>
           <div className="mt-5 flex flex-wrap gap-3">
             {(["en", "tr"] as TargetLanguage[]).map((language) => {
               const active = targetLanguage === language;
@@ -308,13 +306,11 @@ export default function TranslationAutomationPage() {
 
         <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
           <h2 className="text-2xl font-black">3. تشغيل اختبار مراقب</h2>
-          <p className="mt-3 max-w-3xl leading-8 text-white/60">
-            يرسل هذا المسار عنصراً واحداً ولغة واحدة فقط. الخادم يرفض طلباً لا يحدد لغة صراحةً، ويبقى الحد الأعلى في API عشرة عناصر للاستخدامات المستقبلية المعتمدة.
-          </p>
+          <p className="mt-3 max-w-3xl leading-8 text-white/60">يرسل هذا المسار عنصراً واحداً ولغة واحدة فقط. الخادم يرفض طلباً لا يحدد لغة صراحةً، ويبقى الحد الأعلى في API عشرة عناصر للاستخدامات المستقبلية المعتمدة.</p>
 
           <button
             type="button"
-            onClick={syncSelectedContent}
+            onClick={() => void syncSelectedContent()}
             disabled={isSyncing || !isConfigured || !selectedItem || !targetLanguage}
             className="mt-6 rounded-full bg-gradient-to-r from-fuchsia-600 to-purple-600 px-7 py-4 font-black text-white shadow-[0_0_35px_rgba(217,70,239,0.3)] transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
           >
