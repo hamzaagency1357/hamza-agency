@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { getLanguageDirection } from "@/lib/i18n/locale";
+import { getAiSupportCopy, getAiSupportFallbackAnswers } from "@/lib/i18n/aiSupport";
+import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
 type KnowledgeRow = Record<string, unknown>;
 type ChatMessage = {
@@ -11,33 +14,6 @@ type ChatMessage = {
 };
 
 const whatsappNumber = "905011730377";
-const fallbackAnswers = [
-  {
-    keywords: ["انضم", "انضمام", "تقديم", "join", "creator", "agency"],
-    answer:
-      "للانضمام إلى وكالة حمزة، اضغط على زر طلب الانضمام أو افتح صفحة البرامج واختر البرنامج المناسب، ثم املأ بياناتك وسيتم التواصل معك عبر واتساب.",
-  },
-  {
-    keywords: ["خدمة", "طلب", "شحن", "سحب", "service", "topup", "withdrawal"],
-    answer:
-      "لطلب خدمة رقمية أو متابعة شحن/سحب، افتح صفحة طلب خدمة واكتب رقم واتسابك والمنصة والتفاصيل المطلوبة. بعد الإرسال سيظهر لك كود متابعة الطلب.",
-  },
-  {
-    keywords: ["حالة", "تتبع", "متابعة", "status", "track"],
-    answer:
-      "يمكنك تتبع طلب الخدمة من صفحة تتبع طلب خدمة باستخدام كود الطلب، أو تتبع طلب الانضمام من صفحة تتبع طلب الانضمام باستخدام رقم الواتساب.",
-  },
-  {
-    keywords: ["واتساب", "تواصل", "رقم", "whatsapp", "contact"],
-    answer:
-      "يمكنك التواصل مباشرة مع فريق وكالة حمزة عبر واتساب على الرقم +905011730377.",
-  },
-  {
-    keywords: ["تيك", "tiktok", "bigo", "بيجو", "yaahlan", "xena", "catchii"],
-    answer:
-      "البرامج المتاحة حالياً تشمل TikTok وBIGO LIVE وYaahlan وXena وCatchii. يمكنك مراجعة صفحة البرامج لاختيار البرنامج المناسب.",
-  },
-];
 
 function getString(row: KnowledgeRow, keys: string[], fallback = "") {
   for (const key of keys) {
@@ -60,8 +36,8 @@ function isPublished(row: KnowledgeRow) {
 
 function normalizeText(value: string) {
   return value
-    .toLowerCase()
-    .replace(/[^؀-ۿa-z0-9]+/g, " ")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 }
 
@@ -75,10 +51,7 @@ function scoreKnowledge(question: string, row: KnowledgeRow) {
   const category = getString(row, ["category", "type", "section", "module", "group"], "");
   const searchableText = normalizeText(`${title} ${content} ${category}`);
 
-  return questionWords.reduce((score, word) => {
-    if (searchableText.includes(word)) return score + 1;
-    return score;
-  }, 0);
+  return questionWords.reduce((score, word) => (searchableText.includes(word) ? score + 1 : score), 0);
 }
 
 function getKnowledgeAnswer(question: string, knowledgeRows: KnowledgeRow[]) {
@@ -94,27 +67,30 @@ function getKnowledgeAnswer(question: string, knowledgeRows: KnowledgeRow[]) {
   return getString(bestMatch, ["answer", "content", "description", "body", "summary", "text"], "");
 }
 
-function getFallbackAnswer(question: string) {
+function getFallbackAnswer(
+  question: string,
+  answers: ReturnType<typeof getAiSupportFallbackAnswers>
+) {
   const normalizedQuestion = normalizeText(question);
 
-  return fallbackAnswers.find((item) =>
-    item.keywords.some((keyword) => normalizedQuestion.includes(normalizeText(keyword)))
-  )?.answer || "";
+  return answers.find((item) => item.keywords.some((keyword) => normalizedQuestion.includes(normalizeText(keyword))))?.answer || "";
 }
 
 export default function PublicAiSupport() {
   const pathname = usePathname();
+  const language = useSiteLanguage();
+  const copy = getAiSupportCopy(language);
+  const fallbackAnswers = getAiSupportFallbackAnswers(language);
   const [isOpen, setIsOpen] = useState(false);
   const [question, setQuestion] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      text: "أهلاً بك في الدعم الذكي لوكالة حمزة. اسألني عن الانضمام، البرامج، طلبات الخدمات، أو طريقة التواصل.",
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [knowledgeRows, setKnowledgeRows] = useState<KnowledgeRow[]>([]);
   const [isLoadingKnowledge, setIsLoadingKnowledge] = useState(false);
   const [isAnswering, setIsAnswering] = useState(false);
+
+  useEffect(() => {
+    setMessages([{ role: "assistant", text: copy.widgetWelcome }]);
+  }, [copy.widgetWelcome]);
 
   useEffect(() => {
     async function loadKnowledge() {
@@ -126,13 +102,13 @@ export default function PublicAiSupport() {
       setIsLoadingKnowledge(false);
     }
 
-    loadKnowledge();
+    void loadKnowledge();
   }, []);
 
   const whatsappLink = useMemo(() => {
-    const text = encodeURIComponent("مرحباً وكالة حمزة، أحتاج مساعدة من الدعم.");
+    const text = encodeURIComponent(copy.widgetWhatsAppMessage);
     return `https://wa.me/${whatsappNumber}?text=${text}`;
-  }, []);
+  }, [copy.widgetWhatsAppMessage]);
 
   if (pathname.startsWith("/admin") || pathname === "/maintenance") return null;
 
@@ -170,29 +146,26 @@ export default function PublicAiSupport() {
     setMessages((current) => [...current, { role: "user", text: userQuestion }]);
 
     const answerFromKnowledge = getKnowledgeAnswer(userQuestion, knowledgeRows);
-    const fallbackAnswer = answerFromKnowledge || getFallbackAnswer(userQuestion);
-    const assistantReply = fallbackAnswer || "لم أجد جواباً مؤكداً من معلومات الوكالة الحالية. تم تسجيل سؤالك للمتابعة، ويمكنك التواصل مباشرة عبر واتساب للحصول على رد أسرع.";
+    const fallbackAnswer = answerFromKnowledge || getFallbackAnswer(userQuestion, fallbackAnswers);
+    const assistantReply = fallbackAnswer || copy.widgetUnknownAnswer;
 
     if (!fallbackAnswer) {
       await saveUnansweredQuestion(userQuestion);
     }
 
     await saveConversation(userQuestion, assistantReply);
-
     setMessages((current) => [...current, { role: "assistant", text: assistantReply }]);
     setIsAnswering(false);
   }
 
   return (
-    <div dir="rtl" className="fixed bottom-20 right-4 z-[65] print:hidden md:bottom-24">
+    <div dir={getLanguageDirection(language)} className="fixed bottom-20 right-4 z-[65] print:hidden md:bottom-24">
       {isOpen && (
         <div className="mb-3 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-[2rem] border border-fuchsia-400/25 bg-[#09000f]/95 shadow-[0_0_70px_rgba(168,85,247,0.32)] backdrop-blur-xl">
           <div className="border-b border-white/10 bg-gradient-to-r from-fuchsia-600/25 to-purple-600/20 p-4">
-            <div className="text-xs font-black uppercase tracking-[0.25em] text-fuchsia-100">AI Support</div>
-            <div className="mt-1 text-lg font-black text-white">الدعم الذكي</div>
-            <p className="mt-2 text-xs leading-6 text-white/55">
-              إجابات آمنة من معلومات وكالة حمزة. للأسئلة الخاصة أو الحساسة استخدم واتساب.
-            </p>
+            <div className="text-xs font-black uppercase tracking-[0.25em] text-fuchsia-100">AI SUPPORT</div>
+            <div className="mt-1 text-lg font-black text-white">{copy.widgetTitle}</div>
+            <p className="mt-2 text-xs leading-6 text-white/55">{copy.widgetIntro}</p>
           </div>
 
           <div className="max-h-80 space-y-3 overflow-y-auto p-4">
@@ -202,7 +175,7 @@ export default function PublicAiSupport() {
                 className={`rounded-2xl p-3 text-sm leading-7 ${
                   message.role === "assistant"
                     ? "border border-purple-400/20 bg-purple-500/10 text-purple-50"
-                    : "mr-auto max-w-[85%] border border-yellow-400/20 bg-yellow-500/10 text-yellow-50"
+                    : "ms-auto max-w-[85%] border border-yellow-400/20 bg-yellow-500/10 text-yellow-50"
                 }`}
               >
                 {message.text}
@@ -211,7 +184,7 @@ export default function PublicAiSupport() {
 
             {isLoadingKnowledge && (
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-xs text-white/45">
-                جاري تجهيز قاعدة المعرفة...
+                {copy.widgetLoadingKnowledge}
               </div>
             )}
           </div>
@@ -220,7 +193,7 @@ export default function PublicAiSupport() {
             <textarea
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
-              placeholder="اكتب سؤالك هنا..."
+              placeholder={copy.widgetPlaceholder}
               className="min-h-20 w-full resize-none rounded-2xl border border-white/10 bg-black/30 p-3 text-sm leading-7 text-white outline-none placeholder:text-white/35 focus:border-fuchsia-300/50"
             />
 
@@ -230,7 +203,7 @@ export default function PublicAiSupport() {
                 disabled={isAnswering}
                 className="rounded-2xl bg-gradient-to-r from-fuchsia-600 to-purple-600 px-4 py-3 text-sm font-black text-white disabled:opacity-60"
               >
-                {isAnswering ? "جاري الرد..." : "إرسال"}
+                {isAnswering ? copy.widgetSubmitting : copy.widgetSubmit}
               </button>
 
               <a
@@ -239,7 +212,7 @@ export default function PublicAiSupport() {
                 rel="noreferrer"
                 className="rounded-2xl border border-green-400/25 bg-green-500/10 px-4 py-3 text-center text-sm font-black text-green-100"
               >
-                واتساب
+                {copy.widgetWhatsApp}
               </a>
             </div>
           </form>
@@ -249,10 +222,10 @@ export default function PublicAiSupport() {
       <button
         type="button"
         onClick={() => setIsOpen((current) => !current)}
-        aria-label={isOpen ? "إغلاق الدعم الذكي" : "فتح الدعم الذكي"}
+        aria-label={isOpen ? copy.widgetCloseAria : copy.widgetOpenAria}
         className="rounded-full border border-fuchsia-300/35 bg-[#12051f]/95 px-5 py-3 text-sm font-black text-fuchsia-100 shadow-[0_0_35px_rgba(168,85,247,0.28)] transition hover:bg-purple-900/90"
       >
-        {isOpen ? "إغلاق الدعم" : "الدعم الذكي"}
+        {isOpen ? copy.widgetClose : copy.widgetOpen}
       </button>
     </div>
   );
