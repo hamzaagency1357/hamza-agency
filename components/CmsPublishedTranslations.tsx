@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import {
   hasCompletePublishedTranslation,
   readPublishedTranslations,
@@ -46,7 +47,7 @@ export function CmsPublishedTranslationsProvider({
   children,
 }: {
   sources: ReadonlyArray<CmsPublishedTranslationSource>;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const language = useSiteLanguage();
   const [completeTranslations, setCompleteTranslations] = useState<CompleteTranslationMap>({});
