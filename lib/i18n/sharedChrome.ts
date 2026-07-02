@@ -1,9 +1,10 @@
 import type { PublicNavigationGroup, PublicNavigationLink } from "@/lib/publicNavigation";
-import { SITE_LANGUAGES, type SiteLanguage } from "@/lib/i18n/locale";
+import type { SiteLanguage } from "@/lib/i18n/locale";
 import { getStaticCopy, type StaticCopyKey } from "@/lib/i18n/staticCopy";
 
 const navigationCopyByHref: Record<string, StaticCopyKey> = {
   "/": "home",
+  "/apply": "applyNow",
   "/programs": "programs",
   "/about": "about",
   "/services": "services",
@@ -39,27 +40,8 @@ const groupCopyByArabicTitle: Record<string, StaticCopyKey> = {
   "معلومات قانونية": "footerLegalPages",
 };
 
-const knownHomeSharedChromeTextKeys: ReadonlyArray<StaticCopyKey> = [
-  "footerSiteLinks",
-  "footerLegalPages",
-  "footerContact",
-  "applyNow",
-  "learnMore",
-  "discoverMore",
-  "readMore",
-  "viewAll",
-  "availableNow",
-  "backHome",
-  "whatsapp",
-  "openWhatsApp",
-];
-
 function normalizeHref(href: string) {
   return href.split("?")[0]?.split("#")[0] || href;
-}
-
-function normalizeText(value: string) {
-  return value.replace(/\s+/g, " ").trim();
 }
 
 export function getSharedNavigationLabel(language: SiteLanguage, link: PublicNavigationLink) {
@@ -78,22 +60,4 @@ export function getSharedNavigationLabelByHref(language: SiteLanguage, href: str
 export function getSharedNavigationGroupTitle(language: SiteLanguage, group: PublicNavigationGroup) {
   const copyKey = groupCopyByArabicTitle[group.title];
   return copyKey ? getStaticCopy(language, copyKey) : group.title;
-}
-
-/**
- * Localizes only stable, shared UI labels. Any CMS-managed text that does not
- * match one of these established labels is intentionally returned unchanged.
- */
-export function getKnownHomeSharedChromeText(language: SiteLanguage, text: string) {
-  const normalizedText = normalizeText(text);
-
-  for (const key of knownHomeSharedChromeTextKeys) {
-    const isKnownValue = SITE_LANGUAGES.some(
-      ({ code }) => normalizeText(getStaticCopy(code, key)) === normalizedText
-    );
-
-    if (isKnownValue) return getStaticCopy(language, key);
-  }
-
-  return text;
 }
