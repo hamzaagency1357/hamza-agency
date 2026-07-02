@@ -27,6 +27,7 @@ type TargetLanguage = "en" | "tr";
 const emptyCounts: SourceCount = {
   programs: 0,
   pages: 0,
+  sections: 0,
   faqs: 0,
   knowledge_base: 0,
 };

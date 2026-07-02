@@ -6,7 +6,7 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 export const PUBLISHED_TRANSLATION_STATUSES = ["reviewed", "published"] as const;
 
 export type TranslationLanguage = Exclude<SiteLanguage, "ar">;
-export type PublishedTranslationSource = "programs" | "pages" | "faqs" | "knowledge_base";
+export type PublishedTranslationSource = "programs" | "pages" | "sections" | "faqs" | "knowledge_base";
 
 export type PublishedTranslationRow = {
   source_id: string;
