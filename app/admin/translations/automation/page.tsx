@@ -37,6 +37,8 @@ const targetLanguageLabels: Record<TargetLanguage, string> = {
   tr: "التركية",
 };
 
+const MAX_BATCH_ITEMS = 10;
+
 function buildItemLabel(
   source: (typeof TRANSLATION_SOURCE_DEFINITIONS)[number],
   row: Record<string, unknown>,
@@ -58,7 +60,7 @@ export default function TranslationAutomationPage() {
   const [sourceItems, setSourceItems] = useState<SyncItem[]>([]);
   const [counts, setCounts] = useState<SourceCount>(emptyCounts);
   const [selectedSourceType, setSelectedSourceType] = useState<TranslationSourceType | "">("");
-  const [selectedSourceId, setSelectedSourceId] = useState("");
+  const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
   const [targetLanguage, setTargetLanguage] = useState<TargetLanguage | "">("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -140,15 +142,52 @@ export default function TranslationAutomationPage() {
     [selectedSourceType, sourceItems]
   );
 
-  const selectedItem = useMemo(
-    () => availableItems.find((item) => item.sourceId === selectedSourceId) || null,
-    [availableItems, selectedSourceId]
+  const selectedItems = useMemo(
+    () => availableItems.filter((item) => selectedSourceIds.includes(item.sourceId)),
+    [availableItems, selectedSourceIds]
   );
 
   function selectSourceType(sourceType: TranslationSourceType) {
     setSelectedSourceType(sourceType);
-    setSelectedSourceId("");
+    setSelectedSourceIds([]);
     setError("");
+  }
+
+  function toggleSelectedItem(sourceId: string) {
+    if (selectedSourceIds.includes(sourceId)) {
+      setSelectedSourceIds((current) => current.filter((id) => id !== sourceId));
+      setError("");
+      return;
+    }
+
+    if (selectedSourceIds.length >= MAX_BATCH_ITEMS) {
+      setError("الحد الأقصى لكل دفعة هو 10 عناصر. أرسل الدفعة الحالية ثم تابع بالدفعة التالية.");
+      return;
+    }
+
+    setSelectedSourceIds((current) => [...current, sourceId]);
+    setError("");
+  }
+
+  function selectFirstBatch() {
+    if (!selectedSourceType) {
+      setError("اختر مصدر المحتوى أولاً.");
+      return;
+    }
+
+    const firstBatch = availableItems.slice(0, MAX_BATCH_ITEMS).map((item) => item.sourceId);
+    setSelectedSourceIds(firstBatch);
+    setError("");
+
+    if (availableItems.length > MAX_BATCH_ITEMS) {
+      setMessage("تم تحديد أول 10 عناصر فقط. أرسل هذه الدفعة أولاً ثم اختر الدفعة التالية.");
+    } else {
+      setMessage("");
+    }
+  }
+
+  function clearSelectedItems() {
+    setSelectedSourceIds([]);
   }
 
   async function syncSelectedContent() {
@@ -157,8 +196,8 @@ export default function TranslationAutomationPage() {
       return;
     }
 
-    if (!selectedItem) {
-      setError("اختر مصدراً ثم عنصراً واحداً فقط للترجمة.");
+    if (selectedItems.length === 0) {
+      setError("اختر مصدراً ثم عنصراً واحداً على الأقل للترجمة.");
       return;
     }
 
@@ -170,22 +209,38 @@ export default function TranslationAutomationPage() {
     setIsSyncing(true);
     setMessage("");
     setError("");
-    setProgress(`تتم ترجمة عنصر واحد إلى ${targetLanguageLabels[targetLanguage]} وحفظه للمراجعة...`);
+    setProgress(`تتم ترجمة ${selectedItems.length} عنصر إلى ${targetLanguageLabels[targetLanguage]} وحفظها للمراجعة...`);
 
     try {
-      await syncArabicContentTranslations(
-        [{ sourceType: selectedItem.sourceType, sourceId: selectedItem.sourceId }],
+      const response = await syncArabicContentTranslations(
+        selectedItems.map((item) => ({
+          sourceType: item.sourceType,
+          sourceId: item.sourceId,
+        })),
         { languages: [targetLanguage] }
       );
 
-      setMessage(
-        `تمت ترجمة العنصر المحدد إلى ${targetLanguageLabels[targetLanguage]} وحفظه بحالة تحتاج مراجعة. لن يظهر للعامة قبل المراجعة والنشر اليدوي من لوحة المحتوى المناسبة.`
-      );
-      setProgress("");
+      const failedItems = response.errors || [];
+      const successfulCount = response.results?.length ?? Math.max(0, selectedItems.length - failedItems.length);
+      const failedDetails = failedItems
+        .map((item) => `• ${item.sourceType} #${item.sourceId}: ${item.message}`)
+        .join("\n");
+
+      if (failedItems.length === 0) {
+        setMessage(
+          `تمت ترجمة ${successfulCount} عنصر إلى ${targetLanguageLabels[targetLanguage]} وحفظها بحالة تحتاج مراجعة. لن يظهر أي محتوى للعامة قبل المراجعة والنشر اليدوي من لوحة المحتوى المناسبة.`
+        );
+      } else if (successfulCount > 0) {
+        setMessage(
+          `اكتملت الدفعة جزئياً: نجحت ترجمة ${successfulCount} عنصر وفشلت ${failedItems.length} عنصر.\n${failedDetails}`
+        );
+      } else {
+        setError(`تعذرت ترجمة العناصر المحددة.\n${failedDetails || response.message || "تعذرت مزامنة الترجمة التلقائية."}`);
+      }
     } catch (syncError) {
       setError(syncError instanceof Error ? syncError.message : "تعذرت مزامنة الترجمة التلقائية.");
-      setProgress("");
     } finally {
+      setProgress("");
       setIsSyncing(false);
     }
   }
@@ -210,9 +265,9 @@ export default function TranslationAutomationPage() {
             <div className="mb-3 inline-flex rounded-full border border-fuchsia-400/25 bg-fuchsia-500/10 px-5 py-2 text-sm font-bold text-fuchsia-100">
               Translation Automation
             </div>
-            <h1 className="text-4xl font-black md:text-5xl">اختبار الترجمة المراقب</h1>
+            <h1 className="text-4xl font-black md:text-5xl">ترجمة دفعة مراقبة</h1>
             <p className="mt-3 max-w-3xl leading-8 text-white/60">
-              اختر مصدراً واحداً وعنصراً واحداً ولغة هدف واحدة. تحفظ النتيجة للمراجعة فقط ولا تظهر للعامة قبل النشر اليدوي.
+              اختر مصدراً واحداً وحتى 10 عناصر ولغة هدف واحدة. تحفظ النتائج للمراجعة فقط ولا تظهر للعامة قبل النشر اليدوي.
             </p>
           </div>
 
@@ -233,13 +288,13 @@ export default function TranslationAutomationPage() {
           <div className="text-xl font-black">{isConfigured ? "الترجمة التلقائية جاهزة" : "الترجمة التلقائية غير مفعلة بعد"}</div>
           <p className="mt-3 leading-8 text-white/70">
             {isConfigured
-              ? `الموديل المحدد: ${model || "الافتراضي"}. يتطلب هذا المسار اختيار عنصر واحد ولغة واحدة صراحةً، ثم يحفظ النتيجة بحالة تحتاج مراجعة.`
+              ? `الموديل المحدد: ${model || "الافتراضي"}. يتطلب هذا المسار اختيار مصدر واحد وحتى 10 عناصر ولغة واحدة صراحةً، ثم يحفظ النتائج بحالة تحتاج مراجعة.`
               : "يلزم إضافة المتغير السري OPENAI_API_KEY في إعدادات Vercel للإنتاج والمعاينة. لن يُحفظ المفتاح في GitHub أو يظهر في الموقع."}
           </p>
         </div>
 
-        {message && <div className="mb-6 rounded-3xl border border-green-400/25 bg-green-500/10 p-5 text-green-100">{message}</div>}
-        {error && <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">{error}</div>}
+        {message && <div className="mb-6 whitespace-pre-line rounded-3xl border border-green-400/25 bg-green-500/10 p-5 text-green-100">{message}</div>}
+        {error && <div className="mb-6 whitespace-pre-line rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">{error}</div>}
         {progress && <div className="mb-6 rounded-3xl border border-cyan-400/25 bg-cyan-500/10 p-5 text-cyan-100">{progress}</div>}
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -260,28 +315,73 @@ export default function TranslationAutomationPage() {
                   <span className={`h-5 w-5 rounded-full border-2 ${active ? "border-fuchsia-200 bg-fuchsia-500" : "border-white/35"}`} aria-hidden="true" />
                 </div>
                 <div className="mt-6 text-xl font-black">{source.label}</div>
-                <p className="mt-3 text-sm leading-7 text-white/55">اختر هذا المصدر أولاً، ثم اختر عنصراً واحداً فقط منه.</p>
+                <p className="mt-3 text-sm leading-7 text-white/55">اختر هذا المصدر أولاً، ثم اختر حتى 10 عناصر منه.</p>
               </button>
             );
           })}
         </section>
 
         <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-          <h2 className="text-2xl font-black">1. اختر عنصراً واحداً</h2>
-          <p className="mt-3 leading-8 text-white/60">لا يتم تحديد أي عنصر تلقائياً. هذا الاختيار يقيّد الاختبار الحالي بعنصر واحد فقط.</p>
-          <select
-            value={selectedSourceId}
-            onChange={(event) => setSelectedSourceId(event.target.value)}
-            disabled={!selectedSourceType}
-            className="mt-5 w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-4 text-white outline-none disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <option value="">{selectedSourceType ? "اختر عنصراً واحداً..." : "اختر مصدر المحتوى أولاً..."}</option>
-            {availableItems.map((item) => (
-              <option key={`${item.sourceType}:${item.sourceId}`} value={item.sourceId}>
-                {item.label}
-              </option>
-            ))}
-          </select>
+          <h2 className="text-2xl font-black">1. اختر عناصر الدفعة</h2>
+          <p className="mt-3 leading-8 text-white/60">يمكن اختيار حتى 10 عناصر من نفس المصدر في كل تشغيل.</p>
+
+          {!selectedSourceType ? (
+            <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-black/20 p-5 text-white/60">
+              اختر مصدر المحتوى أولاً لعرض العناصر المتاحة للدفعة.
+            </div>
+          ) : (
+            <>
+              <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-white/10 bg-black/20 p-4 md:flex-row md:items-center md:justify-between">
+                <div className="font-bold text-white/80">تم اختيار {selectedSourceIds.length} من {MAX_BATCH_ITEMS}</div>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={selectFirstBatch}
+                    disabled={isSyncing || availableItems.length === 0}
+                    className="rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-5 py-2.5 font-bold text-fuchsia-100 transition hover:bg-fuchsia-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    تحديد أول 10
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearSelectedItems}
+                    disabled={isSyncing || selectedSourceIds.length === 0}
+                    className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 font-bold text-white/75 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    مسح الاختيار
+                  </button>
+                </div>
+              </div>
+
+              {availableItems.length === 0 ? (
+                <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-black/20 p-5 text-white/60">
+                  لا توجد عناصر متاحة لهذا المصدر حالياً.
+                </div>
+              ) : (
+                <div className="mt-5 grid gap-3">
+                  {availableItems.map((item) => {
+                    const isSelected = selectedSourceIds.includes(item.sourceId);
+
+                    return (
+                      <label
+                        key={`${item.sourceType}:${item.sourceId}`}
+                        className={`flex cursor-pointer items-start gap-4 rounded-2xl border p-4 transition ${isSelected ? "border-fuchsia-300/60 bg-fuchsia-500/10" : "border-white/10 bg-black/20 hover:border-fuchsia-300/35"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectedItem(item.sourceId)}
+                          disabled={isSyncing}
+                          className="mt-1 h-5 w-5 accent-fuchsia-500 disabled:cursor-not-allowed"
+                        />
+                        <span className="leading-7 text-white/80">{item.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
         </section>
 
         <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
@@ -306,16 +406,16 @@ export default function TranslationAutomationPage() {
         </section>
 
         <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-          <h2 className="text-2xl font-black">3. تشغيل اختبار مراقب</h2>
-          <p className="mt-3 max-w-3xl leading-8 text-white/60">يرسل هذا المسار عنصراً واحداً ولغة واحدة فقط. الخادم يرفض طلباً لا يحدد لغة صراحةً، ويبقى الحد الأعلى في API عشرة عناصر للاستخدامات المستقبلية المعتمدة.</p>
+          <h2 className="text-2xl font-black">3. تشغيل دفعة مراقبة</h2>
+          <p className="mt-3 max-w-3xl leading-8 text-white/60">ترسل هذه الدفعة حتى 10 عناصر ولغة هدف واحدة. لا يتم النشر تلقائياً، وتبقى كل نتيجة بحالة تحتاج مراجعة.</p>
 
           <button
             type="button"
             onClick={() => void syncSelectedContent()}
-            disabled={isSyncing || !isConfigured || !selectedItem || !targetLanguage}
+            disabled={isSyncing || !isConfigured || selectedItems.length === 0 || !targetLanguage}
             className="mt-6 rounded-full bg-gradient-to-r from-fuchsia-600 to-purple-600 px-7 py-4 font-black text-white shadow-[0_0_35px_rgba(217,70,239,0.3)] transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSyncing ? "جاري الترجمة والحفظ للمراجعة..." : "ترجمة العنصر المحدد وحفظه للمراجعة"}
+            {isSyncing ? "جاري الترجمة والحفظ للمراجعة..." : "ترجمة العناصر المحددة وحفظها للمراجعة"}
           </button>
         </section>
 

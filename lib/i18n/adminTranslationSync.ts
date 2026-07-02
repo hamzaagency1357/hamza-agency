@@ -69,7 +69,7 @@ export async function syncArabicContentTranslations(
   });
 
   const payload = (await response.json().catch(() => ({}))) as SyncResponse;
-  if (!response.ok || !payload.ok) {
+  if (!response.ok) {
     throw new Error(payload.message || "تعذرت مزامنة الترجمات التلقائية.");
   }
 
