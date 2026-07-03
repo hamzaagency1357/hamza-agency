@@ -9,6 +9,7 @@ import {
   type TranslationSourceType,
 } from "@/lib/i18n/translationSources";
 import {
+  getTranslationProviderModel,
   isTranslationProviderConfigured,
   translateArabicSource,
 } from "@/lib/i18n/translationProvider";
@@ -203,7 +204,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       configured: isTranslationProviderConfigured(),
-      model: process.env.TRANSLATION_OPENAI_MODEL?.trim() || "gpt-4.1-mini",
+      model: getTranslationProviderModel(),
       maxItemsPerRequest: MAX_ITEMS_PER_REQUEST,
     });
   } catch (error) {
@@ -220,7 +221,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           ok: false,
-          message: "الترجمة التلقائية غير مفعلة بعد. أضف OPENAI_API_KEY في Vercel أولاً.",
+          message: "الترجمة التلقائية غير مفعلة بعد. أضف GEMINI_API_KEY في Vercel أولاً.",
         },
         { status: 503 }
       );
