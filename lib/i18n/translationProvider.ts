@@ -18,6 +18,7 @@ const GEMINI_INTERACTIONS_URL = [
   "v1beta",
   "interactions",
 ].join("/");
+const GEMINI_API_KEY_HEADER = ["x-goog-", "api-key"].join("");
 
 export function isTranslationProviderConfigured() {
   return Boolean(process.env.GEMINI_API_KEY?.trim());
@@ -83,7 +84,7 @@ export async function translateArabicSource(
   const response = await fetch(GEMINI_INTERACTIONS_URL, {
     method: "POST",
     headers: {
-      ["x-goog-", "api-key"].join(""): apiKey,
+      [GEMINI_API_KEY_HEADER]: apiKey,
       "Content-Type": "application/json",
     },
     cache: "no-store",
