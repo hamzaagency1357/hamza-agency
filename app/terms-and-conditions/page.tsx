@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import {
+  CmsPublishedText,
+  CmsPublishedTranslationsProvider,
+  type CmsPublishedTranslationSource,
+} from "@/components/CmsPublishedTranslations";
+import {
   findCmsSection,
   getCmsPageWithSections,
   getCmsText,
@@ -15,6 +20,12 @@ type Setting = {
   setting_value: string | null;
 };
 
+type TranslationFieldValues = {
+  title?: string | null;
+  summary?: string | null;
+  content?: string | null;
+};
+
 function getSectionContent(
   section: CmsSection | null,
   fallback: { title: string; subtitle: string; content: string }
@@ -23,6 +34,38 @@ function getSectionContent(
     title: getCmsText(section?.title, fallback.title),
     subtitle: getCmsText(section?.subtitle, fallback.subtitle),
     content: getCmsText(section?.content, fallback.content),
+  };
+}
+
+function getRequiredFields(values: TranslationFieldValues): CmsPublishedTranslationSource["requiredFields"] {
+  const fields: Array<"title" | "summary" | "content"> = [];
+
+  if (values.title?.trim()) fields.push("title");
+  if (values.summary?.trim()) fields.push("summary");
+  if (values.content?.trim()) fields.push("content");
+
+  return fields;
+}
+
+function createCmsTranslationSource({
+  sourceKey,
+  sourceType,
+  sourceId,
+  values,
+  fallback,
+}: {
+  sourceKey: string;
+  sourceType: CmsPublishedTranslationSource["sourceType"];
+  sourceId: number | null | undefined;
+  values: TranslationFieldValues;
+  fallback: CmsPublishedTranslationSource["fallback"];
+}): CmsPublishedTranslationSource {
+  return {
+    sourceKey,
+    sourceType,
+    sourceId: sourceId ?? "",
+    requiredFields: getRequiredFields(values),
+    fallback,
   };
 }
 
@@ -112,96 +155,155 @@ export default async function TermsAndConditionsPage() {
   );
 
   const cleanWhatsapp = whatsapp.replace(/[^\d]/g, "");
+  const overviewSection = findCmsSection(sections, "terms-overview");
+  const requestResponsibilitySection = findCmsSection(sections, "request-responsibility");
 
-  const overview = getSectionContent(findCmsSection(sections, "terms-overview"), {
+  const overview = getSectionContent(overviewSection, {
     title: "الشروط والأحكام",
     subtitle: "قواعد استخدام موقع وكالة حمزة",
     content:
       "توضح هذه الصفحة الشروط العامة لاستخدام الموقع، إرسال الطلبات، التواصل مع الوكالة، والاستفادة من الخدمات المتاحة.",
   });
-
-  const requestResponsibility = getSectionContent(
-    findCmsSection(sections, "request-responsibility"),
-    {
-      title: "مسؤولية تقديم الطلبات",
-      subtitle: "يجب إدخال بيانات صحيحة وواضحة",
-      content:
-        "يتحمل المستخدم مسؤولية صحة البيانات التي يرسلها، وتقوم الوكالة بمراجعة الطلبات وفق المعلومات المتاحة لديها.",
-    }
-  );
+  const requestResponsibility = getSectionContent(requestResponsibilitySection, {
+    title: "مسؤولية تقديم الطلبات",
+    subtitle: "يجب إدخال بيانات صحيحة وواضحة",
+    content:
+      "يتحمل المستخدم مسؤولية صحة البيانات التي يرسلها، وتقوم الوكالة بمراجعة الطلبات وفق المعلومات المتاحة لديها.",
+  });
 
   const title = page?.title || overview.title;
-  const intro = page?.content || overview.content;
+  const hasPageContent = Boolean(page?.content?.trim());
+  const translationSources: CmsPublishedTranslationSource[] = [
+    createCmsTranslationSource({
+      sourceKey: "terms-page",
+      sourceType: "pages",
+      sourceId: page?.id,
+      values: {
+        title: page?.title,
+        summary: page?.seo_description,
+        content: page?.content,
+      },
+      fallback: { title, content: page?.content?.trim() || "" },
+    }),
+    createCmsTranslationSource({
+      sourceKey: "terms-overview",
+      sourceType: "sections",
+      sourceId: overviewSection?.id,
+      values: {
+        title: overviewSection?.title,
+        summary: overviewSection?.subtitle,
+        content: overviewSection?.content,
+      },
+      fallback: {
+        title: overview.title,
+        summary: overview.subtitle,
+        content: overview.content,
+      },
+    }),
+    createCmsTranslationSource({
+      sourceKey: "terms-request-responsibility",
+      sourceType: "sections",
+      sourceId: requestResponsibilitySection?.id,
+      values: {
+        title: requestResponsibilitySection?.title,
+        summary: requestResponsibilitySection?.subtitle,
+        content: requestResponsibilitySection?.content,
+      },
+      fallback: {
+        title: requestResponsibility.title,
+        summary: requestResponsibility.subtitle,
+        content: requestResponsibility.content,
+      },
+    }),
+  ];
 
   return (
-    <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
-      <TermsBackground />
+    <CmsPublishedTranslationsProvider sources={translationSources}>
+      <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
+        <TermsBackground />
 
-      <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
-        <Link href="/" className="mb-8 inline-block text-purple-200">
-          ← العودة إلى الرئيسية
-        </Link>
+        <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
+          <Link href="/" className="mb-8 inline-block text-purple-200">
+            ← العودة إلى الرئيسية
+          </Link>
 
-        <div className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur md:p-10">
-          <div className="mb-6 inline-flex rounded-full border border-yellow-400/30 bg-yellow-500/10 px-5 py-2 text-sm font-bold text-yellow-100">
-            {agencyName}
+          <div className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur md:p-10">
+            <div className="mb-6 inline-flex rounded-full border border-yellow-400/30 bg-yellow-500/10 px-5 py-2 text-sm font-bold text-yellow-100">
+              {agencyName}
+            </div>
+
+            <h1 className="text-5xl font-black leading-tight md:text-7xl">
+              <CmsPublishedText sourceKey="terms-page" field="title" fallback={title} />
+              <span className="block bg-gradient-to-r from-purple-300 via-white to-yellow-300 bg-clip-text text-transparent">
+                <CmsPublishedText sourceKey="terms-overview" field="summary" fallback={overview.subtitle} />
+              </span>
+            </h1>
+
+            <p className="mt-8 max-w-5xl text-xl leading-10 text-white/75">
+              {hasPageContent ? (
+                <CmsPublishedText sourceKey="terms-page" field="content" fallback={page?.content || ""} />
+              ) : (
+                <CmsPublishedText sourceKey="terms-overview" field="content" fallback={overview.content} />
+              )}
+            </p>
           </div>
 
-          <h1 className="text-5xl font-black leading-tight md:text-7xl">
-            {title}
-            <span className="block bg-gradient-to-r from-purple-300 via-white to-yellow-300 bg-clip-text text-transparent">
-              {overview.subtitle}
-            </span>
-          </h1>
+          <div className="mt-10 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-7 backdrop-blur">
+            <h2 className="text-3xl font-black text-yellow-100">
+              <CmsPublishedText
+                sourceKey="terms-request-responsibility"
+                field="title"
+                fallback={requestResponsibility.title}
+              />
+            </h2>
+            <p className="mt-3 text-lg font-bold text-yellow-100/80">
+              <CmsPublishedText
+                sourceKey="terms-request-responsibility"
+                field="summary"
+                fallback={requestResponsibility.subtitle}
+              />
+            </p>
+            <p className="mt-5 leading-9 text-white/75">
+              <CmsPublishedText
+                sourceKey="terms-request-responsibility"
+                field="content"
+                fallback={requestResponsibility.content}
+              />
+            </p>
+          </div>
 
-          <p className="mt-8 max-w-5xl text-xl leading-10 text-white/75">
-            {intro}
-          </p>
-        </div>
+          <div className="mt-10 grid gap-6 md:grid-cols-2">
+            {termsSections.map((section) => (
+              <div key={section.title} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur">
+                <h2 className="text-3xl font-black">{section.title}</h2>
+                <p className="mt-5 leading-9 text-white/70">{section.text}</p>
+              </div>
+            ))}
+          </div>
 
-        <div className="mt-10 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-7 backdrop-blur">
-          <h2 className="text-3xl font-black text-yellow-100">
-            {requestResponsibility.title}
-          </h2>
-          <p className="mt-3 text-lg font-bold text-yellow-100/80">
-            {requestResponsibility.subtitle}
-          </p>
-          <p className="mt-5 leading-9 text-white/75">
-            {requestResponsibility.content}
-          </p>
-        </div>
+          <div className="mt-10 rounded-[2rem] border border-purple-400/20 bg-purple-500/10 p-7 backdrop-blur">
+            <h2 className="text-3xl font-black">مسؤولية المستخدم</h2>
+            <p className="mt-5 leading-9 text-white/75">
+              يتحمل المستخدم مسؤولية صحة البيانات التي يرسلها، وطريقة استخدامه للموقع، والتزامه بقوانين البرامج والمنصات التي يرغب بالانضمام إليها. وكالة حمزة تساعد في التنظيم والمتابعة، لكنها لا تتحكم بسياسات المنصات الخارجية.
+            </p>
+          </div>
 
-        <div className="mt-10 grid gap-6 md:grid-cols-2">
-          {termsSections.map((section) => (
-            <div key={section.title} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur">
-              <h2 className="text-3xl font-black">{section.title}</h2>
-              <p className="mt-5 leading-9 text-white/70">{section.text}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-10 rounded-[2rem] border border-purple-400/20 bg-purple-500/10 p-7 backdrop-blur">
-          <h2 className="text-3xl font-black">مسؤولية المستخدم</h2>
-          <p className="mt-5 leading-9 text-white/75">
-            يتحمل المستخدم مسؤولية صحة البيانات التي يرسلها، وطريقة استخدامه للموقع، والتزامه بقوانين البرامج والمنصات التي يرغب بالانضمام إليها. وكالة حمزة تساعد في التنظيم والمتابعة، لكنها لا تتحكم بسياسات المنصات الخارجية.
-          </p>
-        </div>
-
-        <div className="mt-10 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
-          <h2 className="text-3xl font-black">للاستفسار عن الشروط</h2>
-          <p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">
-            يمكنك التواصل مع وكالة حمزة عبر واتساب إذا كان لديك سؤال حول هذه الشروط أو طريقة استخدام الموقع.
-          </p>
-          <a
-            href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent("مرحباً، لدي استفسار بخصوص الشروط والأحكام في وكالة حمزة.")}`}
-            target="_blank"
-            className="mt-7 inline-flex rounded-full bg-green-500 px-8 py-4 font-black text-white shadow-2xl"
-          >
-            تواصل واتساب
-          </a>
-        </div>
-      </section>
-    </main>
+          <div className="mt-10 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
+            <h2 className="text-3xl font-black">للاستفسار عن الشروط</h2>
+            <p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">
+              يمكنك التواصل مع وكالة حمزة عبر واتساب إذا كان لديك سؤال حول هذه الشروط أو طريقة استخدام الموقع.
+            </p>
+            <a
+              href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent("مرحباً، لدي استفسار بخصوص الشروط والأحكام في وكالة حمزة.")}`}
+              target="_blank"
+              className="mt-7 inline-flex rounded-full bg-green-500 px-8 py-4 font-black text-white shadow-2xl"
+            >
+              تواصل واتساب
+            </a>
+          </div>
+        </section>
+      </main>
+    </CmsPublishedTranslationsProvider>
   );
 }
 
