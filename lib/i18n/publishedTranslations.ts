@@ -3,7 +3,7 @@
 import type { SiteLanguage } from "@/lib/i18n/locale";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
-export const PUBLISHED_TRANSLATION_STATUSES = ["reviewed", "published"] as const;
+export const PUBLISHED_TRANSLATION_STATUS = "published" as const;
 
 export type TranslationLanguage = Exclude<SiteLanguage, "ar">;
 export type PublishedTranslationSource = "programs" | "pages" | "sections" | "faqs" | "knowledge_base";
@@ -84,7 +84,7 @@ export async function readPublishedTranslations<FieldName extends string>({
     .eq("source_type", sourceType)
     .eq("language", language)
     .eq("is_published", true)
-    .in("status", [...PUBLISHED_TRANSLATION_STATUSES])
+    .eq("status", PUBLISHED_TRANSLATION_STATUS)
     .in("source_id", uniqueSourceIds)
     .in("field_name", [...fields]);
 
