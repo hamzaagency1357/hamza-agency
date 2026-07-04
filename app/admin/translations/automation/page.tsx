@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { requireAdminModuleAccess } from "@/lib/adminAccess";
 import {
   getTranslationAutomationStatus,
   syncArabicContentTranslations,
@@ -13,15 +15,14 @@ import {
 import { supabase } from "@/lib/supabase";
 
 type TargetLanguage = "en" | "tr";
-
+type SourceCount = Record<TranslationSourceType, number>;
 type SyncItem = {
   sourceType: TranslationSourceType;
   sourceId: string;
   label: string;
 };
 
-type SourceCount = Record<TranslationSourceType, number>;
-
+const MAX_BATCH_ITEMS = 10;
 const emptyCounts: SourceCount = {
   programs: 0,
   pages: 0,
@@ -29,377 +30,232 @@ const emptyCounts: SourceCount = {
   faqs: 0,
   knowledge_base: 0,
 };
-
-const targetLanguageLabels: Record<TargetLanguage, string> = {
+const languageLabels: Record<TargetLanguage, string> = {
   en: "الإنجليزية",
   tr: "التركية",
 };
 
-const MAX_BATCH_ITEMS = 10;
-
-function buildItemLabel(
+function getItemLabel(
   source: (typeof TRANSLATION_SOURCE_DEFINITIONS)[number],
   row: Record<string, unknown>,
   index: number
 ) {
   const title = source.titleKeys
     .map((key) => row[key])
-    .find(
-      (value): value is string =>
-        typeof value === "string" && value.trim().length > 0
-    );
-
+    .find((value): value is string => typeof value === "string" && value.trim().length > 0);
   return title?.trim() || `${source.label} ${index + 1}`;
 }
 
 export default function TranslationAutomationPage() {
-  const [sourceItems, setSourceItems] = useState<SyncItem[]>([]);
+  const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [configured, setConfigured] = useState(false);
+  const [model, setModel] = useState("");
+  const [items, setItems] = useState<SyncItem[]>([]);
   const [counts, setCounts] = useState<SourceCount>(emptyCounts);
-  const [selectedSourceType, setSelectedSourceType] = useState<
-    TranslationSourceType | ""
-  >("");
-  const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
-  const [targetLanguage, setTargetLanguage] = useState<TargetLanguage | "">(
-    ""
-  );
+  const [sourceType, setSourceType] = useState<TranslationSourceType | "">("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [language, setLanguage] = useState<TargetLanguage | "">("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [progress, setProgress] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isConfigured, setIsConfigured] = useState(false);
-  const [model, setModel] = useState("");
-
-  const loadPageData = useCallback(async () => {
-    if (!supabase) {
-      setError("الاتصال بقاعدة البيانات غير مفعل.");
-      setIsLoading(false);
-      return;
-    }
-
-    const supabaseClient = supabase;
-
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const [automationStatus, ...sourceResults] = await Promise.all([
-        getTranslationAutomationStatus(),
-        ...TRANSLATION_SOURCE_DEFINITIONS.map(async (source) => {
-          const { data, error: sourceError } = await supabaseClient
-            .from(source.table)
-            .select("*");
-
-          if (sourceError) {
-            throw new Error(
-              `تعذر تحميل ${source.label}: ${sourceError.message}`
-            );
-          }
-
-          const rows = (data || []) as Array<Record<string, unknown>>;
-
-          return {
-            sourceType: source.sourceType,
-            count: rows.length,
-            items: rows
-              .map((row, index) => ({
-                sourceType: source.sourceType,
-                sourceId: String(row.id || "").trim(),
-                label: buildItemLabel(source, row, index),
-              }))
-              .filter((item) => item.sourceId),
-          };
-        }),
-      ]);
-
-      setIsConfigured(automationStatus.configured);
-      setModel(automationStatus.model);
-
-      setCounts(
-        sourceResults.reduce((result, source) => {
-          result[source.sourceType] = source.count;
-          return result;
-        }, { ...emptyCounts })
-      );
-
-      setSourceItems(sourceResults.flatMap((source) => source.items));
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "تعذر تحميل بيانات الترجمة."
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
-    void loadPageData();
-  }, [loadPageData]);
+    async function checkAccess() {
+      const access = await requireAdminModuleAccess("settings");
+      if (!access.isAuthorized || !access.profile) {
+        router.replace(access.reason === "forbidden" ? "/admin" : "/admin/login");
+        setCheckingAccess(false);
+        return;
+      }
+      setAuthorized(true);
+      setCheckingAccess(false);
+    }
+
+    void checkAccess();
+  }, [router]);
+
+  useEffect(() => {
+    if (!authorized) return;
+
+    async function loadData() {
+      const client = supabase;
+      if (!client) {
+        setError("الاتصال بقاعدة البيانات غير مفعل.");
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError("");
+      try {
+        const [status, ...results] = await Promise.all([
+          getTranslationAutomationStatus(),
+          ...TRANSLATION_SOURCE_DEFINITIONS.map((source) => client.from(source.table).select("*").limit(300)),
+        ]);
+
+        const nextItems: SyncItem[] = [];
+        const nextCounts: SourceCount = { ...emptyCounts };
+        results.forEach((result, index) => {
+          const source = TRANSLATION_SOURCE_DEFINITIONS[index];
+          if (!source || result.error) return;
+          const rows = (result.data || []) as Array<Record<string, unknown>>;
+          nextCounts[source.sourceType] = rows.length;
+          rows.forEach((row, rowIndex) => {
+            const sourceId = String(row.id || "").trim();
+            if (!sourceId) return;
+            nextItems.push({
+              sourceType: source.sourceType,
+              sourceId,
+              label: getItemLabel(source, row, rowIndex),
+            });
+          });
+        });
+
+        setConfigured(status.configured);
+        setModel(status.model);
+        setCounts(nextCounts);
+        setItems(nextItems);
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : "تعذر تحميل مركز الترجمة التلقائية.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void loadData();
+  }, [authorized]);
 
   const availableItems = useMemo(
-    () =>
-      sourceItems.filter((item) => item.sourceType === selectedSourceType),
-    [selectedSourceType, sourceItems]
+    () => items.filter((item) => item.sourceType === sourceType),
+    [items, sourceType]
   );
-
   const selectedItems = useMemo(
-    () =>
-      availableItems.filter((item) =>
-        selectedSourceIds.includes(item.sourceId)
-      ),
-    [availableItems, selectedSourceIds]
+    () => availableItems.filter((item) => selectedIds.includes(item.sourceId)),
+    [availableItems, selectedIds]
   );
 
-  function selectSourceType(sourceType: TranslationSourceType) {
-    setSelectedSourceType(sourceType);
-    setSelectedSourceIds([]);
+  function chooseSource(nextSourceType: TranslationSourceType) {
+    setSourceType(nextSourceType);
+    setSelectedIds([]);
+    setMessage("");
     setError("");
   }
 
-  function toggleSelectedItem(sourceId: string) {
-    if (selectedSourceIds.includes(sourceId)) {
-      setSelectedSourceIds((current) =>
-        current.filter((id) => id !== sourceId)
-      );
+  function toggleItem(sourceId: string) {
+    if (selectedIds.includes(sourceId)) {
+      setSelectedIds((current) => current.filter((id) => id !== sourceId));
       setError("");
       return;
     }
-
-    if (selectedSourceIds.length >= MAX_BATCH_ITEMS) {
-      setError(
-        "الحد الأقصى لكل دفعة هو 10 عناصر. أرسل الدفعة الحالية ثم تابع بالدفعة التالية."
-      );
+    if (selectedIds.length >= MAX_BATCH_ITEMS) {
+      setError("الحد الأقصى لكل دفعة هو 10 عناصر. أرسل الدفعة الحالية ثم تابع بالدفعة التالية.");
       return;
     }
-
-    setSelectedSourceIds((current) => [...current, sourceId]);
+    setSelectedIds((current) => [...current, sourceId]);
     setError("");
   }
 
   function selectFirstBatch() {
-    if (!selectedSourceType) {
+    if (!sourceType) {
       setError("اختر مصدر المحتوى أولاً.");
       return;
     }
-
-    const firstBatch = availableItems
-      .slice(0, MAX_BATCH_ITEMS)
-      .map((item) => item.sourceId);
-
-    setSelectedSourceIds(firstBatch);
+    setSelectedIds(availableItems.slice(0, MAX_BATCH_ITEMS).map((item) => item.sourceId));
     setError("");
-
-    if (availableItems.length > MAX_BATCH_ITEMS) {
-      setMessage(
-        "تم تحديد أول 10 عناصر فقط. أرسل هذه الدفعة أولاً ثم اختر الدفعة التالية."
-      );
-    } else {
-      setMessage("");
-    }
+    setMessage(
+      availableItems.length > MAX_BATCH_ITEMS
+        ? "تم تحديد أول 10 عناصر فقط. أرسل هذه الدفعة أولاً ثم اختر الدفعة التالية."
+        : ""
+    );
   }
 
-  function clearSelectedItems() {
-    setSelectedSourceIds([]);
-  }
-
-  async function syncSelectedContent() {
-    if (!isConfigured) {
+  async function runBatch() {
+    if (!configured) {
       setError("الترجمة التلقائية غير مفعلة بعد.");
       return;
     }
-
-    if (selectedItems.length === 0) {
-      setError("اختر مصدراً ثم عنصراً واحداً على الأقل للترجمة.");
+    if (selectedItems.length === 0 || !language) {
+      setError("اختر عناصر الدفعة ولغة الهدف قبل التشغيل.");
       return;
     }
 
-    if (!targetLanguage) {
-      setError("اختر لغة الهدف قبل تشغيل الترجمة.");
-      return;
-    }
-
-    setIsSyncing(true);
+    setSyncing(true);
     setMessage("");
     setError("");
-
-    setProgress(
-      `تتم ترجمة ${selectedItems.length} عنصر إلى ${targetLanguageLabels[targetLanguage]} وحفظها للمراجعة...`
-    );
-
+    setProgress(`تتم ترجمة ${selectedItems.length} عنصر إلى ${languageLabels[language]} وحفظها للمراجعة...`);
     try {
       const response = await syncArabicContentTranslations(
-        selectedItems.map((item) => ({
-          sourceType: item.sourceType,
-          sourceId: item.sourceId,
-        })),
-        { languages: [targetLanguage] }
+        selectedItems.map((item) => ({ sourceType: item.sourceType, sourceId: item.sourceId })),
+        { languages: [language] }
       );
+      const failed = response.errors || [];
+      const successCount = response.results?.length ?? Math.max(0, selectedItems.length - failed.length);
+      const details = failed.map((item) => `• ${item.sourceType} #${item.sourceId}: ${item.message}`).join("\n");
 
-      const failedItems = response.errors || [];
-
-      const successfulCount =
-        response.results?.length ??
-        Math.max(0, selectedItems.length - failedItems.length);
-
-      const failedDetails = failedItems
-        .map(
-          (item) =>
-            `• ${item.sourceType} #${item.sourceId}: ${item.message}`
-        )
-        .join("\n");
-
-      if (failedItems.length === 0) {
-        setMessage(
-          `تمت ترجمة ${successfulCount} عنصر إلى ${targetLanguageLabels[targetLanguage]} وحفظها بحالة تحتاج مراجعة. لن يظهر أي محتوى للعامة قبل المراجعة والنشر اليدوي من لوحة المحتوى المناسبة.`
-        );
-      } else if (successfulCount > 0) {
-        setMessage(
-          `اكتملت الدفعة جزئياً: نجحت ترجمة ${successfulCount} عنصر وفشلت ${failedItems.length} عنصر.\n${failedDetails}`
-        );
+      if (!failed.length) {
+        setMessage(`تمت ترجمة ${successCount} عنصر إلى ${languageLabels[language]} وحفظها بحالة تحتاج مراجعة. لن يظهر أي محتوى للعامة قبل النشر اليدوي.`);
+      } else if (successCount) {
+        setMessage(`اكتملت الدفعة جزئياً: نجحت ترجمة ${successCount} عنصر وفشلت ${failed.length} عنصر.\n${details}`);
       } else {
-        setError(
-          `تعذرت ترجمة العناصر المحددة.\n${
-            failedDetails ||
-            response.message ||
-            "تعذرت مزامنة الترجمة التلقائية."
-          }`
-        );
+        setError(`تعذرت ترجمة العناصر المحددة.\n${details || response.message || "تعذرت مزامنة الترجمة التلقائية."}`);
       }
     } catch (syncError) {
-      setError(
-        syncError instanceof Error
-          ? syncError.message
-          : "تعذرت مزامنة الترجمة التلقائية."
-      );
+      setError(syncError instanceof Error ? syncError.message : "تعذرت مزامنة الترجمة التلقائية.");
     } finally {
       setProgress("");
-      setIsSyncing(false);
+      setSyncing(false);
     }
   }
 
+  if (checkingAccess || loading) {
+    return (
+      <main dir="rtl" className="min-h-screen bg-[#070009] p-6 text-white">
+        <div className="mx-auto max-w-5xl rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center text-white/65">
+          جاري تجهيز مركز الترجمة التلقائية...
+        </div>
+      </main>
+    );
+  }
+
+  if (!authorized) return null;
+
   return (
-    <main className="min-h-screen bg-[#070009] px-5 py-10 text-white">
-      <div className="mx-auto max-w-7xl">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+    <main dir="rtl" className="min-h-screen bg-[#070009] p-5 pb-36 text-white md:p-8">
+      <section className="mx-auto max-w-6xl">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <div className="mb-3 inline-flex rounded-full border border-fuchsia-400/25 bg-fuchsia-500/10 px-5 py-2 text-sm font-bold text-fuchsia-100">
-              Translation Automation
-            </div>
-
-            <h1 className="text-4xl font-black md:text-5xl">
-              ترجمة دفعة مراقبة
-            </h1>
-
-            <p className="mt-3 max-w-3xl leading-8 text-white/60">
-              اختر مصدراً واحداً وحتى 10 عناصر ولغة هدف واحدة. تحفظ النتائج
-              للمراجعة فقط ولا تظهر للعامة قبل النشر اليدوي.
-            </p>
+            <div className="mb-3 inline-flex rounded-full border border-fuchsia-400/25 bg-fuchsia-500/10 px-5 py-2 text-sm font-bold text-fuchsia-100">Translation Automation</div>
+            <h1 className="text-4xl font-black md:text-5xl">ترجمة دفعة مراقبة</h1>
+            <p className="mt-3 max-w-3xl leading-8 text-white/60">اختر مصدراً واحداً وحتى 10 عناصر ولغة هدف واحدة. تحفظ النتائج للمراجعة فقط ولا تظهر للعامة قبل النشر اليدوي.</p>
           </div>
-
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/admin/translations/cms"
-              className="rounded-full border border-cyan-400/25 bg-cyan-500/10 px-6 py-3 font-bold text-cyan-50"
-            >
-              ترجمة صفحات CMS
-            </Link>
-
-            <Link
-              href="/admin/translations"
-              className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75"
-            >
-              لوحة الترجمات اليدوية
-            </Link>
-
-            <Link
-              href="/admin"
-              className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75"
-            >
-              لوحة الإدارة
-            </Link>
+            <Link href="/admin/translations/cms" className="rounded-full border border-cyan-400/25 bg-cyan-500/10 px-6 py-3 font-bold text-cyan-50">ترجمة صفحات CMS</Link>
+            <Link href="/admin/translations" className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">لوحة الترجمات اليدوية</Link>
+            <Link href="/admin" className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">لوحة الإدارة</Link>
           </div>
         </div>
 
-        <div
-          className={`mb-6 mt-8 rounded-[2rem] border p-6 ${
-            isConfigured
-              ? "border-green-400/25 bg-green-500/10"
-              : "border-yellow-400/25 bg-yellow-500/10"
-          }`}
-        >
-          <div className="text-xl font-black">
-            {isConfigured
-              ? "الترجمة التلقائية جاهزة"
-              : "الترجمة التلقائية غير مفعلة بعد"}
-          </div>
-
-          <p className="mt-3 leading-8 text-white/70">
-            {isConfigured
-              ? `الموديل المحدد: ${
-                  model || "الافتراضي"
-                }. يتطلب هذا المسار اختيار مصدر واحد وحتى 10 عناصر ولغة واحدة صراحةً، ثم يحفظ النتائج بحالة تحتاج مراجعة.`
-              : "يلزم إضافة المتغير السري GEMINI_API_KEY في إعدادات Vercel للإنتاج والمعاينة. لن يُحفظ المفتاح في GitHub أو يظهر في الموقع."}
-          </p>
+        <div className={`mb-6 rounded-[2rem] border p-6 ${configured ? "border-green-400/25 bg-green-500/10" : "border-yellow-400/25 bg-yellow-500/10"}`}>
+          <div className="text-xl font-black">{configured ? "الترجمة التلقائية جاهزة" : "الترجمة التلقائية غير مفعلة بعد"}</div>
+          <p className="mt-3 leading-8 text-white/70">{configured ? `الموديل المحدد: ${model || "الافتراضي"}. يتطلب هذا المسار اختيار مصدر واحد وحتى 10 عناصر ولغة واحدة صراحةً، ثم يحفظ النتائج بحالة تحتاج مراجعة.` : "يلزم إعداد مزود الترجمة في Vercel قبل التشغيل."}</p>
         </div>
 
-        {message && (
-          <div className="mb-6 whitespace-pre-line rounded-3xl border border-green-400/25 bg-green-500/10 p-5 text-green-100">
-            {message}
-          </div>
-        )}
-
-        {error && (
-          <div className="mb-6 whitespace-pre-line rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">
-            {error}
-          </div>
-        )}
-
-        {progress && (
-          <div className="mb-6 rounded-3xl border border-cyan-400/25 bg-cyan-500/10 p-5 text-cyan-100">
-            {progress}
-          </div>
-        )}
+        {message && <div className="mb-6 whitespace-pre-line rounded-3xl border border-green-400/25 bg-green-500/10 p-5 text-green-100">{message}</div>}
+        {error && <div className="mb-6 whitespace-pre-line rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">{error}</div>}
+        {progress && <div className="mb-6 rounded-3xl border border-cyan-400/25 bg-cyan-500/10 p-5 text-cyan-100">{progress}</div>}
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {TRANSLATION_SOURCE_DEFINITIONS.map((source) => {
-            const active = selectedSourceType === source.sourceType;
-
+            const active = sourceType === source.sourceType;
             return (
-              <button
-                key={source.sourceType}
-                type="button"
-                onClick={() => selectSourceType(source.sourceType)}
-                disabled={isLoading || isSyncing}
-                className={`rounded-[2rem] border p-6 text-right transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                  active
-                    ? "border-fuchsia-300/50 bg-fuchsia-500/15"
-                    : "border-white/10 bg-white/[0.04] hover:border-white/25"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <span
-                    className={`h-5 w-5 rounded-full border-2 ${
-                      active
-                        ? "border-fuchsia-200 bg-fuchsia-500"
-                        : "border-white/35"
-                    }`}
-                    aria-hidden="true"
-                  />
-
-                  <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-sm font-bold text-white/70">
-                    {counts[source.sourceType]}
-                  </span>
-                </div>
-
-                <div className="mt-6 text-xl font-black">
-                  {source.label}
-                </div>
-
-                <p className="mt-3 text-sm leading-7 text-white/55">
-                  اختر هذا المصدر أولاً، ثم اختر حتى 10 عناصر منه.
-                </p>
+              <button key={source.sourceType} type="button" onClick={() => chooseSource(source.sourceType)} disabled={syncing} className={`rounded-[2rem] border p-6 text-right transition disabled:opacity-50 ${active ? "border-fuchsia-300/70 bg-fuchsia-500/15" : "border-white/10 bg-white/[0.04] hover:border-fuchsia-300/35"}`}>
+                <div className="flex items-start justify-between gap-4"><span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-sm font-black text-white/70">{counts[source.sourceType]}</span><span className={`h-5 w-5 rounded-full border-2 ${active ? "border-fuchsia-200 bg-fuchsia-500" : "border-white/35"}`} /></div>
+                <div className="mt-6 text-xl font-black">{source.label}</div>
+                <p className="mt-3 text-sm leading-7 text-white/55">اختر هذا المصدر أولاً، ثم اختر حتى 10 عناصر منه.</p>
               </button>
             );
           })}
@@ -407,151 +263,51 @@ export default function TranslationAutomationPage() {
 
         <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
           <h2 className="text-2xl font-black">1. اختر عناصر الدفعة</h2>
-
-          <p className="mt-3 leading-8 text-white/60">
-            يمكن اختيار حتى 10 عناصر من نفس المصدر في كل تشغيل.
-          </p>
-
-          {!selectedSourceType ? (
-            <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-black/20 p-5 text-white/60">
-              اختر مصدر المحتوى أولاً لعرض العناصر المتاحة للدفعة.
-            </div>
+          <p className="mt-3 leading-8 text-white/60">يمكن اختيار حتى 10 عناصر من نفس المصدر في كل تشغيل.</p>
+          {!sourceType ? (
+            <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-black/20 p-5 text-white/60">اختر مصدر المحتوى أولاً لعرض العناصر المتاحة للدفعة.</div>
           ) : (
             <>
               <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-white/10 bg-black/20 p-4 md:flex-row md:items-center md:justify-between">
-                <div className="font-bold text-white/80">
-                  تم اختيار {selectedSourceIds.length} من {MAX_BATCH_ITEMS}
-                </div>
-
+                <div className="font-bold text-white/80">تم اختيار {selectedIds.length} من {MAX_BATCH_ITEMS}</div>
                 <div className="flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={selectFirstBatch}
-                    disabled={isSyncing || availableItems.length === 0}
-                    className="rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-5 py-2.5 font-bold text-fuchsia-100 transition hover:bg-fuchsia-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    تحديد أول 10
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={clearSelectedItems}
-                    disabled={
-                      isSyncing || selectedSourceIds.length === 0
-                    }
-                    className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 font-bold text-white/75 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    مسح الاختيار
-                  </button>
+                  <button type="button" onClick={selectFirstBatch} disabled={syncing || !availableItems.length} className="rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-5 py-2.5 font-bold text-fuchsia-100 disabled:opacity-50">تحديد أول 10</button>
+                  <button type="button" onClick={() => setSelectedIds([])} disabled={syncing || !selectedIds.length} className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 font-bold text-white/75 disabled:opacity-50">مسح الاختيار</button>
                 </div>
               </div>
-
-              {availableItems.length === 0 ? (
-                <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-black/20 p-5 text-white/60">
-                  لا توجد عناصر متاحة لهذا المصدر حالياً.
-                </div>
-              ) : (
-                <div className="mt-5 grid gap-3">
-                  {availableItems.map((item) => {
-                    const checked = selectedSourceIds.includes(
-                      item.sourceId
-                    );
-
-                    return (
-                      <label
-                        key={`${item.sourceType}:${item.sourceId}`}
-                        className={`flex cursor-pointer items-center justify-between gap-4 rounded-2xl border px-5 py-4 transition ${
-                          checked
-                            ? "border-fuchsia-300/55 bg-fuchsia-500/15"
-                            : "border-white/10 bg-black/20 hover:border-white/25"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() =>
-                            toggleSelectedItem(item.sourceId)
-                          }
-                          disabled={isSyncing}
-                          className="h-5 w-5 accent-fuchsia-500"
-                        />
-
-                        <span className="text-right font-bold text-white/85">
-                          {item.label}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="mt-5 grid gap-3">
+                {availableItems.map((item) => {
+                  const checked = selectedIds.includes(item.sourceId);
+                  return (
+                    <label key={`${item.sourceType}:${item.sourceId}`} className={`flex cursor-pointer items-start gap-4 rounded-2xl border p-4 ${checked ? "border-fuchsia-300/60 bg-fuchsia-500/10" : "border-white/10 bg-black/20"}`}>
+                      <input type="checkbox" checked={checked} onChange={() => toggleItem(item.sourceId)} disabled={syncing} className="mt-1 h-5 w-5 accent-fuchsia-500" />
+                      <span className="leading-7 text-white/80">{item.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </>
           )}
         </section>
 
         <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
           <h2 className="text-2xl font-black">2. اختر لغة الهدف</h2>
-
-          <p className="mt-3 leading-8 text-white/60">
-            لا توجد لغة افتراضية. يجب اختيار الإنجليزية أو التركية صراحةً قبل
-            الإرسال.
-          </p>
-
+          <p className="mt-3 leading-8 text-white/60">لا توجد لغة افتراضية. يجب اختيار الإنجليزية أو التركية صراحةً قبل الإرسال.</p>
           <div className="mt-5 flex flex-wrap gap-3">
-            {(Object.keys(targetLanguageLabels) as TargetLanguage[]).map(
-              (language) => {
-                const active = targetLanguage === language;
-
-                return (
-                  <button
-                    key={language}
-                    type="button"
-                    onClick={() => setTargetLanguage(language)}
-                    disabled={isSyncing}
-                    className={`rounded-full border px-6 py-3 font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                      active
-                        ? "border-fuchsia-300/55 bg-fuchsia-500/20 text-fuchsia-50"
-                        : "border-white/10 bg-black/20 text-white/75 hover:border-white/25"
-                    }`}
-                  >
-                    {targetLanguageLabels[language]}
-                  </button>
-                );
-              }
-            )}
+            {(Object.keys(languageLabels) as TargetLanguage[]).map((target) => (
+              <button key={target} type="button" onClick={() => setLanguage(target)} disabled={syncing} className={`rounded-full border px-6 py-3 font-bold ${language === target ? "border-fuchsia-300/70 bg-fuchsia-500/20 text-white" : "border-white/10 bg-black/20 text-white/70"}`}>{languageLabels[target]}</button>
+            ))}
           </div>
         </section>
 
         <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
           <h2 className="text-2xl font-black">3. تشغيل دفعة مراقبة</h2>
-
-          <p className="mt-3 leading-8 text-white/60">
-            ترسل هذه الدفعة حتى 10 عناصر ولغة هدف واحدة. لا يتم النشر تلقائياً،
-            وتبقى كل نتيجة بحالة تحتاج مراجعة.
-          </p>
-
-          <button
-            type="button"
-            onClick={() => void syncSelectedContent()}
-            disabled={
-              !isConfigured ||
-              isSyncing ||
-              selectedItems.length === 0 ||
-              !targetLanguage
-            }
-            className="mt-6 w-full rounded-full bg-gradient-to-r from-fuchsia-600 to-purple-600 px-7 py-4 font-black text-white shadow-lg shadow-fuchsia-950/40 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            {isSyncing
-              ? "تتم الترجمة الآن..."
-              : "ترجمة العناصر المحددة وحفظها للمراجعة"}
-          </button>
+          <p className="mt-3 max-w-3xl leading-8 text-white/60">ترسل هذه الدفعة حتى 10 عناصر ولغة هدف واحدة. لا يتم النشر تلقائياً، وتبقى كل نتيجة بحالة تحتاج مراجعة.</p>
+          <button type="button" onClick={() => void runBatch()} disabled={syncing || !configured || !selectedItems.length || !language} className="mt-6 rounded-full bg-gradient-to-r from-fuchsia-600 to-purple-600 px-7 py-4 font-black text-white disabled:cursor-not-allowed disabled:opacity-50">{syncing ? "جاري الترجمة والحفظ للمراجعة..." : "ترجمة العناصر المحددة وحفظها للمراجعة"}</button>
         </section>
 
-        <div className="mt-6 rounded-[2rem] border border-cyan-400/25 bg-cyan-500/10 p-6 text-cyan-50">
-          الترجمة الناتجة تحفظ دائماً بحالة <b>needs_review</b> مع{" "}
-          <b>reviewed=false</b> و <b>is_published=false</b>. لا تنشر هذه
-          الصفحة أي محتوى تلقائياً.
-        </div>
-      </div>
+        <section className="mt-6 rounded-[2rem] border border-cyan-400/20 bg-cyan-500/10 p-6 text-sm leading-8 text-cyan-50/85">الترجمة الناتجة تحفظ دائماً بحالة <strong>needs_review</strong> مع <strong>reviewed=false</strong> و<strong>is_published=false</strong>. لا تنشر هذه الصفحة أي محتوى تلقائياً.</section>
+      </section>
     </main>
   );
 }
