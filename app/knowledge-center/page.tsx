@@ -1,4 +1,5 @@
 import Link from "next/link";
+import KnowledgeCenterStaticUi from "@/components/KnowledgeCenterStaticUi";
 import KnowledgeListWithTranslations from "@/components/KnowledgeListWithTranslations";
 import {
   CmsPublishedText,
@@ -72,7 +73,12 @@ async function getKnowledgeCenterData() {
     supabase ? supabase.from("settings").select("setting_key, setting_value").eq("is_public", true) : Promise.resolve({ data: [], error: null }),
     supabase ? supabase.from("knowledge_base").select("id, title, summary, content, category, sort_order, is_published").eq("is_published", true).order("sort_order", { ascending: true }) : Promise.resolve({ data: fallbackKnowledge, error: null }),
   ]);
-  return { page: pageData.page, sections: pageData.sections, settings: !settingsResult.error && settingsResult.data ? settingsResult.data : [], knowledge: !knowledgeResult.error && knowledgeResult.data && knowledgeResult.data.length > 0 ? (knowledgeResult.data as KnowledgeItem[]) : fallbackKnowledge };
+  return {
+    page: pageData.page,
+    sections: pageData.sections,
+    settings: !settingsResult.error && settingsResult.data ? settingsResult.data : [],
+    knowledge: !knowledgeResult.error && knowledgeResult.data && knowledgeResult.data.length > 0 ? (knowledgeResult.data as KnowledgeItem[]) : fallbackKnowledge,
+  };
 }
 
 export default async function KnowledgeCenterPage() {
@@ -104,10 +110,9 @@ export default async function KnowledgeCenterPage() {
             <h1 className="text-5xl font-black leading-tight md:text-7xl"><CmsPublishedText sourceKey="knowledge-center-page" field="title" fallback={title} /><span className="block bg-gradient-to-r from-purple-300 via-white to-yellow-300 bg-clip-text text-transparent"><CmsPublishedText sourceKey="knowledge-intro" field="summary" fallback={knowledgeIntro.subtitle} /></span></h1>
             <p className="mt-8 max-w-5xl text-xl leading-10 text-white/75">{hasPageContent ? <CmsPublishedText sourceKey="knowledge-center-page" field="content" fallback={page?.content || ""} /> : <CmsPublishedText sourceKey="knowledge-intro" field="content" fallback={knowledgeIntro.content} />}</p>
           </div>
-          <div className="mt-10 grid gap-5 md:grid-cols-3"><div className="rounded-3xl border border-white/10 bg-white/[0.045] p-5 text-center backdrop-blur"><div className="text-3xl font-black text-purple-200">{knowledge.length}</div><div className="mt-2 text-sm text-white/60">مقال وإرشاد</div></div><div className="rounded-3xl border border-white/10 bg-white/[0.045] p-5 text-center backdrop-blur"><div className="text-3xl font-black text-yellow-200">{Object.keys(groupedKnowledge).length}</div><div className="mt-2 text-sm text-white/60">تصنيف</div></div><div className="rounded-3xl border border-white/10 bg-white/[0.045] p-5 text-center backdrop-blur"><div className="text-3xl font-black text-green-200">واتساب</div><div className="mt-2 text-sm text-white/60">متابعة عند الحاجة</div></div></div>
+          <KnowledgeCenterStaticUi articleCount={knowledge.length} categoryCount={Object.keys(groupedKnowledge).length} cleanWhatsapp={cleanWhatsapp} />
           <div className="mt-10 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-7 backdrop-blur"><h2 className="text-3xl font-black text-yellow-100"><CmsPublishedText sourceKey="creator-guidance" field="title" fallback={creatorGuidance.title} /></h2><p className="mt-3 text-lg font-bold text-yellow-100/80"><CmsPublishedText sourceKey="creator-guidance" field="summary" fallback={creatorGuidance.subtitle} /></p><p className="mt-5 max-w-4xl leading-9 text-white/75"><CmsPublishedText sourceKey="creator-guidance" field="content" fallback={creatorGuidance.content} /></p></div>
           <KnowledgeListWithTranslations knowledge={knowledge} />
-          <div className="mt-10 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur"><h2 className="text-3xl font-black">هل تحتاج مساعدة مباشرة؟</h2><p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">يمكنك التواصل مع فريق وكالة حمزة عبر واتساب عند الحاجة إلى توضيح إضافي.</p><div className="mt-7 flex flex-col justify-center gap-4 sm:flex-row"><Link href="/contact" className="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-7 py-4 font-black">صفحة التواصل</Link><a href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent("مرحباً، أريد الاستفسار من مركز المعرفة في وكالة حمزة.")}`} target="_blank" className="rounded-full bg-green-500 px-7 py-4 font-black text-white">واتساب</a></div></div>
         </section>
       </main>
     </CmsPublishedTranslationsProvider>
