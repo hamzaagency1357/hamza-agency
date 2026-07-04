@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import {
+  CmsPublishedText,
+  CmsPublishedTranslationsProvider,
+  type CmsPublishedTranslationSource,
+} from "@/components/CmsPublishedTranslations";
+import {
   findCmsSection,
   getCmsPageWithSections,
   getCmsText,
@@ -15,6 +20,12 @@ type Setting = {
   setting_value: string | null;
 };
 
+type TranslationFieldValues = {
+  title?: string | null;
+  summary?: string | null;
+  content?: string | null;
+};
+
 function getSectionContent(
   section: CmsSection | null,
   fallback: { title: string; subtitle: string; content: string }
@@ -23,6 +34,36 @@ function getSectionContent(
     title: getCmsText(section?.title, fallback.title),
     subtitle: getCmsText(section?.subtitle, fallback.subtitle),
     content: getCmsText(section?.content, fallback.content),
+  };
+}
+
+function getRequiredFields(values: TranslationFieldValues): CmsPublishedTranslationSource["requiredFields"] {
+  const fields: Array<"title" | "summary" | "content"> = [];
+  if (values.title?.trim()) fields.push("title");
+  if (values.summary?.trim()) fields.push("summary");
+  if (values.content?.trim()) fields.push("content");
+  return fields;
+}
+
+function createCmsTranslationSource({
+  sourceKey,
+  sourceType,
+  sourceId,
+  values,
+  fallback,
+}: {
+  sourceKey: string;
+  sourceType: CmsPublishedTranslationSource["sourceType"];
+  sourceId: number | null | undefined;
+  values: TranslationFieldValues;
+  fallback: CmsPublishedTranslationSource["fallback"];
+}): CmsPublishedTranslationSource {
+  return {
+    sourceKey,
+    sourceType,
+    sourceId: sourceId ?? "",
+    requiredFields: getRequiredFields(values),
+    fallback,
   };
 }
 
@@ -112,15 +153,16 @@ export default async function PrivacyPolicyPage() {
   );
 
   const cleanWhatsapp = whatsapp.replace(/[^\d]/g, "");
+  const overviewSection = findCmsSection(sections, "privacy-overview");
+  const dataUsageSection = findCmsSection(sections, "data-usage");
 
-  const overview = getSectionContent(findCmsSection(sections, "privacy-overview"), {
+  const overview = getSectionContent(overviewSection, {
     title: "سياسة الخصوصية",
     subtitle: "كيف نتعامل مع البيانات",
     content:
       "توضح سياسة الخصوصية آلية جمع واستخدام وحماية بيانات المتقدمين والعملاء عند استخدام موقع وكالة حمزة ونماذجها.",
   });
-
-  const dataUsage = getSectionContent(findCmsSection(sections, "data-usage"), {
+  const dataUsage = getSectionContent(dataUsageSection, {
     title: "استخدام البيانات",
     subtitle: "تُستخدم البيانات لمراجعة الطلبات وتحسين التواصل",
     content:
@@ -128,71 +170,126 @@ export default async function PrivacyPolicyPage() {
   });
 
   const title = page?.title || overview.title;
-  const intro = page?.content || overview.content;
+  const hasPageContent = Boolean(page?.content?.trim());
+  const translationSources: CmsPublishedTranslationSource[] = [
+    createCmsTranslationSource({
+      sourceKey: "privacy-page",
+      sourceType: "pages",
+      sourceId: page?.id,
+      values: {
+        title: page?.title,
+        summary: page?.seo_description,
+        content: page?.content,
+      },
+      fallback: { title, content: page?.content?.trim() || "" },
+    }),
+    createCmsTranslationSource({
+      sourceKey: "privacy-overview",
+      sourceType: "sections",
+      sourceId: overviewSection?.id,
+      values: {
+        title: overviewSection?.title,
+        summary: overviewSection?.subtitle,
+        content: overviewSection?.content,
+      },
+      fallback: {
+        title: overview.title,
+        summary: overview.subtitle,
+        content: overview.content,
+      },
+    }),
+    createCmsTranslationSource({
+      sourceKey: "privacy-data-usage",
+      sourceType: "sections",
+      sourceId: dataUsageSection?.id,
+      values: {
+        title: dataUsageSection?.title,
+        summary: dataUsageSection?.subtitle,
+        content: dataUsageSection?.content,
+      },
+      fallback: {
+        title: dataUsage.title,
+        summary: dataUsage.subtitle,
+        content: dataUsage.content,
+      },
+    }),
+  ];
 
   return (
-    <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
-      <PrivacyBackground />
+    <CmsPublishedTranslationsProvider sources={translationSources}>
+      <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
+        <PrivacyBackground />
 
-      <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
-        <Link href="/" className="mb-8 inline-block text-purple-200">
-          ← العودة إلى الرئيسية
-        </Link>
+        <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
+          <Link href="/" className="mb-8 inline-block text-purple-200">
+            ← العودة إلى الرئيسية
+          </Link>
 
-        <div className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur md:p-10">
-          <div className="mb-6 inline-flex rounded-full border border-yellow-400/30 bg-yellow-500/10 px-5 py-2 text-sm font-bold text-yellow-100">
-            {agencyName}
+          <div className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur md:p-10">
+            <div className="mb-6 inline-flex rounded-full border border-yellow-400/30 bg-yellow-500/10 px-5 py-2 text-sm font-bold text-yellow-100">
+              {agencyName}
+            </div>
+
+            <h1 className="text-5xl font-black leading-tight md:text-7xl">
+              <CmsPublishedText sourceKey="privacy-page" field="title" fallback={title} />
+              <span className="block bg-gradient-to-r from-purple-300 via-white to-yellow-300 bg-clip-text text-transparent">
+                <CmsPublishedText sourceKey="privacy-overview" field="summary" fallback={overview.subtitle} />
+              </span>
+            </h1>
+
+            <p className="mt-8 max-w-5xl text-xl leading-10 text-white/75">
+              {hasPageContent ? (
+                <CmsPublishedText sourceKey="privacy-page" field="content" fallback={page?.content || ""} />
+              ) : (
+                <CmsPublishedText sourceKey="privacy-overview" field="content" fallback={overview.content} />
+              )}
+            </p>
           </div>
 
-          <h1 className="text-5xl font-black leading-tight md:text-7xl">
-            {title}
-            <span className="block bg-gradient-to-r from-purple-300 via-white to-yellow-300 bg-clip-text text-transparent">
-              {overview.subtitle}
-            </span>
-          </h1>
+          <div className="mt-10 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-7 backdrop-blur">
+            <h2 className="text-3xl font-black text-yellow-100">
+              <CmsPublishedText sourceKey="privacy-data-usage" field="title" fallback={dataUsage.title} />
+            </h2>
+            <p className="mt-3 text-lg font-bold text-yellow-100/80">
+              <CmsPublishedText sourceKey="privacy-data-usage" field="summary" fallback={dataUsage.subtitle} />
+            </p>
+            <p className="mt-5 leading-9 text-white/75">
+              <CmsPublishedText sourceKey="privacy-data-usage" field="content" fallback={dataUsage.content} />
+            </p>
+          </div>
 
-          <p className="mt-8 max-w-5xl text-xl leading-10 text-white/75">
-            {intro}
-          </p>
-        </div>
+          <div className="mt-10 grid gap-6 md:grid-cols-2">
+            {privacySections.map((section) => (
+              <div key={section.title} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur">
+                <h2 className="text-3xl font-black">{section.title}</h2>
+                <p className="mt-5 leading-9 text-white/70">{section.text}</p>
+              </div>
+            ))}
+          </div>
 
-        <div className="mt-10 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-7 backdrop-blur">
-          <h2 className="text-3xl font-black text-yellow-100">{dataUsage.title}</h2>
-          <p className="mt-3 text-lg font-bold text-yellow-100/80">{dataUsage.subtitle}</p>
-          <p className="mt-5 leading-9 text-white/75">{dataUsage.content}</p>
-        </div>
+          <div className="mt-10 rounded-[2rem] border border-purple-400/20 bg-purple-500/10 p-7 backdrop-blur">
+            <h2 className="text-3xl font-black">بيانات طلبات الانضمام</h2>
+            <p className="mt-5 leading-9 text-white/75">
+              عند تعبئة نموذج الانضمام، يتم حفظ البيانات بهدف مراجعة الطلب ومتابعته. يمكن أن تشمل هذه البيانات الاسم، الدولة، رقم واتساب، البرنامج، الخبرات السابقة، الملاحظات، وحالة الطلب.
+            </p>
+          </div>
 
-        <div className="mt-10 grid gap-6 md:grid-cols-2">
-          {privacySections.map((section) => (
-            <div key={section.title} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur">
-              <h2 className="text-3xl font-black">{section.title}</h2>
-              <p className="mt-5 leading-9 text-white/70">{section.text}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-10 rounded-[2rem] border border-purple-400/20 bg-purple-500/10 p-7 backdrop-blur">
-          <h2 className="text-3xl font-black">بيانات طلبات الانضمام</h2>
-          <p className="mt-5 leading-9 text-white/75">
-            عند تعبئة نموذج الانضمام، يتم حفظ البيانات بهدف مراجعة الطلب ومتابعته. يمكن أن تشمل هذه البيانات الاسم، الدولة، رقم واتساب، البرنامج، الخبرات السابقة، الملاحظات، وحالة الطلب.
-          </p>
-        </div>
-
-        <div className="mt-10 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
-          <h2 className="text-3xl font-black">للاستفسار حول الخصوصية</h2>
-          <p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">
-            يمكنك التواصل مع وكالة حمزة عبر واتساب للاستفسار عن البيانات أو طلب تحديث معلوماتك.
-          </p>
-          <a
-            href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent("مرحباً، لدي استفسار بخصوص سياسة الخصوصية في وكالة حمزة.")}`}
-            target="_blank"
-            className="mt-7 inline-flex rounded-full bg-green-500 px-8 py-4 font-black text-white shadow-2xl"
-          >
-            تواصل واتساب
-          </a>
-        </div>
-      </section>
-    </main>
+          <div className="mt-10 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
+            <h2 className="text-3xl font-black">للاستفسار حول الخصوصية</h2>
+            <p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">
+              يمكنك التواصل مع وكالة حمزة عبر واتساب للاستفسار عن البيانات أو طلب تحديث معلوماتك.
+            </p>
+            <a
+              href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent("مرحباً، لدي استفسار بخصوص سياسة الخصوصية في وكالة حمزة.")}`}
+              target="_blank"
+              className="mt-7 inline-flex rounded-full bg-green-500 px-8 py-4 font-black text-white shadow-2xl"
+            >
+              تواصل واتساب
+            </a>
+          </div>
+        </section>
+      </main>
+    </CmsPublishedTranslationsProvider>
   );
 }
 
