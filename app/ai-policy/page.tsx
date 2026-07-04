@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import {
+  CmsPublishedText,
+  CmsPublishedTranslationsProvider,
+  type CmsPublishedTranslationSource,
+} from "@/components/CmsPublishedTranslations";
+import {
   findCmsSection,
   getCmsPageWithSections,
   getCmsText,
@@ -15,6 +20,12 @@ type Setting = {
   setting_value: string | null;
 };
 
+type TranslationFieldValues = {
+  title?: string | null;
+  summary?: string | null;
+  content?: string | null;
+};
+
 function getSectionContent(
   section: CmsSection | null,
   fallback: { title: string; subtitle: string; content: string }
@@ -23,6 +34,38 @@ function getSectionContent(
     title: getCmsText(section?.title, fallback.title),
     subtitle: getCmsText(section?.subtitle, fallback.subtitle),
     content: getCmsText(section?.content, fallback.content),
+  };
+}
+
+function getRequiredFields(values: TranslationFieldValues): CmsPublishedTranslationSource["requiredFields"] {
+  const fields: Array<"title" | "summary" | "content"> = [];
+
+  if (values.title?.trim()) fields.push("title");
+  if (values.summary?.trim()) fields.push("summary");
+  if (values.content?.trim()) fields.push("content");
+
+  return fields;
+}
+
+function createCmsTranslationSource({
+  sourceKey,
+  sourceType,
+  sourceId,
+  values,
+  fallback,
+}: {
+  sourceKey: string;
+  sourceType: CmsPublishedTranslationSource["sourceType"];
+  sourceId: number | null | undefined;
+  values: TranslationFieldValues;
+  fallback: CmsPublishedTranslationSource["fallback"];
+}): CmsPublishedTranslationSource {
+  return {
+    sourceKey,
+    sourceType,
+    sourceId: sourceId ?? "",
+    requiredFields: getRequiredFields(values),
+    fallback,
   };
 }
 
@@ -121,15 +164,16 @@ export default async function AiPolicyPage() {
   );
 
   const cleanWhatsapp = whatsapp.replace(/[^\d]/g, "");
+  const overviewSection = findCmsSection(sections, "ai-policy-overview");
+  const escalationSection = findCmsSection(sections, "ai-escalation");
 
-  const overview = getSectionContent(findCmsSection(sections, "ai-policy-overview"), {
+  const overview = getSectionContent(overviewSection, {
     title: "سياسة الذكاء الاصطناعي",
     subtitle: "دعم ذكي بإشراف إداري",
     content:
       "توضح هذه الصفحة دور الذكاء الاصطناعي في تقديم الإرشاد والمساعدة، مع التأكيد أن قرارات القبول والمتابعة تبقى بيد فريق الوكالة.",
   });
-
-  const escalation = getSectionContent(findCmsSection(sections, "ai-escalation"), {
+  const escalation = getSectionContent(escalationSection, {
     title: "التحويل إلى فريق الوكالة",
     subtitle: "عند الحاجة يتم توجيه المستخدم للتواصل مع الفريق",
     content:
@@ -137,88 +181,143 @@ export default async function AiPolicyPage() {
   });
 
   const title = page?.title || overview.title;
-  const intro = page?.content || overview.content;
+  const hasPageContent = Boolean(page?.content?.trim());
+  const translationSources: CmsPublishedTranslationSource[] = [
+    createCmsTranslationSource({
+      sourceKey: "ai-policy-page",
+      sourceType: "pages",
+      sourceId: page?.id,
+      values: {
+        title: page?.title,
+        summary: page?.seo_description,
+        content: page?.content,
+      },
+      fallback: { title, content: page?.content?.trim() || "" },
+    }),
+    createCmsTranslationSource({
+      sourceKey: "ai-policy-overview",
+      sourceType: "sections",
+      sourceId: overviewSection?.id,
+      values: {
+        title: overviewSection?.title,
+        summary: overviewSection?.subtitle,
+        content: overviewSection?.content,
+      },
+      fallback: {
+        title: overview.title,
+        summary: overview.subtitle,
+        content: overview.content,
+      },
+    }),
+    createCmsTranslationSource({
+      sourceKey: "ai-policy-escalation",
+      sourceType: "sections",
+      sourceId: escalationSection?.id,
+      values: {
+        title: escalationSection?.title,
+        summary: escalationSection?.subtitle,
+        content: escalationSection?.content,
+      },
+      fallback: {
+        title: escalation.title,
+        summary: escalation.subtitle,
+        content: escalation.content,
+      },
+    }),
+  ];
 
   return (
-    <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
-      <AiPolicyBackground />
+    <CmsPublishedTranslationsProvider sources={translationSources}>
+      <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
+        <AiPolicyBackground />
 
-      <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
-        <Link href="/" className="mb-8 inline-block text-purple-200">
-          ← العودة إلى الرئيسية
-        </Link>
+        <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
+          <Link href="/" className="mb-8 inline-block text-purple-200">
+            ← العودة إلى الرئيسية
+          </Link>
 
-        <div className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur md:p-10">
-          <div className="mb-6 inline-flex rounded-full border border-cyan-400/30 bg-cyan-500/10 px-5 py-2 text-sm font-bold text-cyan-100">
-            {agencyName}
+          <div className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur md:p-10">
+            <div className="mb-6 inline-flex rounded-full border border-cyan-400/30 bg-cyan-500/10 px-5 py-2 text-sm font-bold text-cyan-100">
+              {agencyName}
+            </div>
+
+            <h1 className="text-5xl font-black leading-tight md:text-7xl">
+              <CmsPublishedText sourceKey="ai-policy-page" field="title" fallback={title} />
+              <span className="block bg-gradient-to-r from-cyan-300 via-white to-purple-300 bg-clip-text text-transparent">
+                <CmsPublishedText sourceKey="ai-policy-overview" field="summary" fallback={overview.subtitle} />
+              </span>
+            </h1>
+
+            <p className="mt-8 max-w-5xl text-xl leading-10 text-white/75">
+              {hasPageContent ? (
+                <CmsPublishedText sourceKey="ai-policy-page" field="content" fallback={page?.content || ""} />
+              ) : (
+                <CmsPublishedText sourceKey="ai-policy-overview" field="content" fallback={overview.content} />
+              )}
+            </p>
           </div>
 
-          <h1 className="text-5xl font-black leading-tight md:text-7xl">
-            {title}
-            <span className="block bg-gradient-to-r from-cyan-300 via-white to-purple-300 bg-clip-text text-transparent">
-              {overview.subtitle}
-            </span>
-          </h1>
+          <div className="mt-10 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-7 backdrop-blur">
+            <h2 className="text-3xl font-black text-yellow-100">تنبيه مهم</h2>
+            <p className="mt-5 leading-9 text-white/75">
+              الدعم الذكي أداة مساعدة للإرشاد والمعلومات العامة فقط. لا يعتبر بديلاً عن الإدارة، ولا يصدر قرارات قبول أو رفض، ولا يضمن نتائج أو أرباحاً أو موافقات على البرامج.
+            </p>
+          </div>
 
-          <p className="mt-8 max-w-5xl text-xl leading-10 text-white/75">
-            {intro}
-          </p>
-        </div>
-
-        <div className="mt-10 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-7 backdrop-blur">
-          <h2 className="text-3xl font-black text-yellow-100">تنبيه مهم</h2>
-          <p className="mt-5 leading-9 text-white/75">
-            الدعم الذكي أداة مساعدة للإرشاد والمعلومات العامة فقط. لا يعتبر بديلاً عن الإدارة، ولا يصدر قرارات قبول أو رفض، ولا يضمن نتائج أو أرباحاً أو موافقات على البرامج.
-          </p>
-        </div>
-
-        <div className="mt-10 grid gap-6 md:grid-cols-2">
-          {aiPolicySections.map((section) => (
-            <div key={section.title} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur">
-              <h2 className="text-3xl font-black">{section.title}</h2>
-              <p className="mt-5 leading-9 text-white/70">{section.text}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-10 rounded-[2rem] border border-purple-400/20 bg-purple-500/10 p-7 backdrop-blur">
-          <h2 className="text-3xl font-black">{escalation.title}</h2>
-          <p className="mt-3 text-lg font-bold text-purple-100/80">{escalation.subtitle}</p>
-          <p className="mt-5 leading-9 text-white/75">{escalation.content}</p>
-
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {escalationReasons.map((item) => (
-              <div key={item} className="rounded-2xl border border-white/10 bg-black/25 p-5 text-white/75">
-                {item}
+          <div className="mt-10 grid gap-6 md:grid-cols-2">
+            {aiPolicySections.map((section) => (
+              <div key={section.title} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur">
+                <h2 className="text-3xl font-black">{section.title}</h2>
+                <p className="mt-5 leading-9 text-white/70">{section.text}</p>
               </div>
             ))}
           </div>
-        </div>
 
-        <div className="mt-10 rounded-[2rem] border border-cyan-400/20 bg-cyan-500/10 p-7 backdrop-blur">
-          <h2 className="text-3xl font-black text-cyan-100">
-            علاقة الدعم الذكي بمركز المعرفة
-          </h2>
-          <p className="mt-5 leading-9 text-white/75">
-            يساعد مركز المعرفة والأسئلة الشائعة وبيانات البرامج على تقديم معلومات أوضح للزائر، وتبقى الحالات الخاصة مرتبطة بالتواصل مع فريق الوكالة.
-          </p>
-        </div>
+          <div className="mt-10 rounded-[2rem] border border-purple-400/20 bg-purple-500/10 p-7 backdrop-blur">
+            <h2 className="text-3xl font-black">
+              <CmsPublishedText sourceKey="ai-policy-escalation" field="title" fallback={escalation.title} />
+            </h2>
+            <p className="mt-3 text-lg font-bold text-purple-100/80">
+              <CmsPublishedText sourceKey="ai-policy-escalation" field="summary" fallback={escalation.subtitle} />
+            </p>
+            <p className="mt-5 leading-9 text-white/75">
+              <CmsPublishedText sourceKey="ai-policy-escalation" field="content" fallback={escalation.content} />
+            </p>
 
-        <div className="mt-10 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
-          <h2 className="text-3xl font-black">تحتاج تواصلاً بشرياً؟</h2>
-          <p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">
-            يمكنك التواصل مع وكالة حمزة عبر واتساب عند الحاجة إلى متابعة من فريق الوكالة.
-          </p>
-          <a
-            href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent("مرحباً، أريد التواصل مع فريق وكالة حمزة.")}`}
-            target="_blank"
-            className="mt-7 inline-flex rounded-full bg-green-500 px-8 py-4 font-black text-white shadow-2xl"
-          >
-            تواصل واتساب
-          </a>
-        </div>
-      </section>
-    </main>
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              {escalationReasons.map((item) => (
+                <div key={item} className="rounded-2xl border border-white/10 bg-black/25 p-5 text-white/75">
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-10 rounded-[2rem] border border-cyan-400/20 bg-cyan-500/10 p-7 backdrop-blur">
+            <h2 className="text-3xl font-black text-cyan-100">
+              علاقة الدعم الذكي بمركز المعرفة
+            </h2>
+            <p className="mt-5 leading-9 text-white/75">
+              يساعد مركز المعرفة والأسئلة الشائعة وبيانات البرامج على تقديم معلومات أوضح للزائر، وتبقى الحالات الخاصة مرتبطة بالتواصل مع فريق الوكالة.
+            </p>
+          </div>
+
+          <div className="mt-10 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
+            <h2 className="text-3xl font-black">تحتاج تواصلاً بشرياً؟</h2>
+            <p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">
+              يمكنك التواصل مع وكالة حمزة عبر واتساب عند الحاجة إلى متابعة من فريق الوكالة.
+            </p>
+            <a
+              href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent("مرحباً، أريد التواصل مع فريق وكالة حمزة.")}`}
+              target="_blank"
+              className="mt-7 inline-flex rounded-full bg-green-500 px-8 py-4 font-black text-white shadow-2xl"
+            >
+              تواصل واتساب
+            </a>
+          </div>
+        </section>
+      </main>
+    </CmsPublishedTranslationsProvider>
   );
 }
 
