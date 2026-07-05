@@ -1,5 +1,5 @@
-import Link from "next/link";
 import FaqListWithTranslations from "@/components/FaqListWithTranslations";
+import { FaqBackHomeLink, FaqDirectContact } from "@/components/FaqStaticUi";
 import {
   CmsPublishedText,
   CmsPublishedTranslationsProvider,
@@ -16,25 +16,9 @@ import {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type FaqItem = {
-  id: number;
-  question: string | null;
-  answer: string | null;
-  category: string | null;
-  sort_order: number | null;
-  is_published: boolean | null;
-};
-
-type Setting = {
-  setting_key: string | null;
-  setting_value: string | null;
-};
-
-type TranslationFieldValues = {
-  title?: string | null;
-  summary?: string | null;
-  content?: string | null;
-};
+type FaqItem = { id: number; question: string | null; answer: string | null; category: string | null; sort_order: number | null; is_published: boolean | null };
+type Setting = { setting_key: string | null; setting_value: string | null };
+type TranslationFieldValues = { title?: string | null; summary?: string | null; content?: string | null };
 
 const fallbackFaqs: FaqItem[] = [
   { id: 1, question: "ما هي وكالة حمزة؟", answer: "وكالة حمزة منصة وكالة لإدارة ودعم صناع المحتوى على برامج البث المباشر والتواصل الاجتماعي.", category: "عام", sort_order: 1, is_published: true },
@@ -44,11 +28,7 @@ const fallbackFaqs: FaqItem[] = [
 ];
 
 function getSectionContent(section: CmsSection | null, fallback: { title: string; subtitle: string; content: string }) {
-  return {
-    title: getCmsText(section?.title, fallback.title),
-    subtitle: getCmsText(section?.subtitle, fallback.subtitle),
-    content: getCmsText(section?.content, fallback.content),
-  };
+  return { title: getCmsText(section?.title, fallback.title), subtitle: getCmsText(section?.subtitle, fallback.subtitle), content: getCmsText(section?.content, fallback.content) };
 }
 
 function getRequiredFields(values: TranslationFieldValues): CmsPublishedTranslationSource["requiredFields"] {
@@ -124,30 +104,21 @@ export default async function FaqPage() {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqStructuredData }} />
         <FaqBackground />
         <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
-          <Link href="/" className="mb-8 inline-block text-purple-200">← العودة إلى الرئيسية</Link>
+          <FaqBackHomeLink />
           <div className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur md:p-10">
             <div className="mb-6 inline-flex rounded-full border border-purple-400/30 bg-purple-500/10 px-5 py-2 text-sm font-bold text-purple-100">{agencyName}</div>
             <h1 className="text-5xl font-black leading-tight md:text-7xl">
               <CmsPublishedText sourceKey="faq-page" field="title" fallback={title} />
               <span className="block bg-gradient-to-r from-purple-300 via-white to-yellow-300 bg-clip-text text-transparent"><CmsPublishedText sourceKey="faq-intro" field="summary" fallback={faqIntro.subtitle} /></span>
             </h1>
-            <p className="mt-8 max-w-5xl text-xl leading-10 text-white/75">
-              {hasPageContent ? <CmsPublishedText sourceKey="faq-page" field="content" fallback={page?.content || ""} /> : <CmsPublishedText sourceKey="faq-intro" field="content" fallback={faqIntro.content} />}
-            </p>
+            <p className="mt-8 max-w-5xl text-xl leading-10 text-white/75">{hasPageContent ? <CmsPublishedText sourceKey="faq-page" field="content" fallback={page?.content || ""} /> : <CmsPublishedText sourceKey="faq-intro" field="content" fallback={faqIntro.content} />}</p>
           </div>
           <div className="mt-10 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-7 backdrop-blur">
             <h2 className="text-3xl font-black text-yellow-100"><CmsPublishedText sourceKey="faq-list" field="title" fallback={faqList.title} /></h2>
             <p className="mt-4 max-w-4xl leading-9 text-white/75"><CmsPublishedText sourceKey="faq-list" field="content" fallback={faqList.content} /></p>
           </div>
           <FaqListWithTranslations faqs={faqs} />
-          <div className="mt-10 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">
-            <h2 className="text-3xl font-black">تواصل معنا مباشرة</h2>
-            <p className="mx-auto mt-4 max-w-2xl leading-8 text-white/70">يمكنك التواصل مع فريق وكالة حمزة عبر واتساب عند الحاجة إلى مساعدة إضافية.</p>
-            <div className="mt-7 flex flex-col justify-center gap-4 sm:flex-row">
-              <Link href="/contact" className="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-7 py-4 font-black">صفحة التواصل</Link>
-              <a href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent("مرحباً، لدي سؤال بخصوص وكالة حمزة.")}`} target="_blank" className="rounded-full bg-green-500 px-7 py-4 font-black text-white">واتساب</a>
-            </div>
-          </div>
+          <FaqDirectContact cleanWhatsapp={cleanWhatsapp} />
         </section>
       </main>
     </CmsPublishedTranslationsProvider>
