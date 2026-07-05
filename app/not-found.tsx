@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import {
   findCmsSection,
@@ -6,6 +5,11 @@ import {
   getCmsText,
   type CmsSection,
 } from "@/lib/pageSections";
+import {
+  NotFoundActions,
+  NotFoundQuickLinks,
+  NotFoundShell,
+} from "@/components/NotFoundStaticUi";
 
 type Setting = {
   setting_key: string | null;
@@ -86,10 +90,7 @@ export default async function NotFoundPage() {
   const codeLabel = mainContent.subtitle || "404";
 
   return (
-    <main
-      dir="rtl"
-      className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#070009] px-5 py-16 text-white"
-    >
+    <NotFoundShell>
       <NotFoundBackground />
 
       <section className="relative z-10 mx-auto max-w-4xl text-center">
@@ -107,31 +108,7 @@ export default async function NotFoundPage() {
           {intro}
         </p>
 
-        <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
-          <Link
-            href="/"
-            className="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 font-black text-white shadow-[0_0_35px_rgba(168,85,247,0.25)]"
-          >
-            العودة للرئيسية
-          </Link>
-
-          <Link
-            href="/programs"
-            className="rounded-full border border-white/15 bg-white/[0.05] px-8 py-4 font-black text-white backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10"
-          >
-            عرض البرامج
-          </Link>
-
-          <a
-            href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent(
-              "مرحباً، أريد التواصل مع وكالة حمزة."
-            )}`}
-            target="_blank"
-            className="rounded-full bg-green-500 px-8 py-4 font-black text-white shadow-2xl"
-          >
-            واتساب
-          </a>
-        </div>
+        <NotFoundActions cleanWhatsapp={cleanWhatsapp} />
 
         <div className="mt-12 rounded-[2rem] border border-purple-400/20 bg-purple-500/10 p-6 backdrop-blur">
           <h3 className="text-2xl font-black">{quickLinks.title}</h3>
@@ -140,30 +117,9 @@ export default async function NotFoundPage() {
           </p>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          <Link
-            href="/about"
-            className="rounded-3xl border border-white/10 bg-white/[0.045] p-5 backdrop-blur transition hover:border-purple-400/50"
-          >
-            من نحن
-          </Link>
-
-          <Link
-            href="/services"
-            className="rounded-3xl border border-white/10 bg-white/[0.045] p-5 backdrop-blur transition hover:border-purple-400/50"
-          >
-            خدمات الوكالة
-          </Link>
-
-          <Link
-            href="/contact"
-            className="rounded-3xl border border-white/10 bg-white/[0.045] p-5 backdrop-blur transition hover:border-purple-400/50"
-          >
-            اتصل بنا
-          </Link>
-        </div>
+        <NotFoundQuickLinks />
       </section>
-    </main>
+    </NotFoundShell>
   );
 }
 
