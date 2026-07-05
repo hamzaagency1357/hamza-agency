@@ -2,7 +2,7 @@ import {
   ContactBackHomeLink,
   ContactBeforeMessage,
   ContactEmailAndHoursCards,
-  ContactNowLabel,
+  ContactNowLink,
   ContactQuickLinks,
   ContactReasons,
   ContactWhatsAppAction,
@@ -97,17 +97,15 @@ export default async function ContactPage() {
             </h1>
             <p className="mt-8 max-w-5xl text-xl leading-10 text-white/75">{hasPageContent ? <CmsPublishedText sourceKey="contact-page" field="content" fallback={page?.content || ""} /> : <CmsPublishedText sourceKey="contact-options" field="content" fallback={contactOptions.content} />}</p>
           </div>
-
           <div className="mt-10 grid gap-6 lg:grid-cols-3">
             <div className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur">
               <h2 className="text-3xl font-black"><CmsPublishedText sourceKey="whatsapp-support" field="title" fallback={whatsappSupport.title} /></h2>
               <p className="mt-4 break-words text-xl font-bold text-green-200">{whatsapp}</p>
               <p className="mt-4 leading-8 text-white/65"><CmsPublishedText sourceKey="whatsapp-support" field="content" fallback={whatsappSupport.content} /></p>
-              <a href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent("مرحباً، أريد التواصل مع وكالة حمزة.")}`} target="_blank" className="mt-6 inline-flex rounded-full bg-green-500 px-6 py-3 font-black text-white"><ContactNowLabel /></a>
+              <ContactNowLink cleanWhatsapp={cleanWhatsapp} />
             </div>
             <ContactEmailAndHoursCards email={email} workingHours={workingHours} />
           </div>
-
           <ContactReasons />
           <ContactBeforeMessage />
           <ContactQuickLinks />
