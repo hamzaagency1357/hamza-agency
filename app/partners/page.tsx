@@ -1,7 +1,11 @@
 import { supabase } from "@/lib/supabase";
-import { PartnersBackLink, PartnersHero, PartnersSectionHeader } from "@/components/PartnersStaticUi";
+import {
+  PartnersBackLink,
+  PartnersHero,
+  PartnersSectionHeader,
+} from "@/components/PartnersStaticUi";
 import { PartnersGuidanceUi, PartnersStatsUi } from "@/components/PartnersExtraUi";
-import PartnerDetailsLink from "@/components/PartnerDetailsLink";
+import PartnersGridWithTranslations from "@/components/PartnersGridWithTranslations";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -64,28 +68,31 @@ export default async function PartnersPage() {
         <PartnersBackLink />
         <PartnersHero />
         <PartnersStatsUi />
-        {featuredPartners.length > 0 && <section className="mt-14"><PartnersSectionHeader section="main" /><div className="grid gap-6 lg:grid-cols-3">{featuredPartners.map((partner) => <PartnerCard key={partner.id} partner={partner} featured />)}</div></section>}
-        {otherPartners.length > 0 && <section className="mt-14"><PartnersSectionHeader section="more" /><div className="grid gap-6 md:grid-cols-2">{otherPartners.map((partner) => <PartnerCard key={partner.id} partner={partner} />)}</div></section>}
+        {featuredPartners.length > 0 ? (
+          <section className="mt-14">
+            <PartnersSectionHeader section="main" />
+            <div className="[&>div>section]:mt-0">
+              <PartnersGridWithTranslations
+                featuredPartners={featuredPartners}
+                otherPartners={[]}
+              />
+            </div>
+          </section>
+        ) : null}
+        {otherPartners.length > 0 ? (
+          <section className="mt-14">
+            <PartnersSectionHeader section="more" />
+            <div className="[&>div>section]:mt-0">
+              <PartnersGridWithTranslations
+                featuredPartners={[]}
+                otherPartners={otherPartners}
+              />
+            </div>
+          </section>
+        ) : null}
         <PartnersGuidanceUi />
       </section>
     </main>
-  );
-}
-
-function PartnerCard({ partner, featured = false }: { partner: PartnerItem; featured?: boolean }) {
-  return (
-    <article className={`rounded-[2rem] border p-6 backdrop-blur transition hover:-translate-y-1 md:p-7 ${featured ? "border-yellow-400/25 bg-yellow-500/10 shadow-[0_0_45px_rgba(212,175,55,0.10)]" : "border-white/10 bg-white/[0.045]"}`}>
-      <div className="mb-5 flex items-start justify-between gap-4">
-        <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.6rem] border border-purple-400/20 bg-gradient-to-br from-purple-500/20 via-black/20 to-yellow-500/10 p-3">
-          {partner.logoUrl ? <img src={partner.logoUrl} alt={`${partner.name} logo`} className="h-full w-full object-contain" /> : <span className="text-center text-lg font-black leading-tight text-yellow-100">{partner.name}</span>}
-        </div>
-        <span className="rounded-full border border-yellow-400/20 bg-yellow-500/10 px-3 py-1 text-xs font-black text-yellow-100">{partner.agreementLabel}</span>
-      </div>
-      <h3 className="text-3xl font-black">{partner.name}</h3>
-      <p className="mt-2 text-sm font-bold text-purple-100/80">{partner.category}</p>
-      <p className="mt-5 leading-8 text-white/70">{partner.description}</p>
-      <PartnerDetailsLink href={partner.programUrl || "/programs"} />
-    </article>
   );
 }
 

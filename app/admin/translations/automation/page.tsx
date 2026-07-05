@@ -29,6 +29,7 @@ const emptyCounts: SourceCount = {
   sections: 0,
   faqs: 0,
   knowledge_base: 0,
+  partners: 0,
 };
 const languageLabels: Record<TargetLanguage, string> = {
   en: "الإنجليزية",
@@ -43,6 +44,7 @@ function getItemLabel(
   const title = source.titleKeys
     .map((key) => row[key])
     .find((value): value is string => typeof value === "string" && value.trim().length > 0);
+
   return title?.trim() || `${source.label} ${index + 1}`;
 }
 
@@ -71,6 +73,7 @@ export default function TranslationAutomationPage() {
         setCheckingAccess(false);
         return;
       }
+
       setAuthorized(true);
       setCheckingAccess(false);
     }
@@ -91,22 +94,29 @@ export default function TranslationAutomationPage() {
 
       setLoading(true);
       setError("");
+
       try {
         const [status, ...results] = await Promise.all([
           getTranslationAutomationStatus(),
-          ...TRANSLATION_SOURCE_DEFINITIONS.map((source) => client.from(source.table).select("*").limit(300)),
+          ...TRANSLATION_SOURCE_DEFINITIONS.map((source) =>
+            client.from(source.table).select("*").limit(300)
+          ),
         ]);
 
         const nextItems: SyncItem[] = [];
         const nextCounts: SourceCount = { ...emptyCounts };
+
         results.forEach((result, index) => {
           const source = TRANSLATION_SOURCE_DEFINITIONS[index];
           if (!source || result.error) return;
+
           const rows = (result.data || []) as Array<Record<string, unknown>>;
           nextCounts[source.sourceType] = rows.length;
+
           rows.forEach((row, rowIndex) => {
             const sourceId = String(row.id || "").trim();
             if (!sourceId) return;
+
             nextItems.push({
               sourceType: source.sourceType,
               sourceId,
@@ -120,7 +130,11 @@ export default function TranslationAutomationPage() {
         setCounts(nextCounts);
         setItems(nextItems);
       } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : "تعذر تحميل مركز الترجمة التلقائية.");
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "تعذر تحميل مركز الترجمة التلقائية."
+        );
       } finally {
         setLoading(false);
       }
@@ -151,10 +165,12 @@ export default function TranslationAutomationPage() {
       setError("");
       return;
     }
+
     if (selectedIds.length >= MAX_BATCH_ITEMS) {
       setError("الحد الأقصى لكل دفعة هو 10 عناصر. أرسل الدفعة الحالية ثم تابع بالدفعة التالية.");
       return;
     }
+
     setSelectedIds((current) => [...current, sourceId]);
     setError("");
   }
@@ -164,13 +180,14 @@ export default function TranslationAutomationPage() {
       setError("اختر مصدر المحتوى أولاً.");
       return;
     }
+
     setSelectedIds(availableItems.slice(0, MAX_BATCH_ITEMS).map((item) => item.sourceId));
-    setError("");
     setMessage(
       availableItems.length > MAX_BATCH_ITEMS
         ? "تم تحديد أول 10 عناصر فقط. أرسل هذه الدفعة أولاً ثم اختر الدفعة التالية."
         : ""
     );
+    setError("");
   }
 
   async function runBatch() {
@@ -178,7 +195,8 @@ export default function TranslationAutomationPage() {
       setError("الترجمة التلقائية غير مفعلة بعد.");
       return;
     }
-    if (selectedItems.length === 0 || !language) {
+
+    if (!selectedItems.length || !language) {
       setError("اختر عناصر الدفعة ولغة الهدف قبل التشغيل.");
       return;
     }
@@ -186,25 +204,43 @@ export default function TranslationAutomationPage() {
     setSyncing(true);
     setMessage("");
     setError("");
-    setProgress(`تتم ترجمة ${selectedItems.length} عنصر إلى ${languageLabels[language]} وحفظها للمراجعة...`);
+    setProgress(
+      `تتم ترجمة ${selectedItems.length} عنصر إلى ${languageLabels[language]} وحفظها للمراجعة...`
+    );
+
     try {
       const response = await syncArabicContentTranslations(
-        selectedItems.map((item) => ({ sourceType: item.sourceType, sourceId: item.sourceId })),
+        selectedItems.map((item) => ({
+          sourceType: item.sourceType,
+          sourceId: item.sourceId,
+        })),
         { languages: [language] }
       );
       const failed = response.errors || [];
-      const successCount = response.results?.length ?? Math.max(0, selectedItems.length - failed.length);
-      const details = failed.map((item) => `• ${item.sourceType} #${item.sourceId}: ${item.message}`).join("\n");
+      const succeeded = response.results?.length ?? Math.max(0, selectedItems.length - failed.length);
+      const details = failed
+        .map((item) => `• ${item.sourceType} #${item.sourceId}: ${item.message}`)
+        .join("\n");
 
       if (!failed.length) {
-        setMessage(`تمت ترجمة ${successCount} عنصر إلى ${languageLabels[language]} وحفظها بحالة تحتاج مراجعة. لن يظهر أي محتوى للعامة قبل النشر اليدوي.`);
-      } else if (successCount) {
-        setMessage(`اكتملت الدفعة جزئياً: نجحت ترجمة ${successCount} عنصر وفشلت ${failed.length} عنصر.\n${details}`);
+        setMessage(
+          `تمت ترجمة ${succeeded} عنصر إلى ${languageLabels[language]} وحفظها بحالة تحتاج مراجعة. لن يظهر أي محتوى للعامة قبل النشر اليدوي.`
+        );
+      } else if (succeeded) {
+        setMessage(
+          `اكتملت الدفعة جزئياً: نجحت ترجمة ${succeeded} عنصر وفشلت ${failed.length} عنصر.\n${details}`
+        );
       } else {
-        setError(`تعذرت ترجمة العناصر المحددة.\n${details || response.message || "تعذرت مزامنة الترجمة التلقائية."}`);
+        setError(
+          `تعذرت ترجمة العناصر المحددة.\n${details || response.message || "تعذرت مزامنة الترجمة التلقائية."}`
+        );
       }
     } catch (syncError) {
-      setError(syncError instanceof Error ? syncError.message : "تعذرت مزامنة الترجمة التلقائية.");
+      setError(
+        syncError instanceof Error
+          ? syncError.message
+          : "تعذرت مزامنة الترجمة التلقائية."
+      );
     } finally {
       setProgress("");
       setSyncing(false);
@@ -228,32 +264,59 @@ export default function TranslationAutomationPage() {
       <section className="mx-auto max-w-6xl">
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <div className="mb-3 inline-flex rounded-full border border-fuchsia-400/25 bg-fuchsia-500/10 px-5 py-2 text-sm font-bold text-fuchsia-100">Translation Automation</div>
+            <div className="mb-3 inline-flex rounded-full border border-fuchsia-400/25 bg-fuchsia-500/10 px-5 py-2 text-sm font-bold text-fuchsia-100">
+              Translation Automation
+            </div>
             <h1 className="text-4xl font-black md:text-5xl">ترجمة دفعة مراقبة</h1>
-            <p className="mt-3 max-w-3xl leading-8 text-white/60">اختر مصدراً واحداً وحتى 10 عناصر ولغة هدف واحدة. تحفظ النتائج للمراجعة فقط ولا تظهر للعامة قبل النشر اليدوي.</p>
+            <p className="mt-3 max-w-3xl leading-8 text-white/60">
+              اختر مصدراً واحداً وحتى 10 عناصر ولغة هدف واحدة. تحفظ النتائج للمراجعة فقط ولا تظهر للعامة قبل النشر اليدوي.
+            </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link href="/admin/translations/cms" className="rounded-full border border-cyan-400/25 bg-cyan-500/10 px-6 py-3 font-bold text-cyan-50">ترجمة صفحات CMS</Link>
-            <Link href="/admin/translations" className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">لوحة الترجمات اليدوية</Link>
-            <Link href="/admin" className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">لوحة الإدارة</Link>
+            <Link href="/admin/translations/cms" className="rounded-full border border-cyan-400/25 bg-cyan-500/10 px-6 py-3 font-bold text-cyan-50">
+              ترجمة صفحات CMS
+            </Link>
+            <Link href="/admin/translations" className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">
+              لوحة الترجمات اليدوية
+            </Link>
+            <Link href="/admin" className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 font-bold text-white/75">
+              لوحة الإدارة
+            </Link>
           </div>
         </div>
 
         <div className={`mb-6 rounded-[2rem] border p-6 ${configured ? "border-green-400/25 bg-green-500/10" : "border-yellow-400/25 bg-yellow-500/10"}`}>
-          <div className="text-xl font-black">{configured ? "الترجمة التلقائية جاهزة" : "الترجمة التلقائية غير مفعلة بعد"}</div>
-          <p className="mt-3 leading-8 text-white/70">{configured ? `الموديل المحدد: ${model || "الافتراضي"}. يتطلب هذا المسار اختيار مصدر واحد وحتى 10 عناصر ولغة واحدة صراحةً، ثم يحفظ النتائج بحالة تحتاج مراجعة.` : "يلزم إعداد مزود الترجمة في Vercel قبل التشغيل."}</p>
+          <div className="text-xl font-black">
+            {configured ? "الترجمة التلقائية جاهزة" : "الترجمة التلقائية غير مفعلة بعد"}
+          </div>
+          <p className="mt-3 leading-8 text-white/70">
+            {configured
+              ? `الموديل المحدد: ${model || "الافتراضي"}. يتطلب هذا المسار اختيار مصدر واحد وحتى 10 عناصر ولغة واحدة صراحةً، ثم يحفظ النتائج بحالة تحتاج مراجعة.`
+              : "يلزم إعداد مزود الترجمة في Vercel قبل التشغيل."}
+          </p>
         </div>
 
-        {message && <div className="mb-6 whitespace-pre-line rounded-3xl border border-green-400/25 bg-green-500/10 p-5 text-green-100">{message}</div>}
-        {error && <div className="mb-6 whitespace-pre-line rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">{error}</div>}
-        {progress && <div className="mb-6 rounded-3xl border border-cyan-400/25 bg-cyan-500/10 p-5 text-cyan-100">{progress}</div>}
+        {message ? <div className="mb-6 whitespace-pre-line rounded-3xl border border-green-400/25 bg-green-500/10 p-5 text-green-100">{message}</div> : null}
+        {error ? <div className="mb-6 whitespace-pre-line rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">{error}</div> : null}
+        {progress ? <div className="mb-6 rounded-3xl border border-cyan-400/25 bg-cyan-500/10 p-5 text-cyan-100">{progress}</div> : null}
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {TRANSLATION_SOURCE_DEFINITIONS.map((source) => {
             const active = sourceType === source.sourceType;
             return (
-              <button key={source.sourceType} type="button" onClick={() => chooseSource(source.sourceType)} disabled={syncing} className={`rounded-[2rem] border p-6 text-right transition disabled:opacity-50 ${active ? "border-fuchsia-300/70 bg-fuchsia-500/15" : "border-white/10 bg-white/[0.04] hover:border-fuchsia-300/35"}`}>
-                <div className="flex items-start justify-between gap-4"><span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-sm font-black text-white/70">{counts[source.sourceType]}</span><span className={`h-5 w-5 rounded-full border-2 ${active ? "border-fuchsia-200 bg-fuchsia-500" : "border-white/35"}`} /></div>
+              <button
+                key={source.sourceType}
+                type="button"
+                onClick={() => chooseSource(source.sourceType)}
+                disabled={syncing}
+                className={`rounded-[2rem] border p-6 text-right transition disabled:opacity-50 ${active ? "border-fuchsia-300/70 bg-fuchsia-500/15" : "border-white/10 bg-white/[0.04] hover:border-fuchsia-300/35"}`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-sm font-black text-white/70">
+                    {counts[source.sourceType]}
+                  </span>
+                  <span className={`h-5 w-5 rounded-full border-2 ${active ? "border-fuchsia-200 bg-fuchsia-500" : "border-white/35"}`} />
+                </div>
                 <div className="mt-6 text-xl font-black">{source.label}</div>
                 <p className="mt-3 text-sm leading-7 text-white/55">اختر هذا المصدر أولاً، ثم اختر حتى 10 عناصر منه.</p>
               </button>
@@ -265,14 +328,20 @@ export default function TranslationAutomationPage() {
           <h2 className="text-2xl font-black">1. اختر عناصر الدفعة</h2>
           <p className="mt-3 leading-8 text-white/60">يمكن اختيار حتى 10 عناصر من نفس المصدر في كل تشغيل.</p>
           {!sourceType ? (
-            <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-black/20 p-5 text-white/60">اختر مصدر المحتوى أولاً لعرض العناصر المتاحة للدفعة.</div>
+            <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-black/20 p-5 text-white/60">
+              اختر مصدر المحتوى أولاً لعرض العناصر المتاحة للدفعة.
+            </div>
           ) : (
             <>
               <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-white/10 bg-black/20 p-4 md:flex-row md:items-center md:justify-between">
                 <div className="font-bold text-white/80">تم اختيار {selectedIds.length} من {MAX_BATCH_ITEMS}</div>
                 <div className="flex flex-wrap gap-3">
-                  <button type="button" onClick={selectFirstBatch} disabled={syncing || !availableItems.length} className="rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-5 py-2.5 font-bold text-fuchsia-100 disabled:opacity-50">تحديد أول 10</button>
-                  <button type="button" onClick={() => setSelectedIds([])} disabled={syncing || !selectedIds.length} className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 font-bold text-white/75 disabled:opacity-50">مسح الاختيار</button>
+                  <button type="button" onClick={selectFirstBatch} disabled={syncing || !availableItems.length} className="rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-5 py-2.5 font-bold text-fuchsia-100 disabled:opacity-50">
+                    تحديد أول 10
+                  </button>
+                  <button type="button" onClick={() => setSelectedIds([])} disabled={syncing || !selectedIds.length} className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 font-bold text-white/75 disabled:opacity-50">
+                    مسح الاختيار
+                  </button>
                 </div>
               </div>
               <div className="mt-5 grid gap-3">
@@ -285,6 +354,7 @@ export default function TranslationAutomationPage() {
                     </label>
                   );
                 })}
+                {!availableItems.length ? <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-white/60">لا توجد عناصر متاحة ضمن هذا المصدر.</div> : null}
               </div>
             </>
           )}
@@ -295,7 +365,9 @@ export default function TranslationAutomationPage() {
           <p className="mt-3 leading-8 text-white/60">لا توجد لغة افتراضية. يجب اختيار الإنجليزية أو التركية صراحةً قبل الإرسال.</p>
           <div className="mt-5 flex flex-wrap gap-3">
             {(Object.keys(languageLabels) as TargetLanguage[]).map((target) => (
-              <button key={target} type="button" onClick={() => setLanguage(target)} disabled={syncing} className={`rounded-full border px-6 py-3 font-bold ${language === target ? "border-fuchsia-300/70 bg-fuchsia-500/20 text-white" : "border-white/10 bg-black/20 text-white/70"}`}>{languageLabels[target]}</button>
+              <button key={target} type="button" onClick={() => setLanguage(target)} disabled={syncing} className={`rounded-full border px-6 py-3 font-bold ${language === target ? "border-fuchsia-300/70 bg-fuchsia-500/20 text-white" : "border-white/10 bg-black/20 text-white/70"}`}>
+                {languageLabels[target]}
+              </button>
             ))}
           </div>
         </section>
@@ -303,10 +375,10 @@ export default function TranslationAutomationPage() {
         <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
           <h2 className="text-2xl font-black">3. تشغيل دفعة مراقبة</h2>
           <p className="mt-3 max-w-3xl leading-8 text-white/60">ترسل هذه الدفعة حتى 10 عناصر ولغة هدف واحدة. لا يتم النشر تلقائياً، وتبقى كل نتيجة بحالة تحتاج مراجعة.</p>
-          <button type="button" onClick={() => void runBatch()} disabled={syncing || !configured || !selectedItems.length || !language} className="mt-6 rounded-full bg-gradient-to-r from-fuchsia-600 to-purple-600 px-7 py-4 font-black text-white disabled:cursor-not-allowed disabled:opacity-50">{syncing ? "جاري الترجمة والحفظ للمراجعة..." : "ترجمة العناصر المحددة وحفظها للمراجعة"}</button>
+          <button type="button" onClick={() => void runBatch()} disabled={syncing || !configured || !selectedItems.length || !language} className="mt-6 rounded-full bg-gradient-to-r from-fuchsia-600 to-purple-600 px-7 py-4 font-black text-white disabled:cursor-not-allowed disabled:opacity-50">
+            {syncing ? "جاري الترجمة والحفظ للمراجعة..." : "ترجمة العناصر المحددة وحفظها للمراجعة"}
+          </button>
         </section>
-
-        <section className="mt-6 rounded-[2rem] border border-cyan-400/20 bg-cyan-500/10 p-6 text-sm leading-8 text-cyan-50/85">الترجمة الناتجة تحفظ دائماً بحالة <strong>needs_review</strong> مع <strong>reviewed=false</strong> و<strong>is_published=false</strong>. لا تنشر هذه الصفحة أي محتوى تلقائياً.</section>
       </section>
     </main>
   );

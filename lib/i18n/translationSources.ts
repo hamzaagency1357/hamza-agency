@@ -1,9 +1,26 @@
-export type TranslationSourceType = "programs" | "pages" | "sections" | "faqs" | "knowledge_base";
-export type TranslationBaseFieldName = "title" | "summary" | "content";
-export type ProgramDetailTranslationFieldName = "requirements" | "benefits" | "updates" | "faq";
-export type TranslationFieldName = TranslationBaseFieldName | ProgramDetailTranslationFieldName;
+export type TranslationSourceType =
+  | "programs"
+  | "pages"
+  | "sections"
+  | "faqs"
+  | "knowledge_base"
+  | "partners";
 
-const BASE_TRANSLATION_FIELDS: readonly TranslationBaseFieldName[] = ["title", "summary", "content"];
+export type TranslationBaseFieldName = "title" | "summary" | "content";
+export type ProgramDetailTranslationFieldName =
+  | "requirements"
+  | "benefits"
+  | "updates"
+  | "faq";
+export type TranslationFieldName =
+  | TranslationBaseFieldName
+  | ProgramDetailTranslationFieldName;
+
+const BASE_TRANSLATION_FIELDS: readonly TranslationBaseFieldName[] = [
+  "title",
+  "summary",
+  "content",
+];
 const PROGRAM_DETAIL_TRANSLATION_FIELDS: readonly ProgramDetailTranslationFieldName[] = [
   "requirements",
   "benefits",
@@ -26,7 +43,13 @@ export type TranslationSourceItem = {
 export type TranslationSourceDefinition = {
   sourceType: TranslationSourceType;
   label: string;
-  table: "programs" | "pages" | "sections" | "faqs" | "knowledge_base";
+  table:
+    | "programs"
+    | "pages"
+    | "sections"
+    | "faqs"
+    | "knowledge_base"
+    | "partners";
   titleKeys: readonly string[];
   summaryKeys: readonly string[];
   contentKeys: readonly string[];
@@ -81,6 +104,14 @@ export const TRANSLATION_SOURCE_DEFINITIONS: readonly TranslationSourceDefinitio
     summaryKeys: ["summary", "category"],
     contentKeys: ["content", "answer", "body"],
   },
+  {
+    sourceType: "partners",
+    label: "الشركاء",
+    table: "partners",
+    titleKeys: ["name", "title"],
+    summaryKeys: ["category", "type"],
+    contentKeys: ["description", "summary"],
+  },
 ];
 
 export const TRANSLATION_SOURCE_TYPES = TRANSLATION_SOURCE_DEFINITIONS.map(
@@ -88,27 +119,41 @@ export const TRANSLATION_SOURCE_TYPES = TRANSLATION_SOURCE_DEFINITIONS.map(
 ) as TranslationSourceType[];
 
 export function isTranslationSourceType(value: unknown): value is TranslationSourceType {
-  return typeof value === "string" && TRANSLATION_SOURCE_TYPES.includes(value as TranslationSourceType);
+  return (
+    typeof value === "string" &&
+    TRANSLATION_SOURCE_TYPES.includes(value as TranslationSourceType)
+  );
 }
 
 export function isTranslationFieldName(value: unknown): value is TranslationFieldName {
   return (
     typeof value === "string" &&
-    [...BASE_TRANSLATION_FIELDS, ...PROGRAM_DETAIL_TRANSLATION_FIELDS].includes(value as TranslationFieldName)
+    [...BASE_TRANSLATION_FIELDS, ...PROGRAM_DETAIL_TRANSLATION_FIELDS].includes(
+      value as TranslationFieldName
+    )
   );
 }
 
 export function getTranslationSourceDefinition(sourceType: TranslationSourceType) {
-  return TRANSLATION_SOURCE_DEFINITIONS.find((source) => source.sourceType === sourceType) || null;
+  return (
+    TRANSLATION_SOURCE_DEFINITIONS.find(
+      (source) => source.sourceType === sourceType
+    ) || null
+  );
 }
 
-export function getTranslationFieldNamesForSource(sourceType: TranslationSourceType): TranslationFieldName[] {
+export function getTranslationFieldNamesForSource(
+  sourceType: TranslationSourceType
+): TranslationFieldName[] {
   return sourceType === "programs"
     ? [...BASE_TRANSLATION_FIELDS, ...PROGRAM_DETAIL_TRANSLATION_FIELDS]
     : [...BASE_TRANSLATION_FIELDS];
 }
 
-export function getTranslationFieldText(row: Record<string, unknown>, keys: readonly string[]): string {
+export function getTranslationFieldText(
+  row: Record<string, unknown>,
+  keys: readonly string[]
+): string {
   for (const key of keys) {
     const value = row[key];
     if (typeof value === "string" && value.trim()) return value.trim();
@@ -141,8 +186,8 @@ export function toTranslationSourceItem(
     item.faq = getTranslationFieldText(row, definition.faqKeys || []);
   }
 
-  const hasTranslatableText = getTranslationFieldNamesForSource(sourceType).some((field) =>
-    Boolean(item[field]?.trim())
+  const hasTranslatableText = getTranslationFieldNamesForSource(sourceType).some(
+    (field) => Boolean(item[field]?.trim())
   );
 
   return hasTranslatableText ? item : null;
