@@ -33,7 +33,7 @@ const PROGRAM_DETAIL_TRANSLATION_FIELDS: readonly ProgramDetailTranslationFieldN
   "updates",
   "faq",
 ];
-const JOB_DETAIL_TRANSLATION_FIELDS: readonly Array<
+const JOB_DETAIL_TRANSLATION_FIELDS: ReadonlyArray<
   "department" | "location" | "job_type" | "requirements"
 > = ["department", "location", "job_type", "requirements"];
 
