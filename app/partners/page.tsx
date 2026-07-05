@@ -1,5 +1,9 @@
 import { supabase } from "@/lib/supabase";
-import { PartnersBackLink, PartnersHero } from "@/components/PartnersStaticUi";
+import {
+  PartnersBackLink,
+  PartnersHero,
+  PartnersSectionHeader,
+} from "@/components/PartnersStaticUi";
 import { PartnersGuidanceUi, PartnersStatsUi } from "@/components/PartnersExtraUi";
 import PartnersGridWithTranslations from "@/components/PartnersGridWithTranslations";
 
@@ -64,10 +68,28 @@ export default async function PartnersPage() {
         <PartnersBackLink />
         <PartnersHero />
         <PartnersStatsUi />
-        <PartnersGridWithTranslations
-          featuredPartners={featuredPartners}
-          otherPartners={otherPartners}
-        />
+        {featuredPartners.length > 0 ? (
+          <section className="mt-14">
+            <PartnersSectionHeader section="main" />
+            <div className="[&>div>section]:mt-0">
+              <PartnersGridWithTranslations
+                featuredPartners={featuredPartners}
+                otherPartners={[]}
+              />
+            </div>
+          </section>
+        ) : null}
+        {otherPartners.length > 0 ? (
+          <section className="mt-14">
+            <PartnersSectionHeader section="more" />
+            <div className="[&>div>section]:mt-0">
+              <PartnersGridWithTranslations
+                featuredPartners={[]}
+                otherPartners={otherPartners}
+              />
+            </div>
+          </section>
+        ) : null}
         <PartnersGuidanceUi />
       </section>
     </main>
