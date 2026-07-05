@@ -13,7 +13,8 @@ export type PublishedTranslationSource =
   | "faqs"
   | "knowledge_base"
   | "partners"
-  | "jobs";
+  | "jobs"
+  | "reviews";
 
 export type PublishedTranslationRow = {
   source_id: string;
@@ -21,10 +22,7 @@ export type PublishedTranslationRow = {
   translated_value: string | null;
 };
 
-export type PublishedTranslationMap<FieldName extends string> = Record<
-  string,
-  Partial<Record<FieldName, string>>
->;
+export type PublishedTranslationMap<FieldName extends string> = Record<string, Partial<Record<FieldName, string>>>;
 
 type ReadPublishedTranslationsOptions<FieldName extends string> = {
   sourceType: PublishedTranslationSource;
@@ -42,20 +40,13 @@ export function buildPublishedTranslationMap<FieldName extends string>(
   fields: ReadonlyArray<FieldName>
 ): PublishedTranslationMap<FieldName> {
   const allowedFields = new Set<string>(fields);
-
   return rows.reduce<PublishedTranslationMap<FieldName>>((result, row) => {
     const value = row.translated_value?.trim();
-
-    if (!row.source_id || !row.field_name || !value || !allowedFields.has(row.field_name)) {
-      return result;
-    }
-
+    if (!row.source_id || !row.field_name || !value || !allowedFields.has(row.field_name)) return result;
     const fieldName = row.field_name as FieldName;
     const sourceTranslations = result[row.source_id] || {};
-
     sourceTranslations[fieldName] = value;
     result[row.source_id] = sourceTranslations;
-
     return result;
   }, {});
 }
@@ -74,16 +65,7 @@ export async function readPublishedTranslations<FieldName extends string>({
   fields,
 }: ReadPublishedTranslationsOptions<FieldName>): Promise<PublishedTranslationMap<FieldName>> {
   const uniqueSourceIds = [...new Set(sourceIds.map((sourceId) => String(sourceId)).filter(Boolean))];
-
-  if (
-    !isSupabaseConfigured ||
-    !supabase ||
-    !isTranslationLanguage(language) ||
-    uniqueSourceIds.length === 0 ||
-    fields.length === 0
-  ) {
-    return {};
-  }
+  if (!isSupabaseConfigured || !supabase || !isTranslationLanguage(language) || uniqueSourceIds.length === 0 || fields.length === 0) return {};
 
   const { data, error } = await supabase
     .from("content_translations")
@@ -95,9 +77,6 @@ export async function readPublishedTranslations<FieldName extends string>({
     .in("source_id", uniqueSourceIds)
     .in("field_name", [...fields]);
 
-  if (error || !data) {
-    return {};
-  }
-
+  if (error || !data) return {};
   return buildPublishedTranslationMap(data as PublishedTranslationRow[], fields);
 }
