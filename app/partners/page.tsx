@@ -1,21 +1,94 @@
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { PartnersBackLink, PartnersHero, PartnersSectionHeader } from "@/components/PartnersStaticUi";
-import PartnersExtraUi from "@/components/PartnersExtraUi";
+import { PartnersGuidanceUi, PartnersStatsUi } from "@/components/PartnersExtraUi";
+import PartnerDetailsLink from "@/components/PartnerDetailsLink";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type PartnerItem = { id: string | number; name: string; category: string; description: string; agreementLabel: string; logoUrl: string | null; programUrl: string; sortOrder: number; isFeatured: boolean };
+type PartnerItem = {
+  id: string | number;
+  name: string;
+  category: string;
+  description: string;
+  agreementLabel: string;
+  logoUrl: string | null;
+  programUrl: string;
+  sortOrder: number;
+  isFeatured: boolean;
+};
+
 const defaultPartners: PartnerItem[] = [
-{id:"tiktok",name:"TikTok",category:"صناعة المحتوى والبث المباشر",description:"تعمل وكالة حمزة ضمن اتفاق تعاون مع TikTok لتقديم مسار منظم لصناع المحتوى، يبدأ من التوجيه وفهم المتطلبات وصولاً إلى المتابعة المناسبة حسب طبيعة كل حالة.",agreementLabel:"اتفاق تعاون",logoUrl:null,programUrl:"/programs/tiktok",sortOrder:1,isFeatured:true},
-{id:"bigo-live",name:"BIGO LIVE",category:"البث المباشر والمواهب",description:"ضمن اتفاقات التعاون الخاصة بالوكالة، يمثل BIGO LIVE أحد المسارات المهمة لصناع المحتوى المهتمين بالبث المباشر وبناء حضور تفاعلي احترافي.",agreementLabel:"اتفاق تعاون",logoUrl:null,programUrl:"/programs/bigo-live",sortOrder:2,isFeatured:true},
-{id:"yaahlan",name:"Yaahlan",category:"المجتمعات والتواصل المباشر",description:"تعمل وكالة حمزة مع Yaahlan ضمن مسار يركز على تنظيم انضمام صناع المحتوى ومساعدتهم على فهم طبيعة البرنامج وخطوات المتابعة المناسبة.",agreementLabel:"اتفاق تعاون",logoUrl:null,programUrl:"/programs/yaahlan",sortOrder:3,isFeatured:true},
-{id:"xena",name:"Xena",category:"صناعة المحتوى والتفاعل",description:"يأتي Xena ضمن البرامج التي تعمل معها وكالة حمزة لتوفير خيارات متنوعة أمام صناع المحتوى، مع شرح واضح لطبيعة العمل وما يناسب كل متقدم.",agreementLabel:"اتفاق تعاون",logoUrl:null,programUrl:"/programs/xena",sortOrder:4,isFeatured:false},
-{id:"catchii",name:"Catchii",category:"المحتوى الاجتماعي والبث",description:"تعمل وكالة حمزة مع Catchii ضمن منظومة برامجها لدعم صناع المحتوى الراغبين بخيارات إضافية في مجال التواصل والبث والتفاعل الرقمي.",agreementLabel:"اتفاق تعاون",logoUrl:null,programUrl:"/programs/catchii",sortOrder:5,isFeatured:false},
+  { id: "tiktok", name: "TikTok", category: "صناعة المحتوى والبث المباشر", description: "تعمل وكالة حمزة ضمن اتفاق تعاون مع TikTok لتقديم مسار منظم لصناع المحتوى، يبدأ من التوجيه وفهم المتطلبات وصولاً إلى المتابعة المناسبة حسب طبيعة كل حالة.", agreementLabel: "اتفاق تعاون", logoUrl: null, programUrl: "/programs/tiktok", sortOrder: 1, isFeatured: true },
+  { id: "bigo-live", name: "BIGO LIVE", category: "البث المباشر والمواهب", description: "ضمن اتفاقات التعاون الخاصة بالوكالة، يمثل BIGO LIVE أحد المسارات المهمة لصناع المحتوى المهتمين بالبث المباشر وبناء حضور تفاعلي احترافي.", agreementLabel: "اتفاق تعاون", logoUrl: null, programUrl: "/programs/bigo-live", sortOrder: 2, isFeatured: true },
+  { id: "yaahlan", name: "Yaahlan", category: "المجتمعات والتواصل المباشر", description: "تعمل وكالة حمزة مع Yaahlan ضمن مسار يركز على تنظيم انضمام صناع المحتوى ومساعدتهم على فهم طبيعة البرنامج وخطوات المتابعة المناسبة.", agreementLabel: "اتفاق تعاون", logoUrl: null, programUrl: "/programs/yaahlan", sortOrder: 3, isFeatured: true },
+  { id: "xena", name: "Xena", category: "صناعة المحتوى والتفاعل", description: "يأتي Xena ضمن البرامج التي تعمل معها وكالة حمزة لتوفير خيارات متنوعة أمام صناع المحتوى، مع شرح واضح لطبيعة العمل وما يناسب كل متقدم.", agreementLabel: "اتفاق تعاون", logoUrl: null, programUrl: "/programs/xena", sortOrder: 4, isFeatured: false },
+  { id: "catchii", name: "Catchii", category: "المحتوى الاجتماعي والبث", description: "تعمل وكالة حمزة مع Catchii ضمن منظومة برامجها لدعم صناع المحتوى الراغبين بخيارات إضافية في مجال التواصل والبث والتفاعل الرقمي.", agreementLabel: "اتفاق تعاون", logoUrl: null, programUrl: "/programs/catchii", sortOrder: 5, isFeatured: false },
 ];
-function normalizePartner(item:any,index:number):PartnerItem{return{id:item.id??item.slug??index+1,name:item.name||item.title||"برنامج وكالة حمزة",category:item.category||item.type||"برنامج تعاون",description:item.description||item.summary||"برنامج ضمن اتفاقات التعاون الخاصة بوكالة حمزة لدعم وتنظيم مسارات صناع المحتوى.",agreementLabel:item.agreement_label||item.badge||"اتفاق تعاون",logoUrl:item.logo_url||item.image_url||null,programUrl:item.program_url||item.website_url||item.url||`/programs/${item.slug||""}`,sortOrder:item.sort_order??index+1,isFeatured:item.is_featured===true};}
-async function getPartners():Promise<PartnerItem[]>{if(!supabase)return defaultPartners;const{data,error}=await supabase.from("partners").select("*").order("sort_order",{ascending:true});if(error||!data||data.length===0)return defaultPartners;const visible=data.filter((item:any)=>item.is_visible!==false&&item.status!=="hidden").map((item:any,index:number)=>normalizePartner(item,index)).filter((item:PartnerItem)=>item.name.trim().length>0).sort((a:PartnerItem,b:PartnerItem)=>a.sortOrder-b.sortOrder);return visible.length>0?visible:defaultPartners;}
-export default async function PartnersPage(){const partners=await getPartners(),featuredPartners=partners.filter((p)=>p.isFeatured),otherPartners=partners.filter((p)=>!p.isFeatured);return <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] text-white"><PartnersBackground/><section className="relative z-10 mx-auto max-w-7xl px-5 py-16 md:py-20"><PartnersBackLink/><PartnersHero/><PartnersExtraUi/>{featuredPartners.length>0&&<section className="mt-14"><PartnersSectionHeader section="main"/><div className="grid gap-6 lg:grid-cols-3">{featuredPartners.map((partner)=><PartnerCard key={partner.id} partner={partner} featured/>)}</div></section>}{otherPartners.length>0&&<section className="mt-14"><PartnersSectionHeader section="more"/><div className="grid gap-6 md:grid-cols-2">{otherPartners.map((partner)=><PartnerCard key={partner.id} partner={partner}/>)}</div></section>}</section></main>;}
-function PartnerCard({partner,featured=false}:{partner:PartnerItem;featured?:boolean}){return <article className={`rounded-[2rem] border p-6 backdrop-blur transition hover:-translate-y-1 md:p-7 ${featured?"border-yellow-400/25 bg-yellow-500/10 shadow-[0_0_45px_rgba(212,175,55,0.10)]":"border-white/10 bg-white/[0.045]"}`}><div className="mb-5 flex items-start justify-between gap-4"><div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.6rem] border border-purple-400/20 bg-gradient-to-br from-purple-500/20 via-black/20 to-yellow-500/10 p-3">{partner.logoUrl?<img src={partner.logoUrl} alt={`${partner.name} logo`} className="h-full w-full object-contain"/>:<span className="text-center text-lg font-black leading-tight text-yellow-100">{partner.name}</span>}</div><span className="rounded-full border border-yellow-400/20 bg-yellow-500/10 px-3 py-1 text-xs font-black text-yellow-100">{partner.agreementLabel}</span></div><h3 className="text-3xl font-black">{partner.name}</h3><p className="mt-2 text-sm font-bold text-purple-100/80">{partner.category}</p><p className="mt-5 leading-8 text-white/70">{partner.description}</p><Link href={partner.programUrl||"/programs"} className="mt-6 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-5 py-3 text-sm font-black text-white/80 transition hover:border-purple-300/40 hover:bg-purple-500/10">عرض تفاصيل البرنامج</Link></article>}
-function PartnersBackground(){return <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden"><div className="absolute inset-0 bg-[#070009]"/><div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(212,175,55,0.15)_0%,rgba(124,58,237,0.24)_34%,rgba(7,0,9,0.98)_72%)]"/><div className="absolute -left-24 top-16 h-80 w-80 rounded-full bg-purple-600/14 blur-3xl"/><div className="absolute -right-24 top-44 hidden h-96 w-96 rounded-full bg-yellow-400/10 blur-3xl md:block"/><div className="absolute bottom-0 left-1/2 h-72 w-[70rem] -translate-x-1/2 rounded-full bg-purple-700/10 blur-3xl"/><div className="absolute inset-0 opacity-[0.055] [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.5)_1px,transparent_0)] [background-size:48px_48px]"/></div>}
+
+function normalizePartner(item: any, index: number): PartnerItem {
+  return {
+    id: item.id ?? item.slug ?? index + 1,
+    name: item.name || item.title || "برنامج وكالة حمزة",
+    category: item.category || item.type || "برنامج تعاون",
+    description: item.description || item.summary || "برنامج ضمن اتفاقات التعاون الخاصة بوكالة حمزة لدعم وتنظيم مسارات صناع المحتوى.",
+    agreementLabel: item.agreement_label || item.badge || "اتفاق تعاون",
+    logoUrl: item.logo_url || item.image_url || null,
+    programUrl: item.program_url || item.website_url || item.url || `/programs/${item.slug || ""}`,
+    sortOrder: item.sort_order ?? index + 1,
+    isFeatured: item.is_featured === true,
+  };
+}
+
+async function getPartners(): Promise<PartnerItem[]> {
+  if (!supabase) return defaultPartners;
+  const { data, error } = await supabase.from("partners").select("*").order("sort_order", { ascending: true });
+  if (error || !data || data.length === 0) return defaultPartners;
+  const visiblePartners = data
+    .filter((item: any) => item.is_visible !== false && item.status !== "hidden")
+    .map((item: any, index: number) => normalizePartner(item, index))
+    .filter((item: PartnerItem) => item.name.trim().length > 0)
+    .sort((a: PartnerItem, b: PartnerItem) => a.sortOrder - b.sortOrder);
+  return visiblePartners.length ? visiblePartners : defaultPartners;
+}
+
+export default async function PartnersPage() {
+  const partners = await getPartners();
+  const featuredPartners = partners.filter((partner) => partner.isFeatured);
+  const otherPartners = partners.filter((partner) => !partner.isFeatured);
+
+  return (
+    <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
+      <PartnersBackground />
+      <section className="relative z-10 mx-auto max-w-7xl px-5 py-16 md:py-20">
+        <PartnersBackLink />
+        <PartnersHero />
+        <PartnersStatsUi />
+        {featuredPartners.length > 0 && <section className="mt-14"><PartnersSectionHeader section="main" /><div className="grid gap-6 lg:grid-cols-3">{featuredPartners.map((partner) => <PartnerCard key={partner.id} partner={partner} featured />)}</div></section>}
+        {otherPartners.length > 0 && <section className="mt-14"><PartnersSectionHeader section="more" /><div className="grid gap-6 md:grid-cols-2">{otherPartners.map((partner) => <PartnerCard key={partner.id} partner={partner} />)}</div></section>}
+        <PartnersGuidanceUi />
+      </section>
+    </main>
+  );
+}
+
+function PartnerCard({ partner, featured = false }: { partner: PartnerItem; featured?: boolean }) {
+  return (
+    <article className={`rounded-[2rem] border p-6 backdrop-blur transition hover:-translate-y-1 md:p-7 ${featured ? "border-yellow-400/25 bg-yellow-500/10 shadow-[0_0_45px_rgba(212,175,55,0.10)]" : "border-white/10 bg-white/[0.045]"}`}>
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.6rem] border border-purple-400/20 bg-gradient-to-br from-purple-500/20 via-black/20 to-yellow-500/10 p-3">
+          {partner.logoUrl ? <img src={partner.logoUrl} alt={`${partner.name} logo`} className="h-full w-full object-contain" /> : <span className="text-center text-lg font-black leading-tight text-yellow-100">{partner.name}</span>}
+        </div>
+        <span className="rounded-full border border-yellow-400/20 bg-yellow-500/10 px-3 py-1 text-xs font-black text-yellow-100">{partner.agreementLabel}</span>
+      </div>
+      <h3 className="text-3xl font-black">{partner.name}</h3>
+      <p className="mt-2 text-sm font-bold text-purple-100/80">{partner.category}</p>
+      <p className="mt-5 leading-8 text-white/70">{partner.description}</p>
+      <PartnerDetailsLink href={partner.programUrl || "/programs"} />
+    </article>
+  );
+}
+
+function PartnersBackground() {
+  return <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden"><div className="absolute inset-0 bg-[#070009]" /><div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(212,175,55,0.15)_0%,rgba(124,58,237,0.24)_34%,rgba(7,0,9,0.98)_72%)]" /><div className="absolute -left-24 top-16 h-80 w-80 rounded-full bg-purple-600/14 blur-3xl" /><div className="absolute -right-24 top-44 hidden h-96 w-96 rounded-full bg-yellow-400/10 blur-3xl md:block" /><div className="absolute bottom-0 left-1/2 h-72 w-[70rem] -translate-x-1/2 rounded-full bg-purple-700/10 blur-3xl" /><div className="absolute inset-0 opacity-[0.055] [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.5)_1px,transparent_0)] [background-size:48px_48px]" /></div>;
+}
