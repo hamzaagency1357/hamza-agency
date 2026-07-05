@@ -4,7 +4,8 @@ export type TranslationSourceType =
   | "sections"
   | "faqs"
   | "knowledge_base"
-  | "partners";
+  | "partners"
+  | "jobs";
 
 export type TranslationBaseFieldName = "title" | "summary" | "content";
 export type ProgramDetailTranslationFieldName =
@@ -12,9 +13,14 @@ export type ProgramDetailTranslationFieldName =
   | "benefits"
   | "updates"
   | "faq";
+export type JobDetailTranslationFieldName =
+  | "department"
+  | "location"
+  | "job_type";
 export type TranslationFieldName =
   | TranslationBaseFieldName
-  | ProgramDetailTranslationFieldName;
+  | ProgramDetailTranslationFieldName
+  | JobDetailTranslationFieldName;
 
 const BASE_TRANSLATION_FIELDS: readonly TranslationBaseFieldName[] = [
   "title",
@@ -27,6 +33,9 @@ const PROGRAM_DETAIL_TRANSLATION_FIELDS: readonly ProgramDetailTranslationFieldN
   "updates",
   "faq",
 ];
+const JOB_DETAIL_TRANSLATION_FIELDS: ReadonlyArray<
+  "department" | "location" | "job_type" | "requirements"
+> = ["department", "location", "job_type", "requirements"];
 
 export type TranslationSourceItem = {
   sourceType: TranslationSourceType;
@@ -38,6 +47,9 @@ export type TranslationSourceItem = {
   benefits?: string;
   updates?: string;
   faq?: string;
+  department?: string;
+  location?: string;
+  job_type?: string;
 };
 
 export type TranslationSourceDefinition = {
@@ -49,7 +61,8 @@ export type TranslationSourceDefinition = {
     | "sections"
     | "faqs"
     | "knowledge_base"
-    | "partners";
+    | "partners"
+    | "jobs";
   titleKeys: readonly string[];
   summaryKeys: readonly string[];
   contentKeys: readonly string[];
@@ -57,6 +70,9 @@ export type TranslationSourceDefinition = {
   benefitsKeys?: readonly string[];
   updatesKeys?: readonly string[];
   faqKeys?: readonly string[];
+  departmentKeys?: readonly string[];
+  locationKeys?: readonly string[];
+  jobTypeKeys?: readonly string[];
 };
 
 export const TRANSLATION_SOURCE_DEFINITIONS: readonly TranslationSourceDefinition[] = [
@@ -112,6 +128,18 @@ export const TRANSLATION_SOURCE_DEFINITIONS: readonly TranslationSourceDefinitio
     summaryKeys: ["category", "type"],
     contentKeys: ["description", "summary"],
   },
+  {
+    sourceType: "jobs",
+    label: "الوظائف",
+    table: "jobs",
+    titleKeys: ["title"],
+    summaryKeys: ["short_description"],
+    contentKeys: ["description"],
+    departmentKeys: ["department"],
+    locationKeys: ["location"],
+    jobTypeKeys: ["job_type"],
+    requirementsKeys: ["requirements"],
+  },
 ];
 
 export const TRANSLATION_SOURCE_TYPES = TRANSLATION_SOURCE_DEFINITIONS.map(
@@ -128,9 +156,11 @@ export function isTranslationSourceType(value: unknown): value is TranslationSou
 export function isTranslationFieldName(value: unknown): value is TranslationFieldName {
   return (
     typeof value === "string" &&
-    [...BASE_TRANSLATION_FIELDS, ...PROGRAM_DETAIL_TRANSLATION_FIELDS].includes(
-      value as TranslationFieldName
-    )
+    [
+      ...BASE_TRANSLATION_FIELDS,
+      ...PROGRAM_DETAIL_TRANSLATION_FIELDS,
+      ...JOB_DETAIL_TRANSLATION_FIELDS,
+    ].includes(value as TranslationFieldName)
   );
 }
 
@@ -145,9 +175,15 @@ export function getTranslationSourceDefinition(sourceType: TranslationSourceType
 export function getTranslationFieldNamesForSource(
   sourceType: TranslationSourceType
 ): TranslationFieldName[] {
-  return sourceType === "programs"
-    ? [...BASE_TRANSLATION_FIELDS, ...PROGRAM_DETAIL_TRANSLATION_FIELDS]
-    : [...BASE_TRANSLATION_FIELDS];
+  if (sourceType === "programs") {
+    return [...BASE_TRANSLATION_FIELDS, ...PROGRAM_DETAIL_TRANSLATION_FIELDS];
+  }
+
+  if (sourceType === "jobs") {
+    return [...BASE_TRANSLATION_FIELDS, ...JOB_DETAIL_TRANSLATION_FIELDS];
+  }
+
+  return [...BASE_TRANSLATION_FIELDS];
 }
 
 export function getTranslationFieldText(
@@ -184,6 +220,13 @@ export function toTranslationSourceItem(
     item.benefits = getTranslationFieldText(row, definition.benefitsKeys || []);
     item.updates = getTranslationFieldText(row, definition.updatesKeys || []);
     item.faq = getTranslationFieldText(row, definition.faqKeys || []);
+  }
+
+  if (sourceType === "jobs") {
+    item.department = getTranslationFieldText(row, definition.departmentKeys || []);
+    item.location = getTranslationFieldText(row, definition.locationKeys || []);
+    item.job_type = getTranslationFieldText(row, definition.jobTypeKeys || []);
+    item.requirements = getTranslationFieldText(row, definition.requirementsKeys || []);
   }
 
   const hasTranslatableText = getTranslationFieldNamesForSource(sourceType).some(

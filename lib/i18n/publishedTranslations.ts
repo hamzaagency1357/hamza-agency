@@ -12,7 +12,8 @@ export type PublishedTranslationSource =
   | "sections"
   | "faqs"
   | "knowledge_base"
-  | "partners";
+  | "partners"
+  | "jobs";
 
 export type PublishedTranslationRow = {
   source_id: string;
