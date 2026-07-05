@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { useJobsStaticUi } from "@/components/JobsStaticUi";
+import { usePublishedJobs } from "@/components/JobsPublishedTranslations";
 
 type Job = { id: number | null; title: string | null; slug: string | null; department: string | null; location: string | null; job_type: string | null; short_description: string | null; description: string | null; requirements: string | null; status: string | null; sort_order: number | null; is_visible: boolean | null };
 type JobApplicationForm = { fullName: string; country: string; whatsapp: string; email: string; experience: string; notes: string };
@@ -19,6 +20,7 @@ const fallbackJobs: Job[] = [
 export default function JobsPage() {
   const { direction, t } = useJobsStaticUi();
   const [jobs, setJobs] = useState<Job[]>(fallbackJobs);
+  const localizedJobs = usePublishedJobs(jobs);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [form, setForm] = useState<JobApplicationForm>(emptyForm);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,7 +37,7 @@ export default function JobsPage() {
     setIsLoading(false);
   }
 
-  const openJobs = useMemo(() => jobs.filter((job) => job.is_visible !== false && (job.status === "open" || !job.status)), [jobs]);
+  const openJobs = useMemo(() => localizedJobs.filter((job) => job.is_visible !== false && (job.status === "open" || !job.status)), [localizedJobs]);
   function updateForm(key: keyof JobApplicationForm, value: string) { setForm((current) => ({ ...current, [key]: value })); }
   function openApply(job: Job) { setSelectedJob(job); setForm(emptyForm); setMessage(""); setIsSuccess(false); }
   function closeApply() { setSelectedJob(null); setForm(emptyForm); setMessage(""); setIsSuccess(false); }
