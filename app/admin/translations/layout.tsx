@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const links = [
   ["/admin/translations/automation", "الأتمتة"],
+  ["/admin/translations/revisions", "Revisions الجديدة"],
   ["/admin/translations", "FAQ وKnowledge Base"],
   ["/admin/translations/cms", "صفحات CMS"],
   ["/admin/translations/sections", "أقسام CMS"],
