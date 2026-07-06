@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
-  getTranslationFieldNamesForSource,
   getTranslationSourceDefinition,
   isTranslationSourceType,
   toTranslationSourceItem,
@@ -13,10 +12,18 @@ import {
   isTranslationProviderConfigured,
   translateArabicSource,
 } from "@/lib/i18n/translationProvider";
+import {
+  createTranslationRevisionSourceFingerprint,
+  createTranslationRevisionSourceSnapshot,
+} from "@/lib/i18n/translationRevisionSource";
 
 type TranslationLanguage = "en" | "tr";
 type SyncItem = { sourceType: TranslationSourceType; sourceId: string };
 type AdminRow = { email?: string | null; role?: string | null; is_active?: boolean | null };
+type SourceRevisionRow = { id?: string | null };
+type ExistingRevisionRow = { id?: string | null; workflow_status?: string | null };
+type CandidateRpcRow = { translation_revision_id?: string | null; created?: boolean | null; workflow_status?: string | null };
+type CandidateResult = { created: boolean; workflowStatus: string };
 
 const MAX_ITEMS_PER_REQUEST = 10;
 
@@ -70,7 +77,7 @@ async function getAuthorizedClient(request: NextRequest) {
     throw new Error("الترجمة التلقائية متاحة للإدارة العليا فقط.");
   }
 
-  return { client, adminEmail: admin.email?.trim() || user.email };
+  return client;
 }
 
 async function loadSource(client: SupabaseClient, item: SyncItem): Promise<TranslationSourceItem> {
@@ -85,38 +92,77 @@ async function loadSource(client: SupabaseClient, item: SyncItem): Promise<Trans
   return source;
 }
 
-async function saveTranslation(
+async function findCurrentRevision(
   client: SupabaseClient,
   source: TranslationSourceItem,
   language: TranslationLanguage,
-  adminEmail: string
+  fingerprint: string
 ) {
+  const { data: sourceRevision, error: sourceError } = await client
+    .from("translation_source_revisions")
+    .select("id")
+    .eq("source_type", source.sourceType)
+    .eq("source_id", source.sourceId)
+    .eq("source_fingerprint", fingerprint)
+    .maybeSingle();
+
+  if (sourceError) throw new Error(`تعذر التحقق من Revision الحالي: ${sourceError.message}`);
+  const sourceRevisionId = (sourceRevision as SourceRevisionRow | null)?.id;
+  if (!sourceRevisionId) return null;
+
+  const { data, error } = await client
+    .from("content_translation_revisions")
+    .select("id, workflow_status")
+    .eq("source_revision_id", sourceRevisionId)
+    .eq("language", language)
+    .eq("is_stale", false)
+    .in("workflow_status", ["draft", "needs_review", "reviewed", "published"])
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error(`تعذر التحقق من Draft الحالي: ${error.message}`);
+  const revision = data as ExistingRevisionRow | null;
+  return revision?.id ? revision : null;
+}
+
+async function createCandidateTranslation(
+  client: SupabaseClient,
+  source: TranslationSourceItem,
+  language: TranslationLanguage
+): Promise<CandidateResult> {
+  const sourceSnapshot = createTranslationRevisionSourceSnapshot(source);
+  const sourceFingerprint = createTranslationRevisionSourceFingerprint(source, sourceSnapshot);
+  const existing = await findCurrentRevision(client, source, language, sourceFingerprint);
+
+  // A current draft or published revision is never overwritten by a later batch.
+  if (existing) {
+    return { created: false, workflowStatus: existing.workflow_status || "needs_review" };
+  }
+
   const translated = await translateArabicSource(source, language);
-  const fields = getTranslationFieldNamesForSource(source.sourceType).filter((field) => {
-    const value = source[field];
-    return typeof value === "string" && value.trim().length > 0;
-  });
-  if (!fields.length) throw new Error("لا يحتوي هذا العنصر على حقول قابلة للحفظ.");
+  const translatedRecord = translated as Record<string, string | undefined>;
+  const translatedFields = Object.fromEntries(
+    Object.keys(sourceSnapshot).map((field) => [field, translatedRecord[field]?.trim() || ""])
+  );
 
-  const now = new Date().toISOString();
-  const rows = fields.map((field) => ({
-    source_type: source.sourceType,
-    source_id: source.sourceId,
-    field_name: field,
-    language,
-    translated_value: translated[field] || "",
-    status: "needs_review",
-    reviewed: false,
-    is_published: false,
-    created_by: adminEmail,
-    updated_by: adminEmail,
-    updated_at: now,
-  }));
-
-  const { error } = await client.from("content_translations").upsert(rows, {
-    onConflict: "source_type,source_id,field_name,language",
+  const { data, error } = await client.rpc("create_translation_candidate_draft", {
+    p_source_type: source.sourceType,
+    p_source_id: source.sourceId,
+    p_language: language,
+    p_source_fingerprint: sourceFingerprint,
+    p_source_snapshot: sourceSnapshot,
+    p_translated_fields: translatedFields,
   });
-  if (error) throw new Error(`تعذر حفظ الترجمة: ${error.message}`);
+
+  if (error) throw new Error(`تعذر إنشاء Candidate Revision: ${error.message}`);
+  const rpcRow = Array.isArray(data) ? (data[0] as CandidateRpcRow | undefined) : undefined;
+  if (!rpcRow?.translation_revision_id) throw new Error("لم تُرجع قاعدة البيانات Candidate Revision صالحاً.");
+
+  return {
+    created: rpcRow.created === true,
+    workflowStatus: rpcRow.workflow_status || "needs_review",
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -136,7 +182,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { client, adminEmail } = await getAuthorizedClient(request);
+    const client = await getAuthorizedClient(request);
     if (!isTranslationProviderConfigured()) {
       return NextResponse.json({
         ok: false,
@@ -150,14 +196,28 @@ export async function POST(request: NextRequest) {
     if (!items.length) return NextResponse.json({ ok: false, message: "اختر عنصراً واحداً على الأقل للترجمة." }, { status: 400 });
     if (!languages) return NextResponse.json({ ok: false, message: "اختر لغة هدف صريحة: الإنجليزية أو التركية." }, { status: 400 });
 
-    const results: Array<{ sourceType: TranslationSourceType; sourceId: string; languages: TranslationLanguage[] }> = [];
+    const results: Array<{
+      sourceType: TranslationSourceType;
+      sourceId: string;
+      languages: TranslationLanguage[];
+      createdLanguages: TranslationLanguage[];
+      retainedLanguages: TranslationLanguage[];
+    }> = [];
     const errors: Array<{ sourceType: TranslationSourceType; sourceId: string; message: string }> = [];
 
     for (const item of items) {
       try {
         const source = await loadSource(client, item);
-        for (const language of languages) await saveTranslation(client, source, language, adminEmail);
-        results.push({ sourceType: item.sourceType, sourceId: item.sourceId, languages });
+        const createdLanguages: TranslationLanguage[] = [];
+        const retainedLanguages: TranslationLanguage[] = [];
+
+        for (const language of languages) {
+          const candidate = await createCandidateTranslation(client, source, language);
+          if (candidate.created) createdLanguages.push(language);
+          else retainedLanguages.push(language);
+        }
+
+        results.push({ sourceType: item.sourceType, sourceId: item.sourceId, languages, createdLanguages, retainedLanguages });
       } catch (error) {
         errors.push({
           sourceType: item.sourceType,
@@ -167,13 +227,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const createdCount = results.reduce((count, result) => count + result.createdLanguages.length, 0);
+    const retainedCount = results.reduce((count, result) => count + result.retainedLanguages.length, 0);
+    const successMessage = retainedCount
+      ? `تم إنشاء ${createdCount} Candidate Revision جديد، وتم الاحتفاظ بـ ${retainedCount} Draft أو نسخة منشورة مطابقة بدون الكتابة فوقها.`
+      : `تم إنشاء ${createdCount} Candidate Revision بحالة تحتاج مراجعة. لا يظهر أي محتوى للعامة قبل النشر اليدوي.`;
+
     return NextResponse.json({
       ok: errors.length === 0,
       results,
       errors,
       message: errors.length === 0
-        ? "تمت ترجمة النصوص وحفظها للمراجعة. راجعها وانشرها يدوياً من لوحة الترجمات."
-        : `تمت ترجمة ${results.length} عنصر وحفظها للمراجعة، وتعذر ${errors.length} عنصر.`,
+        ? successMessage
+        : `اكتملت ${results.length} عناصر، وتعذر ${errors.length} عنصر. لا يتم الكتابة فوق أي Draft أو نسخة منشورة موجودة.`,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "تعذر تشغيل مزامنة الترجمة.";
