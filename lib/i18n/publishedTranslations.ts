@@ -14,7 +14,8 @@ export type PublishedTranslationSource =
   | "knowledge_base"
   | "partners"
   | "jobs"
-  | "reviews";
+  | "reviews"
+  | "success_stories";
 
 export type PublishedTranslationRow = {
   source_id: string;
@@ -35,10 +36,7 @@ export function isTranslationLanguage(language: SiteLanguage): language is Trans
   return language === "en" || language === "tr";
 }
 
-export function buildPublishedTranslationMap<FieldName extends string>(
-  rows: ReadonlyArray<PublishedTranslationRow>,
-  fields: ReadonlyArray<FieldName>
-): PublishedTranslationMap<FieldName> {
+export function buildPublishedTranslationMap<FieldName extends string>(rows: ReadonlyArray<PublishedTranslationRow>, fields: ReadonlyArray<FieldName>): PublishedTranslationMap<FieldName> {
   const allowedFields = new Set<string>(fields);
   return rows.reduce<PublishedTranslationMap<FieldName>>((result, row) => {
     const value = row.translated_value?.trim();
@@ -51,32 +49,14 @@ export function buildPublishedTranslationMap<FieldName extends string>(
   }, {});
 }
 
-export function hasCompletePublishedTranslation<FieldName extends string>(
-  translations: Partial<Record<FieldName, string>> | undefined,
-  requiredFields: ReadonlyArray<FieldName>
-) {
+export function hasCompletePublishedTranslation<FieldName extends string>(translations: Partial<Record<FieldName, string>> | undefined, requiredFields: ReadonlyArray<FieldName>) {
   return requiredFields.every((field) => Boolean(translations?.[field]?.trim()));
 }
 
-export async function readPublishedTranslations<FieldName extends string>({
-  sourceType,
-  language,
-  sourceIds,
-  fields,
-}: ReadPublishedTranslationsOptions<FieldName>): Promise<PublishedTranslationMap<FieldName>> {
+export async function readPublishedTranslations<FieldName extends string>({ sourceType, language, sourceIds, fields }: ReadPublishedTranslationsOptions<FieldName>): Promise<PublishedTranslationMap<FieldName>> {
   const uniqueSourceIds = [...new Set(sourceIds.map((sourceId) => String(sourceId)).filter(Boolean))];
   if (!isSupabaseConfigured || !supabase || !isTranslationLanguage(language) || uniqueSourceIds.length === 0 || fields.length === 0) return {};
-
-  const { data, error } = await supabase
-    .from("content_translations")
-    .select("source_id, field_name, translated_value")
-    .eq("source_type", sourceType)
-    .eq("language", language)
-    .eq("is_published", true)
-    .eq("status", PUBLISHED_TRANSLATION_STATUS)
-    .in("source_id", uniqueSourceIds)
-    .in("field_name", [...fields]);
-
+  const { data, error } = await supabase.from("content_translations").select("source_id, field_name, translated_value").eq("source_type", sourceType).eq("language", language).eq("is_published", true).eq("status", PUBLISHED_TRANSLATION_STATUS).in("source_id", uniqueSourceIds).in("field_name", [...fields]);
   if (error || !data) return {};
   return buildPublishedTranslationMap(data as PublishedTranslationRow[], fields);
 }
