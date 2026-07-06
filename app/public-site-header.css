@@ -1,0 +1,223 @@
+/* Homepage header: rendered separately so existing content and routes stay unchanged. */
+body.has-luxury-header .public-site-page main > nav:first-of-type,
+body.has-luxury-header .public-site-page main > nav:first-of-type + div.lg\:hidden {
+  display: none !important;
+}
+
+.hamza-site-header {
+  background: transparent;
+}
+
+.hamza-site-header-inner {
+  min-height: 4.7rem;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: 1.15rem;
+  background: linear-gradient(135deg, rgba(5, 5, 7, 0.96), rgba(18, 9, 29, 0.94));
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.34);
+  padding: 0.65rem 0.85rem;
+  backdrop-filter: blur(18px);
+}
+
+.hamza-header-brand {
+  transition: opacity 180ms ease;
+}
+
+.hamza-header-brand:hover {
+  opacity: 0.9;
+}
+
+.hamza-header-brand img {
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.16);
+}
+
+.hamza-header-desktop-link,
+.hamza-header-group-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  background: transparent;
+  padding: 0.62rem 0.7rem;
+  color: rgba(255, 255, 255, 0.83);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.hamza-header-desktop-link:hover,
+.hamza-header-group-trigger:hover,
+.hamza-header-desktop-link:focus-visible,
+.hamza-header-group-trigger:focus-visible,
+.hamza-header-link-active {
+  border-color: rgba(212, 175, 55, 0.33);
+  background: rgba(212, 175, 55, 0.08);
+  color: var(--hamza-gold-light);
+}
+
+.hamza-header-group-trigger {
+  cursor: pointer;
+}
+
+.hamza-header-dropdown {
+  position: absolute;
+  z-index: 150;
+  inset-inline-end: 0;
+  top: calc(100% + 0.6rem);
+  display: grid;
+  width: min(19rem, 80vw);
+  max-height: min(65vh, 36rem);
+  overflow-y: auto;
+  border: 1px solid rgba(109, 40, 217, 0.52);
+  border-radius: 1rem;
+  background: linear-gradient(155deg, rgba(8, 6, 12, 0.99), rgba(30, 15, 46, 0.98));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  padding: 0.45rem;
+  backdrop-filter: blur(20px);
+}
+
+.hamza-header-dropdown-link {
+  border-radius: 0.72rem;
+  padding: 0.72rem 0.78rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.84rem;
+  font-weight: 700;
+  transition: background 180ms ease, color 180ms ease;
+}
+
+.hamza-header-dropdown-link:hover,
+.hamza-header-dropdown-link:focus-visible,
+.hamza-header-dropdown-link.hamza-header-link-active {
+  background: rgba(109, 40, 217, 0.24);
+  color: var(--hamza-gold-light);
+}
+
+.hamza-header-cta,
+.hamza-header-mobile-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.8rem;
+  background: linear-gradient(135deg, #f7e3a1 0%, #d4af37 50%, #b88b20 100%);
+  color: #130d03;
+  font-size: 0.8rem;
+  font-weight: 950;
+  box-shadow: 0 0 24px rgba(212, 175, 55, 0.19);
+  transition: box-shadow 180ms ease, transform 180ms ease;
+}
+
+.hamza-header-cta {
+  padding: 0.68rem 0.95rem;
+}
+
+.hamza-header-cta:hover,
+.hamza-header-mobile-cta:hover {
+  box-shadow: 0 0 32px rgba(212, 175, 55, 0.34);
+  transform: translateY(-1px);
+}
+
+.hamza-header-menu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.8rem;
+  min-width: 2.8rem;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 0.82rem;
+  background: rgba(12, 7, 18, 0.94);
+  color: var(--hamza-gold-light);
+}
+
+.hamza-header-mobile-panel {
+  width: min(100%, 80rem);
+  margin: 0.65rem auto 0;
+  border: 1px solid rgba(109, 40, 217, 0.48);
+  border-radius: 1.1rem;
+  background: linear-gradient(155deg, rgba(6, 5, 8, 0.99), rgba(28, 14, 43, 0.98));
+  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.38);
+  padding: 0.65rem;
+  backdrop-filter: blur(20px);
+}
+
+.hamza-header-mobile-home,
+.hamza-header-mobile-group-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.78rem;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 0.78rem 0.85rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.88rem;
+  font-weight: 850;
+  text-align: start;
+}
+
+.hamza-header-mobile-home:hover,
+.hamza-header-mobile-group-trigger:hover,
+.hamza-header-mobile-home.hamza-header-link-active {
+  border-color: rgba(212, 175, 55, 0.34);
+  background: rgba(212, 175, 55, 0.08);
+  color: var(--hamza-gold-light);
+}
+
+.hamza-header-mobile-group-trigger {
+  cursor: pointer;
+}
+
+.hamza-header-mobile-links {
+  display: grid;
+  gap: 0.28rem;
+  padding: 0.35rem 0.32rem 0.08rem;
+}
+
+.hamza-header-mobile-link {
+  border-radius: 0.65rem;
+  padding: 0.68rem 0.82rem;
+  color: rgba(255, 255, 255, 0.73);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.hamza-header-mobile-link:hover,
+.hamza-header-mobile-link:focus-visible,
+.hamza-header-mobile-link.hamza-header-link-active {
+  background: rgba(109, 40, 217, 0.22);
+  color: var(--hamza-gold-light);
+}
+
+.hamza-header-mobile-cta {
+  min-height: 2.8rem;
+  margin-top: 0.2rem;
+  padding: 0.72rem 1rem;
+}
+
+@media (max-width: 639px) {
+  .hamza-site-header {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .hamza-site-header-inner {
+    min-height: 4.2rem;
+    border-radius: 1rem;
+    padding: 0.5rem 0.62rem;
+  }
+
+  .hamza-header-brand img {
+    height: 2.5rem;
+    width: 2.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .hamza-site-header-inner {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
