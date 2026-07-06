@@ -155,6 +155,12 @@ export function CmsPublishedText({
   const usesPublishedTranslation = Boolean(translatedValue);
   const text = translatedValue || arabicFallback;
 
+  /* HomePage already renders home-page.title as the public H1.
+     home-hero.title is a legacy second title and currently duplicates that same title. */
+  if (sourceKey === "home-hero" && field === "title") {
+    return null;
+  }
+
   return (
     <span
       dir={usesPublishedTranslation ? "ltr" : "rtl"}
