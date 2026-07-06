@@ -1,4 +1,4 @@
-export type TranslationSourceType = "programs" | "pages" | "sections" | "faqs" | "knowledge_base" | "partners" | "jobs" | "reviews" | "success_stories" | "gallery_items";
+export type TranslationSourceType = "programs" | "pages" | "sections" | "faqs" | "knowledge_base" | "partners" | "jobs" | "reviews" | "success_stories" | "gallery_items" | "announcements";
 export type TranslationBaseFieldName = "title" | "summary" | "content";
 export type ProgramDetailTranslationFieldName = "requirements" | "benefits" | "updates" | "faq";
 export type JobDetailTranslationFieldName = "department" | "location" | "job_type";
@@ -15,7 +15,7 @@ const SUCCESS_STORY_DETAIL_TRANSLATION_FIELDS: ReadonlyArray<"person_name" | "co
 const GALLERY_DETAIL_TRANSLATION_FIELDS: readonly GalleryDetailTranslationFieldName[] = ["button_label"];
 
 export type TranslationSourceItem = { sourceType: TranslationSourceType; sourceId: string; title: string; summary: string; content: string; requirements?: string; benefits?: string; updates?: string; faq?: string; department?: string; location?: string; job_type?: string; country?: string; person_name?: string; platform?: string; button_label?: string; };
-export type TranslationSourceDefinition = { sourceType: TranslationSourceType; label: string; table: "programs" | "pages" | "sections" | "faqs" | "knowledge_base" | "partners" | "jobs" | "reviews" | "success_stories" | "gallery_items"; titleKeys: readonly string[]; summaryKeys: readonly string[]; contentKeys: readonly string[]; requirementsKeys?: readonly string[]; benefitsKeys?: readonly string[]; updatesKeys?: readonly string[]; faqKeys?: readonly string[]; departmentKeys?: readonly string[]; locationKeys?: readonly string[]; jobTypeKeys?: readonly string[]; countryKeys?: readonly string[]; personNameKeys?: readonly string[]; platformKeys?: readonly string[]; buttonLabelKeys?: readonly string[]; };
+export type TranslationSourceDefinition = { sourceType: TranslationSourceType; label: string; table: "programs" | "pages" | "sections" | "faqs" | "knowledge_base" | "partners" | "jobs" | "reviews" | "success_stories" | "gallery_items" | "announcements"; titleKeys: readonly string[]; summaryKeys: readonly string[]; contentKeys: readonly string[]; requirementsKeys?: readonly string[]; benefitsKeys?: readonly string[]; updatesKeys?: readonly string[]; faqKeys?: readonly string[]; departmentKeys?: readonly string[]; locationKeys?: readonly string[]; jobTypeKeys?: readonly string[]; countryKeys?: readonly string[]; personNameKeys?: readonly string[]; platformKeys?: readonly string[]; buttonLabelKeys?: readonly string[]; };
 
 export const TRANSLATION_SOURCE_DEFINITIONS: readonly TranslationSourceDefinition[] = [
   { sourceType: "programs", label: "البرامج", table: "programs", titleKeys: ["name", "title"], summaryKeys: ["short_description", "summary"], contentKeys: ["description", "content"], requirementsKeys: ["requirements"], benefitsKeys: ["benefits"], updatesKeys: ["updates"], faqKeys: ["faq"] },
@@ -28,6 +28,7 @@ export const TRANSLATION_SOURCE_DEFINITIONS: readonly TranslationSourceDefinitio
   { sourceType: "reviews", label: "التقييمات", table: "reviews", titleKeys: ["reviewer_name"], summaryKeys: ["platform"], contentKeys: ["content"], countryKeys: ["country"] },
   { sourceType: "success_stories", label: "قصص النجاح", table: "success_stories", titleKeys: ["title"], summaryKeys: ["result_summary"], contentKeys: ["story"], personNameKeys: ["person_name"], countryKeys: ["country"], platformKeys: ["platform"] },
   { sourceType: "gallery_items", label: "عناصر المعرض", table: "gallery_items", titleKeys: ["title"], summaryKeys: ["category"], contentKeys: ["description"], buttonLabelKeys: ["button_label"] },
+  { sourceType: "announcements", label: "الإعلانات", table: "announcements", titleKeys: ["title"], summaryKeys: [], contentKeys: ["content"] },
 ];
 export const TRANSLATION_SOURCE_TYPES = TRANSLATION_SOURCE_DEFINITIONS.map((source) => source.sourceType) as TranslationSourceType[];
 export function isTranslationSourceType(value: unknown): value is TranslationSourceType { return typeof value === "string" && TRANSLATION_SOURCE_TYPES.includes(value as TranslationSourceType); }
