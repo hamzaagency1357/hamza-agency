@@ -5,7 +5,7 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export const PUBLISHED_TRANSLATION_STATUS = "published" as const;
 export type TranslationLanguage = Exclude<SiteLanguage, "ar">;
-export type PublishedTranslationSource = "programs" | "pages" | "sections" | "faqs" | "knowledge_base" | "partners" | "jobs" | "reviews" | "success_stories" | "gallery_items";
+export type PublishedTranslationSource = "programs" | "pages" | "sections" | "faqs" | "knowledge_base" | "partners" | "jobs" | "reviews" | "success_stories" | "gallery_items" | "announcements";
 export type PublishedTranslationRow = { source_id: string; field_name: string | null; translated_value: string | null; };
 export type PublishedTranslationMap<FieldName extends string> = Record<string, Partial<Record<FieldName, string>>>;
 type ReadPublishedTranslationsOptions<FieldName extends string> = { sourceType: PublishedTranslationSource; language: SiteLanguage; sourceIds: ReadonlyArray<string | number>; fields: ReadonlyArray<FieldName>; };
