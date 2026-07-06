@@ -9,6 +9,7 @@ import FinalVisualPolish from "@/components/FinalVisualPolish";
 import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
 import StructuredData from "@/components/StructuredData";
 import SiteLanguageDocumentSync from "@/components/SiteLanguageDocumentSync";
+import PublicSiteHeader from "@/components/PublicSiteHeader";
 import "./globals.css";
 import "./final-fixes.css";
 import "./public-modal-fixes.css";
@@ -118,6 +119,7 @@ export default function RootLayout({
         <PublicDesktopEnhancer />
         <VisualBackgroundPresets />
         <FinalVisualPolish />
+        <PublicSiteHeader />
         {children}
         <LanguageSwitcher />
         <PublicAiSupport />
