@@ -17,6 +17,7 @@ import { supabase } from "@/lib/supabase";
 type TargetLanguage = "en" | "tr";
 type SourceCount = Record<TranslationSourceType, number>;
 type SyncItem = { sourceType: TranslationSourceType; sourceId: string; label: string };
+type FailedSyncItem = { sourceType: TranslationSourceType; sourceId: string; message: string };
 
 const MAX_BATCH_ITEMS = 10;
 const emptyCounts = Object.fromEntries(
@@ -48,6 +49,7 @@ export default function TranslationAutomationPage() {
   const [sourceType, setSourceType] = useState<TranslationSourceType | "">("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [language, setLanguage] = useState<TargetLanguage | "">("");
+  const [failedItems, setFailedItems] = useState<FailedSyncItem[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [progress, setProgress] = useState("");
@@ -122,6 +124,12 @@ export default function TranslationAutomationPage() {
     () => availableItems.filter((item) => selectedIds.includes(item.sourceId)),
     [availableItems, selectedIds]
   );
+  const retryableFailedItems = useMemo(
+    () => failedItems.filter((failed) =>
+      failed.sourceType === sourceType && availableItems.some((item) => item.sourceId === failed.sourceId)
+    ),
+    [availableItems, failedItems, sourceType]
+  );
 
   function chooseSource(nextSourceType: TranslationSourceType) {
     setSourceType(nextSourceType);
@@ -158,6 +166,18 @@ export default function TranslationAutomationPage() {
     setError("");
   }
 
+  function selectFailedItemsOnly() {
+    if (!sourceType || !retryableFailedItems.length) return;
+    const retryIds = retryableFailedItems.slice(0, MAX_BATCH_ITEMS).map((item) => item.sourceId);
+    setSelectedIds(retryIds);
+    setMessage(
+      retryableFailedItems.length > MAX_BATCH_ITEMS
+        ? `تم تحديد أول ${MAX_BATCH_ITEMS} عناصر فاشلة فقط. أعد تشغيلها ثم كرر العملية للباقي.`
+        : `تم تحديد ${retryIds.length} عنصر فاشل فقط لإعادة المحاولة.`
+    );
+    setError("");
+  }
+
   async function runBatch() {
     if (!configured) {
       setError("الترجمة التلقائية غير مفعلة بعد.");
@@ -177,14 +197,25 @@ export default function TranslationAutomationPage() {
         { languages: [language] }
       );
       const failed = response.errors || [];
+      const nextFailures = failed.reduce<FailedSyncItem[]>((result, item) => {
+        const source = TRANSLATION_SOURCE_DEFINITIONS.find((definition) => definition.sourceType === item.sourceType);
+        if (source) result.push({ sourceType: source.sourceType, sourceId: item.sourceId, message: item.message });
+        return result;
+      }, []);
+      const attemptedKeys = new Set(selectedItems.map((item) => `${item.sourceType}:${item.sourceId}`));
+      setFailedItems((current) => [
+        ...current.filter((item) => !attemptedKeys.has(`${item.sourceType}:${item.sourceId}`)),
+        ...nextFailures,
+      ]);
+
       const succeeded = response.results?.length ?? Math.max(0, selectedItems.length - failed.length);
       const details = failed.map((item) => `• ${item.sourceType} #${item.sourceId}: ${item.message}`).join("\n");
       if (!failed.length) {
         setMessage(`تمت ترجمة ${succeeded} عنصر إلى ${languageLabels[language]} وحفظها بحالة تحتاج مراجعة. لن يظهر أي محتوى للعامة قبل النشر اليدوي.`);
       } else if (succeeded) {
-        setMessage(`اكتملت الدفعة جزئياً: نجحت ترجمة ${succeeded} عنصر وفشلت ${failed.length} عنصر.\n${details}`);
+        setMessage(`اكتملت الدفعة جزئياً: نجحت ترجمة ${succeeded} عنصر وفشلت ${failed.length} عنصر. استخدم زر إعادة العناصر الفاشلة فقط لإعادة المحاولة دون لمس الناجحة.\n${details}`);
       } else {
-        setError(`تعذرت ترجمة العناصر المحددة.\n${details || response.message || "تعذرت مزامنة الترجمة التلقائية."}`);
+        setError(`تعذرت ترجمة العناصر المحددة. استخدم زر إعادة العناصر الفاشلة فقط لاحقاً.\n${details || response.message || "تعذرت مزامنة الترجمة التلقائية."}`);
       }
     } catch (syncError) {
       setError(syncError instanceof Error ? syncError.message : "تعذرت مزامنة الترجمة التلقائية.");
@@ -211,7 +242,7 @@ export default function TranslationAutomationPage() {
         {error ? <div className="mb-6 whitespace-pre-line rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-red-100">{error}</div> : null}
         {progress ? <div className="mb-6 rounded-3xl border border-cyan-400/25 bg-cyan-500/10 p-5 text-cyan-100">{progress}</div> : null}
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{TRANSLATION_SOURCE_DEFINITIONS.map((source) => { const active = sourceType === source.sourceType; return <button key={source.sourceType} type="button" onClick={() => chooseSource(source.sourceType)} disabled={syncing} className={`rounded-[2rem] border p-6 text-right transition disabled:opacity-50 ${active ? "border-fuchsia-300/70 bg-fuchsia-500/15" : "border-white/10 bg-white/[0.04] hover:border-fuchsia-300/35"}`}><div className="flex items-start justify-between gap-4"><span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-sm font-black text-white/70">{counts[source.sourceType]}</span><span className={`h-5 w-5 rounded-full border-2 ${active ? "border-fuchsia-200 bg-fuchsia-500" : "border-white/35"}`} /></div><div className="mt-6 text-xl font-black">{source.label}</div><p className="mt-3 text-sm leading-7 text-white/55">اختر هذا المصدر أولاً، ثم اختر حتى 10 عناصر منه.</p></button>; })}</section>
-        <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6"><h2 className="text-2xl font-black">1. اختر عناصر الدفعة</h2><p className="mt-3 leading-8 text-white/60">يمكن اختيار حتى 10 عناصر من نفس المصدر في كل تشغيل.</p>{!sourceType ? <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-black/20 p-5 text-white/60">اختر مصدر المحتوى أولاً لعرض العناصر المتاحة للدفعة.</div> : <><div className="mt-5 flex flex-col gap-4 rounded-2xl border border-white/10 bg-black/20 p-4 md:flex-row md:items-center md:justify-between"><div className="font-bold text-white/80">تم اختيار {selectedIds.length} من {MAX_BATCH_ITEMS}</div><div className="flex flex-wrap gap-3"><button type="button" onClick={selectFirstBatch} disabled={syncing || !availableItems.length} className="rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-5 py-2.5 font-bold text-fuchsia-100 disabled:opacity-50">تحديد أول 10</button><button type="button" onClick={() => setSelectedIds([])} disabled={syncing || !selectedIds.length} className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 font-bold text-white/75 disabled:opacity-50">مسح الاختيار</button></div></div><div className="mt-5 grid gap-3">{availableItems.map((item) => { const checked = selectedIds.includes(item.sourceId); return <label key={`${item.sourceType}:${item.sourceId}`} className={`flex cursor-pointer items-start gap-4 rounded-2xl border p-4 ${checked ? "border-fuchsia-300/60 bg-fuchsia-500/10" : "border-white/10 bg-black/20"}`}><input type="checkbox" checked={checked} onChange={() => toggleItem(item.sourceId)} disabled={syncing} className="mt-1 h-5 w-5 accent-fuchsia-500" /><span className="leading-7 text-white/80">{item.label}</span></label>; })}{!availableItems.length ? <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-white/60">لا توجد عناصر متاحة ضمن هذا المصدر.</div> : null}</div></>}</section>
+        <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6"><h2 className="text-2xl font-black">1. اختر عناصر الدفعة</h2><p className="mt-3 leading-8 text-white/60">يمكن اختيار حتى 10 عناصر من نفس المصدر في كل تشغيل.</p>{!sourceType ? <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-black/20 p-5 text-white/60">اختر مصدر المحتوى أولاً لعرض العناصر المتاحة للدفعة.</div> : <><div className="mt-5 flex flex-col gap-4 rounded-2xl border border-white/10 bg-black/20 p-4 md:flex-row md:items-center md:justify-between"><div className="font-bold text-white/80">تم اختيار {selectedIds.length} من {MAX_BATCH_ITEMS}</div><div className="flex flex-wrap gap-3"><button type="button" onClick={selectFirstBatch} disabled={syncing || !availableItems.length} className="rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-5 py-2.5 font-bold text-fuchsia-100 disabled:opacity-50">تحديد أول 10</button>{retryableFailedItems.length ? <button type="button" onClick={selectFailedItemsOnly} disabled={syncing} className="rounded-full border border-red-400/30 bg-red-500/10 px-5 py-2.5 font-bold text-red-100 disabled:opacity-50">إعادة العناصر الفاشلة فقط ({Math.min(retryableFailedItems.length, MAX_BATCH_ITEMS)})</button> : null}<button type="button" onClick={() => setSelectedIds([])} disabled={syncing || !selectedIds.length} className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 font-bold text-white/75 disabled:opacity-50">مسح الاختيار</button></div></div><div className="mt-5 grid gap-3">{availableItems.map((item) => { const checked = selectedIds.includes(item.sourceId); return <label key={`${item.sourceType}:${item.sourceId}`} className={`flex cursor-pointer items-start gap-4 rounded-2xl border p-4 ${checked ? "border-fuchsia-300/60 bg-fuchsia-500/10" : "border-white/10 bg-black/20"}`}><input type="checkbox" checked={checked} onChange={() => toggleItem(item.sourceId)} disabled={syncing} className="mt-1 h-5 w-5 accent-fuchsia-500" /><span className="leading-7 text-white/80">{item.label}</span></label>; })}{!availableItems.length ? <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-white/60">لا توجد عناصر متاحة ضمن هذا المصدر.</div> : null}</div></>}</section>
         <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6"><h2 className="text-2xl font-black">2. اختر لغة الهدف</h2><p className="mt-3 leading-8 text-white/60">لا توجد لغة افتراضية. يجب اختيار الإنجليزية أو التركية صراحةً قبل الإرسال.</p><div className="mt-5 flex flex-wrap gap-3">{(Object.keys(languageLabels) as TargetLanguage[]).map((target) => <button key={target} type="button" onClick={() => setLanguage(target)} disabled={syncing} className={`rounded-full border px-6 py-3 font-bold ${language === target ? "border-fuchsia-300/70 bg-fuchsia-500/20 text-white" : "border-white/10 bg-black/20 text-white/70"}`}>{languageLabels[target]}</button>)}</div></section>
         <section className="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6"><h2 className="text-2xl font-black">3. تشغيل دفعة مراقبة</h2><p className="mt-3 max-w-3xl leading-8 text-white/60">ترسل هذه الدفعة حتى 10 عناصر ولغة هدف واحدة. لا يتم النشر تلقائياً، وتبقى كل نتيجة بحالة تحتاج مراجعة.</p><button type="button" onClick={() => void runBatch()} disabled={syncing || !configured || !selectedItems.length || !language} className="mt-6 rounded-full bg-gradient-to-r from-fuchsia-600 to-purple-600 px-7 py-4 font-black text-white disabled:cursor-not-allowed disabled:opacity-50">{syncing ? "جاري الترجمة والحفظ للمراجعة..." : "ترجمة العناصر المحددة وحفظها للمراجعة"}</button></section>
       </section>
