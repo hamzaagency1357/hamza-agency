@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --hamza-black: #050507;
+  --hamza-black-soft: #0b0910;
+  --hamza-purple: #6d28d9;
+  --hamza-purple-deep: #1a0c2a;
+  --hamza-gold: #d4af37;
+  --hamza-gold-light: #f7e3a1;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -9,7 +18,7 @@
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;
-  background: #7c3aed;
+  background: var(--hamza-black);
 }
 
 html,
@@ -19,7 +28,7 @@ body {
   width: 100%;
   max-width: 100%;
   min-height: 100%;
-  background: #241045;
+  background: var(--hamza-black);
   color: white;
 }
 
@@ -40,54 +49,128 @@ body > div:not(.hamza-visual-background-presets):not(.hamza-final-polish) {
   z-index: 5;
 }
 
+/* Public visual foundation: black for wide surfaces, deep purple for layers, gold for emphasis. */
 .public-site-page {
   background:
-    radial-gradient(circle at 50% -8%, rgba(216, 180, 254, 0.32), transparent 30%),
-    radial-gradient(circle at 18% 18%, rgba(124, 58, 237, 0.28), transparent 30%),
-    radial-gradient(circle at 82% 22%, rgba(212, 175, 55, 0.16), transparent 26%),
-    linear-gradient(135deg, #2b0b4f 0%, #42157a 38%, #241045 72%, #11051f 100%);
+    radial-gradient(circle at 50% -10%, rgba(109, 40, 217, 0.2), transparent 32%),
+    radial-gradient(circle at 9% 24%, rgba(76, 29, 149, 0.2), transparent 30%),
+    radial-gradient(circle at 90% 26%, rgba(212, 175, 55, 0.07), transparent 23%),
+    linear-gradient(155deg, #050507 0%, #0c0812 47%, #050507 100%);
 }
 
 .public-site-page main {
   background:
-    radial-gradient(circle at 50% 18%, rgba(168, 85, 247, 0.32), transparent 34%),
-    radial-gradient(circle at 50% 72%, rgba(212, 175, 55, 0.08), transparent 38%),
-    linear-gradient(180deg, rgba(78, 25, 135, 0.28), rgba(17, 5, 31, 0.28)) !important;
+    radial-gradient(circle at 50% 12%, rgba(109, 40, 217, 0.14), transparent 33%),
+    radial-gradient(circle at 50% 78%, rgba(212, 175, 55, 0.04), transparent 39%),
+    linear-gradient(180deg, rgba(5, 5, 7, 0.5), rgba(5, 5, 7, 0.78)) !important;
 }
 
 .public-site-page .pointer-events-none.fixed.inset-0.z-0.overflow-hidden > .absolute.inset-0:first-child {
-  background: linear-gradient(180deg, #2f0c56 0%, #220a3e 48%, #12051f 100%) !important;
+  background: linear-gradient(180deg, #0a0710 0%, #07060a 50%, #030304 100%) !important;
 }
 
 .public-site-page .pointer-events-none.fixed.inset-0.z-0.overflow-hidden > .absolute.inset-0:nth-child(2) {
   background:
-    radial-gradient(circle at 50% 0%, rgba(124, 58, 237, 0.48), transparent 54%),
-    radial-gradient(circle at 18% 22%, rgba(168, 85, 247, 0.18), transparent 34%),
-    radial-gradient(circle at 82% 30%, rgba(212, 175, 55, 0.1), transparent 34%) !important;
+    radial-gradient(circle at 50% 0%, rgba(109, 40, 217, 0.28), transparent 53%),
+    radial-gradient(circle at 18% 22%, rgba(76, 29, 149, 0.14), transparent 34%),
+    radial-gradient(circle at 82% 30%, rgba(212, 175, 55, 0.06), transparent 34%) !important;
 }
 
 .public-site-page .premium-bottom-shadow {
-  background: linear-gradient(to top, rgba(12, 3, 24, 0.72), rgba(12, 3, 24, 0.22), transparent) !important;
+  background: linear-gradient(to top, rgba(3, 3, 4, 0.88), rgba(5, 5, 7, 0.42), transparent) !important;
 }
 
+/* The old decorative stack adds visual noise and is intentionally disabled. */
+.hamza-final-polish {
+  display: none !important;
+}
+
+/* Header: a calm black navigation surface with clear gold hover feedback. */
+.public-site-page main > nav {
+  margin-top: 1rem;
+  border: 1px solid rgba(212, 175, 55, 0.13);
+  border-radius: 1.25rem;
+  background: rgba(5, 5, 7, 0.9);
+  box-shadow: 0 20px 46px rgba(0, 0, 0, 0.26);
+  backdrop-filter: blur(18px);
+}
+
+.public-site-page main > nav > a:first-child {
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.public-site-page main > nav > a:first-child > div > div:last-child {
+  color: var(--hamza-gold-light) !important;
+}
+
+.public-site-page main > nav > div > a {
+  border-color: transparent !important;
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.82) !important;
+  box-shadow: none !important;
+}
+
+.public-site-page main > nav > div > a:hover {
+  border-color: rgba(212, 175, 55, 0.3) !important;
+  background: rgba(212, 175, 55, 0.07) !important;
+  color: var(--hamza-gold-light) !important;
+}
+
+.public-site-page main > div.lg\:hidden > div {
+  border-radius: 1rem;
+  background: rgba(5, 5, 7, 0.72);
+  padding: 0.5rem;
+  backdrop-filter: blur(14px);
+}
+
+.public-site-page main > div.lg\:hidden a {
+  border-color: rgba(109, 40, 217, 0.38) !important;
+  background: rgba(18, 12, 29, 0.96) !important;
+  color: rgba(255, 255, 255, 0.84) !important;
+}
+
+/* Hero: gold carries the primary message, while purple remains atmospheric. */
 .public-site-page h1 {
   margin-left: auto;
   margin-right: auto;
   max-width: 980px;
-  background: linear-gradient(90deg, #c084fc 0%, #ffffff 44%, #facc15 100%);
+  background: linear-gradient(90deg, #f7e3a1 0%, #d4af37 46%, #fff2bf 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent !important;
-  text-shadow: 0 0 34px rgba(216, 180, 254, 0.18);
+  text-shadow: 0 0 34px rgba(212, 175, 55, 0.16);
 }
 
 .public-site-page h1 span {
   display: block;
   margin-top: clamp(1.25rem, 4vw, 2rem);
-  background: linear-gradient(90deg, #d8b4fe 0%, #ffffff 42%, #fde68a 100%) !important;
+  background: linear-gradient(90deg, #fff3c4 0%, #d4af37 52%, #f7e3a1 100%) !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
   color: transparent !important;
+}
+
+.public-site-page h1 + p {
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
+/* CTA hierarchy: one gold primary action; purple stays as the supporting color. */
+.public-site-page main > section button.rounded-full,
+.public-site-page main > section a.rounded-full.bg-gradient-to-r {
+  background: linear-gradient(135deg, #f7e3a1 0%, #d4af37 48%, #b88b20 100%) !important;
+  color: #100b02 !important;
+  box-shadow: 0 0 30px rgba(212, 175, 55, 0.22) !important;
+}
+
+.public-site-page main > section button.rounded-full:hover,
+.public-site-page main > section a.rounded-full.bg-gradient-to-r:hover {
+  box-shadow: 0 0 38px rgba(212, 175, 55, 0.36) !important;
+}
+
+.public-site-page main > section a.rounded-full.border {
+  border-color: rgba(109, 40, 217, 0.58) !important;
+  background: rgba(20, 12, 30, 0.84) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
 }
 
 .public-site-page .rounded-3xl,
@@ -96,20 +179,65 @@ body > div:not(.hamza-visual-background-presets):not(.hamza-final-polish) {
   backdrop-filter: blur(14px);
 }
 
+/* Stats: dedicated deep-purple separator with gold numbers. */
+.public-site-page main > section.grid.max-w-6xl {
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(109, 40, 217, 0.38);
+  border-radius: 2rem;
+  background: linear-gradient(135deg, rgba(30, 14, 47, 0.94), rgba(17, 8, 29, 0.96));
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+}
+
+.public-site-page main > section.grid.max-w-6xl > div {
+  border-color: rgba(109, 40, 217, 0.48) !important;
+  background: rgba(5, 5, 7, 0.44) !important;
+}
+
+.public-site-page main > section.grid.max-w-6xl > div > div:first-child {
+  background: linear-gradient(90deg, #f7e3a1 0%, #d4af37 55%, #fff2bf 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+}
+
+/* Programs: almost-black cards, purple borders, and a gold availability status. */
+.public-site-page main > section [class*="lg:grid-cols-5"] > a {
+  border-color: rgba(109, 40, 217, 0.58) !important;
+  background: linear-gradient(155deg, rgba(14, 12, 18, 0.98), rgba(22, 12, 32, 0.96)) !important;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.2);
+}
+
+.public-site-page main > section [class*="lg:grid-cols-5"] > a:hover {
+  border-color: rgba(212, 175, 55, 0.8) !important;
+  background: linear-gradient(155deg, rgba(20, 16, 27, 0.99), rgba(31, 17, 43, 0.98)) !important;
+  box-shadow: 0 0 30px rgba(212, 175, 55, 0.13);
+}
+
+.public-site-page main > section [class*="lg:grid-cols-5"] > a > div:first-child {
+  border-color: rgba(212, 175, 55, 0.72) !important;
+  background: linear-gradient(135deg, #f7e3a1, #d4af37) !important;
+  color: #100b02 !important;
+}
+
+.public-site-page main > section [class*="lg:grid-cols-5"] > a > div:last-child {
+  color: rgba(255, 255, 255, 0.68) !important;
+}
+
 .public-site-page a:focus-visible,
 .public-site-page button:focus-visible,
 .public-site-page input:focus-visible,
 .public-site-page textarea:focus-visible,
 .public-site-page select:focus-visible {
-  outline: 2px solid rgba(250, 204, 21, 0.85);
+  outline: 2px solid rgba(247, 227, 161, 0.96);
   outline-offset: 4px;
 }
 
 body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black {
   background:
-    radial-gradient(circle at center, rgba(168, 85, 247, 0.42), transparent 30%),
-    radial-gradient(circle at 70% 35%, rgba(212, 175, 55, 0.18), transparent 24%),
-    linear-gradient(135deg, #050008, #2f0c56, #080012) !important;
+    radial-gradient(circle at center, rgba(109, 40, 217, 0.28), transparent 30%),
+    radial-gradient(circle at 70% 35%, rgba(212, 175, 55, 0.1), transparent 24%),
+    linear-gradient(135deg, #030304, #150b22, #050507) !important;
 }
 
 body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black::before {
@@ -125,7 +253,7 @@ body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black::before
   letter-spacing: 0.55em;
   line-height: 2.2;
   font-size: 14px;
-  text-shadow: 0 0 28px rgba(216, 180, 254, 0.45);
+  text-shadow: 0 0 28px rgba(109, 40, 217, 0.38);
 }
 
 body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black::after {
@@ -137,8 +265,8 @@ body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black::after 
   height: 4px;
   transform: translateX(-50%);
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(216, 180, 254, 0.95), rgba(250, 204, 21, 0.9), rgba(216, 180, 254, 0.35));
-  box-shadow: 0 0 20px rgba(216, 180, 254, 0.35);
+  background: linear-gradient(90deg, rgba(247, 227, 161, 0.42), rgba(212, 175, 55, 0.94), rgba(247, 227, 161, 0.42));
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.22);
 }
 
 body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black img {
@@ -146,7 +274,30 @@ body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black img {
   height: 176px;
   border-radius: 2rem;
   object-fit: cover;
-  box-shadow: 0 0 90px rgba(168, 85, 247, 0.58) !important;
+  box-shadow: 0 0 90px rgba(109, 40, 217, 0.46) !important;
+}
+
+/* Footer: clear four-column foundation with gold headings and purple hover. */
+.public-site-page main > footer {
+  border-top-color: rgba(109, 40, 217, 0.38) !important;
+  background: #030304 !important;
+  backdrop-filter: none !important;
+}
+
+.public-site-page main > footer h3 {
+  color: var(--hamza-gold-light) !important;
+}
+
+.public-site-page main > footer a:not([href*="wa.me"]) {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.public-site-page main > footer a:not([href*="wa.me"]):hover {
+  color: #c084fc !important;
+}
+
+.public-site-page main > footer a[href*="wa.me"] {
+  box-shadow: 0 0 24px rgba(34, 197, 94, 0.18);
 }
 
 img,
@@ -168,36 +319,6 @@ button {
   font: inherit;
 }
 
-@keyframes hamzaIntroOrbit {
-  from {
-    transform: rotate(0deg) scale(1);
-  }
-  to {
-    transform: rotate(360deg) scale(1.02);
-  }
-}
-
-@keyframes hamzaIntroOrbitReverse {
-  from {
-    transform: rotate(360deg) scale(1.02);
-  }
-  to {
-    transform: rotate(0deg) scale(1);
-  }
-}
-
-@keyframes hamzaIntroLoading {
-  0% {
-    transform: translateX(105%);
-  }
-  50% {
-    transform: translateX(0%);
-  }
-  100% {
-    transform: translateX(-105%);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -214,10 +335,21 @@ button {
     min-width: 320px;
   }
 
+  .public-site-page main > nav {
+    margin-top: 0.5rem;
+    border-radius: 1rem;
+  }
+
   .public-site-page h1 {
     max-width: 92vw;
-    font-size: clamp(3.6rem, 13vw, 5.2rem) !important;
+    font-size: clamp(3.2rem, 11.5vw, 4.8rem) !important;
     line-height: 1.18 !important;
+  }
+
+  .public-site-page main > section.grid.max-w-6xl {
+    margin-left: 1rem;
+    margin-right: 1rem;
+    width: auto;
   }
 
   body > main.fixed.inset-0.z-50.flex.items-center.justify-center.bg-black img {
@@ -239,12 +371,6 @@ button {
 
 @media (min-width: 1024px) {
   .public-site-page {
-    background:
-      linear-gradient(180deg, #7c3aed 0, #7c3aed 72px, transparent 72px),
-      radial-gradient(circle at 50% -10%, rgba(216, 180, 254, 0.34), transparent 30%),
-      radial-gradient(circle at 15% 15%, rgba(124, 58, 237, 0.32), transparent 28%),
-      radial-gradient(circle at 86% 18%, rgba(212, 175, 55, 0.18), transparent 24%),
-      linear-gradient(135deg, #2b0b4f 0%, #42157a 36%, #241045 70%, #11051f 100%);
     background-attachment: fixed;
   }
 
@@ -252,6 +378,12 @@ button {
   .public-site-page main > div,
   .public-site-page main > header,
   .public-site-page footer > div {
+    width: min(100% - 48px, 1440px);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .public-site-page main > nav {
     width: min(100% - 48px, 1440px);
     margin-left: auto;
     margin-right: auto;
@@ -279,6 +411,7 @@ button {
       transform 180ms ease,
       border-color 180ms ease,
       background-color 180ms ease,
+      color 180ms ease,
       opacity 180ms ease,
       box-shadow 180ms ease;
   }
@@ -295,19 +428,19 @@ button {
   .public-site-page .rounded-\[2rem\],
   .public-site-page .rounded-3xl {
     box-shadow:
-      0 22px 70px rgba(21, 6, 38, 0.34),
-      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      0 22px 70px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.035);
   }
 
   .public-site-page [class*="bg-black"],
   .public-site-page [class*="bg-[#050008]"],
   .public-site-page [class*="bg-[#070009]"] {
-    background-color: rgba(31, 10, 56, 0.58) !important;
+    background-color: rgba(5, 5, 7, 0.76) !important;
   }
 
   .public-site-page [class*="border-white/10"],
   .public-site-page [class*="border-purple"] {
-    border-color: rgba(216, 180, 254, 0.18) !important;
+    border-color: rgba(109, 40, 217, 0.34) !important;
   }
 }
 
@@ -315,7 +448,8 @@ button {
   .public-site-page main > section,
   .public-site-page main > div,
   .public-site-page main > header,
-  .public-site-page footer > div {
+  .public-site-page footer > div,
+  .public-site-page main > nav {
     width: min(100% - 72px, 1560px);
   }
 }
