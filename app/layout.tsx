@@ -14,6 +14,7 @@ import "./globals.css";
 import "./final-fixes.css";
 import "./public-modal-fixes.css";
 import "./luxury-visual-foundation.css";
+import "./public-site-header.css";
 
 const siteUrl = "https://hamza-agency.com";
 const siteName = "Hamza Agency | وكالة حمزة";
