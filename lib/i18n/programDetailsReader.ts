@@ -44,7 +44,6 @@ export function usePublishedProgramDetailsTranslation(
       });
 
       if (!isActive) return;
-
       setTranslations(translationMap[String(sourceId)] || {});
       setIsLoading(false);
     }
@@ -92,10 +91,140 @@ export type ProgramDetailsCopy = {
   submitting: string;
   submit: string;
   whatsappCta: string;
+  notFoundTitle: string;
+  notFoundDescription: string;
 };
 
 export const programDetailsCopy: Record<SiteLanguage, ProgramDetailsCopy> = {
-  ar: { back: "← العودة إلى البرامج", refreshing: "تحديث بيانات البرنامج...", available: "متاح الآن", limited: "قبول محدود", paused: "متوقف مؤقتاً", join: "انضم الآن", requirements: "شروط القبول", benefits: "ماذا تقدم وكالة حمزة؟", updates: "آخر التحديثات", faq: "الأسئلة الشائعة", close: "إغلاق", formTitle: "طلب الانضمام إلى", fullName: "الاسم الثلاثي", country: "الدولة", whatsapp: "رقم واتساب", experience: "خبرات سابقة", experienceDescription: "هل عملت على برامج أو وكالات أخرى سابقاً؟", experiencePlaceholder: "اكتب خبراتك السابقة إن وجدت", notes: "ملاحظات إضافية", required: "يرجى تعبئة الحقول الأساسية.", duplicate: "تم إرسال طلب سابق بنفس رقم الواتساب وهذا البرنامج.", databaseUnavailable: "الاتصال بقاعدة البيانات غير مفعل حالياً.", submitError: "حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.", submitSuccess: "تم استلام طلبك بنجاح. سيقوم فريق الوكالة بمراجعة الطلب وقد يتم التواصل معك عبر واتساب.", submitting: "جارٍ الإرسال...", submit: "إرسال الطلب", whatsappCta: "واتساب" },
-  en: { back: "← Back to programs", refreshing: "Refreshing program details...", available: "Available now", limited: "Limited spots", paused: "Temporarily paused", join: "Join now", requirements: "Requirements", benefits: "What HAMZA AGENCY offers", updates: "Latest updates", faq: "Frequently asked questions", close: "Close", formTitle: "Apply to join", fullName: "Full name", country: "Country", whatsapp: "WhatsApp number", experience: "Previous experience", experienceDescription: "Have you worked with other programs or agencies before?", experiencePlaceholder: "Write any previous experience you have", notes: "Additional notes", required: "Please complete the required fields.", duplicate: "A request was already sent for this WhatsApp number and program.", databaseUnavailable: "Database connection is not available right now.", submitError: "Something went wrong while sending your application. Please try again.", submitSuccess: "Your application was received successfully. Our team will review it and may contact you through WhatsApp.", submitting: "Submitting...", submit: "Submit application", whatsappCta: "WhatsApp" },
-  tr: { back: "← Programlara dön", refreshing: "Program bilgileri güncelleniyor...", available: "Şimdi açık", limited: "Kontenjan sınırlı", paused: "Geçici olarak duraklatıldı", join: "Şimdi katıl", requirements: "Katılım şartları", benefits: "HAMZA AGENCY neler sunar?", updates: "Son güncellemeler", faq: "Sık sorulan sorular", close: "Kapat", formTitle: "Katılım başvurusu", fullName: "Ad soyad", country: "Ülke", whatsapp: "WhatsApp numarası", experience: "Önceki deneyim", experienceDescription: "Daha önce başka programlar veya ajanslarla çalıştınız mı?", experiencePlaceholder: "Varsa önceki deneyimlerinizi yazın", notes: "Ek notlar", required: "Lütfen zorunlu alanları doldurun.", duplicate: "Bu WhatsApp numarası ve program için daha önce bir başvuru gönderildi.", databaseUnavailable: "Veritabanı bağlantısı şu anda kullanılamıyor.", submitError: "Başvuru gönderilirken bir hata oluştu. Lütfen tekrar deneyin.", submitSuccess: "Başvurunuz başarıyla alındı. Ekibimiz inceleyip gerektiğinde WhatsApp üzerinden sizinle iletişime geçecektir.", submitting: "Gönderiliyor...", submit: "Başvuruyu gönder", whatsappCta: "WhatsApp" },
+  ar: {
+    back: "← العودة إلى البرامج",
+    refreshing: "تحديث بيانات البرنامج...",
+    available: "متاح الآن",
+    limited: "قبول محدود",
+    paused: "متوقف مؤقتاً",
+    join: "انضم الآن",
+    requirements: "شروط القبول",
+    benefits: "ماذا تقدم وكالة حمزة؟",
+    updates: "آخر التحديثات",
+    faq: "الأسئلة الشائعة",
+    close: "إغلاق",
+    formTitle: "طلب الانضمام إلى",
+    fullName: "الاسم الثلاثي",
+    country: "الدولة",
+    whatsapp: "رقم واتساب",
+    experience: "خبرات سابقة",
+    experienceDescription: "هل عملت على برامج أو وكالات أخرى سابقاً؟",
+    experiencePlaceholder: "اكتب خبراتك السابقة إن وجدت",
+    notes: "ملاحظات إضافية",
+    required: "يرجى تعبئة الحقول الأساسية.",
+    duplicate: "تم إرسال طلب سابق بنفس رقم الواتساب وهذا البرنامج.",
+    databaseUnavailable: "الاتصال بقاعدة البيانات غير مفعل حالياً.",
+    submitError: "حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.",
+    submitSuccess: "تم استلام طلبك بنجاح. سيقوم فريق الوكالة بمراجعة الطلب وقد يتم التواصل معك عبر واتساب.",
+    submitting: "جارٍ الإرسال...",
+    submit: "إرسال الطلب",
+    whatsappCta: "واتساب",
+    notFoundTitle: "البرنامج غير موجود",
+    notFoundDescription: "لم يتم العثور على هذا البرنامج ضمن برامج وكالة حمزة المتاحة حالياً.",
+  },
+  en: {
+    back: "← Back to programs",
+    refreshing: "Refreshing program details...",
+    available: "Available now",
+    limited: "Limited spots",
+    paused: "Temporarily paused",
+    join: "Join now",
+    requirements: "Requirements",
+    benefits: "What HAMZA AGENCY offers",
+    updates: "Latest updates",
+    faq: "Frequently asked questions",
+    close: "Close",
+    formTitle: "Apply to join",
+    fullName: "Full name",
+    country: "Country",
+    whatsapp: "WhatsApp number",
+    experience: "Previous experience",
+    experienceDescription: "Have you worked with other programs or agencies before?",
+    experiencePlaceholder: "Write any previous experience you have",
+    notes: "Additional notes",
+    required: "Please complete the required fields.",
+    duplicate: "A request was already sent for this WhatsApp number and program.",
+    databaseUnavailable: "Database connection is not available right now.",
+    submitError: "Something went wrong while sending your application. Please try again.",
+    submitSuccess: "Your application was received successfully. Our team will review it and may contact you through WhatsApp.",
+    submitting: "Submitting...",
+    submit: "Submit application",
+    whatsappCta: "WhatsApp",
+    notFoundTitle: "Program not found",
+    notFoundDescription: "This program is not currently available in the HAMZA AGENCY programs list.",
+  },
+  tr: {
+    back: "← Programlara dön",
+    refreshing: "Program bilgileri güncelleniyor...",
+    available: "Şimdi açık",
+    limited: "Kontenjan sınırlı",
+    paused: "Geçici olarak duraklatıldı",
+    join: "Şimdi katıl",
+    requirements: "Katılım şartları",
+    benefits: "HAMZA AGENCY neler sunar?",
+    updates: "Son güncellemeler",
+    faq: "Sık sorulan sorular",
+    close: "Kapat",
+    formTitle: "Katılım başvurusu",
+    fullName: "Ad soyad",
+    country: "Ülke",
+    whatsapp: "WhatsApp numarası",
+    experience: "Önceki deneyim",
+    experienceDescription: "Daha önce başka programlar veya ajanslarla çalıştınız mı?",
+    experiencePlaceholder: "Varsa önceki deneyimlerinizi yazın",
+    notes: "Ek notlar",
+    required: "Lütfen zorunlu alanları doldurun.",
+    duplicate: "Bu WhatsApp numarası ve program için daha önce bir başvuru gönderildi.",
+    databaseUnavailable: "Veritabanı bağlantısı şu anda kullanılamıyor.",
+    submitError: "Başvuru gönderilirken bir hata oluştu. Lütfen tekrar deneyin.",
+    submitSuccess: "Başvurunuz başarıyla alındı. Ekibimiz inceleyip gerektiğinde WhatsApp üzerinden sizinle iletişime geçecektir.",
+    submitting: "Gönderiliyor...",
+    submit: "Başvuruyu gönder",
+    whatsappCta: "WhatsApp",
+    notFoundTitle: "Program bulunamadı",
+    notFoundDescription: "Bu program şu anda HAMZA AGENCY programları arasında bulunmuyor.",
+  },
 };
+
+type ProgramFallbackVisualKey = "tiktok" | "bigo-live" | "yaahlan" | "xena" | "catchii" | "default";
+
+const programFallbackVisualLabels: Record<SiteLanguage, Record<ProgramFallbackVisualKey, string>> = {
+  ar: {
+    tiktok: "برنامج صناع محتوى للفيديوهات القصيرة",
+    "bigo-live": "برنامج صناع محتوى للبث المباشر",
+    yaahlan: "برنامج مجتمع وبث مباشر",
+    xena: "برنامج صناع محتوى",
+    catchii: "برنامج صناع محتوى اجتماعي",
+    default: "برنامج وكالة لصناع المحتوى",
+  },
+  en: {
+    tiktok: "Short Video Creator Program",
+    "bigo-live": "Live Streaming Creator Program",
+    yaahlan: "Community Live Program",
+    xena: "Creator Program",
+    catchii: "Social Creator Program",
+    default: "Creator Agency Program",
+  },
+  tr: {
+    tiktok: "Kısa Video İçerik Üreticisi Programı",
+    "bigo-live": "Canlı Yayın İçerik Üreticisi Programı",
+    yaahlan: "Topluluk ve Canlı Yayın Programı",
+    xena: "İçerik Üreticisi Programı",
+    catchii: "Sosyal İçerik Üreticisi Programı",
+    default: "Ajans İçerik Üreticisi Programı",
+  },
+};
+
+export function getProgramFallbackVisualLabel(slug: string, language: SiteLanguage) {
+  const normalizedSlug = slug.trim().toLowerCase();
+  const key: ProgramFallbackVisualKey = normalizedSlug in programFallbackVisualLabels[language]
+    ? normalizedSlug as Exclude<ProgramFallbackVisualKey, "default">
+    : "default";
+
+  return programFallbackVisualLabels[language][key];
+}
