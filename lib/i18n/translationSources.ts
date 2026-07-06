@@ -10,7 +10,7 @@ const BASE_TRANSLATION_FIELDS: readonly TranslationBaseFieldName[] = ["title", "
 const PROGRAM_DETAIL_TRANSLATION_FIELDS: readonly ProgramDetailTranslationFieldName[] = ["requirements", "benefits", "updates", "faq"];
 const JOB_DETAIL_TRANSLATION_FIELDS: ReadonlyArray<"department" | "location" | "job_type" | "requirements"> = ["department", "location", "job_type", "requirements"];
 const REVIEW_DETAIL_TRANSLATION_FIELDS: readonly ReviewDetailTranslationFieldName[] = ["country"];
-const SUCCESS_STORY_DETAIL_TRANSLATION_FIELDS: readonly Array<"person_name" | "country" | "platform"> = ["person_name", "country", "platform"];
+const SUCCESS_STORY_DETAIL_TRANSLATION_FIELDS: ReadonlyArray<"person_name" | "country" | "platform"> = ["person_name", "country", "platform"];
 
 export type TranslationSourceItem = { sourceType: TranslationSourceType; sourceId: string; title: string; summary: string; content: string; requirements?: string; benefits?: string; updates?: string; faq?: string; department?: string; location?: string; job_type?: string; country?: string; person_name?: string; platform?: string; };
 export type TranslationSourceDefinition = { sourceType: TranslationSourceType; label: string; table: "programs" | "pages" | "sections" | "faqs" | "knowledge_base" | "partners" | "jobs" | "reviews" | "success_stories"; titleKeys: readonly string[]; summaryKeys: readonly string[]; contentKeys: readonly string[]; requirementsKeys?: readonly string[]; benefitsKeys?: readonly string[]; updatesKeys?: readonly string[]; faqKeys?: readonly string[]; departmentKeys?: readonly string[]; locationKeys?: readonly string[]; jobTypeKeys?: readonly string[]; countryKeys?: readonly string[]; personNameKeys?: readonly string[]; platformKeys?: readonly string[]; };
