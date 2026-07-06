@@ -38,6 +38,12 @@ const CMS_TRANSLATION_FIELDS: readonly CmsPublishedTranslationField[] = [
   "content",
 ];
 
+const HOME_HERO_BRAND_LINE: Record<"ar" | "en" | "tr", string> = {
+  ar: "وكالة حمزة",
+  en: "Hamza Agency",
+  tr: "Hamza Ajansı",
+};
+
 function hasRequiredCmsFields(source: CmsPublishedTranslationSource) {
   return source.requiredFields.length > 0 && Boolean(String(source.sourceId).trim());
 }
@@ -154,6 +160,22 @@ export function CmsPublishedText({
   const arabicFallback = source?.fallback[field] || fallback || "";
   const usesPublishedTranslation = Boolean(translatedValue);
   const text = translatedValue || arabicFallback;
+
+  /* The homepage public H1 already renders home-page.title.
+     Keep the legacy highlighted second line as the short agency brand name only. */
+  if (sourceKey === "home-hero" && field === "title") {
+    const language = context?.language || "ar";
+
+    return (
+      <span
+        dir={language === "ar" ? "rtl" : "ltr"}
+        lang={language}
+        className={className}
+      >
+        {HOME_HERO_BRAND_LINE[language]}
+      </span>
+    );
+  }
 
   return (
     <span
