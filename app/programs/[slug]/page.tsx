@@ -6,7 +6,11 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { getLanguageDirection } from "@/lib/i18n/locale";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
-import { programDetailsCopy, usePublishedProgramDetailsTranslation } from "@/lib/i18n/programDetailsReader";
+import {
+  getProgramFallbackVisualLabel,
+  programDetailsCopy,
+  usePublishedProgramDetailsTranslation,
+} from "@/lib/i18n/programDetailsReader";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type Program = {
@@ -41,7 +45,6 @@ type Setting = {
 
 type ProgramVisual = {
   variant: string;
-  label: string;
   accent: string;
   secondary: string;
   badge: string;
@@ -55,7 +58,6 @@ type ProgramVisual = {
 const programVisuals: Record<string, ProgramVisual> = {
   tiktok: {
     variant: "tiktok",
-    label: "Short Video Creator Program",
     accent: "#ff2f8b",
     secondary: "#22d3ee",
     badge: "فيديوهات قصيرة • صناع محتوى • نمو سريع",
@@ -71,7 +73,6 @@ const programVisuals: Record<string, ProgramVisual> = {
   },
   "bigo-live": {
     variant: "bigo",
-    label: "Live Streaming Creator Program",
     accent: "#38bdf8",
     secondary: "#a855f7",
     badge: "بث مباشر • لايف • دعم يومي",
@@ -87,7 +88,6 @@ const programVisuals: Record<string, ProgramVisual> = {
   },
   yaahlan: {
     variant: "yaahlan",
-    label: "Community Live Program",
     accent: "#f59e0b",
     secondary: "#8b5cf6",
     badge: "مجتمع • تواصل • بث مباشر",
@@ -103,7 +103,6 @@ const programVisuals: Record<string, ProgramVisual> = {
   },
   xena: {
     variant: "xena",
-    label: "Future Creator Program",
     accent: "#a855f7",
     secondary: "#06b6d4",
     badge: "Creator Program • مستقبل المحتوى • وكالة",
@@ -119,7 +118,6 @@ const programVisuals: Record<string, ProgramVisual> = {
   },
   catchii: {
     variant: "catchii",
-    label: "Social Creator Program",
     accent: "#ec4899",
     secondary: "#facc15",
     badge: "Social • Entertainment • Creator Growth",
@@ -154,7 +152,6 @@ const translatedVisualBadges = {
 
 const defaultVisual: ProgramVisual = {
   variant: "programs",
-  label: "Creator Agency Program",
   accent: "#7c3aed",
   secondary: "#d4af37",
   badge: "برنامج صناع محتوى • وكالة حمزة",
@@ -260,7 +257,9 @@ export default function ProgramDetailsPage() {
 
   const language = isComplete ? requestedLanguage : "ar";
   const copy = programDetailsCopy[language];
+  const notFoundCopy = programDetailsCopy[requestedLanguage];
   const visual = useMemo(() => programVisuals[slug] || defaultVisual, [slug]);
+  const fallbackVisualLabel = getProgramFallbackVisualLabel(slug, language);
   const primaryWhatsapp = getSetting(settings, ["primary_whatsapp", "whatsapp", "support_whatsapp"], "+905011730377");
   const backgroundMedia = useMemo(() => findProgramBackground(mediaItems, slug, program?.name || ""), [mediaItems, slug, program?.name]);
 
@@ -323,13 +322,13 @@ export default function ProgramDetailsPage() {
 
   if (!program) {
     return (
-      <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] px-5 py-20 text-white">
+      <main dir={getLanguageDirection(requestedLanguage)} className="relative min-h-screen overflow-hidden bg-[#070009] px-5 py-20 text-white">
         <ProgramAnimationStyles />
         <ProgramBackground media={undefined} visual={defaultVisual} />
         <section className="relative z-20 mx-auto max-w-5xl">
-          <h1 className="text-4xl font-black">البرنامج غير موجود</h1>
-          <p className="mt-5 max-w-2xl leading-8 text-white/65">لم يتم العثور على هذا البرنامج ضمن برامج وكالة حمزة المتاحة حالياً.</p>
-          <Link href="/programs" className="mt-8 inline-block text-purple-300">العودة إلى البرامج</Link>
+          <h1 className="text-4xl font-black">{notFoundCopy.notFoundTitle}</h1>
+          <p className="mt-5 max-w-2xl leading-8 text-white/65">{notFoundCopy.notFoundDescription}</p>
+          <Link href="/programs" className="mt-8 inline-block text-purple-300">{notFoundCopy.back}</Link>
         </section>
       </main>
     );
@@ -380,8 +379,8 @@ export default function ProgramDetailsPage() {
           </span>
 
           {!isComplete && (
-            <p className="mt-7 text-sm font-bold uppercase tracking-[0.28em] text-purple-200" dir="ltr">
-              {visual.label}
+            <p className="mt-7 text-sm font-bold tracking-[0.12em] text-purple-200" dir={getLanguageDirection(language)}>
+              {fallbackVisualLabel}
             </p>
           )}
 
