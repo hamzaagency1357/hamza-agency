@@ -103,12 +103,6 @@
   color: transparent !important;
 }
 
-/* The homepage uses the page title as the single public Hero headline.
-   The legacy secondary Hero title is the same CMS phrase and must not be rendered twice. */
-.public-site-page main > section.relative.z-20.mx-auto.max-w-7xl.px-5.pb-20.pt-10.text-center h1 > span {
-  display: none !important;
-}
-
 .public-site-page h1 + p {
   color: rgba(255, 255, 255, 0.78) !important;
 }
