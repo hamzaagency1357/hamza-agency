@@ -61,7 +61,7 @@ export default function PartnerTranslationsPage() {
     if (!supabase) { setError("الاتصال بقاعدة البيانات غير مفعل."); setLoading(false); return; }
     setLoading(true); setError(""); setMessage("");
     const [partnersResult, translationsResult] = await Promise.all([
-      supabase.from("partners").select("id, name, title, category, type, description, summary, sort_order, is_visible, status").order("sort_order", { ascending: true }).limit(300),
+      supabase.from("partners").select("*").order("sort_order", { ascending: true }).limit(300),
       supabase.from("content_translations").select("source_id, field_name, language, translated_value, status, reviewed, is_published").eq("source_type", "partners").in("field_name", ["title", "summary", "content"]).in("language", ["en", "tr"]).limit(3000),
     ]);
     setLoading(false);
