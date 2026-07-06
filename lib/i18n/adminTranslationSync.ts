@@ -12,6 +12,8 @@ type SyncResult = {
   sourceType: TranslationSourceType;
   sourceId: string;
   languages: string[];
+  createdLanguages?: string[];
+  retainedLanguages?: string[];
 };
 
 type SyncResponse = {
