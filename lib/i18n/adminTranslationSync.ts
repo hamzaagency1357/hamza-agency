@@ -16,11 +16,25 @@ type SyncResult = {
   retainedLanguages?: string[];
 };
 
+export type TranslationSyncSummary = {
+  totalRequested?: number;
+  totalAccepted?: number;
+  totalProcessed?: number;
+  createdCount?: number;
+  retainedCount?: number;
+  failedCount?: number;
+  ignoredCount?: number;
+  truncatedCount?: number;
+  skippedCount?: number;
+  maxItemsPerRequest?: number;
+};
+
 type SyncResponse = {
   ok: boolean;
   message?: string;
   results?: SyncResult[];
   errors?: Array<{ sourceType: string; sourceId: string; message: string }>;
+  summary?: TranslationSyncSummary;
 };
 
 type TranslationTargetLanguage = "en" | "tr";

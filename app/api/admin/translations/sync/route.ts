@@ -24,6 +24,13 @@ type SourceRevisionRow = { id?: string | null };
 type ExistingRevisionRow = { id?: string | null; workflow_status?: string | null };
 type CandidateRpcRow = { translation_revision_id?: string | null; created?: boolean | null; workflow_status?: string | null };
 type CandidateResult = { created: boolean; workflowStatus: string };
+type ParsedItems = {
+  items: SyncItem[];
+  totalRequested: number;
+  uniqueValidCount: number;
+  ignoredCount: number;
+  truncatedCount: number;
+};
 
 const MAX_ITEMS_PER_REQUEST = 10;
 
@@ -36,18 +43,55 @@ function isTranslationLanguage(value: unknown): value is TranslationLanguage {
   return value === "en" || value === "tr";
 }
 
-function parseItems(value: unknown): SyncItem[] {
-  if (!Array.isArray(value)) return [];
+function parseItems(value: unknown): ParsedItems {
+  if (!Array.isArray(value)) {
+    return { items: [], totalRequested: 0, uniqueValidCount: 0, ignoredCount: 0, truncatedCount: 0 };
+  }
+
   const unique = new Map<string, SyncItem>();
+  let ignoredCount = 0;
+
   value.forEach((value) => {
-    if (!value || typeof value !== "object") return;
+    if (!value || typeof value !== "object") {
+      ignoredCount += 1;
+      return;
+    }
+
     const item = value as { sourceType?: unknown; sourceId?: unknown };
-    if (!isTranslationSourceType(item.sourceType)) return;
-    if (typeof item.sourceId !== "string" && typeof item.sourceId !== "number") return;
+    if (!isTranslationSourceType(item.sourceType)) {
+      ignoredCount += 1;
+      return;
+    }
+    if (typeof item.sourceId !== "string" && typeof item.sourceId !== "number") {
+      ignoredCount += 1;
+      return;
+    }
+
     const sourceId = String(item.sourceId).trim();
-    if (sourceId) unique.set(`${item.sourceType}:${sourceId}`, { sourceType: item.sourceType, sourceId });
+    if (!sourceId) {
+      ignoredCount += 1;
+      return;
+    }
+
+    const key = `${item.sourceType}:${sourceId}`;
+    if (unique.has(key)) {
+      ignoredCount += 1;
+      return;
+    }
+
+    unique.set(key, { sourceType: item.sourceType, sourceId });
   });
-  return [...unique.values()].slice(0, MAX_ITEMS_PER_REQUEST);
+
+  const uniqueItems = [...unique.values()];
+  const truncatedCount = Math.max(uniqueItems.length - MAX_ITEMS_PER_REQUEST, 0);
+
+  return {
+    items: uniqueItems.slice(0, MAX_ITEMS_PER_REQUEST),
+    totalRequested: value.length,
+    uniqueValidCount: uniqueItems.length,
+    ignoredCount,
+    truncatedCount,
+  };
 }
 
 function parseLanguages(value: unknown): TranslationLanguage[] | null {
@@ -191,10 +235,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json().catch(() => ({}))) as { items?: unknown; languages?: unknown };
-    const items = parseItems(body.items);
+    const parsedItems = parseItems(body.items);
+    const items = parsedItems.items;
     const languages = parseLanguages(body.languages);
     if (!items.length) return NextResponse.json({ ok: false, message: "اختر عنصراً واحداً على الأقل للترجمة." }, { status: 400 });
     if (!languages) return NextResponse.json({ ok: false, message: "اختر لغة هدف صريحة: الإنجليزية أو التركية." }, { status: 400 });
+    if (languages.length !== 1) return NextResponse.json({ ok: false, message: "يمكن تشغيل لغة واحدة فقط في كل دفعة." }, { status: 400 });
+    if (new Set(items.map((item) => item.sourceType)).size !== 1) {
+      return NextResponse.json({ ok: false, message: "يمكن تشغيل مصدر واحد فقط في كل دفعة." }, { status: 400 });
+    }
 
     const results: Array<{
       sourceType: TranslationSourceType;
@@ -229,6 +278,19 @@ export async function POST(request: NextRequest) {
 
     const createdCount = results.reduce((count, result) => count + result.createdLanguages.length, 0);
     const retainedCount = results.reduce((count, result) => count + result.retainedLanguages.length, 0);
+    const summary = {
+      totalRequested: parsedItems.totalRequested,
+      totalAccepted: items.length,
+      totalProcessed: results.length + errors.length,
+      createdCount,
+      retainedCount,
+      failedCount: errors.length,
+      ignoredCount: parsedItems.ignoredCount,
+      truncatedCount: parsedItems.truncatedCount,
+      skippedCount: parsedItems.ignoredCount + parsedItems.truncatedCount,
+      maxItemsPerRequest: MAX_ITEMS_PER_REQUEST,
+    };
+
     const successMessage = retainedCount
       ? `تم إنشاء ${createdCount} Candidate Revision جديد، وتم الاحتفاظ بـ ${retainedCount} Draft أو نسخة منشورة مطابقة بدون الكتابة فوقها.`
       : `تم إنشاء ${createdCount} Candidate Revision بحالة تحتاج مراجعة. لا يظهر أي محتوى للعامة قبل النشر اليدوي.`;
@@ -237,6 +299,7 @@ export async function POST(request: NextRequest) {
       ok: errors.length === 0,
       results,
       errors,
+      summary,
       message: errors.length === 0
         ? successMessage
         : `اكتملت ${results.length} عناصر، وتعذر ${errors.length} عنصر. لا يتم الكتابة فوق أي Draft أو نسخة منشورة موجودة.`,
