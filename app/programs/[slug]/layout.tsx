@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 const siteUrl = "https://hamza-agency.com";
+const defaultOgImage = "/Logo%20hamza%20agency.jpg";
 
 const programSeo: Record<string, { title: string; description: string }> = {
   tiktok: {
@@ -44,6 +45,7 @@ export async function generateMetadata({ params }: ProgramLayoutProps): Promise<
   };
 
   const canonical = `${siteUrl}/programs/${slug}`;
+  const imageAlt = `${seo.title} - HAMZA AGENCY`;
 
   return {
     title: seo.title,
@@ -58,11 +60,20 @@ export async function generateMetadata({ params }: ProgramLayoutProps): Promise<
       siteName: "Hamza Agency",
       locale: "ar_TR",
       type: "website",
+      images: [
+        {
+          url: defaultOgImage,
+          width: 1200,
+          height: 630,
+          alt: imageAlt,
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
       title: seo.title,
       description: seo.description,
+      images: [defaultOgImage],
     },
   };
 }
