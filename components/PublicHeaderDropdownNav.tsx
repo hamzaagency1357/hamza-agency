@@ -176,6 +176,17 @@ body.public-site-page main div[class*="lg:hidden"] div[class*="overflow-x-auto"]
   padding-bottom: 0.75rem !important;
 }
 
+.hamza-structural-header-shell-desktop {
+  display: contents;
+}
+
+.hamza-structural-header-shell-mobile {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 0.75rem;
+}
+
 .hamza-structural-header-nav {
   display: flex;
   align-items: center;
@@ -185,6 +196,12 @@ body.public-site-page main div[class*="lg:hidden"] div[class*="overflow-x-auto"]
 .hamza-structural-header-nav-mobile {
   flex-wrap: wrap;
   width: 100%;
+  justify-content: center;
+}
+
+.hamza-structural-header-panel-mobile {
+  width: min(100%, calc(100vw - 1.5rem));
+  margin-inline: auto;
 }
 `;
 
@@ -218,7 +235,7 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
   const language = useSiteLanguage();
   const [openMenu, setOpenMenu] = useState<HeaderNavLabelKey | null>(null);
   const [panelPosition, setPanelPosition] = useState<PanelPosition>({ top: 96, left: 12, width: 288 });
-  const navRef = useRef<HTMLElement | null>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
   const buttonRefs = useRef<Partial<Record<HeaderNavLabelKey, HTMLButtonElement | null>>>({});
   const labels = headerDropdownCopy[language];
   const direction = getLanguageDirection(language);
@@ -230,8 +247,10 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
   }
 
   function openGroup(group: HeaderDropdownGroup) {
-    const button = buttonRefs.current[group.titleKey] || null;
-    setPanelPosition(getSafePanelPosition(button));
+    if (isDesktop) {
+      const button = buttonRefs.current[group.titleKey] || null;
+      setPanelPosition(getSafePanelPosition(button));
+    }
     setOpenMenu(group.titleKey);
   }
 
@@ -253,11 +272,12 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
 
     function handlePointerDown(event: MouseEvent | TouchEvent) {
       const target = event.target as Node | null;
-      if (target && navRef.current?.contains(target)) return;
+      if (target && shellRef.current?.contains(target)) return;
       closeMenu();
     }
 
     function handleViewportChange() {
+      if (!isDesktop) return;
       const button = buttonRefs.current[openMenu] || null;
       setPanelPosition(getSafePanelPosition(button));
     }
@@ -275,12 +295,18 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
       window.removeEventListener("resize", handleViewportChange);
       window.removeEventListener("scroll", handleViewportChange, true);
     };
-  }, [openMenu]);
+  }, [openMenu, isDesktop]);
 
   return (
-    <>
+    <div
+      ref={shellRef}
+      className={
+        isDesktop
+          ? "hamza-structural-header-shell-desktop"
+          : "hamza-structural-header-shell-mobile"
+      }
+    >
       <nav
-        ref={navRef}
         aria-label={labels.home}
         dir={direction}
         className={`hamza-structural-header-nav ${
@@ -321,8 +347,16 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
       {activeGroup ? (
         <div
           dir={direction}
-          className="fixed z-[260] rounded-3xl border border-purple-300/25 bg-[#09000f]/95 p-2 shadow-[0_28px_90px_rgba(9,0,15,0.55)] backdrop-blur-xl"
-          style={{ top: panelPosition.top, left: panelPosition.left, width: panelPosition.width }}
+          className={
+            isDesktop
+              ? "fixed z-[260] rounded-3xl border border-purple-300/25 bg-[#09000f]/95 p-2 shadow-[0_28px_90px_rgba(9,0,15,0.55)] backdrop-blur-xl"
+              : "hamza-structural-header-panel-mobile relative z-[120] rounded-3xl border border-purple-300/25 bg-[#09000f]/95 p-2 shadow-[0_20px_60px_rgba(9,0,15,0.35)] backdrop-blur-xl"
+          }
+          style={
+            isDesktop
+              ? { top: panelPosition.top, left: panelPosition.left, width: panelPosition.width }
+              : undefined
+          }
         >
           <div className="grid gap-2">
             {activeGroup.links.map((link) => (
@@ -341,7 +375,7 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
           </div>
         </div>
       ) : null}
-    </>
+    </div>
   );
 }
 
