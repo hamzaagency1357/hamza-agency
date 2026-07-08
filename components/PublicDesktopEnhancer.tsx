@@ -218,10 +218,10 @@ function HeaderDropdownNavigation() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/78 transition hover:border-yellow-300/35 hover:bg-purple-500/12 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200/65"
+                  className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/75 transition hover:border-yellow-300/35 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200/65"
                 >
                   <span className="block">{labels[link.labelKey]}</span>
-                  <span className="mt-1 block text-[11px] font-normal text-white/38" dir="ltr">
+                  <span className="mt-1 block text-[11px] font-normal text-white/40" dir="ltr">
                     {link.href}
                   </span>
                 </Link>
