@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getKnowledgeCategoryLabel } from "@/lib/i18n/knowledgeCategories";
+import { getLanguageDirection, type SiteLanguage } from "@/lib/i18n/locale";
 import {
   hasCompletePublishedTranslation,
   readPublishedTranslations,
@@ -10,6 +11,24 @@ import {
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
 const KNOWLEDGE_TRANSLATION_FIELDS = ["title", "summary", "content"] as const;
+
+const fallbackCopy: Record<SiteLanguage, { title: string; content: string; category: string }> = {
+  ar: {
+    title: "مقال من مركز المعرفة",
+    content: "المحتوى غير متوفر حالياً.",
+    category: "مقالات عامة",
+  },
+  en: {
+    title: "Knowledge Center article",
+    content: "Content is not available right now.",
+    category: "General articles",
+  },
+  tr: {
+    title: "Bilgi Merkezi makalesi",
+    content: "İçerik şu anda mevcut değil.",
+    category: "Genel makaleler",
+  },
+};
 
 type TranslationField = (typeof KNOWLEDGE_TRANSLATION_FIELDS)[number];
 
@@ -70,14 +89,16 @@ export default function KnowledgeListWithTranslations({ knowledge }: { knowledge
         translation,
         KNOWLEDGE_TRANSLATION_FIELDS
       );
+      const hasArabicSourceText = Boolean(item.title || item.summary || item.content);
+      const staticFallback = fallbackCopy[language];
 
       return {
         id: item.id,
-        title: hasPublishedTranslation ? translation?.title || "" : item.title || "مقال من مركز المعرفة",
+        title: hasPublishedTranslation ? translation?.title || "" : item.title || staticFallback.title,
         summary: hasPublishedTranslation ? translation?.summary || "" : item.summary || "",
-        content: hasPublishedTranslation ? translation?.content || "" : item.content || "المحتوى غير متوفر حالياً.",
-        category: item.category || "مقالات عامة",
-        direction: hasPublishedTranslation && language !== "ar" ? "ltr" : "rtl",
+        content: hasPublishedTranslation ? translation?.content || "" : item.content || staticFallback.content,
+        category: item.category || staticFallback.category,
+        direction: hasPublishedTranslation && language !== "ar" ? "ltr" : hasArabicSourceText ? "rtl" : getLanguageDirection(language),
       };
     });
 
@@ -90,7 +111,7 @@ export default function KnowledgeListWithTranslations({ knowledge }: { knowledge
         <div key={category} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur">
           <div
             className="mb-6 inline-flex rounded-full border border-yellow-400/20 bg-yellow-500/10 px-4 py-2 text-sm font-bold text-yellow-100"
-            dir={language === "ar" ? "rtl" : "ltr"}
+            dir={getLanguageDirection(language)}
           >
             {getKnowledgeCategoryLabel(category, language)}
           </div>
