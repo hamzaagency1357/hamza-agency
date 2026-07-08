@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 import {
   hasCompletePublishedTranslation,
@@ -65,6 +66,62 @@ function normalizeHomeHeroTitle(sourceKey: string, field: CmsPublishedTranslatio
   }
 
   return value;
+}
+
+function HomeHeroBrandLine({
+  language,
+  className,
+}: {
+  language: "ar" | "en" | "tr";
+  className?: string;
+}) {
+  const placeholderRef = useRef<HTMLSpanElement | null>(null);
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const placeholder = placeholderRef.current;
+    const wrapper = placeholder?.parentElement;
+    const heading = placeholder?.closest("h1");
+    const headingParent = heading?.parentElement;
+
+    if (!placeholder || !wrapper || !heading || !headingParent) return;
+
+    const brandLine = document.createElement("div");
+    brandLine.dataset.homeHeroBrandLine = "true";
+    brandLine.className = [heading.className, wrapper.className, "mt-4 md:mt-5"]
+      .filter(Boolean)
+      .join(" ");
+    brandLine.setAttribute("dir", language === "ar" ? "rtl" : "ltr");
+    brandLine.setAttribute("lang", language);
+
+    wrapper.setAttribute("aria-hidden", "true");
+    wrapper.style.display = "none";
+    heading.insertAdjacentElement("afterend", brandLine);
+    setPortalTarget(brandLine);
+
+    return () => {
+      wrapper.style.display = "";
+      wrapper.removeAttribute("aria-hidden");
+      brandLine.remove();
+    };
+  }, [language]);
+
+  return (
+    <>
+      <span
+        ref={placeholderRef}
+        data-home-hero-brand-placeholder="true"
+        aria-hidden="true"
+        className="sr-only"
+      />
+      {portalTarget
+        ? createPortal(
+            <span className={className}>{HOME_HERO_BRAND_LINE[language]}</span>,
+            portalTarget
+          )
+        : null}
+    </>
+  );
 }
 
 export function CmsPublishedTranslationsProvider({
@@ -181,19 +238,11 @@ export function CmsPublishedText({
   const text = normalizeHomeHeroTitle(sourceKey, field, translatedValue || arabicFallback);
 
   /* The homepage public H1 already renders home-page.title.
-     Keep the legacy highlighted second line as the short agency brand name only. */
+     Render the legacy highlighted brand line visually outside the H1. */
   if (sourceKey === "home-hero" && field === "title") {
     const language = context?.language || "ar";
 
-    return (
-      <span
-        dir={language === "ar" ? "rtl" : "ltr"}
-        lang={language}
-        className={className}
-      >
-        {HOME_HERO_BRAND_LINE[language]}
-      </span>
-    );
+    return <HomeHeroBrandLine language={language} className={className} />;
   }
 
   return (
