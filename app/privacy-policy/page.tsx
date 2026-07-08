@@ -4,6 +4,7 @@ import {
   PrivacyContactPanel,
   PrivacyPolicyCards,
 } from "@/components/PrivacyPolicyStaticUi";
+import PublicLanguageMain from "@/components/PublicLanguageMain";
 import { supabase } from "@/lib/supabase";
 import {
   CmsPublishedText,
@@ -123,7 +124,7 @@ export default async function PrivacyPolicyPage() {
 
   return (
     <CmsPublishedTranslationsProvider sources={translationSources}>
-      <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
+      <PublicLanguageMain className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
         <PrivacyBackground />
         <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
           <PrivacyBackHomeLink />
@@ -144,7 +145,7 @@ export default async function PrivacyPolicyPage() {
           <PrivacyApplicationDataPanel />
           <PrivacyContactPanel cleanWhatsapp={cleanWhatsapp} />
         </section>
-      </main>
+      </PublicLanguageMain>
     </CmsPublishedTranslationsProvider>
   );
 }

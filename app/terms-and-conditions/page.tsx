@@ -4,6 +4,7 @@ import {
   TermsPolicyCards,
   TermsResponsibilityPanel,
 } from "@/components/TermsPolicyStaticUi";
+import PublicLanguageMain from "@/components/PublicLanguageMain";
 import { supabase } from "@/lib/supabase";
 import {
   CmsPublishedText,
@@ -123,7 +124,7 @@ export default async function TermsAndConditionsPage() {
 
   return (
     <CmsPublishedTranslationsProvider sources={translationSources}>
-      <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
+      <PublicLanguageMain className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
         <TermsBackground />
         <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
           <TermsBackHomeLink />
@@ -146,7 +147,7 @@ export default async function TermsAndConditionsPage() {
           <TermsResponsibilityPanel />
           <TermsContactPanel cleanWhatsapp={cleanWhatsapp} />
         </section>
-      </main>
+      </PublicLanguageMain>
     </CmsPublishedTranslationsProvider>
   );
 }

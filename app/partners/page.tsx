@@ -6,6 +6,7 @@ import {
 } from "@/components/PartnersStaticUi";
 import { PartnersGuidanceUi, PartnersStatsUi } from "@/components/PartnersExtraUi";
 import PartnersGridWithTranslations from "@/components/PartnersGridWithTranslations";
+import PublicLanguageMain from "@/components/PublicLanguageMain";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -62,7 +63,7 @@ export default async function PartnersPage() {
   const otherPartners = partners.filter((partner) => !partner.isFeatured);
 
   return (
-    <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
+    <PublicLanguageMain className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
       <PartnersBackground />
       <section className="relative z-10 mx-auto max-w-7xl px-5 py-16 md:py-20">
         <PartnersBackLink />
@@ -92,7 +93,7 @@ export default async function PartnersPage() {
         ) : null}
         <PartnersGuidanceUi />
       </section>
-    </main>
+    </PublicLanguageMain>
   );
 }
 
