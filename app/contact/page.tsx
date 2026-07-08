@@ -12,6 +12,7 @@ import {
   CmsPublishedTranslationsProvider,
   type CmsPublishedTranslationSource,
 } from "@/components/CmsPublishedTranslations";
+import PublicLanguageMain from "@/components/PublicLanguageMain";
 import { supabase } from "@/lib/supabase";
 import {
   findCmsSection,
@@ -69,7 +70,7 @@ export default async function ContactPage() {
   const agencyName = getSetting(settings, ["agency_name_ar", "agency_name", "site_name"], "وكالة حمزة");
   const whatsapp = getSetting(settings, ["primary_whatsapp", "whatsapp", "support_whatsapp"], "+905011730377");
   const email = getSetting(settings, ["contact_email", "support_email", "email"], "");
-  const workingHours = getSetting(settings, ["working_hours", "support_hours"], "تتم المتابعة حسب توفر فريق الوكالة وضغط الطلبات");
+  const workingHours = getSetting(settings, ["working_hours", "support_hours"], "");
   const cleanWhatsapp = whatsapp.replace(/[^\d]/g, "");
   const contactOptionsSection = findCmsSection(sections, "contact-options");
   const whatsappSupportSection = findCmsSection(sections, "whatsapp-support");
@@ -85,7 +86,7 @@ export default async function ContactPage() {
 
   return (
     <CmsPublishedTranslationsProvider sources={translationSources}>
-      <main className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
+      <PublicLanguageMain className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
         <ContactBackground />
         <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
           <ContactBackHomeLink />
@@ -115,7 +116,7 @@ export default async function ContactPage() {
             <ContactWhatsAppAction cleanWhatsapp={cleanWhatsapp} />
           </div>
         </section>
-      </main>
+      </PublicLanguageMain>
     </CmsPublishedTranslationsProvider>
   );
 }
