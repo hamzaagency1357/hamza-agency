@@ -260,7 +260,8 @@ export default function TranslationWorkbenchPage() {
   }, [authorized]);
 
   async function loadWorkbench() {
-    if (!supabase) {
+    const client = supabase;
+    if (!client) {
       setError("الاتصال بقاعدة البيانات غير مفعل.");
       setLoading(false);
       return;
@@ -274,19 +275,19 @@ export default function TranslationWorkbenchPage() {
     try {
       const [status, revisionResult, legacyResult, ...sourceResults] = await Promise.all([
         getTranslationAutomationStatus(),
-        supabase
+        client
           .from("content_translation_revisions")
           .select("source_type, source_id, language, workflow_status, is_stale, updated_at")
           .in("source_type", sourceTypes)
           .in("language", LANGUAGES)
           .limit(20000),
-        supabase
+        client
           .from("content_translations")
           .select("source_type, source_id, language, status, reviewed, is_published")
           .in("source_type", sourceTypes)
           .in("language", LANGUAGES)
           .limit(20000),
-        ...TRANSLATION_SOURCE_DEFINITIONS.map((source) => supabase.from(source.table).select("*").limit(500)),
+        ...TRANSLATION_SOURCE_DEFINITIONS.map((source) => client.from(source.table).select("*").limit(500)),
       ]);
 
       const nextItems: RawItem[] = [];
