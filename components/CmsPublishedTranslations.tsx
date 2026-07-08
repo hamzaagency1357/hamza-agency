@@ -44,8 +44,27 @@ const HOME_HERO_BRAND_LINE: Record<"ar" | "en" | "tr", string> = {
   tr: "Hamza Ajansı",
 };
 
+const HOME_HERO_CLEAN_AR_TITLE = "وكالة حمزة لإدارة وتطوير صناع المحتوى";
+
 function hasRequiredCmsFields(source: CmsPublishedTranslationSource) {
   return source.requiredFields.length > 0 && Boolean(String(source.sourceId).trim());
+}
+
+function normalizeHomeHeroTitle(sourceKey: string, field: CmsPublishedTranslationField, value: string) {
+  if (sourceKey !== "home-page" || field !== "title") {
+    return value;
+  }
+
+  const normalizedValue = value.replace(/\s+/g, " ").trim();
+
+  if (
+    normalizedValue === "وكالة حمزة لإدارة وتطوير" ||
+    normalizedValue === "وكالة حمزة لإدارة وتطوير وكالة حمزة"
+  ) {
+    return HOME_HERO_CLEAN_AR_TITLE;
+  }
+
+  return value;
 }
 
 export function CmsPublishedTranslationsProvider({
@@ -159,7 +178,7 @@ export function CmsPublishedText({
   const translatedValue = context?.completeTranslations[sourceKey]?.[field]?.trim();
   const arabicFallback = source?.fallback[field] || fallback || "";
   const usesPublishedTranslation = Boolean(translatedValue);
-  const text = translatedValue || arabicFallback;
+  const text = normalizeHomeHeroTitle(sourceKey, field, translatedValue || arabicFallback);
 
   /* The homepage public H1 already renders home-page.title.
      Keep the legacy highlighted second line as the short agency brand name only. */
