@@ -65,6 +65,20 @@ function getSetting(settings: Setting[], keys: string[], fallback: string) {
   return fallback;
 }
 
+function isOfficialSocialUrl(value: string) {
+  const url = value.trim();
+  return url.startsWith("https://") || url.startsWith("http://");
+}
+
+function getSocialLinks(settings: Setting[]) {
+  return [
+    { label: "TikTok", href: getSetting(settings, ["social_tiktok_url"], "") },
+    { label: "Instagram", href: getSetting(settings, ["social_instagram_url"], "") },
+    { label: "Facebook", href: getSetting(settings, ["social_facebook_url"], "") },
+    { label: "Telegram", href: getSetting(settings, ["social_telegram_url"], "") },
+  ].filter((link) => isOfficialSocialUrl(link.href));
+}
+
 export default async function ContactPage() {
   const { page, sections, settings } = await getContactPageData();
   const agencyName = getSetting(settings, ["agency_name_ar", "agency_name", "site_name"], "وكالة حمزة");
@@ -72,6 +86,7 @@ export default async function ContactPage() {
   const email = getSetting(settings, ["contact_email", "support_email", "email"], "");
   const workingHours = getSetting(settings, ["working_hours", "support_hours"], "");
   const cleanWhatsapp = whatsapp.replace(/[^\d]/g, "");
+  const socialLinks = getSocialLinks(settings);
   const contactOptionsSection = findCmsSection(sections, "contact-options");
   const whatsappSupportSection = findCmsSection(sections, "whatsapp-support");
   const contactOptions = getSectionContent(contactOptionsSection, { title: "تواصل معنا", subtitle: "فريق وكالة حمزة جاهز لمتابعة الاستفسارات", content: "يمكن التواصل مع الوكالة للاستفسار عن البرامج، طلبات الانضمام، الخدمات الرقمية، أو متابعة حالة الطلب." });
@@ -107,6 +122,25 @@ export default async function ContactPage() {
             </div>
             <ContactEmailAndHoursCards email={email} workingHours={workingHours} />
           </div>
+          {socialLinks.length > 0 && (
+            <div className="mt-10 rounded-[2rem] border border-cyan-400/20 bg-cyan-500/10 p-7 backdrop-blur">
+              <h2 className="text-3xl font-black">روابطنا الرسمية</h2>
+              <p className="mt-4 leading-8 text-white/65">تظهر هنا فقط الروابط الرسمية المحفوظة في إعدادات الموقع.</p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                {socialLinks.map((link) => (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 font-black text-white/75 transition hover:border-cyan-300/50 hover:text-white"
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
           <ContactReasons />
           <ContactBeforeMessage />
           <ContactQuickLinks />
