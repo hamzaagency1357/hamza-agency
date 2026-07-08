@@ -1,3 +1,4 @@
+import PublicLanguageMain from "@/components/PublicLanguageMain";
 import SuccessStoriesWithPublishedTranslations from "@/components/SuccessStoriesWithPublishedTranslations";
 import type { SuccessStory } from "@/components/SuccessStoriesPageContent";
 import { supabase } from "@/lib/supabase";
@@ -21,7 +22,7 @@ async function getSuccessStories(): Promise<SuccessStory[]> {
 
 export default async function SuccessStoriesPage() {
   const stories = await getSuccessStories();
-  return <main className="relative min-h-screen overflow-hidden bg-[#070009] text-white"><SuccessStoriesBackground /><SuccessStoriesWithPublishedTranslations stories={stories} /></main>;
+  return <PublicLanguageMain className="relative min-h-screen overflow-hidden bg-[#070009] text-white"><SuccessStoriesBackground /><SuccessStoriesWithPublishedTranslations stories={stories} /></PublicLanguageMain>;
 }
 
 function SuccessStoriesBackground() {

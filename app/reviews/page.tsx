@@ -1,3 +1,4 @@
+import PublicLanguageMain from "@/components/PublicLanguageMain";
 import ReviewsPageContent, { type Review } from "@/components/ReviewsPageContent";
 import { supabase } from "@/lib/supabase";
 
@@ -83,10 +84,10 @@ export default async function ReviewsPage() {
   const reviews = await getReviews();
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
+    <PublicLanguageMain className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
       <ReviewsBackground />
       <ReviewsPageContent reviews={reviews} />
-    </main>
+    </PublicLanguageMain>
   );
 }
 

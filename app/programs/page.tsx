@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import ProgramsPageContent from "@/components/ProgramsPageContent";
+import PublicLanguageMain from "@/components/PublicLanguageMain";
 
 type Program = {
   id: number;
@@ -135,10 +136,10 @@ export default async function ProgramsPage() {
   const [programs, mediaItems] = await Promise.all([getPrograms(), getProgramMedia()]);
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
+    <PublicLanguageMain className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
       <ProgramsBackground />
       <ProgramsPageContent programs={programs} mediaItems={mediaItems} />
-    </main>
+    </PublicLanguageMain>
   );
 }
 

@@ -1,5 +1,6 @@
 import FaqListWithTranslations from "@/components/FaqListWithTranslations";
 import { FaqBackHomeLink, FaqDirectContact } from "@/components/FaqStaticUi";
+import PublicLanguageMain from "@/components/PublicLanguageMain";
 import {
   CmsPublishedText,
   CmsPublishedTranslationsProvider,
@@ -100,7 +101,7 @@ export default async function FaqPage() {
 
   return (
     <CmsPublishedTranslationsProvider sources={translationSources}>
-      <main className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
+      <PublicLanguageMain className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqStructuredData }} />
         <FaqBackground />
         <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
@@ -120,7 +121,7 @@ export default async function FaqPage() {
           <FaqListWithTranslations faqs={faqs} />
           <FaqDirectContact cleanWhatsapp={cleanWhatsapp} />
         </section>
-      </main>
+      </PublicLanguageMain>
     </CmsPublishedTranslationsProvider>
   );
 }
