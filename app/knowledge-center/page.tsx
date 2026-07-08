@@ -1,6 +1,7 @@
-import Link from "next/link";
 import KnowledgeCenterStaticUi from "@/components/KnowledgeCenterStaticUi";
 import KnowledgeListWithTranslations from "@/components/KnowledgeListWithTranslations";
+import PublicBackHomeLink from "@/components/PublicBackHomeLink";
+import PublicLanguageMain from "@/components/PublicLanguageMain";
 import {
   CmsPublishedText,
   CmsPublishedTranslationsProvider,
@@ -101,10 +102,10 @@ export default async function KnowledgeCenterPage() {
 
   return (
     <CmsPublishedTranslationsProvider sources={translationSources}>
-      <main className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
+      <PublicLanguageMain className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
         <KnowledgeBackground />
         <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
-          <Link href="/" className="mb-8 inline-block text-purple-200">← العودة إلى الرئيسية</Link>
+          <PublicBackHomeLink />
           <div className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur md:p-10">
             <div className="mb-6 inline-flex rounded-full border border-purple-400/30 bg-purple-500/10 px-5 py-2 text-sm font-bold text-purple-100">{agencyName}</div>
             <h1 className="text-5xl font-black leading-tight md:text-7xl"><CmsPublishedText sourceKey="knowledge-center-page" field="title" fallback={title} /><span className="block bg-gradient-to-r from-purple-300 via-white to-yellow-300 bg-clip-text text-transparent"><CmsPublishedText sourceKey="knowledge-intro" field="summary" fallback={knowledgeIntro.subtitle} /></span></h1>
@@ -114,7 +115,7 @@ export default async function KnowledgeCenterPage() {
           <div className="mt-10 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-7 backdrop-blur"><h2 className="text-3xl font-black text-yellow-100"><CmsPublishedText sourceKey="creator-guidance" field="title" fallback={creatorGuidance.title} /></h2><p className="mt-3 text-lg font-bold text-yellow-100/80"><CmsPublishedText sourceKey="creator-guidance" field="summary" fallback={creatorGuidance.subtitle} /></p><p className="mt-5 max-w-4xl leading-9 text-white/75"><CmsPublishedText sourceKey="creator-guidance" field="content" fallback={creatorGuidance.content} /></p></div>
           <KnowledgeListWithTranslations knowledge={knowledge} />
         </section>
-      </main>
+      </PublicLanguageMain>
     </CmsPublishedTranslationsProvider>
   );
 }
