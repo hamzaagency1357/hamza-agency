@@ -39,6 +39,11 @@ type HeaderDropdownGroup = {
   links: HeaderDropdownItem[];
 };
 
+type HeaderNavTargets = {
+  desktop: HTMLElement | null;
+  mobile: HTMLElement | null;
+};
+
 const headerDropdownCopy: Record<SiteLanguage, Record<HeaderNavLabelKey, string>> = {
   ar: {
     home: "الرئيسية",
@@ -147,19 +152,31 @@ const headerDropdownGroups: HeaderDropdownGroup[] = [
 ];
 
 const headerDropdownStyles = `
-@media (min-width: 1024px) {
-  .hamza-header-dropdown-target {
-    overflow: visible !important;
-  }
+body.public-site-page main nav div[class*="lg:flex"] > a,
+body.public-site-page main div[class*="lg:hidden"] div[class*="overflow-x-auto"] > a {
+  display: none !important;
+}
 
-  .hamza-header-dropdown-target > a {
-    display: none !important;
-  }
+.hamza-header-dropdown-target {
+  overflow: visible !important;
+}
+
+.hamza-header-dropdown-mobile-target {
+  flex-wrap: wrap !important;
+  padding-bottom: 0.75rem !important;
+}
+
+.hamza-header-dropdown-mobile-target .hamza-header-dropdown-nav {
+  flex-wrap: wrap !important;
 }
 
 @media (max-width: 1023px) {
-  .hamza-header-dropdown-nav {
-    display: none !important;
+  .hamza-header-dropdown-mobile-target {
+    width: 100% !important;
+  }
+
+  .hamza-header-dropdown-mobile-target .hamza-header-dropdown-nav {
+    width: 100% !important;
   }
 }
 `;
@@ -176,67 +193,105 @@ function getPanelEdgeClassName(language: SiteLanguage, group: HeaderDropdownGrou
   return group.titleKey === "supportGroup" ? "right-0" : "left-0";
 }
 
-function HeaderDropdownNavigation() {
+function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }) {
   const language = useSiteLanguage();
+  const [openMenu, setOpenMenu] = useState<HeaderNavLabelKey | null>(null);
   const labels = headerDropdownCopy[language] || headerDropdownCopy.ar;
   const direction = getLanguageDirection(language);
+  const isDesktop = variant === "desktop";
+
+  function closeMenu() {
+    setOpenMenu(null);
+  }
 
   return (
     <nav
       aria-label={labels.home}
       dir={direction}
-      className="hamza-header-dropdown-nav flex items-center gap-2"
+      className={`hamza-header-dropdown-nav flex items-center gap-2 ${
+        isDesktop ? "" : "flex-wrap"
+      }`}
     >
       <Link
         href="/"
+        onClick={closeMenu}
         className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/70"
       >
         {labels.home}
       </Link>
 
-      {headerDropdownGroups.map((group) => (
-        <div key={group.titleKey} className="group relative">
-          <button
-            type="button"
-            aria-haspopup="true"
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/70"
-          >
-            <span>{labels[group.titleKey]}</span>
-            <span aria-hidden="true" className="text-[10px] text-yellow-200/75">
-              ▾
-            </span>
-          </button>
+      {headerDropdownGroups.map((group) => {
+        const isOpen = openMenu === group.titleKey;
+        const panelStateClassName = isOpen
+          ? "pointer-events-auto translate-y-0 opacity-100"
+          : "pointer-events-none translate-y-2 opacity-0";
+        const desktopHoverClassName = isDesktop
+          ? "group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100"
+          : "group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100";
 
+        return (
           <div
-            className={`${getPanelEdgeClassName(
-              language,
-              group
-            )} pointer-events-none absolute top-full z-[80] mt-3 w-64 max-w-[calc(100vw-2rem)] translate-y-2 rounded-3xl border border-purple-300/20 bg-[#09000f]/96 p-2 opacity-0 shadow-[0_24px_80px_rgba(9,0,15,0.45)] backdrop-blur-xl transition duration-200 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100`}
+            key={group.titleKey}
+            className="group relative"
+            onMouseEnter={() => {
+              if (isDesktop) setOpenMenu(group.titleKey);
+            }}
+            onMouseLeave={() => {
+              if (isDesktop) closeMenu();
+            }}
           >
-            <div className="grid gap-2">
-              {group.links.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/75 transition hover:border-yellow-300/35 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200/65"
-                >
-                  <span className="block">{labels[link.labelKey]}</span>
-                  <span className="mt-1 block text-[11px] font-normal text-white/40" dir="ltr">
-                    {link.href}
-                  </span>
-                </Link>
-              ))}
+            <button
+              type="button"
+              aria-haspopup="true"
+              aria-expanded={isOpen}
+              onClick={() => {
+                setOpenMenu((current) =>
+                  current === group.titleKey ? null : group.titleKey
+                );
+              }}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/70"
+            >
+              <span>{labels[group.titleKey]}</span>
+              <span aria-hidden="true" className="text-[10px] text-yellow-200/75">
+                ▾
+              </span>
+            </button>
+
+            <div
+              className={`${getPanelEdgeClassName(
+                language,
+                group
+              )} absolute top-full z-[180] mt-3 w-64 max-w-[calc(100vw-2rem)] rounded-3xl border border-purple-300/20 bg-[#09000f]/96 p-2 shadow-[0_24px_80px_rgba(9,0,15,0.45)] backdrop-blur-xl transition duration-200 ${panelStateClassName} ${desktopHoverClassName}`}
+            >
+              <div className="grid gap-2">
+                {group.links.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={closeMenu}
+                    className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/75 transition hover:border-yellow-300/35 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200/65"
+                  >
+                    <span className="block">{labels[link.labelKey]}</span>
+                    <span className="mt-1 block text-[11px] font-normal text-white/40" dir="ltr">
+                      {link.href}
+                    </span>
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </nav>
   );
 }
 
 export default function PublicDesktopEnhancer() {
   const pathname = usePathname();
-  const [headerNavTarget, setHeaderNavTarget] = useState<HTMLElement | null>(null);
+  const [headerNavTargets, setHeaderNavTargets] = useState<HeaderNavTargets>({
+    desktop: null,
+    mobile: null,
+  });
   const isAdmin = pathname.startsWith("/admin");
   const isPublicHome = !isAdmin && pathname === "/";
 
@@ -252,32 +307,48 @@ export default function PublicDesktopEnhancer() {
 
   useEffect(() => {
     if (!isPublicHome) {
-      setHeaderNavTarget(null);
+      setHeaderNavTargets({ desktop: null, mobile: null });
       return;
     }
 
-    const target = document.querySelector<HTMLElement>(
+    const desktopTarget = document.querySelector<HTMLElement>(
       "main nav div.hidden.items-center.gap-2"
     );
+    const mobileTarget = document.querySelector<HTMLElement>(
+      'main div[class*="lg:hidden"] div[class*="overflow-x-auto"]'
+    );
 
-    if (!target) {
-      setHeaderNavTarget(null);
-      return;
-    }
+    desktopTarget?.classList.add("hamza-header-dropdown-target");
+    mobileTarget?.classList.add(
+      "hamza-header-dropdown-target",
+      "hamza-header-dropdown-mobile-target"
+    );
 
-    target.classList.add("hamza-header-dropdown-target");
-    setHeaderNavTarget(target);
+    setHeaderNavTargets({ desktop: desktopTarget, mobile: mobileTarget });
 
     return () => {
-      target.classList.remove("hamza-header-dropdown-target");
+      desktopTarget?.classList.remove("hamza-header-dropdown-target");
+      mobileTarget?.classList.remove(
+        "hamza-header-dropdown-target",
+        "hamza-header-dropdown-mobile-target"
+      );
     };
   }, [isPublicHome]);
 
   return (
     <>
       {!isAdmin && <style>{headerDropdownStyles}</style>}
-      {isPublicHome && headerNavTarget
-        ? createPortal(<HeaderDropdownNavigation />, headerNavTarget)
+      {isPublicHome && headerNavTargets.desktop
+        ? createPortal(
+            <HeaderDropdownNavigation variant="desktop" />,
+            headerNavTargets.desktop
+          )
+        : null}
+      {isPublicHome && headerNavTargets.mobile
+        ? createPortal(
+            <HeaderDropdownNavigation variant="mobile" />,
+            headerNavTargets.mobile
+          )
         : null}
     </>
   );
