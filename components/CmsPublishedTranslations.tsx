@@ -88,7 +88,7 @@ function HomeHeroBrandLine({
 
     const brandLine = document.createElement("div");
     brandLine.dataset.homeHeroBrandLine = "true";
-    brandLine.className = [heading.className, wrapper.className]
+    brandLine.className = [heading.className, wrapper.className, "mt-4 md:mt-5"]
       .filter(Boolean)
       .join(" ");
     brandLine.setAttribute("dir", language === "ar" ? "rtl" : "ltr");
