@@ -32,15 +32,15 @@ body.public-site-page footer p.break-all {
   unicode-bidi: isolate !important;
   text-align: left !important;
   max-width: 100% !important;
+  display: block !important;
 }
 
 body.public-site-page footer h3 + p {
-  display: inline-block !important;
   white-space: nowrap !important;
 }
 
 body.public-site-page footer p.break-all {
-  display: inline-block !important;
+  margin-top: 0.5rem !important;
   white-space: nowrap !important;
   word-break: normal !important;
   overflow-wrap: normal !important;
