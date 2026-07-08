@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import {
+  canUseAdminModulePermission,
+  requireAdminModuleAccess,
+} from "@/lib/adminAccess";
 import { supabase } from "@/lib/supabase";
 
 type JobExportRow = {
@@ -53,10 +56,13 @@ export default function AdminJobsCsvExport() {
 
     async function checkAccess() {
       const access = await requireAdminModuleAccess("jobs");
+      const allowedToExport = access.profile
+        ? await canUseAdminModulePermission(access.profile, "jobs", "can_export")
+        : false;
 
       if (!isMounted) return;
 
-      setCanExport(access.isAuthorized && Boolean(access.profile));
+      setCanExport(access.isAuthorized && allowedToExport);
       setIsChecking(false);
     }
 
@@ -71,8 +77,11 @@ export default function AdminJobsCsvExport() {
     setMessage("");
 
     const access = await requireAdminModuleAccess("jobs");
+    const allowedToExport = access.profile
+      ? await canUseAdminModulePermission(access.profile, "jobs", "can_export")
+      : false;
 
-    if (!access.isAuthorized || !access.profile || !supabase) {
+    if (!access.isAuthorized || !access.profile || !allowedToExport || !supabase) {
       setCanExport(false);
       setMessage("غير مصرح بتصدير الوظائف.");
       return;
