@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { SiteLanguage } from "@/lib/i18n/locale";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
@@ -195,58 +195,21 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function getSafePanelPosition(button: HTMLButtonElement | null): PanelPosition {
-  const viewportWidth = window.innerWidth || 360;
-  const viewportHeight = window.innerHeight || 640;
+  const viewportWidth = typeof window === "undefined" ? 360 : window.innerWidth || 360;
   const margin = 12;
   const width = Math.min(288, viewportWidth - margin * 2);
 
-  if (!button) {
-    return { top: 96, left: margin, width };
-  }
+  if (!button) return { top: 96, left: margin, width };
 
   const rect = button.getBoundingClientRect();
   const preferredLeft = rect.left + rect.width / 2 - width / 2;
   const left = clamp(preferredLeft, margin, Math.max(margin, viewportWidth - width - margin));
-  const top = clamp(rect.bottom + 8, margin, Math.max(margin, viewportHeight - 260));
 
-  return { top, left, width };
-}
-
-function HeaderMenuPanel({
-  group,
-  labels,
-  position,
-  onClose,
-}: {
-  group: HeaderDropdownGroup;
-  labels: Record<HeaderNavLabelKey, string>;
-  position: PanelPosition;
-  onClose: () => void;
-}) {
-  return createPortal(
-    <div
-      dir="rtl"
-      className="fixed z-[260] rounded-3xl border border-purple-300/25 bg-[#09000f]/97 p-2 shadow-[0_28px_90px_rgba(9,0,15,0.55)] backdrop-blur-xl"
-      style={{ top: position.top, left: position.left, width: position.width }}
-    >
-      <div className="grid gap-2">
-        {group.links.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            onClick={onClose}
-            className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/80 transition hover:border-yellow-300/35 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200/65"
-          >
-            <span className="block">{labels[link.labelKey]}</span>
-            <span className="mt-1 block text-[11px] font-normal text-white/40" dir="ltr">
-              {link.href}
-            </span>
-          </Link>
-        ))}
-      </div>
-    </div>,
-    document.body
-  );
+  return {
+    top: rect.bottom + 8,
+    left,
+    width,
+  };
 }
 
 function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }) {
@@ -255,7 +218,7 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
   const [panelPosition, setPanelPosition] = useState<PanelPosition>({ top: 96, left: 12, width: 288 });
   const navRef = useRef<HTMLElement | null>(null);
   const buttonRefs = useRef<Partial<Record<HeaderNavLabelKey, HTMLButtonElement | null>>>({});
-  const labels = headerDropdownCopy[language] || headerDropdownCopy.ar;
+  const labels = headerDropdownCopy[language];
   const direction = getLanguageDirection(language);
   const isDesktop = variant === "desktop";
   const activeGroup = headerDropdownGroups.find((group) => group.titleKey === openMenu) || null;
@@ -264,17 +227,20 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
     setOpenMenu(null);
   }
 
-  function toggleMenu(group: HeaderDropdownGroup) {
+  function openGroup(group: HeaderDropdownGroup) {
     const button = buttonRefs.current[group.titleKey] || null;
     setPanelPosition(getSafePanelPosition(button));
-    setOpenMenu((current) => (current === group.titleKey ? null : group.titleKey));
+    setOpenMenu(group.titleKey);
   }
 
-  useLayoutEffect(() => {
-    if (!activeGroup) return;
-    const button = buttonRefs.current[activeGroup.titleKey] || null;
-    setPanelPosition(getSafePanelPosition(button));
-  }, [activeGroup]);
+  function toggleGroup(group: HeaderDropdownGroup) {
+    if (openMenu === group.titleKey) {
+      closeMenu();
+      return;
+    }
+
+    openGroup(group);
+  }
 
   useEffect(() => {
     if (!openMenu) return;
@@ -283,26 +249,27 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
       if (event.key === "Escape") closeMenu();
     }
 
-    function handlePointerDown(event: PointerEvent) {
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
       const target = event.target as Node | null;
       if (target && navRef.current?.contains(target)) return;
       closeMenu();
     }
 
     function handleViewportChange() {
-      const groupKey = openMenu;
-      const button = buttonRefs.current[groupKey] || null;
+      const button = buttonRefs.current[openMenu] || null;
       setPanelPosition(getSafePanelPosition(button));
     }
 
     document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
     window.addEventListener("resize", handleViewportChange);
     window.addEventListener("scroll", handleViewportChange, true);
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
       window.removeEventListener("resize", handleViewportChange);
       window.removeEventListener("scroll", handleViewportChange, true);
     };
@@ -335,13 +302,9 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
             type="button"
             aria-haspopup="menu"
             aria-expanded={openMenu === group.titleKey}
-            onClick={() => toggleMenu(group)}
+            onClick={() => toggleGroup(group)}
             onMouseEnter={() => {
-              if (isDesktop) {
-                const button = buttonRefs.current[group.titleKey] || null;
-                setPanelPosition(getSafePanelPosition(button));
-                setOpenMenu(group.titleKey);
-              }
+              if (isDesktop) openGroup(group);
             }}
             className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/70"
           >
@@ -354,12 +317,27 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
       </nav>
 
       {activeGroup ? (
-        <HeaderMenuPanel
-          group={activeGroup}
-          labels={labels}
-          position={panelPosition}
-          onClose={closeMenu}
-        />
+        <div
+          dir={direction}
+          className="fixed z-[260] rounded-3xl border border-purple-300/25 bg-[#09000f]/95 p-2 shadow-[0_28px_90px_rgba(9,0,15,0.55)] backdrop-blur-xl"
+          style={{ top: panelPosition.top, left: panelPosition.left, width: panelPosition.width }}
+        >
+          <div className="grid gap-2">
+            {activeGroup.links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={closeMenu}
+                className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/80 transition hover:border-yellow-300/35 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200/65"
+              >
+                <span className="block">{labels[link.labelKey]}</span>
+                <span className="mt-1 block text-[11px] font-normal text-white/40" dir="ltr">
+                  {link.href}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
       ) : null}
     </>
   );
