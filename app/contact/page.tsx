@@ -116,7 +116,7 @@ export default async function ContactPage() {
           <div className="mt-10 grid gap-6 lg:grid-cols-3">
             <div className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur">
               <h2 className="text-3xl font-black"><CmsPublishedText sourceKey="whatsapp-support" field="title" fallback={whatsappSupport.title} /></h2>
-              <p className="mt-4 break-words text-xl font-bold text-green-200">{whatsapp}</p>
+              <p dir="ltr" className="mt-4 break-words text-left text-xl font-bold text-green-200 [unicode-bidi:isolate]">{whatsapp}</p>
               <p className="mt-4 leading-8 text-white/65"><CmsPublishedText sourceKey="whatsapp-support" field="content" fallback={whatsappSupport.content} /></p>
               <ContactNowLink cleanWhatsapp={cleanWhatsapp} />
             </div>
