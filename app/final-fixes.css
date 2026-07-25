@@ -22,27 +22,27 @@ body > div[class^="sticky"] {
 }
 
 /* Final launch header cleanup: keep the home hero header focused and move secondary routes to the footer. */
-main > nav a[href="/service-status"],
-main > nav a[href="/application-status"],
-main > nav a[href="/jobs"],
-main > nav a[href="/reviews"],
-main > nav a[href="/success-stories"],
-main > nav a[href="/partners"],
-main > nav a[href="/gallery"],
-main > nav a[href="/knowledge-center"],
-main > nav a[href="/faq"] {
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/service-status"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/application-status"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/jobs"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/reviews"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/success-stories"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/partners"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/gallery"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/knowledge-center"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/faq"] {
   display: none !important;
 }
 
-main > div.lg\:hidden a[href="/service-status"],
-main > div.lg\:hidden a[href="/application-status"],
-main > div.lg\:hidden a[href="/jobs"],
-main > div.lg\:hidden a[href="/reviews"],
-main > div.lg\:hidden a[href="/success-stories"],
-main > div.lg\:hidden a[href="/partners"],
-main > div.lg\:hidden a[href="/gallery"],
-main > div.lg\:hidden a[href="/knowledge-center"],
-main > div.lg\:hidden a[href="/faq"] {
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/service-status"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/application-status"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/jobs"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/reviews"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/success-stories"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/partners"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/gallery"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/knowledge-center"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/faq"] {
   display: none !important;
 }
 
