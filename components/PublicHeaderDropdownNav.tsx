@@ -226,6 +226,10 @@ body.public-site-page main div[class*="lg:hidden"] div[class*="overflow-x-auto"]
   width: min(100%, calc(100vw - 1.5rem));
   margin-inline: auto;
 }
+
+body.public-site-page a.hamza-structural-header-menu-link {
+  display: block !important;
+}
 `;
 
 function findHeaderTargets(): HeaderTargets {
@@ -419,7 +423,7 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
                 key={link.href}
                 href={link.href}
                 onClick={closeMenu}
-                className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/80 transition hover:border-yellow-300/35 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200/65"
+                className="hamza-structural-header-menu-link rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/80 transition hover:border-yellow-300/35 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200/65"
               >
                 <span className="block">{labels[link.labelKey]}</span>
                 <span className="mt-1 block text-[11px] font-normal text-white/40" dir="ltr">
