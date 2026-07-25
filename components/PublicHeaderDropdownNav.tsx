@@ -4,7 +4,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { SiteLanguage } from "@/lib/i18n/locale";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
@@ -28,8 +28,12 @@ type HeaderNavLabelKey =
   | "applicationStatus"
   | "supportGroup"
   | "knowledgeCenter"
+  | "aiSupport"
   | "faq"
-  | "contact";
+  | "contact"
+  | "privacyPolicy"
+  | "termsAndConditions"
+  | "aiPolicy";
 
 type HeaderDropdownItem = {
   labelKey: HeaderNavLabelKey;
@@ -72,8 +76,12 @@ const headerDropdownCopy: Record<SiteLanguage, Record<HeaderNavLabelKey, string>
     applicationStatus: "تتبع طلب الانضمام",
     supportGroup: "الدعم",
     knowledgeCenter: "مركز المعرفة",
+    aiSupport: "الدعم الذكي",
     faq: "الأسئلة الشائعة",
     contact: "اتصل بنا",
+    privacyPolicy: "سياسة الخصوصية",
+    termsAndConditions: "الشروط والأحكام",
+    aiPolicy: "سياسة الذكاء الاصطناعي",
   },
   en: {
     home: "Home",
@@ -94,8 +102,12 @@ const headerDropdownCopy: Record<SiteLanguage, Record<HeaderNavLabelKey, string>
     applicationStatus: "Track application",
     supportGroup: "Support",
     knowledgeCenter: "Knowledge center",
+    aiSupport: "AI support",
     faq: "FAQ",
     contact: "Contact",
+    privacyPolicy: "Privacy policy",
+    termsAndConditions: "Terms and conditions",
+    aiPolicy: "AI policy",
   },
   tr: {
     home: "Ana sayfa",
@@ -116,8 +128,12 @@ const headerDropdownCopy: Record<SiteLanguage, Record<HeaderNavLabelKey, string>
     applicationStatus: "Başvuruyu takip et",
     supportGroup: "Destek",
     knowledgeCenter: "Bilgi merkezi",
+    aiSupport: "Yapay zekâ desteği",
     faq: "SSS",
     contact: "İletişim",
+    privacyPolicy: "Gizlilik politikası",
+    termsAndConditions: "Şartlar ve koşullar",
+    aiPolicy: "Yapay zekâ politikası",
   },
 };
 
@@ -153,15 +169,22 @@ const headerDropdownGroups: HeaderDropdownGroup[] = [
     titleKey: "supportGroup",
     links: [
       { labelKey: "knowledgeCenter", href: "/knowledge-center" },
+      { labelKey: "aiSupport", href: "/ai-support" },
       { labelKey: "faq", href: "/faq" },
       { labelKey: "contact", href: "/contact" },
+      { labelKey: "privacyPolicy", href: "/privacy-policy" },
+      { labelKey: "termsAndConditions", href: "/terms-and-conditions" },
+      { labelKey: "aiPolicy", href: "/ai-policy" },
     ],
   },
 ];
 
+const structuralNavReadyClass = "public-structural-nav-ready";
+const emptyHeaderTargets: HeaderTargets = { desktop: null, mobile: null };
+
 const structuralHeaderStyles = `
-body.public-site-page main nav div[class*="lg:flex"] > a,
-body.public-site-page main div[class*="lg:hidden"] div[class*="overflow-x-auto"] > a {
+body.public-site-page.${structuralNavReadyClass} main nav div[class*="lg:flex"] > a,
+body.public-site-page.${structuralNavReadyClass} main div[class*="lg:hidden"] div[class*="overflow-x-auto"] > a {
   display: none !important;
 }
 
@@ -204,6 +227,37 @@ body.public-site-page main div[class*="lg:hidden"] div[class*="overflow-x-auto"]
   margin-inline: auto;
 }
 `;
+
+function findHeaderTargets(): HeaderTargets {
+  return {
+    desktop: document.querySelector<HTMLElement>("main nav div.hidden.items-center.gap-2"),
+    mobile: document.querySelector<HTMLElement>(
+      'main div[class*="lg:hidden"] div[class*="overflow-x-auto"]'
+    ),
+  };
+}
+
+function areSameHeaderTargets(current: HeaderTargets, next: HeaderTargets) {
+  return current.desktop === next.desktop && current.mobile === next.mobile;
+}
+
+function hasMountedStructuralNavigation(
+  target: HTMLElement | null,
+  variant: "desktop" | "mobile"
+) {
+  return Boolean(
+    target?.isConnected &&
+      target.querySelector(`[data-public-structural-nav="${variant}"]`)
+  );
+}
+
+function updateStructuralNavigationReadiness(targets: HeaderTargets) {
+  const isReady =
+    hasMountedStructuralNavigation(targets.desktop, "desktop") &&
+    hasMountedStructuralNavigation(targets.mobile, "mobile");
+
+  document.body.classList.toggle(structuralNavReadyClass, isReady);
+}
 
 function getLanguageDirection(language: SiteLanguage) {
   return language === "ar" ? "rtl" : "ltr";
@@ -300,6 +354,7 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
   return (
     <div
       ref={shellRef}
+      data-public-structural-nav={variant}
       className={
         isDesktop
           ? "hamza-structural-header-shell-desktop"
@@ -382,20 +437,49 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
 export default function PublicHeaderDropdownNav() {
   const pathname = usePathname();
   const [targets, setTargets] = useState<HeaderTargets>({ desktop: null, mobile: null });
+  const targetsRef = useRef<HeaderTargets>(emptyHeaderTargets);
   const isPublicHome = pathname === "/";
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    document.body.classList.remove(structuralNavReadyClass);
+
     if (!isPublicHome) {
-      setTargets({ desktop: null, mobile: null });
+      targetsRef.current = emptyHeaderTargets;
+      setTargets((current) =>
+        areSameHeaderTargets(current, emptyHeaderTargets) ? current : emptyHeaderTargets
+      );
       return;
     }
 
-    const desktop = document.querySelector<HTMLElement>("main nav div.hidden.items-center.gap-2");
-    const mobile = document.querySelector<HTMLElement>(
-      'main div[class*="lg:hidden"] div[class*="overflow-x-auto"]'
-    );
+    let isActive = true;
 
-    setTargets({ desktop, mobile });
+    function syncStructuralNavigation() {
+      if (!isActive) return;
+
+      const nextTargets = findHeaderTargets();
+
+      if (!areSameHeaderTargets(targetsRef.current, nextTargets)) {
+        document.body.classList.remove(structuralNavReadyClass);
+        targetsRef.current = nextTargets;
+        setTargets(nextTargets);
+        return;
+      }
+
+      updateStructuralNavigationReadiness(nextTargets);
+    }
+
+    const observer = new MutationObserver(syncStructuralNavigation);
+    observer.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("pageshow", syncStructuralNavigation);
+    syncStructuralNavigation();
+
+    return () => {
+      isActive = false;
+      observer.disconnect();
+      window.removeEventListener("pageshow", syncStructuralNavigation);
+      document.body.classList.remove(structuralNavReadyClass);
+      targetsRef.current = emptyHeaderTargets;
+    };
   }, [isPublicHome]);
 
   if (!isPublicHome) return null;

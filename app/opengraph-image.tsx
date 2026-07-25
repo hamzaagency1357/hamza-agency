@@ -27,6 +27,7 @@ export default function OpenGraphImage() {
           style={{
             width: "420px",
             height: "420px",
+            display: "flex",
             borderRadius: "64px",
             overflow: "hidden",
             boxShadow: "0 0 90px rgba(124,58,237,0.55)",
