@@ -65,9 +65,9 @@ Both migrations contain rollback guidance. Compatibility columns are intentional
 
 ## Preview and runtime
 
-- The Vercel Preview associated with the security implementation head reached `READY` and its Vercel status check succeeded.
+- Vercel Preview builds associated with the closeout commits reached `READY` through the recorded security/documentation heads.
 - Queried Preview warning/error logs were empty.
-- Historical Production logs contained an Open Graph rendering error. Current source has explicit flex display, but the Preview asset fetch timed out, so final OG verification remains open.
+- A historical Production Open Graph rendering error was found. The Open Graph component was hardened by making both flex direction declarations explicit in commit `d8e36e95b262ea44edcf8911d723d14cd57d0848`; final deployed-asset verification remains required.
 
 ## Required final evidence
 
