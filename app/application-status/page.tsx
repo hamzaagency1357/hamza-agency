@@ -28,10 +28,6 @@ function normalizeDigits(value: string) {
   return value.replace(/[^0-9]/g, "");
 }
 
-function normalizePlatform(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
 function maskWhatsapp(value: string | null, notShown: string) {
   const digits = normalizeDigits(value || "");
   if (digits.length < 4) return notShown;
@@ -59,28 +55,20 @@ export default function ApplicationStatusPage() {
       setMessage(forms.invalidWhatsapp);
       return;
     }
-
     if (!selectedPlatform) {
       setMessage(forms.selectPlatform);
       return;
     }
-
     if (!isSupabaseConfigured || !supabase) {
       setMessage(forms.trackingUnavailable);
       return;
     }
 
     setIsLoading(true);
-    const searchKey = cleanedWhatsapp.slice(-8);
-
-    const { data, error } = await supabase
-      .from("agency_applications")
-      .select("id, whatsapp, platform, status, created_at")
-      .ilike("whatsapp", `%${searchKey}%`)
-      .ilike("platform", selectedPlatform === "منصة أخرى" ? "%" : `%${selectedPlatform}%`)
-      .order("created_at", { ascending: false })
-      .limit(5);
-
+    const { data, error } = await supabase.rpc("lookup_public_agency_application", {
+      p_whatsapp: cleanedWhatsapp,
+      p_platform: selectedPlatform,
+    });
     setIsLoading(false);
 
     if (error) {
@@ -89,17 +77,12 @@ export default function ApplicationStatusPage() {
       return;
     }
 
-    const exactMatch = (data || []).find((item) => {
-      if (selectedPlatform === "منصة أخرى") return true;
-      return normalizePlatform(item.platform || "").includes(normalizePlatform(selectedPlatform));
-    });
-
-    if (!exactMatch) {
+    const record = Array.isArray(data) ? data[0] : data;
+    if (!record) {
       setMessage(forms.notFound);
       return;
     }
-
-    setApplication(exactMatch as ApplicationRecord);
+    setApplication(record as ApplicationRecord);
   }
 
   const statusInfo = application ? getApplicationStatusInfo(language, application.status) : null;
@@ -115,12 +98,8 @@ export default function ApplicationStatusPage() {
 
       <section className="relative z-10 mx-auto max-w-5xl">
         <nav className="mb-8 flex items-center justify-between gap-4">
-          <Link href="/" className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:text-white">
-            {getStaticCopy(language, "backHome")}
-          </Link>
-          <Link href="/programs" className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-5 py-3 text-sm font-bold text-yellow-100 backdrop-blur transition hover:bg-yellow-400/15">
-            {getStaticCopy(language, "programs")}
-          </Link>
+          <Link href="/" className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:text-white">{getStaticCopy(language, "backHome")}</Link>
+          <Link href="/programs" className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-5 py-3 text-sm font-bold text-yellow-100 backdrop-blur transition hover:bg-yellow-400/15">{getStaticCopy(language, "programs")}</Link>
         </nav>
 
         <header className="mb-8 rounded-[2rem] border border-purple-400/20 bg-white/[0.04] p-7 text-center shadow-[0_0_60px_rgba(124,58,237,0.14)] backdrop-blur md:p-10">
@@ -139,16 +118,9 @@ export default function ApplicationStatusPage() {
               {platformOptions.map((item) => <option key={item} value={item}>{getPlatformLabel(language, item)}</option>)}
             </select>
 
-            <button type="submit" disabled={isLoading} className="mt-5 w-full rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-6 py-4 font-black text-white shadow-[0_0_35px_rgba(168,85,247,0.25)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60">
-              {isLoading ? forms.searching : forms.search}
-            </button>
-
+            <button type="submit" disabled={isLoading} className="mt-5 w-full rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-6 py-4 font-black text-white shadow-[0_0_35px_rgba(168,85,247,0.25)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60">{isLoading ? forms.searching : forms.search}</button>
             {message && <div className="mt-5 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-7 text-yellow-100">{message}</div>}
-
-            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <h2 className="text-sm font-black text-white/80">{forms.privacyTitle}</h2>
-              <div className="mt-3 grid gap-2 text-sm leading-7 text-white/48">{forms.privacyNotes.map((note) => <p key={note}>{note}</p>)}</div>
-            </div>
+            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4"><h2 className="text-sm font-black text-white/80">{forms.privacyTitle}</h2><div className="mt-3 grid gap-2 text-sm leading-7 text-white/48">{forms.privacyNotes.map((note) => <p key={note}>{note}</p>)}</div></div>
           </form>
 
           <aside className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur">
@@ -156,11 +128,7 @@ export default function ApplicationStatusPage() {
             {!application && <div className="mt-6 rounded-2xl border border-white/10 bg-black/25 p-5 text-white/60">{forms.emptyResult}</div>}
             {application && statusInfo && (
               <div className="mt-6 space-y-4">
-                <div className={`rounded-2xl border p-5 ${statusInfo.className}`}>
-                  <div className="text-sm font-bold opacity-80">{forms.currentStatus}</div>
-                  <div className="mt-2 text-3xl font-black">{statusInfo.label}</div>
-                  <p className="mt-3 leading-8 opacity-90">{statusInfo.description}</p>
-                </div>
+                <div className={`rounded-2xl border p-5 ${statusInfo.className}`}><div className="text-sm font-bold opacity-80">{forms.currentStatus}</div><div className="mt-2 text-3xl font-black">{statusInfo.label}</div><p className="mt-3 leading-8 opacity-90">{statusInfo.description}</p></div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <InfoBox label={forms.platform} value={application.platform || forms.unavailable} />
                   <InfoBox label={forms.applicationDate} value={formatPublicFormDate(application.created_at, language)} />
@@ -178,10 +146,5 @@ export default function ApplicationStatusPage() {
 }
 
 function InfoBox({ label, value, dir }: { label: string; value: string; dir?: "rtl" | "ltr" }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-      <div className="text-xs font-bold text-white/45">{label}</div>
-      <div className="mt-2 font-black text-white" dir={dir}>{value}</div>
-    </div>
-  );
+  return <div className="rounded-2xl border border-white/10 bg-black/25 p-4"><div className="text-xs font-bold text-white/45">{label}</div><div className="mt-2 font-black text-white" dir={dir}>{value}</div></div>;
 }
