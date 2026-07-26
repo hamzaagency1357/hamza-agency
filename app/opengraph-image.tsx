@@ -17,6 +17,7 @@ export default function OpenGraphImage() {
           width: "100%",
           height: "100%",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
           background:
@@ -28,6 +29,7 @@ export default function OpenGraphImage() {
             width: "420px",
             height: "420px",
             display: "flex",
+            flexDirection: "column",
             borderRadius: "64px",
             overflow: "hidden",
             boxShadow: "0 0 90px rgba(124,58,237,0.55)",
