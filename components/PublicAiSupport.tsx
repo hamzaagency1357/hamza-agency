@@ -93,6 +93,18 @@ export default function PublicAiSupport() {
   }, [copy.widgetWelcome]);
 
   useEffect(() => {
+    document.body.classList.toggle("public-ai-support-open", isOpen);
+
+    return () => {
+      document.body.classList.remove("public-ai-support-open");
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    setIsOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
     async function loadKnowledge() {
       if (!isSupabaseConfigured || !supabase) return;
 
@@ -159,16 +171,24 @@ export default function PublicAiSupport() {
   }
 
   return (
-    <div dir={getLanguageDirection(language)} className="fixed bottom-20 right-4 z-[65] print:hidden md:bottom-24">
+    <div
+      dir={getLanguageDirection(language)}
+      className="hamza-ai-support fixed bottom-20 right-4 z-[165] print:hidden md:bottom-24"
+    >
       {isOpen && (
-        <div className="mb-3 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-[2rem] border border-fuchsia-400/25 bg-[#09000f]/95 shadow-[0_0_70px_rgba(168,85,247,0.32)] backdrop-blur-xl">
+        <div
+          id="hamza-ai-support-panel"
+          className="hamza-ai-support-panel mb-3 flex max-h-[calc(100svh-6rem)] w-[min(360px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[2rem] border border-fuchsia-400/25 bg-[#09000f]/95 shadow-[0_0_70px_rgba(168,85,247,0.32)] backdrop-blur-xl"
+        >
           <div className="border-b border-white/10 bg-gradient-to-r from-fuchsia-600/25 to-purple-600/20 p-4">
-            <div className="text-xs font-black uppercase tracking-[0.25em] text-fuchsia-100">AI SUPPORT</div>
+            <div className="text-xs font-black uppercase tracking-[0.25em] text-fuchsia-100">
+              HAMZA AGENCY
+            </div>
             <div className="mt-1 text-lg font-black text-white">{copy.widgetTitle}</div>
             <p className="mt-2 text-xs leading-6 text-white/55">{copy.widgetIntro}</p>
           </div>
 
-          <div className="max-h-80 space-y-3 overflow-y-auto p-4">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
             {messages.map((message, index) => (
               <div
                 key={`${message.role}-${index}`}
@@ -194,6 +214,7 @@ export default function PublicAiSupport() {
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
               placeholder={copy.widgetPlaceholder}
+              aria-label={copy.widgetPlaceholder}
               className="min-h-20 w-full resize-none rounded-2xl border border-white/10 bg-black/30 p-3 text-sm leading-7 text-white outline-none placeholder:text-white/35 focus:border-fuchsia-300/50"
             />
 
@@ -223,7 +244,9 @@ export default function PublicAiSupport() {
         type="button"
         onClick={() => setIsOpen((current) => !current)}
         aria-label={isOpen ? copy.widgetCloseAria : copy.widgetOpenAria}
-        className="rounded-full border border-fuchsia-300/35 bg-[#12051f]/95 px-5 py-3 text-sm font-black text-fuchsia-100 shadow-[0_0_35px_rgba(168,85,247,0.28)] transition hover:bg-purple-900/90"
+        aria-controls="hamza-ai-support-panel"
+        aria-expanded={isOpen}
+        className="min-h-12 rounded-full border border-fuchsia-300/35 bg-[#12051f]/95 px-5 py-3 text-sm font-black text-fuchsia-100 shadow-[0_0_35px_rgba(168,85,247,0.28)] transition hover:bg-purple-900/90"
       >
         {isOpen ? copy.widgetClose : copy.widgetOpen}
       </button>

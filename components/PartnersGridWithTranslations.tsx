@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import PartnerDetailsLink from "@/components/PartnerDetailsLink";
 import { getLanguageDirection } from "@/lib/i18n/locale";
@@ -136,7 +137,14 @@ export default function PartnersGridWithTranslations({
         <div className="mb-5 flex items-start justify-between gap-4">
           <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.6rem] border border-purple-400/20 bg-gradient-to-br from-purple-500/20 via-black/20 to-yellow-500/10 p-3">
             {partner.logoUrl ? (
-              <img src={partner.logoUrl} alt={`${name} logo`} className="h-full w-full object-contain" />
+              <Image
+                src={partner.logoUrl}
+                alt={`${name} logo`}
+                width={96}
+                height={96}
+                unoptimized
+                className="h-full w-full object-contain"
+              />
             ) : (
               <span className="text-center text-lg font-black leading-tight text-yellow-100">{name}</span>
             )}

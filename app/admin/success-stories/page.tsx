@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
@@ -132,21 +132,55 @@ export default function AdminSuccessStoriesPage() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<MessageType>("info");
 
-  useEffect(() => {
-    checkAccessAndLoad();
-  }, []);
-
-  function showMessage(text: string, type: MessageType = "info") {
+  const showMessage = useCallback((text: string, type: MessageType = "info") => {
     setMessage(text);
     setMessageType(type);
-  }
+  }, []);
 
-  function clearMessage() {
+  const clearMessage = useCallback(() => {
     setMessage("");
     setMessageType("info");
-  }
+  }, []);
 
-  async function checkAccessAndLoad() {
+  const loadStories = useCallback(async () => {
+    if (!supabase) return;
+
+    const { data, error } = await supabase
+      .from("success_stories")
+      .select(
+        "id, title, person_name, country, platform, result_summary, story, image_url, is_featured, sort_order, status, is_visible, created_at, updated_at"
+      )
+      .order("is_featured", { ascending: false })
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      showMessage(
+        "تعذر تحميل قصص النجاح. يرجى تحديث الصفحة والمحاولة مرة أخرى.",
+        "error"
+      );
+      return;
+    }
+
+    setStories((data || []) as SuccessStory[]);
+  }, [showMessage]);
+
+  const loadMediaItems = useCallback(async () => {
+    if (!supabase) return;
+
+    const { data, error } = await supabase
+      .from("media")
+      .select("id, name, file_url, file_type, category, alt_text, page_slug, is_active")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (error || !data) return;
+
+    setMediaItems(((data || []) as MediaPickerItem[]).filter(isSelectableMedia));
+  }, []);
+
+  const checkAccessAndLoad = useCallback(async () => {
     setIsLoading(true);
 
     if (!supabase) {
@@ -172,45 +206,11 @@ export default function AdminSuccessStoriesPage() {
     setAdminStatus("authorized");
     await Promise.all([loadStories(), loadMediaItems()]);
     setIsLoading(false);
-  }
+  }, [loadMediaItems, loadStories]);
 
-  async function loadStories() {
-    if (!supabase) return;
-
-    const { data, error } = await supabase
-      .from("success_stories")
-      .select(
-        "id, title, person_name, country, platform, result_summary, story, image_url, is_featured, sort_order, status, is_visible, created_at, updated_at"
-      )
-      .order("is_featured", { ascending: false })
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      showMessage(
-        "تعذر تحميل قصص النجاح. يرجى تحديث الصفحة والمحاولة مرة أخرى.",
-        "error"
-      );
-      return;
-    }
-
-    setStories((data || []) as SuccessStory[]);
-  }
-
-  async function loadMediaItems() {
-    if (!supabase) return;
-
-    const { data, error } = await supabase
-      .from("media")
-      .select("id, name, file_url, file_type, category, alt_text, page_slug, is_active")
-      .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(200);
-
-    if (error || !data) return;
-
-    setMediaItems(((data || []) as MediaPickerItem[]).filter(isSelectableMedia));
-  }
+  useEffect(() => {
+    void checkAccessAndLoad();
+  }, [checkAccessAndLoad]);
 
   function updateForm(key: keyof StoryForm, value: string | boolean) {
     setForm((current) => ({

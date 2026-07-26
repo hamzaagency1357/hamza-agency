@@ -212,7 +212,7 @@ export default function AdminPageBuilderPage() {
     checkAccess();
   }, [router]);
 
-  async function loadPages(baseDraft = draft) {
+  async function loadPages(baseDraft: BuilderDraft) {
     if (!isSupabaseConfigured || !supabase) {
       setStorageMode("احتياطي محلي — Supabase غير مهيأ");
       setError("تعذر تحميل الصفحات لأن Supabase غير مهيأ.");

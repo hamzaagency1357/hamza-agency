@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -221,6 +221,17 @@ function getApplicationSnapshot(app: Application) {
   };
 }
 
+async function getCount(table: string) {
+  if (!supabase) return 0;
+
+  const { count, error } = await supabase
+    .from(table)
+    .select("*", { count: "exact", head: true });
+
+  if (error || count === null) return 0;
+  return count;
+}
+
 export default function AdminPage() {
   const router = useRouter();
 
@@ -269,12 +280,7 @@ export default function AdminPage() {
     checkAdminAccess();
   }, [router]);
 
-  useEffect(() => {
-    if (!isAuthorized) return;
-    loadDashboard();
-  }, [isAuthorized]);
-
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
     if (!supabase) {
       setError("Supabase غير متصل.");
       return;
@@ -341,18 +347,12 @@ export default function AdminPage() {
       partners: partnersCount,
       gallery: galleryCount,
     });
-  }
+  }, []);
 
-  async function getCount(table: string) {
-    if (!supabase) return 0;
-
-    const { count, error } = await supabase
-      .from(table)
-      .select("*", { count: "exact", head: true });
-
-    if (error || count === null) return 0;
-    return count;
-  }
+  useEffect(() => {
+    if (!isAuthorized) return;
+    void loadDashboard();
+  }, [isAuthorized, loadDashboard]);
 
   const filteredApplications = useMemo(() => {
     const query = search.trim().toLowerCase();

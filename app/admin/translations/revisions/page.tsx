@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
 import { supabase } from "@/lib/supabase";
@@ -59,9 +59,8 @@ export default function TranslationRevisionsPage() {
   const [staleFilter, setStaleFilter] = useState<StaleFilter>("all");
 
   useEffect(() => { void (async () => { const access = await requireAdminModuleAccess("settings"); if (!access.isAuthorized) { router.replace(access.reason === "forbidden" ? "/admin" : "/admin/login"); return; } setReady(true); })(); }, [router]);
-  useEffect(() => { if (ready) void load(); }, [ready]);
 
-  async function load(preferredId?: string) {
+  const load = useCallback(async (preferredId?: string) => {
     if (!supabase) { setError("الاتصال بقاعدة البيانات غير مفعل."); setLoading(false); return; }
     setLoading(true); setError("");
     const [revisionResult, sourceResult, fieldResult] = await Promise.all([
@@ -74,9 +73,13 @@ export default function TranslationRevisionsPage() {
     if (failures.length) { setError(`تعذر تحميل مساحة Revisions. هذه المساحة متاحة للإدارة العليا فقط. ${failures.map((item) => item?.message).join(" | ")}`); return; }
     const next = (revisionResult.data || []) as Revision[];
     setRevisions(next); setSources((sourceResult.data || []) as Source[]); setFields((fieldResult.data || []) as Field[]);
-    const target = preferredId || selectedId;
-    setSelectedId(next.some((item) => item.id === target) ? target : next[0]?.id || "");
-  }
+    setSelectedId((currentId) => {
+      const target = preferredId || currentId;
+      return next.some((item) => item.id === target) ? target : next[0]?.id || "";
+    });
+  }, []);
+
+  useEffect(() => { if (ready) void load(); }, [load, ready]);
 
   const sourceMap = useMemo(() => new Map(sources.map((item) => [item.id, item])), [sources]);
   const fieldMap = useMemo(() => { const map = new Map<string, Field[]>(); fields.forEach((field) => map.set(field.translation_revision_id, [...(map.get(field.translation_revision_id) || []), field])); return map; }, [fields]);
@@ -89,10 +92,19 @@ export default function TranslationRevisionsPage() {
     if (staleFilter === "fresh" && revision.is_stale) return false;
     return true;
   }), [revisions, sourceTypeFilter, languageFilter, statusFilter, staleFilter]);
-  const selected = filteredRevisions.find((item) => item.id === selectedId) || filteredRevisions[0] || null;
-  const source = selected ? sourceMap.get(selected.source_revision_id) : undefined;
-  const sourceEntries = entries(source?.source_snapshot);
-  const selectedFields = selected ? fieldMap.get(selected.id) || [] : [];
+  const selected = useMemo(
+    () => filteredRevisions.find((item) => item.id === selectedId) || filteredRevisions[0] || null,
+    [filteredRevisions, selectedId]
+  );
+  const source = useMemo(
+    () => selected ? sourceMap.get(selected.source_revision_id) : undefined,
+    [selected, sourceMap]
+  );
+  const sourceEntries = useMemo(() => entries(source?.source_snapshot), [source]);
+  const selectedFields = useMemo(
+    () => selected ? fieldMap.get(selected.id) || [] : [],
+    [fieldMap, selected]
+  );
   const previous = selected?.supersedes_translation_revision_id ? revisions.find((item) => item.id === selected.supersedes_translation_revision_id) || null : null;
   const previousFields = previous ? fieldMap.get(previous.id) || [] : [];
   const editable = Boolean(selected && !selected.is_stale && editableStatuses.includes(selected.workflow_status));
@@ -106,7 +118,7 @@ export default function TranslationRevisionsPage() {
     filtered: filteredRevisions.length,
   };
 
-  useEffect(() => { if (!selected) return; const next: Record<string, string> = {}; sourceEntries.forEach(([name]) => { next[name] = selectedFields.find((field) => field.field_name === name)?.translated_value || ""; }); setValues(next); setNotes(selected.review_notes || ""); }, [selected?.id, sourceEntries.map(([name]) => name).join("|"), selectedFields.map((field) => `${field.field_name}:${field.translated_value}`).join("|")]);
+  useEffect(() => { if (!selected) return; const next: Record<string, string> = {}; sourceEntries.forEach(([name]) => { next[name] = selectedFields.find((field) => field.field_name === name)?.translated_value || ""; }); setValues(next); setNotes(selected.review_notes || ""); }, [selected, selectedFields, sourceEntries]);
 
   async function invoke(kind: "save" | "review" | "publish") {
     if (!supabase || !selected) return;

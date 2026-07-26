@@ -63,7 +63,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/Logo%20hamza%20agency.jpg",
+        url: "/opengraph-image",
         width: 1200,
         height: 630,
         alt: "Hamza Agency Logo",
@@ -74,7 +74,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: siteName,
     description: siteDescription,
-    images: ["/Logo%20hamza%20agency.jpg"],
+    images: ["/opengraph-image"],
   },
   robots: {
     index: true,

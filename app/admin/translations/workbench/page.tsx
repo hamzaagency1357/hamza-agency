@@ -65,7 +65,6 @@ type SyncRunResponse = {
 
 const MAX_BATCH_ITEMS = 10;
 const LANGUAGES: TargetLanguage[] = ["en", "tr"];
-const languageLabels: Record<TargetLanguage, string> = { en: "English", tr: "Turkish" };
 const emptyCounts = Object.fromEntries(
   TRANSLATION_SOURCE_DEFINITIONS.map((source) => [source.sourceType, 0])
 ) as SourceCount;
@@ -342,11 +341,6 @@ export default function TranslationWorkbenchPage() {
     [items, language, legacyRows, revisions, sourceType]
   );
 
-  const stateSignature = useMemo(
-    () => workbenchItems.map((item) => `${item.sourceId}:${item.state.kind}:${item.state.defaultSelected}`).join("|"),
-    [workbenchItems]
-  );
-
   useEffect(() => {
     if (loading || !sourceType || !language) return;
     setSelectedIds(
@@ -355,7 +349,7 @@ export default function TranslationWorkbenchPage() {
         .slice(0, MAX_BATCH_ITEMS)
         .map((item) => item.sourceId)
     );
-  }, [language, loading, sourceType, stateSignature]);
+  }, [language, loading, sourceType, workbenchItems]);
 
   const selectedItems = useMemo(
     () => workbenchItems.filter((item) => selectedIds.includes(item.sourceId)),

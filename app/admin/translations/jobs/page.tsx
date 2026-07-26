@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
 import { supabase } from "@/lib/supabase";
@@ -29,7 +29,6 @@ function emptyState(): TranslationState { return { values: {}, reviewed: false, 
 function makeKey(id: string) { return `jobs:${id}`; }
 function text(row: GenericRow, key: string, fallback = "") { const value = row[key]; return typeof value === "string" ? value.trim() || fallback : typeof value === "number" ? String(value) : fallback; }
 function isField(value: string | null): value is FieldName { return fields.some((field) => field.key === value); }
-function isLanguage(value: string | null): value is LanguageCode { return value === "en" || value === "tr"; }
 function sourceValue(job: Job, field: FieldName) { if (field === "title") return job.title; if (field === "department") return job.department; if (field === "location") return job.location; if (field === "job_type") return job.job_type; if (field === "summary") return job.summary; if (field === "content") return job.content; return job.requirements; }
 function activeFields(job: Job) { return fields.filter((field) => Boolean(sourceValue(job, field.key).trim())); }
 function isComplete(job: Job, state: TranslationState) { const active = activeFields(job); return active.length > 0 && active.every((field) => Boolean(state.values[field.key]?.trim())); }

@@ -1,12 +1,10 @@
-// @ts-nocheck
-/* eslint-disable */
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { SiteLanguage } from "@/lib/i18n/locale";
+import { getLanguageDirection, type SiteLanguage } from "@/lib/i18n/locale";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
 type HeaderNavLabelKey =
@@ -54,6 +52,7 @@ type PanelPosition = {
   top: number;
   left: number;
   width: number;
+  maxHeight: number;
 };
 
 const headerDropdownCopy: Record<SiteLanguage, Record<HeaderNavLabelKey, string>> = {
@@ -263,38 +262,51 @@ function updateStructuralNavigationReadiness(targets: HeaderTargets) {
   document.body.classList.toggle(structuralNavReadyClass, isReady);
 }
 
-function getLanguageDirection(language: SiteLanguage) {
-  return language === "ar" ? "rtl" : "ltr";
-}
-
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
 function getSafePanelPosition(button: HTMLButtonElement | null): PanelPosition {
   const viewportWidth = typeof window === "undefined" ? 360 : window.innerWidth || 360;
+  const viewportHeight = typeof window === "undefined" ? 640 : window.innerHeight || 640;
   const margin = 12;
   const width = Math.min(288, viewportWidth - margin * 2);
 
-  if (!button) return { top: 96, left: margin, width };
+  if (!button) {
+    const top = 96;
+    return {
+      top,
+      left: margin,
+      width,
+      maxHeight: Math.max(96, viewportHeight - top - margin),
+    };
+  }
 
   const rect = button.getBoundingClientRect();
   const preferredLeft = rect.left + rect.width / 2 - width / 2;
   const left = clamp(preferredLeft, margin, Math.max(margin, viewportWidth - width - margin));
+  const top = rect.bottom + 8;
 
   return {
-    top: rect.bottom + 8,
+    top,
     left,
     width,
+    maxHeight: Math.max(96, viewportHeight - top - margin),
   };
 }
 
 function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }) {
   const language = useSiteLanguage();
   const [openMenu, setOpenMenu] = useState<HeaderNavLabelKey | null>(null);
-  const [panelPosition, setPanelPosition] = useState<PanelPosition>({ top: 96, left: 12, width: 288 });
+  const [panelPosition, setPanelPosition] = useState<PanelPosition>({
+    top: 96,
+    left: 12,
+    width: 288,
+    maxHeight: 532,
+  });
   const shellRef = useRef<HTMLDivElement | null>(null);
   const buttonRefs = useRef<Partial<Record<HeaderNavLabelKey, HTMLButtonElement | null>>>({});
+  const panelId = useId();
   const labels = headerDropdownCopy[language];
   const direction = getLanguageDirection(language);
   const isDesktop = variant === "desktop";
@@ -323,6 +335,7 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
 
   useEffect(() => {
     if (!openMenu) return;
+    const activeMenu = openMenu;
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") closeMenu();
@@ -336,7 +349,7 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
 
     function handleViewportChange() {
       if (!isDesktop) return;
-      const button = buttonRefs.current[openMenu] || null;
+      const button = buttonRefs.current[activeMenu] || null;
       setPanelPosition(getSafePanelPosition(button));
     }
 
@@ -375,7 +388,7 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
         <Link
           href="/"
           onClick={closeMenu}
-          className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/70"
+          className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/70 xl:px-4 xl:text-sm"
         >
           {labels.home}
         </Link>
@@ -389,11 +402,15 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
             type="button"
             aria-haspopup="menu"
             aria-expanded={openMenu === group.titleKey}
+            aria-controls={openMenu === group.titleKey ? panelId : undefined}
             onClick={() => toggleGroup(group)}
             onMouseEnter={() => {
               if (isDesktop) openGroup(group);
             }}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/70"
+            onFocus={() => {
+              if (isDesktop) openGroup(group);
+            }}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/70 xl:gap-2 xl:px-4 xl:text-sm"
           >
             <span>{labels[group.titleKey]}</span>
             <span aria-hidden="true" className="text-[10px] text-yellow-200/75">
@@ -405,15 +422,22 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
 
       {activeGroup ? (
         <div
+          id={panelId}
           dir={direction}
+          role="menu"
           className={
             isDesktop
-              ? "fixed z-[260] rounded-3xl border border-purple-300/25 bg-[#09000f]/95 p-2 shadow-[0_28px_90px_rgba(9,0,15,0.55)] backdrop-blur-xl"
-              : "hamza-structural-header-panel-mobile relative z-[120] rounded-3xl border border-purple-300/25 bg-[#09000f]/95 p-2 shadow-[0_20px_60px_rgba(9,0,15,0.35)] backdrop-blur-xl"
+              ? "fixed z-[260] overflow-y-auto overscroll-contain rounded-3xl border border-purple-300/25 bg-[#09000f]/95 p-2 shadow-[0_28px_90px_rgba(9,0,15,0.55)] backdrop-blur-xl"
+              : "hamza-structural-header-panel-mobile relative z-[120] max-h-[min(60svh,28rem)] overflow-y-auto overscroll-contain rounded-3xl border border-purple-300/25 bg-[#09000f]/95 p-2 shadow-[0_20px_60px_rgba(9,0,15,0.35)] backdrop-blur-xl"
           }
           style={
             isDesktop
-              ? { top: panelPosition.top, left: panelPosition.left, width: panelPosition.width }
+              ? {
+                  top: panelPosition.top,
+                  left: panelPosition.left,
+                  width: panelPosition.width,
+                  maxHeight: panelPosition.maxHeight,
+                }
               : undefined
           }
         >
@@ -422,13 +446,11 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
               <Link
                 key={link.href}
                 href={link.href}
+                role="menuitem"
                 onClick={closeMenu}
                 className="hamza-structural-header-menu-link rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/80 transition hover:border-yellow-300/35 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200/65"
               >
-                <span className="block">{labels[link.labelKey]}</span>
-                <span className="mt-1 block text-[11px] font-normal text-white/40" dir="ltr">
-                  {link.href}
-                </span>
+                {labels[link.labelKey]}
               </Link>
             ))}
           </div>

@@ -498,7 +498,6 @@ export function getServiceTypeHint(language: SiteLanguage, serviceType: ServiceT
 
 export function getApplicationStatusInfo(language: SiteLanguage, status: string | null): StatusInfo {
   const normalized = (status || "new").toLowerCase().trim();
-  const forms = getPublicFormsCopy(language).application;
 
   const values: Record<SiteLanguage, Record<string, Omit<StatusInfo, "className">>> = {
     ar: {

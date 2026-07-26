@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
@@ -149,14 +149,10 @@ export default function AdminPagesPage() {
     checkAdminAccess();
   }, [router]);
 
-  useEffect(() => {
-    if (!isAuthorized) return;
-    loadPages();
-  }, [isAuthorized]);
-
-  async function loadPages() {
+  const loadPages = useCallback(async () => {
     if (!supabase) {
-      showError("الاتصال بقاعدة البيانات غير مفعل.");
+      setMessage("");
+      setError("الاتصال بقاعدة البيانات غير مفعل.");
       return;
     }
 
@@ -174,12 +170,18 @@ export default function AdminPagesPage() {
     setIsLoading(false);
 
     if (error) {
-      showError("تعذر تحميل الصفحات. تحقق من صلاحيات جدول pages.");
+      setMessage("");
+      setError("تعذر تحميل الصفحات. تحقق من صلاحيات جدول pages.");
       return;
     }
 
     setPages(data || []);
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthorized) return;
+    void loadPages();
+  }, [isAuthorized, loadPages]);
 
   const stats = useMemo(() => {
     const published = pages.filter((page) => page.is_published !== false).length;

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -248,16 +248,6 @@ export default function AdminPublishedSectionsPage() {
     checkAccess();
   }, [router]);
 
-  useEffect(() => {
-    if (!isAuthorized) return;
-    loadPages();
-  }, [isAuthorized]);
-
-  useEffect(() => {
-    if (!isAuthorized || !selectedPageId) return;
-    loadSections(Number(selectedPageId));
-  }, [isAuthorized, selectedPageId]);
-
   const selectedPage = useMemo(
     () => pages.find((page) => String(page.id) === selectedPageId) || null,
     [pages, selectedPageId]
@@ -303,9 +293,10 @@ export default function AdminPublishedSectionsPage() {
     editingSection && normalizedKeyPreview && normalizedKeyPreview !== (editingSection.section_key || "")
   );
 
-  async function loadPages() {
+  const loadPages = useCallback(async () => {
     if (!isSupabaseConfigured || !supabase) {
-      showError("الاتصال بقاعدة البيانات غير مفعل.");
+      setMessage("");
+      setError("الاتصال بقاعدة البيانات غير مفعل.");
       return;
     }
 
@@ -321,7 +312,8 @@ export default function AdminPublishedSectionsPage() {
     setIsLoadingPages(false);
 
     if (pagesError) {
-      showError("تعذر تحميل الصفحات. تحقق من صلاحيات جدول pages.");
+      setMessage("");
+      setError("تعذر تحميل الصفحات. تحقق من صلاحيات جدول pages.");
       return;
     }
 
@@ -332,12 +324,12 @@ export default function AdminPublishedSectionsPage() {
       setSelectedPageId("");
       setSections([]);
       setForm(createEmptyForm());
-      showError("لا توجد صفحات في جدول pages. أنشئ الصفحات الأساسية أولاً من إدارة الصفحات.");
+      setMessage("");
+      setError("لا توجد صفحات في جدول pages. أنشئ الصفحات الأساسية أولاً من إدارة الصفحات.");
       return;
     }
 
-    const currentPage = loadedPages.find((page) => String(page.id) === selectedPageId);
-    const nextPage = currentPage || loadedPages[0];
+    const nextPage = loadedPages[0];
     const nextPageId = String(nextPage.id);
 
     setSelectedPageId(nextPageId);
@@ -345,11 +337,12 @@ export default function AdminPublishedSectionsPage() {
       ...current,
       page_id: current.page_id || nextPageId,
     }));
-  }
+  }, []);
 
-  async function loadSections(pageId: number) {
+  const loadSections = useCallback(async (pageId: number, preserveForm = false) => {
     if (!isSupabaseConfigured || !supabase) {
-      showError("الاتصال بقاعدة البيانات غير مفعل.");
+      setMessage("");
+      setError("الاتصال بقاعدة البيانات غير مفعل.");
       return;
     }
 
@@ -369,14 +362,15 @@ export default function AdminPublishedSectionsPage() {
 
     if (sectionsError) {
       setSections([]);
-      showError("تعذر تحميل أقسام الصفحة من جدول sections. إذا ظهرت هذه المشكلة أثناء الاختبار نراجع SQL في خطوة مستقلة.");
+      setMessage("");
+      setError("تعذر تحميل أقسام الصفحة من جدول sections. إذا ظهرت هذه المشكلة أثناء الاختبار نراجع SQL في خطوة مستقلة.");
       return;
     }
 
     const loadedSections = (data || []) as SectionRow[];
     setSections(loadedSections);
 
-    if (!editingSection) {
+    if (!preserveForm) {
       const maxSortOrder = loadedSections.reduce((max, section) => {
         const value = Number(section.sort_order || 0);
         return Number.isFinite(value) && value > max ? value : max;
@@ -384,7 +378,17 @@ export default function AdminPublishedSectionsPage() {
 
       setForm(createEmptyForm(String(pageId), String(maxSortOrder + 1)));
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthorized) return;
+    void loadPages();
+  }, [isAuthorized, loadPages]);
+
+  useEffect(() => {
+    if (!isAuthorized || !selectedPageId) return;
+    void loadSections(Number(selectedPageId));
+  }, [isAuthorized, loadSections, selectedPageId]);
 
   function showSuccess(text: string) {
     setError("");
@@ -579,7 +583,7 @@ export default function AdminPublishedSectionsPage() {
     );
 
     showSuccess(nextValue ? "تم إظهار القسم بنجاح." : "تم إخفاء القسم بنجاح بدون حذف.");
-    await loadSections(section.page_id || Number(selectedPageId));
+    await loadSections(section.page_id || Number(selectedPageId), Boolean(editingSection));
   }
 
   async function logActivity(

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
@@ -183,38 +183,7 @@ export default function AdminJobsPage() {
   >(null);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    checkAccessAndLoad();
-  }, []);
-
-  async function checkAccessAndLoad() {
-    setIsLoading(true);
-
-    if (!supabase) {
-      setAdminStatus("unauthorized");
-      setIsLoading(false);
-      return;
-    }
-
-    const access = await requireAdminModuleAccess("jobs");
-
-    if (!access.isAuthorized || !access.profile) {
-      if (access.reason === "not_signed_in" || access.reason === "not_admin") {
-        window.location.href = "/admin/login";
-        return;
-      }
-
-      setAdminStatus("unauthorized");
-      setIsLoading(false);
-      return;
-    }
-
-    setAdminEmail(access.profile.email || access.user?.email || "");
-    setAdminStatus("authorized");
-    await loadData();
-  }
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     if (!supabase) return;
 
     setIsLoading(true);
@@ -253,7 +222,38 @@ export default function AdminJobsPage() {
       });
       setDraftNotes(notes);
     }
-  }
+  }, []);
+
+  const checkAccessAndLoad = useCallback(async () => {
+    setIsLoading(true);
+
+    if (!supabase) {
+      setAdminStatus("unauthorized");
+      setIsLoading(false);
+      return;
+    }
+
+    const access = await requireAdminModuleAccess("jobs");
+
+    if (!access.isAuthorized || !access.profile) {
+      if (access.reason === "not_signed_in" || access.reason === "not_admin") {
+        window.location.href = "/admin/login";
+        return;
+      }
+
+      setAdminStatus("unauthorized");
+      setIsLoading(false);
+      return;
+    }
+
+    setAdminEmail(access.profile.email || access.user?.email || "");
+    setAdminStatus("authorized");
+    await loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    void checkAccessAndLoad();
+  }, [checkAccessAndLoad]);
 
   const stats = useMemo(() => {
     return {
@@ -292,6 +292,11 @@ export default function AdminJobsPage() {
     });
   }, [jobs, jobFilter, search]);
 
+  const getJobTitle = useCallback((jobId: number | null) => {
+    const job = jobs.find((item) => item.id === jobId);
+    return job?.title || "وظيفة غير محددة";
+  }, [jobs]);
+
   const filteredApplications = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -316,7 +321,7 @@ export default function AdminJobsPage() {
 
       return statusMatch && (!query || text.includes(query));
     });
-  }, [applications, applicationFilter, jobs, search]);
+  }, [applications, applicationFilter, getJobTitle, search]);
 
   function updateForm(key: keyof JobForm, value: string | boolean) {
     setForm((current) => ({
@@ -510,11 +515,6 @@ export default function AdminJobsPage() {
 
     setMessage("تم تحديث طلب الوظيفة بنجاح.");
     await loadData();
-  }
-
-  function getJobTitle(jobId: number | null) {
-    const job = jobs.find((item) => item.id === jobId);
-    return job?.title || "وظيفة غير محددة";
   }
 
   function cleanWhatsapp(value: string | null) {

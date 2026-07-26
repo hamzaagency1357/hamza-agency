@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
 import { supabase } from "@/lib/supabase";
@@ -64,7 +64,6 @@ type SourceType = (typeof SOURCE_TYPES)[number]["key"];
 type SourceConfig = (typeof SOURCE_TYPES)[number];
 
 const SOURCE_KEYS = SOURCE_TYPES.map((source) => source.key);
-const emptyLanguageCoverage: CoverageByLanguage = { published: 0, needsReview: 0, draftReviewed: 0, stale: 0, missing: 0 };
 
 function keyOf(sourceType: string | null | undefined, sourceId: string | number | null | undefined) {
   if (!sourceType || sourceId === null || sourceId === undefined) return "";
@@ -134,6 +133,12 @@ function sum(rows: CoverageRow[], picker: (row: CoverageRow) => number) {
   return rows.reduce((total, row) => total + picker(row), 0);
 }
 
+async function getSourceCount(source: SourceConfig) {
+  if (!supabase) return 0;
+  const { count } = await supabase.from(source.table).select("id", { count: "exact", head: true });
+  return count || 0;
+}
+
 export default function TranslationCoveragePage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
@@ -153,17 +158,7 @@ export default function TranslationCoveragePage() {
     })();
   }, [router]);
 
-  useEffect(() => {
-    if (ready) void loadCoverage();
-  }, [ready]);
-
-  async function getSourceCount(source: SourceConfig) {
-    if (!supabase) return 0;
-    const { count } = await supabase.from(source.table).select("id", { count: "exact", head: true });
-    return count || 0;
-  }
-
-  async function loadCoverage() {
+  const loadCoverage = useCallback(async () => {
     if (!supabase) {
       setError("الاتصال بقاعدة البيانات غير مفعل.");
       setLoading(false);
@@ -203,7 +198,11 @@ export default function TranslationCoveragePage() {
     }
 
     setRows(buildCoverage(totals, (revisionsResult.data || []) as RevisionRow[], (legacyResult.data || []) as LegacyTranslationRow[]));
-  }
+  }, []);
+
+  useEffect(() => {
+    if (ready) void loadCoverage();
+  }, [loadCoverage, ready]);
 
   const totals = useMemo(() => ({
     arabic: sum(rows, (row) => row.totalArabic),
