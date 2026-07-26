@@ -5,6 +5,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import PublicAiSupport from "@/components/PublicAiSupport";
 import PublicDesktopEnhancer from "@/components/PublicDesktopEnhancer";
 import PublicHeaderDropdownNav from "@/components/PublicHeaderDropdownNav";
+import PublicHeaderDesktopClickGuard from "@/components/PublicHeaderDesktopClickGuard";
 import VisualBackgroundPresets from "@/components/VisualBackgroundPresets";
 import FinalVisualPolish from "@/components/FinalVisualPolish";
 import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
@@ -120,6 +121,7 @@ export default function RootLayout({
         <FinalVisualPolish />
         {children}
         <PublicHeaderDropdownNav />
+        <PublicHeaderDesktopClickGuard />
         <LanguageSwitcher />
         <PublicAiSupport />
         <PublicQuickNav />
