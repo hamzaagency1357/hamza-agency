@@ -69,45 +69,21 @@ const forbiddenPlaceholders = [
   "Localized content is being updated.",
   "Yerelleştirilmiş içerik güncelleniyor.",
 ];
-const displayableSources = [
-  runtimeSurface,
-  cmsTranslations,
-  announcement,
-  runtimeTranslator,
-  homePage,
-];
+const displayableSources = [runtimeSurface, cmsTranslations, announcement, runtimeTranslator, homePage];
 for (const placeholder of forbiddenPlaceholders) {
   if (displayableSources.some((source) => source.includes(placeholder))) {
     errors.push(`Forbidden public placeholder remains displayable: ${placeholder}`);
   }
 }
 
-if (!runtimeSurface.includes("siteRuntimeTranslationsLegacy")) {
-  errors.push("Safe runtime translation surface is not wrapping the legacy dictionary.");
-}
-if (!runtimeSurface.includes("isLegacyPlaceholder")) {
-  errors.push("Safe runtime translation surface does not block legacy placeholders.");
+if (!runtimeSurface.includes("siteRuntimeTranslationsLegacy")) errors.push("Safe runtime translation surface is not wrapping the legacy dictionary.");
+if (!runtimeSurface.includes("isLegacyPlaceholder")) errors.push("Safe runtime translation surface does not block legacy placeholders.");
+
+for (const token of ["SAFE_UNMATCHED_COPY", "HAMZA AGENCY information", "HAMZA AGENCY bilgileri"]) {
+  if (`${runtimeTranslator}\n${languageSwitcher}`.includes(token)) errors.push(`Forbidden generic public fallback remains: ${token}`);
 }
 
-const forbiddenPublicCopy = [
-  "SAFE_UNMATCHED_COPY",
-  "HAMZA AGENCY information",
-  "HAMZA AGENCY bilgileri",
-];
-for (const token of forbiddenPublicCopy) {
-  if (`${runtimeTranslator}\n${languageSwitcher}`.includes(token)) {
-    errors.push(`Forbidden generic public fallback remains: ${token}`);
-  }
-}
-
-const forbiddenSwitcherArchitecture = [
-  "window.location.assign",
-  "MutationObserver",
-  "createPortal",
-  "document.createElement",
-  'aria-haspopup="menu"',
-];
-for (const token of forbiddenSwitcherArchitecture) {
+for (const token of ["window.location.assign", "MutationObserver", "createPortal", "document.createElement", 'aria-haspopup="menu"']) {
   if (languageSwitcher.includes(token)) errors.push(`LanguageSwitcher still uses forbidden architecture: ${token}`);
 }
 
@@ -126,57 +102,28 @@ for (const token of [
   if (!languageSwitcher.includes(token)) errors.push(`Segmented language switcher is missing: ${token}`);
 }
 
-for (const token of [
-  "<LanguageSwitcher />",
-  'en: "Content Creator Agency"',
-  'tr: "İçerik Üreticisi Ajansı"',
-  'ar: "وكالة حمزة"',
-]) {
+for (const token of ["<LanguageSwitcher />", 'en: "Content Creator Agency"', 'tr: "İçerik Üreticisi Ajansı"', 'ar: "وكالة حمزة"']) {
   if (!globalHeader.includes(token)) errors.push(`Direct public header is missing: ${token}`);
 }
-if ((globalHeader.match(/HAMZA AGENCY/g) || []).length > 3) {
-  errors.push("Public header repeats the agency name excessively.");
-}
+if ((globalHeader.match(/HAMZA AGENCY/g) || []).length > 3) errors.push("Public header repeats the agency name excessively.");
 
-if (runtimeTranslator.includes("MutationObserver") || runtimeTranslator.includes("document.body")) {
-  errors.push("Runtime translator still scans or observes document.body.");
-}
-if (!runtimeTranslator.includes("[data-runtime-translate='true']")) {
-  errors.push("Runtime translator is not restricted to explicit legacy markers.");
-}
-if (rootLayout.includes("PublicLocaleLinkSync")) {
-  errors.push("DOM locale-link synchronization is still mounted.");
-}
-if (rootLayout.includes("ApprovedSupportCopySync") || rootLayout.includes("PublicHeaderDropdownNav")) {
-  errors.push("Removed DOM synchronization/header portal components are still mounted.");
-}
+if (runtimeTranslator.includes("MutationObserver") || runtimeTranslator.includes("document.body")) errors.push("Runtime translator still scans or observes document.body.");
+if (!runtimeTranslator.includes("[data-runtime-translate='true']")) errors.push("Runtime translator is not restricted to explicit legacy markers.");
+if (rootLayout.includes("PublicLocaleLinkSync")) errors.push("DOM locale-link synchronization is still mounted.");
+if (rootLayout.includes("ApprovedSupportCopySync") || rootLayout.includes("PublicHeaderDropdownNav")) errors.push("Removed DOM synchronization/header portal components are still mounted.");
 if (!rootLayout.includes("<PublicGlobalHeader />")) errors.push("Direct React public header is not mounted.");
 
-if (middleware.includes('request.cookies.get("hamza-agency-language")') || middleware.includes("localizePublicPath")) {
-  errors.push("Middleware still redirects an Arabic URL from the saved locale cookie.");
-}
+if (middleware.includes('request.cookies.get("hamza-agency-language")') || middleware.includes("localizePublicPath")) errors.push("Middleware still redirects an Arabic URL from the saved locale cookie.");
 for (const token of ["NextResponse.rewrite", "x-site-locale", "isSupportedPublicPath"]) {
   if (!middleware.includes(token)) errors.push(`Locale middleware is missing: ${token}`);
 }
 
-if (!siteLanguageProvider.includes('const nextLanguage = getPathLanguage(pathname || "/");')) {
-  errors.push("SiteLanguageProvider does not derive language directly from the URL.");
-}
-for (const token of ["getStoredSiteLanguage", "SITE_LANGUAGE_CHANGE_EVENT", "pathLanguage === \"ar\""]) {
+if (!siteLanguageProvider.includes('const nextLanguage = getPathLanguage(pathname || "/");')) errors.push("SiteLanguageProvider does not derive language directly from the URL.");
+for (const token of ["getStoredSiteLanguage", "SITE_LANGUAGE_CHANGE_EVENT", 'pathLanguage === "ar"']) {
   if (siteLanguageProvider.includes(token)) errors.push(`SiteLanguageProvider still allows a non-URL language source: ${token}`);
 }
 
-const requiredPublishedSources = [
-  '"pages:1"',
-  '"sections:1"',
-  '"sections:2"',
-  '"sections:3"',
-  '"announcements:2"',
-  '"announcements:3"',
-  '"home-page:title"',
-  '"home-hero:title"',
-];
-for (const token of requiredPublishedSources) {
+for (const token of ['"pages:1"', '"sections:1"', '"sections:2"', '"sections:3"', '"announcements:2"', '"announcements:3"', '"home-page:title"', '"home-hero:title"']) {
   if (!approvedTranslations.includes(token)) errors.push(`Approved published translation is missing: ${token}`);
 }
 
@@ -196,15 +143,25 @@ for (const token of ["canonical", "getLanguageAlternates", "openGraph", "twitter
   if (!serverMetadata.includes(token)) errors.push(`Server locale metadata is missing: ${token}`);
 }
 
-for (const token of ["hamza-marquee-group", "hamzaAnnouncementTrack", 'data-marquee-mechanics="ltr"', "✦"]) {
-  if (!announcement.includes(token)) errors.push(`Localized ticker is missing: ${token}`);
+for (const token of [
+  "hamza-marquee-group",
+  "hamzaAnnouncementRight",
+  "hamzaAnnouncementLeft",
+  'data-marquee-mechanics="ltr"',
+  "data-marquee-language={language}",
+  'data-marquee-language="ar"',
+  'data-marquee-language="en"',
+  'data-marquee-language="tr"',
+  "from { transform: translate3d(-50%, 0, 0); }",
+  "to { transform: translate3d(0, 0, 0); }",
+  "from { transform: translate3d(0, 0, 0); }",
+  "to { transform: translate3d(-50%, 0, 0); }",
+  "✦",
+]) {
+  if (!announcement.includes(token)) errors.push(`Localized ticker direction is missing: ${token}`);
 }
-if (announcement.includes("justify-around") || announcement.includes("hamzaAnnouncementRtl")) {
-  errors.push("Ticker still uses locale-dependent mechanics or distributed spacing.");
-}
-if ((announcement.match(/hamza-marquee-group/g) || []).length !== 2) {
-  errors.push("Ticker must render exactly two identical marquee groups.");
-}
+if (announcement.includes("justify-around") || announcement.includes("direction: rtl")) errors.push("Ticker track must remain mechanically LTR without distributed spacing.");
+if ((announcement.match(/hamza-marquee-group/g) || []).length !== 2) errors.push("Ticker must render exactly two identical marquee groups.");
 
 const approvedSupportCopy = [
   "نستقبل رسائلكم وطلباتكم على مدار الساعة، وسيتم الرد عليكم في أقرب وقت ممكن.",
@@ -228,4 +185,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`Public experience verification passed: ${entries.length} translations, ${requiredRoutes.length} routes × 3 URL-owned locales, approved homepage and announcement translations, safe runtime fallbacks, deterministic ticker mechanics, and mobile dock clearance.`);
+console.log(`Public experience verification passed: ${entries.length} translations, ${requiredRoutes.length} routes × 3 URL-owned locales, approved homepage and announcement translations, safe runtime fallbacks, Arabic ticker rightward movement, EN/TR ticker leftward movement, and mobile dock clearance.`);
