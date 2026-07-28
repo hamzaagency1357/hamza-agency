@@ -5,7 +5,6 @@ import {
 } from "@/lib/i18n/locale";
 import {
   isSupportedPublicPath,
-  localizePublicPath,
   splitLocalizedPathname,
 } from "@/lib/i18n/publicLocales";
 
@@ -34,9 +33,6 @@ export async function middleware(request: NextRequest) {
   const forwardedLanguage = request.headers.get("x-site-locale");
   const forwardedPath = request.headers.get("x-site-path");
 
-  // A locale rewrite can pass through middleware again at its destination.
-  // Preserve the original request context instead of reclassifying the
-  // rewritten unprefixed path as Arabic.
   if (
     isSiteLanguage(forwardedLanguage) &&
     forwardedPath &&
@@ -58,16 +54,6 @@ export async function middleware(request: NextRequest) {
     fallbackUrl.pathname = `/${localizedPath.language}`;
     fallbackUrl.search = "";
     return NextResponse.redirect(fallbackUrl);
-  }
-
-  if (!hasLocalePrefix && isSupportedPublicPath(publicPath)) {
-    const savedLanguage = request.cookies.get("hamza-agency-language")?.value;
-
-    if (isSiteLanguage(savedLanguage) && savedLanguage !== "ar") {
-      const localizedUrl = request.nextUrl.clone();
-      localizedUrl.pathname = localizePublicPath(publicPath, savedLanguage);
-      return NextResponse.redirect(localizedUrl);
-    }
   }
 
   const language = localizedPath.language;
@@ -319,9 +305,7 @@ function renderMaintenanceHtml({
       line-height: 1.25;
       letter-spacing: -0.03em;
     }
-    .highlight {
-      color: #f5d76e;
-    }
+    .highlight { color: #f5d76e; }
     p {
       margin: 22px auto 0;
       max-width: 560px;
@@ -346,12 +330,8 @@ function renderMaintenanceHtml({
       font-size: 15px;
       cursor: pointer;
     }
-    a {
-      background: #22c55e;
-    }
-    button {
-      background: linear-gradient(90deg, #7c3aed, #d946ef);
-    }
+    a { background: #22c55e; }
+    button { background: linear-gradient(90deg, #7c3aed, #d946ef); }
     .note {
       margin-top: 26px;
       font-size: 13px;
