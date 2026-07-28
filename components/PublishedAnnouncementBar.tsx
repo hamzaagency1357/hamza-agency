@@ -122,6 +122,7 @@ export default function PublishedAnnouncementBar({
             className="hamza-marquee-track flex w-max items-center whitespace-nowrap py-3 text-sm font-bold md:text-base"
             data-marquee-mechanics="ltr"
             data-marquee-language={language}
+            data-marquee-direction={language === "ar" ? "right" : "left"}
             style={style}
           >
             <div className="hamza-marquee-group flex shrink-0 items-center">{tickerItem}</div>
@@ -136,6 +137,7 @@ export default function PublishedAnnouncementBar({
         </div>
       )}
       <style>{`
+        /* hamzaAnnouncementTrack uses language-specific keyframes below. */
         @keyframes hamzaAnnouncementRight {
           from { transform: translate3d(-50%, 0, 0); }
           to { transform: translate3d(0, 0, 0); }
