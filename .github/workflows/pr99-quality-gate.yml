@@ -17,18 +17,22 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}
+      PR99_E2E_MODE: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - name: Generate isolated E2E token
+        shell: bash
+        run: echo "PR99_E2E_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
@@ -37,6 +41,8 @@ jobs:
       - run: npm run verify:secrets
       - run: npm run test
       - run: npm run build
+      - name: Install Chromium for browser E2E
+        run: npx --yes playwright@1.55.0 install --with-deps chromium
       - name: Start production server
         run: |
           npm run start > /tmp/hamza-next.log 2>&1 &
@@ -44,7 +50,11 @@ jobs:
           for i in {1..40}; do curl -fsS http://127.0.0.1:3000/ >/dev/null && exit 0; sleep 2; done
           cat /tmp/hamza-next.log
           exit 1
-      - name: Runtime and route smoke
+      - name: Runtime route smoke
+        env:
+          E2E_BASE_URL: http://127.0.0.1:3000
+        run: npm run test:smoke
+      - name: Authenticated isolated browser E2E
         env:
           E2E_BASE_URL: http://127.0.0.1:3000
         run: npm run test:e2e
