@@ -20,6 +20,11 @@ body.public-site-page section:first-of-type h1 {
   text-wrap: balance;
 }
 
+body.public-site-page main > section:nth-of-type(2) > div > div:first-child {
+  direction: ltr !important;
+  unicode-bidi: isolate !important;
+}
+
 body.public-site-page footer p,
 body.public-site-page footer a,
 body.public-site-page footer span {
@@ -32,6 +37,14 @@ body.public-site-page footer p.break-all {
   overflow-wrap: anywhere !important;
   white-space: normal !important;
   overflow-x: visible !important;
+}
+
+body.public-site-page footer h3 + p + p + p {
+  display: none !important;
+}
+
+.hamza-approved-support-copy {
+  padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
 }
 
 @media (max-width: 1024px), (hover: none) and (pointer: coarse) {
@@ -83,7 +96,7 @@ body.public-site-page footer p.break-all {
 
   body.public-site-page footer {
     padding-top: 1.75rem !important;
-    padding-bottom: calc(8.5rem + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: 1.75rem !important;
   }
 
   body.public-site-page footer > div:first-child {
@@ -93,6 +106,10 @@ body.public-site-page footer p.break-all {
 
   body.public-site-page footer p {
     line-height: 1.6 !important;
+  }
+
+  .hamza-approved-support-copy {
+    padding-bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px));
   }
 
   .hamza-floating-whatsapp,
