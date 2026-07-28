@@ -9,8 +9,8 @@ import {
   type PublicNavigationGroup,
   type PublicNavigationLink,
 } from "@/lib/publicNavigation";
-import { getLanguageDirection } from "@/lib/i18n/locale";
-import { getSharedNavigationGroupTitle, getSharedNavigationLabel } from "@/lib/i18n/sharedChrome";
+import { getLanguageDirection, type SiteLanguage } from "@/lib/i18n/locale";
+import { getSharedNavigationLabel } from "@/lib/i18n/sharedChrome";
 import { getStaticCopy } from "@/lib/i18n/staticCopy";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
@@ -25,6 +25,31 @@ const linkBaseClassName = "rounded-2xl border px-4 py-3 text-sm font-bold transi
 const activeLinkClassName = "border-yellow-300/35 bg-yellow-400/15 text-yellow-100";
 const inactiveLinkClassName =
   "border-white/10 bg-white/[0.04] text-white/75 hover:border-purple-300/45 hover:bg-purple-500/10 hover:text-white";
+
+const quickNavGroupTitleCopy: Record<SiteLanguage, Record<string, string>> = {
+  ar: {
+    "أساسيات الوكالة": "أساسيات الوكالة",
+    "تفاصيل البرامج": "تفاصيل البرامج",
+    "الطلبات والمتابعة": "الطلبات والمتابعة",
+    "الثقة والمحتوى": "الثقة والمحتوى",
+    "معلومات قانونية": "معلومات قانونية",
+  },
+  en: {
+    "أساسيات الوكالة": "Agency essentials",
+    "تفاصيل البرامج": "Programs",
+    "الطلبات والمتابعة": "Requests and tracking",
+    "الثقة والمحتوى": "Trust and content",
+    "معلومات قانونية": "Legal information",
+  },
+  tr: {
+    "أساسيات الوكالة": "Ajans temelleri",
+    "تفاصيل البرامج": "Programlar",
+    "الطلبات والمتابعة": "Talepler ve takip",
+    "الثقة والمحتوى": "Güven ve içerik",
+    "معلومات قانونية": "Yasal bilgiler",
+  },
+};
+
 const mobilePolishStyles = `
 body.public-site-page footer h3 + p,
 body.public-site-page footer p.break-all {
@@ -87,26 +112,26 @@ function getQuickNavLinkKey(link: PublicNavigationLink) {
   return link.href.split("?")[0]?.split("#")[0] || link.href;
 }
 
-function dedupePublicQuickNavLinks(links: PublicNavigationLink[]) {
-  const seen = new Set<string>();
-
-  return links.filter((link) => {
-    const key = getQuickNavLinkKey(link);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
 function sanitizePublicQuickNavGroups(groups: PublicNavigationGroup[]) {
+  const seenLinks = new Set<string>();
+
   return groups
     .map((group) => ({
       ...group,
-      links: dedupePublicQuickNavLinks(
-        group.links.filter((link) => isSafePublicHref(link.href) && link.isVisible !== false)
-      ),
+      links: group.links
+        .filter((link) => isSafePublicHref(link.href) && link.isVisible !== false)
+        .filter((link) => {
+          const key = getQuickNavLinkKey(link);
+          if (seenLinks.has(key)) return false;
+          seenLinks.add(key);
+          return true;
+        }),
     }))
     .filter((group) => group.isVisible !== false && group.links.length > 0);
+}
+
+function getQuickNavGroupTitle(language: SiteLanguage, group: PublicNavigationGroup) {
+  return quickNavGroupTitleCopy[language][group.title] || group.title;
 }
 
 function isInternalHref(href: string) {
@@ -205,7 +230,7 @@ export default function PublicQuickNav() {
             <nav className="grid gap-4" aria-label={copy("quickNavTitle")}>
               {visibleGroups.map((group) => (
                 <div key={group.title} className="grid gap-2">
-                  <div className={groupTitleClassName}>{getSharedNavigationGroupTitle(language, group)}</div>
+                  <div className={groupTitleClassName}>{getQuickNavGroupTitle(language, group)}</div>
 
                   {group.links.map((link) => {
                     const active = isInternalHref(link.href) ? isActiveLink(pathname, link.href) : false;
