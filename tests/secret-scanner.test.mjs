@@ -9,8 +9,9 @@ test("env templates are allowed and runtime env files fail", () => {
 
 test("names in workflows scripts tests and documentation are allowed", () => {
   const variableName = ["SUPABASE", "SERVICE", "ROLE"].join("_");
+  const workflowReference = variableName + ": " + "$" + "{{ secrets." + variableName + " }}";
   const samples = [
-    [".github/workflows/check.yml", `${variableName}: ${{ secrets.${variableName} }}`],
+    [".github/workflows/check.yml", workflowReference],
     ["scripts/check.mjs", `const name = '${variableName}';`],
     ["tests/check.test.mjs", `assert.match(source, /${variableName}/);`],
     ["docs/security.md", `Never expose ${variableName} through NEXT_PUBLIC variables.`],
