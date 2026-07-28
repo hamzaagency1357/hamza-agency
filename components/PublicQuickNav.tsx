@@ -83,11 +83,28 @@ function isSafePublicHref(href: string) {
   return href.startsWith("/") || href.startsWith("#") || href.startsWith("https://") || href.startsWith("http://") || href.startsWith("mailto:") || href.startsWith("tel:");
 }
 
+function getQuickNavLinkKey(link: PublicNavigationLink) {
+  return link.href.split("?")[0]?.split("#")[0] || link.href;
+}
+
+function dedupePublicQuickNavLinks(links: PublicNavigationLink[]) {
+  const seen = new Set<string>();
+
+  return links.filter((link) => {
+    const key = getQuickNavLinkKey(link);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function sanitizePublicQuickNavGroups(groups: PublicNavigationGroup[]) {
   return groups
     .map((group) => ({
       ...group,
-      links: group.links.filter((link) => isSafePublicHref(link.href) && link.isVisible !== false),
+      links: dedupePublicQuickNavLinks(
+        group.links.filter((link) => isSafePublicHref(link.href) && link.isVisible !== false)
+      ),
     }))
     .filter((group) => group.isVisible !== false && group.links.length > 0);
 }
