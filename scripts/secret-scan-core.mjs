@@ -23,7 +23,7 @@ function isPlaceholder(value) {
 }
 
 function hasConcreteServiceRoleAssignment(text) {
-  const assignment = /\b(?:SUPABASE_SERVICE_ROLE(?:_KEY)?|SERVICE_ROLE_KEY)\b\s*[:=]\s*([^\n,}\]]+)/gi;
+  const assignment = /\b(?:SUPABASE_SERVICE_ROLE(?:_KEY)?|SERVICE_ROLE_KEY)\b\s*[:=]\s*([^\n,]+)/gi;
   for (const match of text.matchAll(assignment)) {
     if (!isPlaceholder(match[1] || "")) return true;
   }
