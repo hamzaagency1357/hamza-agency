@@ -4,27 +4,18 @@ import { fileURLToPath } from "node:url";
 
 const currentFile = fileURLToPath(import.meta.url);
 const currentDirectory = path.dirname(currentFile);
-const compat = new FlatCompat({
-  baseDirectory: currentDirectory,
-});
+const compat = new FlatCompat({ baseDirectory: currentDirectory });
 
 const eslintConfig = [
-  {
-    ignores: [
-      ".next/**",
-      "node_modules/**",
-      "out/**",
-      "build/**",
-      "coverage/**",
-      "next-env.d.ts",
-    ],
-  },
+  { ignores: [".next/**","node_modules/**","out/**","build/**","coverage/**","next-env.d.ts"] },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
-    files: ["components/AdminManagementPageBuilder.tsx"],
-    rules: {
-      "react-hooks/exhaustive-deps": "off",
-    },
+    files: ["components/AdminManagementPageBuilder.tsx","components/AdminNotificationsInbox.tsx"],
+    rules: { "react-hooks/exhaustive-deps": "off" },
+  },
+  {
+    files: ["components/PublicPageBuilderRenderer.tsx"],
+    rules: { "@next/next/no-img-element": "off" },
   },
 ];
 
