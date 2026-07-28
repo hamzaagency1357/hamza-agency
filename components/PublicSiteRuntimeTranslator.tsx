@@ -9,7 +9,13 @@ import {
   translateSiteRuntimeText,
 } from "@/lib/i18n/siteRuntimeTranslations";
 
-const TRANSLATABLE_ATTRIBUTES = ["placeholder", "aria-label", "title", "alt"] as const;
+const TRANSLATABLE_ATTRIBUTES = [
+  "placeholder",
+  "aria-label",
+  "title",
+  "alt",
+  "dir",
+] as const;
 const METADATA_SELECTORS = [
   'meta[name="description"]',
   'meta[property="og:title"]',
@@ -59,6 +65,28 @@ function shouldSkipElement(element: Element | null) {
   return false;
 }
 
+function translateCompositeText(value: string, language: SiteLanguage) {
+  if (language === "ar") return value;
+
+  const directTranslation = translateSiteRuntimeText(value, language);
+  if (directTranslation !== value) return directTranslation;
+
+  return value
+    .split(/(\n+)/)
+    .map((segment) => {
+      if (!segment || /^\n+$/.test(segment)) return segment;
+
+      const match = segment.match(/^(\s*)(.*?)(\s*)$/s);
+      if (!match) return segment;
+
+      const [, leading, core, trailing] = match;
+      if (!core.trim()) return segment;
+
+      return `${leading}${translateSiteRuntimeText(core, language)}${trailing}`;
+    })
+    .join("");
+}
+
 function translateTextNode(node: Text, language: SiteLanguage) {
   const parent = node.parentElement;
   if (shouldSkipElement(parent)) return;
@@ -72,13 +100,36 @@ function translateTextNode(node: Text, language: SiteLanguage) {
   }
 
   const source = originalText.get(node) || currentValue;
-  const translated = translateSiteRuntimeText(source, language);
+  const translated = translateCompositeText(source, language);
 
   if (currentValue !== translated) {
     node.nodeValue = translated;
   }
 
   lastAppliedText.set(node, translated);
+}
+
+function getTranslatedAttributeValue(
+  element: Element,
+  attributeName: AttributeName,
+  original: string,
+  language: SiteLanguage
+) {
+  if (attributeName === "dir") {
+    if (language === "ar") return original;
+
+    if (
+      element.tagName === "INPUT" ||
+      element.tagName === "TEXTAREA" ||
+      element.hasAttribute("data-preserve-direction")
+    ) {
+      return original;
+    }
+
+    return "ltr";
+  }
+
+  return translateCompositeText(original, language);
 }
 
 function translateElementAttributes(element: Element, language: SiteLanguage) {
@@ -107,7 +158,13 @@ function translateElementAttributes(element: Element, language: SiteLanguage) {
     const state = elementState.get(attributeName);
     if (!state) continue;
 
-    const translated = translateSiteRuntimeText(state.original, language);
+    const translated = getTranslatedAttributeValue(
+      element,
+      attributeName,
+      state.original,
+      language
+    );
+
     if (currentValue !== translated) {
       element.setAttribute(attributeName, translated);
     }
@@ -155,7 +212,8 @@ function captureOriginalMetadata(pathname: string) {
 
   const values: Record<string, string> = {};
   for (const selector of METADATA_SELECTORS) {
-    values[selector] = document.querySelector(selector)?.getAttribute("content") || "";
+    values[selector] =
+      document.querySelector(selector)?.getAttribute("content") || "";
   }
 
   originalMetadataByPath.set(normalizedPath, {
