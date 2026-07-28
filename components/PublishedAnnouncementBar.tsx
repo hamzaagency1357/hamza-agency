@@ -21,7 +21,6 @@ type Field = "title" | "content";
 type Animation = "fixed" | "marquee";
 
 const fields: Field[] = ["title", "content"];
-
 const safeFallback = {
   en: {
     title: "HAMZA AGENCY",
@@ -32,6 +31,13 @@ const safeFallback = {
     content: "Ajansın güncel duyurularını, programlarını ve fırsatlarını takip edin.",
   },
 };
+
+function isPlaceholder(value: string) {
+  return (
+    value.includes("Localized content is being updated") ||
+    value.includes("Yerelleştirilmiş içerik güncelleniyor")
+  );
+}
 
 export default function PublishedAnnouncementBar({
   announcement,
@@ -67,12 +73,10 @@ export default function PublishedAnnouncementBar({
         sourceIds: [announcement.id],
         fields,
       });
-
       if (active) setTranslations(map);
     }
 
     void load();
-
     return () => {
       active = false;
     };
@@ -87,9 +91,7 @@ export default function PublishedAnnouncementBar({
     }
 
     const current = translations[String(announcement.id)];
-    const complete = hasCompletePublishedTranslation(current, fields);
-
-    if (complete) {
+    if (hasCompletePublishedTranslation(current, fields)) {
       return {
         title: sanitizeMarketingCopy(current?.title || "", language),
         content: sanitizeMarketingCopy(current?.content || "", language),
@@ -107,28 +109,32 @@ export default function PublishedAnnouncementBar({
 
     return {
       title:
-        localizedTitle.trim() &&
-        !localizedTitle.includes("Localized content") &&
-        !localizedTitle.includes("Yerelleştirilmiş içerik")
+        localizedTitle.trim() && !isPlaceholder(localizedTitle)
           ? localizedTitle
           : safeFallback[language].title,
       content:
-        localizedContent.trim() &&
-        !localizedContent.includes("Localized content") &&
-        !localizedContent.includes("Yerelleştirilmiş içerik")
+        localizedContent.trim() && !isPlaceholder(localizedContent)
           ? localizedContent
           : safeFallback[language].content,
     };
   }, [announcement, language, translations]);
 
   const text = `${displayed.title || ""} — ${displayed.content || ""}`.trim();
-
   if (!text) return null;
 
-  const duration = Math.min(Math.max(Number(speed) || 22, 12), 60);
+  const duration = Math.min(Math.max(Number(speed) || 22, 16), 60);
   const marqueeStyle = {
     "--marquee-duration": `${duration}s`,
   } as CSSProperties;
+
+  const segment = (
+    <span className="hamza-marquee-segment inline-flex shrink-0 items-center gap-10 px-10">
+      <span>{text}</span>
+      <span aria-hidden="true" className="text-yellow-300/65">
+        ✦
+      </span>
+    </span>
+  );
 
   return (
     <div
@@ -141,16 +147,24 @@ export default function PublishedAnnouncementBar({
       }`}
     >
       {animation === "marquee" ? (
-        <div
-          className="hamza-marquee-track flex w-max max-w-none items-center whitespace-nowrap py-3 text-sm font-bold md:text-base"
-          data-marquee-direction={direction}
-          style={marqueeStyle}
-        >
-          {[0, 1, 2, 3].map((item) => (
-            <span key={item} aria-hidden={item > 0} className="mx-8">
-              {text}
-            </span>
-          ))}
+        <div className="hamza-marquee-viewport overflow-hidden">
+          <div
+            className="hamza-marquee-track flex w-max max-w-none items-center whitespace-nowrap py-3 text-sm font-bold md:text-base"
+            data-marquee-direction={direction}
+            style={marqueeStyle}
+          >
+            <div className="hamza-marquee-group flex shrink-0 items-center">
+              {segment}
+              {segment}
+            </div>
+            <div
+              aria-hidden="true"
+              className="hamza-marquee-group flex shrink-0 items-center"
+            >
+              {segment}
+              {segment}
+            </div>
+          </div>
         </div>
       ) : (
         <div className="px-4 py-3 text-center text-sm font-bold leading-7 md:text-base">
@@ -163,33 +177,31 @@ export default function PublishedAnnouncementBar({
       <style>{`
         @keyframes hamzaAnnouncementLtr {
           from { transform: translate3d(0, 0, 0); }
-          to { transform: translate3d(-25%, 0, 0); }
+          to { transform: translate3d(-50%, 0, 0); }
         }
-
         @keyframes hamzaAnnouncementRtl {
-          from { transform: translate3d(0, 0, 0); }
-          to { transform: translate3d(25%, 0, 0); }
+          from { transform: translate3d(-50%, 0, 0); }
+          to { transform: translate3d(0, 0, 0); }
         }
-
         .hamza-marquee-track[data-marquee-direction="ltr"] {
           animation: hamzaAnnouncementLtr var(--marquee-duration, 22s) linear infinite !important;
         }
-
         .hamza-marquee-track[data-marquee-direction="rtl"] {
+          direction: rtl;
           animation: hamzaAnnouncementRtl var(--marquee-duration, 22s) linear infinite !important;
         }
-
+        .hamza-marquee-group { min-width: max-content; }
         @media (max-width: 768px) {
-          .hamza-marquee-track span {
-            max-width: 86vw;
-          }
+          .hamza-marquee-segment { gap: 1.75rem; padding-inline: 1.75rem; }
         }
-
         @media (prefers-reduced-motion: reduce) {
           .hamza-marquee-track {
             animation: none !important;
             transform: none !important;
+            white-space: normal !important;
+            width: auto !important;
           }
+          .hamza-marquee-group[aria-hidden="true"] { display: none; }
         }
       `}</style>
     </div>
