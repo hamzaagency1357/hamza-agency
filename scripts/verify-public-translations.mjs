@@ -8,7 +8,7 @@ const entries = [];
 let match;
 
 while ((match = entryPattern.exec(source)) !== null) {
-  entries.push({ ar: match[1], en: match[2], tr: match[3] });
+  entries.push({ source: match[1], en: match[2], tr: match[3] });
 }
 
 const errors = [];
@@ -21,32 +21,28 @@ if (entries.length < 300) {
 }
 
 for (const entry of entries) {
-  const ar = normalize(entry.ar);
+  const sourceText = normalize(entry.source);
   const en = normalize(entry.en);
   const tr = normalize(entry.tr);
 
-  if (!ar || !en || !tr) {
-    errors.push(`Empty translation field found for source: ${ar || "<empty>"}`);
+  if (!sourceText || !en || !tr) {
+    errors.push(`Empty translation field found for source: ${sourceText || "<empty>"}`);
     continue;
   }
 
-  if (!arabicPattern.test(ar)) {
-    errors.push(`Arabic source does not contain Arabic text: ${ar}`);
-  }
-
   if (arabicPattern.test(en)) {
-    errors.push(`English translation still contains Arabic text: ${ar}`);
+    errors.push(`English translation still contains Arabic text: ${sourceText}`);
   }
 
   if (arabicPattern.test(tr)) {
-    errors.push(`Turkish translation still contains Arabic text: ${ar}`);
+    errors.push(`Turkish translation still contains Arabic text: ${sourceText}`);
   }
 
-  const existing = bySource.get(ar);
+  const existing = bySource.get(sourceText);
   if (existing && (existing.en !== en || existing.tr !== tr)) {
-    errors.push(`Conflicting duplicate translation for: ${ar}`);
+    errors.push(`Conflicting duplicate translation for: ${sourceText}`);
   } else if (!existing) {
-    bySource.set(ar, { en, tr });
+    bySource.set(sourceText, { en, tr });
   }
 }
 
@@ -128,5 +124,5 @@ if (errors.length) {
 }
 
 console.log(
-  `Public translation verification passed: ${entries.length} entries, ${bySource.size} unique Arabic sources, ${requiredRoutes.length} localized routes, and 5 program metadata records.`
+  `Public translation verification passed: ${entries.length} entries, ${bySource.size} unique sources, ${requiredRoutes.length} localized routes, and 5 program metadata records.`
 );
