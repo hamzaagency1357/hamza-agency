@@ -3,6 +3,12 @@
 :root {
   --public-mobile-dock-height: 4.75rem;
   --public-mobile-dock-gap: 0.65rem;
+  --public-mobile-dock-clearance: calc(
+    var(--public-mobile-dock-height) +
+    var(--public-mobile-dock-gap) +
+    env(safe-area-inset-bottom, 0px) +
+    1rem
+  );
 }
 
 .hamza-global-header + main > nav,
@@ -49,6 +55,8 @@ body.public-site-page footer h3 + p + p + p {
 }
 
 .hamza-approved-support-copy {
+  position: relative;
+  z-index: 20;
   padding-bottom: 1rem;
 }
 
@@ -87,13 +95,14 @@ body.public-site-page footer h3 + p + p + p {
 
 @media (max-width: 768px) {
   body.public-site-page main,
-  body.public-site-page footer,
+  body.public-site-page footer {
+    padding-bottom: var(--public-mobile-dock-clearance) !important;
+    scroll-padding-bottom: var(--public-mobile-dock-clearance);
+  }
+
   .hamza-approved-support-copy {
-    padding-bottom: calc(
-      var(--public-mobile-dock-height) +
-      var(--public-mobile-dock-gap) +
-      env(safe-area-inset-bottom, 0px)
-    ) !important;
+    margin-bottom: 0;
+    padding-bottom: var(--public-mobile-dock-clearance) !important;
   }
 
   .hamza-global-header {
