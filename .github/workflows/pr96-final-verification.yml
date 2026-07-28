@@ -1,16 +1,19 @@
-name: PR 96 Final Verification
+name: HAMZA AGENCY Quality Gate
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
-      - chore/g0-codebase-safe-cleanup
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: pr96-final-verification-${{ github.ref }}
+  group: quality-gate-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
