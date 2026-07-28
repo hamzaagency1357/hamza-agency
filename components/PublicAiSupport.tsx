@@ -116,8 +116,9 @@ export default function PublicAiSupport({
   }, [isOpen, mobileDockMode]);
 
   useEffect(() => {
-    if (!mobileDockMode) setIsOpen(false);
-  }, [pathname, mobileDockMode]);
+    if (mobileDockMode || isControlled) return;
+    setInternalOpen(false);
+  }, [pathname, mobileDockMode, isControlled]);
 
   useEffect(() => {
     async function loadKnowledge() {

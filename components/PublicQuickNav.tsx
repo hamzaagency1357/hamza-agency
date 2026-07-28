@@ -171,8 +171,9 @@ export default function PublicQuickNav({
   }, [isOpen, mobileDockMode]);
 
   useEffect(() => {
-    if (!mobileDockMode) setIsOpen(false);
-  }, [pathname, mobileDockMode]);
+    if (mobileDockMode || isControlled) return;
+    setInternalOpen(false);
+  }, [pathname, mobileDockMode, isControlled]);
 
   const visibleGroups = useMemo(() => {
     const sanitizedGroups = sanitizePublicQuickNavGroups(quickNavGroups);
