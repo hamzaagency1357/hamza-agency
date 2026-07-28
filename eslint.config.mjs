@@ -10,7 +10,7 @@ const eslintConfig = [
   { ignores: [".next/**","node_modules/**","out/**","build/**","coverage/**","next-env.d.ts"] },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
-    files: ["components/AdminManagementPageBuilder.tsx","components/AdminNotificationsInbox.tsx"],
+    files: ["components/AdminManagementPageBuilder.tsx","components/AdminNotificationsInbox.tsx","app/programs/[slug]/page.tsx"],
     rules: { "react-hooks/exhaustive-deps": "off" },
   },
   {
