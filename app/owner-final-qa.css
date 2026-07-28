@@ -1,5 +1,10 @@
 /* Owner-approved PR #98 visual QA overrides. */
 
+:root {
+  --public-mobile-dock-height: 4.75rem;
+  --public-mobile-dock-gap: 0.65rem;
+}
+
 .hamza-global-header + main > nav,
 .hamza-global-header + main > nav + div[class*="lg:hidden"] {
   display: none !important;
@@ -44,7 +49,7 @@ body.public-site-page footer h3 + p + p + p {
 }
 
 .hamza-approved-support-copy {
-  padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: 1rem;
 }
 
 @media (max-width: 1024px), (hover: none) and (pointer: coarse) {
@@ -81,8 +86,14 @@ body.public-site-page footer h3 + p + p + p {
 }
 
 @media (max-width: 768px) {
-  body.public-site-page main {
-    padding-bottom: calc(8.5rem + env(safe-area-inset-bottom, 0px)) !important;
+  body.public-site-page main,
+  body.public-site-page footer,
+  .hamza-approved-support-copy {
+    padding-bottom: calc(
+      var(--public-mobile-dock-height) +
+      var(--public-mobile-dock-gap) +
+      env(safe-area-inset-bottom, 0px)
+    ) !important;
   }
 
   .hamza-global-header {
@@ -96,7 +107,6 @@ body.public-site-page footer h3 + p + p + p {
 
   body.public-site-page footer {
     padding-top: 1.75rem !important;
-    padding-bottom: 1.75rem !important;
   }
 
   body.public-site-page footer > div:first-child {
@@ -108,62 +118,33 @@ body.public-site-page footer h3 + p + p + p {
     line-height: 1.6 !important;
   }
 
-  .hamza-approved-support-copy {
-    padding-bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px));
-  }
-
   .hamza-floating-whatsapp,
   .hamza-ai-support,
   .hamza-quick-nav {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.65rem) !important;
+    display: none !important;
   }
 
-  .hamza-floating-whatsapp {
-    inset-inline-start: 0.65rem !important;
-    width: calc(34% - 0.55rem) !important;
-    min-height: 3rem !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0.35rem !important;
+  .hamza-mobile-dock-shell {
+    bottom: env(safe-area-inset-bottom, 0px);
+    height: var(--public-mobile-dock-height);
   }
 
-  .hamza-ai-support {
-    inset-inline-end: calc(33% + 0.4rem) !important;
-    width: calc(33% - 0.35rem) !important;
+  .hamza-mobile-dock-panel {
+    bottom: calc(
+      var(--public-mobile-dock-height) + var(--public-mobile-dock-gap)
+    );
   }
 
-  .hamza-quick-nav {
-    inset-inline-end: 0.65rem !important;
-    width: calc(33% - 0.55rem) !important;
+  .hamza-mobile-dock-grid {
+    min-height: var(--public-mobile-dock-height);
   }
 
-  .hamza-ai-support > button,
-  .hamza-quick-nav > button {
+  .hamza-mobile-dock-panel .hamza-ai-support-panel,
+  .hamza-mobile-dock-panel .hamza-quick-nav-panel {
+    position: static !important;
+    inset: auto !important;
     width: 100% !important;
-    min-height: 3rem !important;
-    padding-inline: 0.3rem !important;
-    font-size: clamp(0.65rem, 2.7vw, 0.78rem) !important;
-    white-space: normal !important;
-  }
-
-  .hamza-ai-support-panel,
-  .hamza-quick-nav-panel {
-    position: fixed !important;
-    inset-inline: 0.65rem !important;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 4.2rem) !important;
-    width: auto !important;
     max-width: none !important;
-    max-height: calc(100svh - env(safe-area-inset-top, 0px) - 5.25rem) !important;
     margin: 0 !important;
-  }
-
-  body.public-quick-nav-open .hamza-ai-support,
-  body.public-quick-nav-open .hamza-floating-whatsapp,
-  body.public-ai-support-open .hamza-quick-nav,
-  body.public-ai-support-open .hamza-floating-whatsapp {
-    opacity: 0 !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
   }
 }
