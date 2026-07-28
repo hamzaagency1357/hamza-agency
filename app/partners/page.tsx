@@ -23,6 +23,28 @@ type PartnerItem = {
   isFeatured: boolean;
 };
 
+type PartnerRow = {
+  id?: string | number | null;
+  name?: string | null;
+  title?: string | null;
+  slug?: string | null;
+  category?: string | null;
+  type?: string | null;
+  description?: string | null;
+  summary?: string | null;
+  agreement_label?: string | null;
+  badge?: string | null;
+  logo_url?: string | null;
+  image_url?: string | null;
+  program_url?: string | null;
+  website_url?: string | null;
+  url?: string | null;
+  sort_order?: number | null;
+  is_featured?: boolean | null;
+  is_visible?: boolean | null;
+  status?: string | null;
+};
+
 const defaultPartners: PartnerItem[] = [
   { id: "tiktok", name: "TikTok", category: "صناعة المحتوى والبث المباشر", description: "تعمل وكالة حمزة ضمن اتفاق تعاون مع TikTok لتقديم مسار منظم لصناع المحتوى، يبدأ من التوجيه وفهم المتطلبات وصولاً إلى المتابعة المناسبة حسب طبيعة كل حالة.", agreementLabel: "اتفاق تعاون", logoUrl: null, programUrl: "/programs/tiktok", sortOrder: 1, isFeatured: true },
   { id: "bigo-live", name: "BIGO LIVE", category: "البث المباشر والمواهب", description: "ضمن اتفاقات التعاون الخاصة بالوكالة، يمثل BIGO LIVE أحد المسارات المهمة لصناع المحتوى المهتمين بالبث المباشر وبناء حضور تفاعلي احترافي.", agreementLabel: "اتفاق تعاون", logoUrl: null, programUrl: "/programs/bigo-live", sortOrder: 2, isFeatured: true },
@@ -31,7 +53,9 @@ const defaultPartners: PartnerItem[] = [
   { id: "catchii", name: "Catchii", category: "المحتوى الاجتماعي والبث", description: "تعمل وكالة حمزة مع Catchii ضمن منظومة برامجها لدعم صناع المحتوى الراغبين بخيارات إضافية في مجال التواصل والبث والتفاعل الرقمي.", agreementLabel: "اتفاق تعاون", logoUrl: null, programUrl: "/programs/catchii", sortOrder: 5, isFeatured: false },
 ];
 
-function normalizePartner(item: any, index: number): PartnerItem {
+function normalizePartner(item: PartnerRow, index: number): PartnerItem {
+  const slug = item.slug || "";
+
   return {
     id: item.id ?? item.slug ?? index + 1,
     name: item.name || item.title || "برنامج وكالة حمزة",
@@ -39,7 +63,7 @@ function normalizePartner(item: any, index: number): PartnerItem {
     description: item.description || item.summary || "برنامج ضمن اتفاقات التعاون الخاصة بوكالة حمزة لدعم وتنظيم مسارات صناع المحتوى.",
     agreementLabel: item.agreement_label || item.badge || "اتفاق تعاون",
     logoUrl: item.logo_url || item.image_url || null,
-    programUrl: item.program_url || item.website_url || item.url || `/programs/${item.slug || ""}`,
+    programUrl: item.program_url || item.website_url || item.url || `/programs/${slug}`,
     sortOrder: item.sort_order ?? index + 1,
     isFeatured: item.is_featured === true,
   };
@@ -49,11 +73,11 @@ async function getPartners(): Promise<PartnerItem[]> {
   if (!supabase) return defaultPartners;
   const { data, error } = await supabase.from("partners").select("*").order("sort_order", { ascending: true });
   if (error || !data || data.length === 0) return defaultPartners;
-  const visiblePartners = data
-    .filter((item: any) => item.is_visible !== false && item.status !== "hidden")
-    .map((item: any, index: number) => normalizePartner(item, index))
-    .filter((item: PartnerItem) => item.name.trim().length > 0)
-    .sort((a: PartnerItem, b: PartnerItem) => a.sortOrder - b.sortOrder);
+  const visiblePartners = (data as PartnerRow[])
+    .filter((item) => item.is_visible !== false && item.status !== "hidden")
+    .map((item, index) => normalizePartner(item, index))
+    .filter((item) => item.name.trim().length > 0)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
   return visiblePartners.length ? visiblePartners : defaultPartners;
 }
 

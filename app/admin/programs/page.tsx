@@ -290,7 +290,7 @@ export default function AdminProgramsPage() {
 
     try {
       const trashResult = await moveRecordToTrash({
-        supabase: supabase as any,
+        supabase,
         tableName: "programs",
         recordId: program.id,
         title: program.name,

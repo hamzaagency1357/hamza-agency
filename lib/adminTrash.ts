@@ -1,13 +1,9 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 type JsonRecord = Record<string, unknown>;
 
-type SupabaseLikeClient = {
-  from: (table: string) => {
-    insert: (payload: JsonRecord | JsonRecord[]) => Promise<{ error: { message?: string } | null }>;
-  };
-};
-
 export type MoveRecordToTrashInput = {
-  supabase: SupabaseLikeClient | null | undefined;
+  supabase: SupabaseClient | null | undefined;
   tableName: string;
   recordId: string | number;
   title?: string | null;

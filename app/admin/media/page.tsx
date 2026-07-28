@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -382,7 +383,7 @@ export default function AdminMediaPage() {
     setError("");
 
     const trashResult = await moveRecordToTrash({
-      supabase: supabase as any,
+      supabase,
       tableName: "media",
       recordId: item.id,
       title: item.name || "وسيط بدون اسم",
@@ -619,7 +620,14 @@ export default function AdminMediaPage() {
 
                   <div className="mb-4 overflow-hidden rounded-2xl border border-white/10 bg-black/50">
                     {canPreviewImage(item) ? (
-                      <img src={item.file_url || ""} alt={item.alt_text || item.name || "media"} className="h-72 w-full object-contain p-2" />
+                      <Image
+                        src={item.file_url || ""}
+                        alt={item.alt_text || item.name || "media"}
+                        width={960}
+                        height={288}
+                        unoptimized
+                        className="h-72 w-full object-contain p-2"
+                      />
                     ) : canPreviewVideo(item) ? (
                       <video src={item.file_url || ""} className="h-72 w-full object-contain p-2" controls />
                     ) : (

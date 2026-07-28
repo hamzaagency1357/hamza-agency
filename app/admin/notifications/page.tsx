@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -308,12 +308,6 @@ export default function AdminNotificationsPage() {
   }, [router]);
 
   useEffect(() => {
-    if (!isAuthorized) return;
-    loadNotifications();
-    loadPersistentStates();
-  }, [isAuthorized, adminEmail]);
-
-  useEffect(() => {
     const supabaseClient = supabase;
     if (!isAuthorized || !supabaseClient) return;
 
@@ -345,7 +339,7 @@ export default function AdminNotificationsPage() {
     };
   }, [isAuthorized]);
 
-  async function loadPersistentStates() {
+  const loadPersistentStates = useCallback(async () => {
     const localStates = readStoredStates();
     setStates(localStates);
 
@@ -384,7 +378,13 @@ export default function AdminNotificationsPage() {
     } catch {
       setPersistenceMode("local");
     }
-  }
+  }, [adminEmail]);
+
+  useEffect(() => {
+    if (!isAuthorized) return;
+    void loadNotifications();
+    void loadPersistentStates();
+  }, [isAuthorized, loadPersistentStates]);
 
   function persistStates(nextStates: Record<string, NotificationState>) {
     setStates(nextStates);

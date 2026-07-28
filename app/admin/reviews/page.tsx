@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
@@ -126,21 +126,52 @@ export default function AdminReviewsPage() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<MessageType>("info");
 
-  useEffect(() => {
-    checkAccessAndLoad();
-  }, []);
-
-  function showMessage(text: string, type: MessageType = "info") {
+  const showMessage = useCallback((text: string, type: MessageType = "info") => {
     setMessage(text);
     setMessageType(type);
-  }
+  }, []);
 
-  function clearMessage() {
+  const clearMessage = useCallback(() => {
     setMessage("");
     setMessageType("info");
-  }
+  }, []);
 
-  async function checkAccessAndLoad() {
+  const loadReviews = useCallback(async () => {
+    if (!supabase) return;
+
+    const { data, error } = await supabase
+      .from("reviews")
+      .select(
+        "id, reviewer_name, country, platform, rating, content, avatar_url, is_featured, sort_order, status, is_visible, created_at, updated_at"
+      )
+      .order("is_featured", { ascending: false })
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      showMessage("تعذر تحميل التقييمات. يرجى تحديث الصفحة والمحاولة مرة أخرى.", "error");
+      return;
+    }
+
+    setReviews((data || []) as Review[]);
+  }, [showMessage]);
+
+  const loadMediaItems = useCallback(async () => {
+    if (!supabase) return;
+
+    const { data, error } = await supabase
+      .from("media")
+      .select("id, name, file_url, file_type, category, alt_text, page_slug, is_active")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (error || !data) return;
+
+    setMediaItems(((data || []) as MediaPickerItem[]).filter(isSelectableMedia));
+  }, []);
+
+  const checkAccessAndLoad = useCallback(async () => {
     setIsLoading(true);
 
     if (!supabase) {
@@ -166,42 +197,11 @@ export default function AdminReviewsPage() {
     setAdminStatus("authorized");
     await Promise.all([loadReviews(), loadMediaItems()]);
     setIsLoading(false);
-  }
+  }, [loadMediaItems, loadReviews]);
 
-  async function loadReviews() {
-    if (!supabase) return;
-
-    const { data, error } = await supabase
-      .from("reviews")
-      .select(
-        "id, reviewer_name, country, platform, rating, content, avatar_url, is_featured, sort_order, status, is_visible, created_at, updated_at"
-      )
-      .order("is_featured", { ascending: false })
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      showMessage("تعذر تحميل التقييمات. يرجى تحديث الصفحة والمحاولة مرة أخرى.", "error");
-      return;
-    }
-
-    setReviews((data || []) as Review[]);
-  }
-
-  async function loadMediaItems() {
-    if (!supabase) return;
-
-    const { data, error } = await supabase
-      .from("media")
-      .select("id, name, file_url, file_type, category, alt_text, page_slug, is_active")
-      .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(200);
-
-    if (error || !data) return;
-
-    setMediaItems(((data || []) as MediaPickerItem[]).filter(isSelectableMedia));
-  }
+  useEffect(() => {
+    void checkAccessAndLoad();
+  }, [checkAccessAndLoad]);
 
   function updateForm(key: keyof ReviewForm, value: string | boolean) {
     setForm((current) => ({

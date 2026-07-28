@@ -52,11 +52,9 @@ export default function ServiceStatusPage() {
     }
 
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from("service_requests")
-      .select("id, request_code, service_type, platform, status, created_at, updated_at")
-      .eq("request_code", code)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc("lookup_public_service_request", {
+      p_request_code: code,
+    });
     setIsLoading(false);
 
     if (error) {
@@ -64,11 +62,13 @@ export default function ServiceStatusPage() {
       setMessage(forms.lookupError);
       return;
     }
-    if (!data) {
+
+    const record = Array.isArray(data) ? data[0] : data;
+    if (!record) {
       setMessage(forms.notFound);
       return;
     }
-    setServiceRequest(data as ServiceRequestRecord);
+    setServiceRequest(record as ServiceRequestRecord);
   }
 
   const statusInfo = serviceRequest ? getServiceStatusInfo(language, serviceRequest.status) : null;

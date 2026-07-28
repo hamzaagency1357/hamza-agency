@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
 import { logAdminActivity } from "@/lib/adminActivityLogger";
@@ -165,11 +166,56 @@ export default function AdminGalleryPage() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error" | "info">("info");
 
-  useEffect(() => {
-    initializeAdminPage();
+  const loadItems = useCallback(async () => {
+    if (!supabase) return;
+
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("gallery_items")
+        .select("*")
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        setMessageType("error");
+        setMessage("تعذر تحميل عناصر المعرض حالياً.");
+        return;
+      }
+
+      setItems((data || []) as GalleryItem[]);
+    } catch {
+      setMessageType("error");
+      setMessage("حدث خطأ أثناء تحميل عناصر المعرض.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  async function initializeAdminPage() {
+  const loadMediaOptions = useCallback(async () => {
+    if (!supabase) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("media")
+        .select("id, name, file_url, file_type, category, alt_text, page_slug, is_active")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error || !data) {
+        setMediaOptions([]);
+        return;
+      }
+
+      setMediaOptions((data as MediaOption[]).filter(isMediaPickerOption));
+    } catch {
+      setMediaOptions([]);
+    }
+  }, []);
+
+  const initializeAdminPage = useCallback(async () => {
     setChecking(true);
     setMessage("");
 
@@ -209,56 +255,11 @@ export default function AdminGalleryPage() {
     } finally {
       setChecking(false);
     }
-  }
+  }, [loadItems, loadMediaOptions]);
 
-  async function loadItems() {
-    if (!supabase) return;
-
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase
-        .from("gallery_items")
-        .select("*")
-        .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        setMessageType("error");
-        setMessage("تعذر تحميل عناصر المعرض حالياً.");
-        return;
-      }
-
-      setItems((data || []) as GalleryItem[]);
-    } catch {
-      setMessageType("error");
-      setMessage("حدث خطأ أثناء تحميل عناصر المعرض.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function loadMediaOptions() {
-    if (!supabase) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("media")
-        .select("id, name, file_url, file_type, category, alt_text, page_slug, is_active")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(100);
-
-      if (error || !data) {
-        setMediaOptions([]);
-        return;
-      }
-
-      setMediaOptions((data as MediaOption[]).filter(isMediaPickerOption));
-    } catch {
-      setMediaOptions([]);
-    }
-  }
+  useEffect(() => {
+    void initializeAdminPage();
+  }, [initializeAdminPage]);
 
   const filteredItems = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -991,7 +992,14 @@ function PreviewBox({ item }: { item: GalleryItem }) {
   if (item.thumbnail_url || item.media_url) {
     return (
       <div className="h-24 w-24 shrink-0 overflow-hidden rounded-3xl border border-purple-400/20 bg-purple-500/10">
-        <img src={item.thumbnail_url || item.media_url || ""} alt={item.alt_text || item.title || "عنصر من المعرض"} className="h-full w-full object-cover" />
+        <Image
+          src={item.thumbnail_url || item.media_url || ""}
+          alt={item.alt_text || item.title || "عنصر من المعرض"}
+          width={96}
+          height={96}
+          unoptimized
+          className="h-full w-full object-cover"
+        />
       </div>
     );
   }
@@ -1012,7 +1020,14 @@ function PreviewUrl({ url, label }: { url: string; label: string }) {
       {isVideo ? (
         <video src={url} controls className="h-40 w-full rounded-xl object-contain" />
       ) : (
-        <img src={url} alt={label} className="h-40 w-full rounded-xl object-contain" />
+        <Image
+          src={url}
+          alt={label}
+          width={960}
+          height={160}
+          unoptimized
+          className="h-40 w-full rounded-xl object-contain"
+        />
       )}
     </div>
   );

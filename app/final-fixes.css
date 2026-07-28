@@ -22,38 +22,28 @@ body > div[class^="sticky"] {
 }
 
 /* Final launch header cleanup: keep the home hero header focused and move secondary routes to the footer. */
-main > nav a[href="/service-status"],
-main > nav a[href="/application-status"],
-main > nav a[href="/jobs"],
-main > nav a[href="/reviews"],
-main > nav a[href="/success-stories"],
-main > nav a[href="/partners"],
-main > nav a[href="/gallery"],
-main > nav a[href="/knowledge-center"],
-main > nav a[href="/faq"] {
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/service-status"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/application-status"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/jobs"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/reviews"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/success-stories"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/partners"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/gallery"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/knowledge-center"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/faq"] {
   display: none !important;
 }
 
-main > div.lg\:hidden a[href="/service-status"],
-main > div.lg\:hidden a[href="/application-status"],
-main > div.lg\:hidden a[href="/jobs"],
-main > div.lg\:hidden a[href="/reviews"],
-main > div.lg\:hidden a[href="/success-stories"],
-main > div.lg\:hidden a[href="/partners"],
-main > div.lg\:hidden a[href="/gallery"],
-main > div.lg\:hidden a[href="/knowledge-center"],
-main > div.lg\:hidden a[href="/faq"] {
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/service-status"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/application-status"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/jobs"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/reviews"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/success-stories"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/partners"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/gallery"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/knowledge-center"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/faq"] {
   display: none !important;
-}
-
-/* Final launch mode: hide the floating site pages button from public visitors. */
-body > div.fixed.bottom-4.right-4.z-\[35\].print\:hidden,
-body > div[dir="rtl"][class*="bottom-4"][class*="right-4"][class*="z-[35]"],
-body > div[dir="rtl"][class*="bottom-4"][class*="right-4"]:has(button[aria-label*="قائمة"]),
-body > div[dir="rtl"][class*="bottom-4"][class*="right-4"]:has(button[aria-label*="الموقع"]) {
-  display: none !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
 }
 
 /* Remove the long splash overlay in final public mode. */
@@ -182,12 +172,12 @@ main > div.fixed.inset-0.z-50 {
     font-size: 0.92rem !important;
   }
 
-  body.public-site-page main > a.fixed[href*="wa.me"] {
+  .hamza-floating-whatsapp {
     position: fixed !important;
-    left: 0.75rem !important;
-    right: auto !important;
+    inset-inline-start: 0.75rem !important;
+    inset-inline-end: auto !important;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 0.55rem) !important;
-    z-index: 44 !important;
+    z-index: 150 !important;
     width: calc(50vw - 1.1rem) !important;
     max-width: none !important;
     min-width: 0 !important;
@@ -201,14 +191,15 @@ main > div.fixed.inset-0.z-50 {
     box-shadow: 0 18px 42px rgba(0, 0, 0, 0.45) !important;
   }
 
-  body > div[dir="rtl"][class*="bottom-20"][class*="right-4"] {
-    right: 0.75rem !important;
+  .hamza-ai-support {
+    inset-inline-end: 0.75rem !important;
+    inset-inline-start: auto !important;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 0.55rem) !important;
-    z-index: 45 !important;
+    z-index: 165 !important;
     width: calc(50vw - 1.1rem) !important;
   }
 
-  body > div[dir="rtl"][class*="bottom-20"][class*="right-4"] > button {
+  .hamza-ai-support > button {
     width: 100% !important;
     height: 3rem !important;
     display: inline-flex !important;
@@ -221,17 +212,48 @@ main > div.fixed.inset-0.z-50 {
     box-shadow: 0 18px 42px rgba(0, 0, 0, 0.45) !important;
   }
 
-  body > div[dir="rtl"][class*="bottom-20"][class*="right-4"] > div {
+  .hamza-ai-support-panel {
     width: min(360px, calc(100vw - 1.5rem)) !important;
-    max-height: calc(100vh - 7rem) !important;
+    max-height: calc(100svh - env(safe-area-inset-top, 0px) - 5.25rem) !important;
   }
 
-  body > div[dir="ltr"][class*="left-4"][class*="top-4"] {
+  .hamza-quick-nav {
+    inset-inline-end: 0.75rem !important;
+    inset-inline-start: auto !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 4.4rem) !important;
+    width: calc(50vw - 1.1rem) !important;
+  }
+
+  .hamza-quick-nav > button {
+    width: 100% !important;
+    min-height: 3rem !important;
+    padding-inline: 0.5rem !important;
+    white-space: nowrap !important;
+  }
+
+  .hamza-quick-nav-panel {
+    width: min(340px, calc(100vw - 1.5rem)) !important;
+    max-height: calc(100svh - env(safe-area-inset-top, 0px) - 7.75rem) !important;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .hamza-language-switcher {
     left: 0.65rem !important;
     top: calc(env(safe-area-inset-top, 0px) + 0.55rem) !important;
-    z-index: 46 !important;
+    z-index: 170 !important;
     transform: scale(0.88);
     transform-origin: top left;
+  }
+
+  body.public-quick-nav-open .hamza-ai-support,
+  body.public-quick-nav-open .hamza-floating-whatsapp,
+  body.public-quick-nav-open .hamza-language-switcher,
+  body.public-ai-support-open .hamza-quick-nav,
+  body.public-ai-support-open .hamza-floating-whatsapp,
+  body.public-ai-support-open .hamza-language-switcher {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 
   body.public-site-page section:nth-of-type(2) {
@@ -293,8 +315,9 @@ body.public-site-page .hamza-marquee-track {
     width: min(100%, 225px) !important;
   }
 
-  body.public-site-page main > a.fixed[href*="wa.me"],
-  body > div[dir="rtl"][class*="bottom-20"][class*="right-4"] > button {
+  .hamza-floating-whatsapp,
+  .hamza-ai-support > button,
+  .hamza-quick-nav > button {
     height: 2.85rem !important;
     font-size: 0.74rem !important;
   }

@@ -9,7 +9,7 @@ export default function AuthRecoveryRedirect() {
   useEffect(() => {
     const hash = window.location.hash;
 
-    if (!hash || pathname === "/reset-password") return;
+    if (!hash || pathname === "/admin/reset-password") return;
 
     const params = new URLSearchParams(hash.replace(/^#/, ""));
     const hasRecoveryToken =
@@ -18,7 +18,7 @@ export default function AuthRecoveryRedirect() {
 
     if (!hasRecoveryToken) return;
 
-    window.location.replace(`/reset-password${hash}`);
+    window.location.replace(`/admin/reset-password${window.location.search}${hash}`);
   }, [pathname]);
 
   return null;

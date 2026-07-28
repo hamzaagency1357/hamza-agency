@@ -9,22 +9,47 @@ import {
   type PublicNavigationGroup,
   type PublicNavigationLink,
 } from "@/lib/publicNavigation";
-import { getLanguageDirection } from "@/lib/i18n/locale";
-import { getSharedNavigationGroupTitle, getSharedNavigationLabel } from "@/lib/i18n/sharedChrome";
+import { getLanguageDirection, type SiteLanguage } from "@/lib/i18n/locale";
+import { getSharedNavigationLabel } from "@/lib/i18n/sharedChrome";
 import { getStaticCopy } from "@/lib/i18n/staticCopy";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
 const hiddenPublicQuickNavRoutes = ["/maintenance"];
 const containerClassName =
-  "fixed bottom-[7.75rem] right-4 z-[160] print:hidden md:bottom-6 md:left-6 md:right-auto";
+  "hamza-quick-nav fixed bottom-[7.75rem] right-4 z-[160] print:hidden md:bottom-6 md:left-auto md:right-6";
 const panelClassName =
-  "mb-3 max-h-[calc(100svh-10.5rem)] w-[min(340px,calc(100vw-2rem))] overflow-y-auto rounded-3xl border border-purple-400/25 bg-[#09000f]/95 p-3 pt-4 shadow-[0_0_70px_rgba(124,58,237,0.35)] backdrop-blur-xl";
+  "hamza-quick-nav-panel mb-3 max-h-[calc(100svh-7rem)] w-[min(340px,calc(100vw-2rem))] overflow-y-auto overscroll-contain rounded-3xl border border-purple-400/25 bg-[#09000f]/95 p-3 pt-4 shadow-[0_0_70px_rgba(124,58,237,0.35)] backdrop-blur-xl";
 const groupTitleClassName =
   "rounded-2xl border border-purple-400/15 bg-purple-500/10 px-3 py-2 text-xs font-black text-purple-100";
 const linkBaseClassName = "rounded-2xl border px-4 py-3 text-sm font-bold transition";
 const activeLinkClassName = "border-yellow-300/35 bg-yellow-400/15 text-yellow-100";
 const inactiveLinkClassName =
   "border-white/10 bg-white/[0.04] text-white/75 hover:border-purple-300/45 hover:bg-purple-500/10 hover:text-white";
+
+const quickNavGroupTitleCopy: Record<SiteLanguage, Record<string, string>> = {
+  ar: {
+    "أساسيات الوكالة": "أساسيات الوكالة",
+    "تفاصيل البرامج": "تفاصيل البرامج",
+    "الطلبات والمتابعة": "الطلبات والمتابعة",
+    "الثقة والمحتوى": "الثقة والمحتوى",
+    "معلومات قانونية": "معلومات قانونية",
+  },
+  en: {
+    "أساسيات الوكالة": "Agency essentials",
+    "تفاصيل البرامج": "Programs",
+    "الطلبات والمتابعة": "Requests and tracking",
+    "الثقة والمحتوى": "Trust and content",
+    "معلومات قانونية": "Legal information",
+  },
+  tr: {
+    "أساسيات الوكالة": "Ajans temelleri",
+    "تفاصيل البرامج": "Programlar",
+    "الطلبات والمتابعة": "Talepler ve takip",
+    "الثقة والمحتوى": "Güven ve içerik",
+    "معلومات قانونية": "Yasal bilgiler",
+  },
+};
+
 const mobilePolishStyles = `
 body.public-site-page footer h3 + p,
 body.public-site-page footer p.break-all {
@@ -83,13 +108,30 @@ function isSafePublicHref(href: string) {
   return href.startsWith("/") || href.startsWith("#") || href.startsWith("https://") || href.startsWith("http://") || href.startsWith("mailto:") || href.startsWith("tel:");
 }
 
+function getQuickNavLinkKey(link: PublicNavigationLink) {
+  return link.href.split("?")[0]?.split("#")[0] || link.href;
+}
+
 function sanitizePublicQuickNavGroups(groups: PublicNavigationGroup[]) {
+  const seenLinks = new Set<string>();
+
   return groups
     .map((group) => ({
       ...group,
-      links: group.links.filter((link) => isSafePublicHref(link.href) && link.isVisible !== false),
+      links: group.links
+        .filter((link) => isSafePublicHref(link.href) && link.isVisible !== false)
+        .filter((link) => {
+          const key = getQuickNavLinkKey(link);
+          if (seenLinks.has(key)) return false;
+          seenLinks.add(key);
+          return true;
+        }),
     }))
     .filter((group) => group.isVisible !== false && group.links.length > 0);
+}
+
+function getQuickNavGroupTitle(language: SiteLanguage, group: PublicNavigationGroup) {
+  return quickNavGroupTitleCopy[language][group.title] || group.title;
 }
 
 function isInternalHref(href: string) {
@@ -108,14 +150,7 @@ function PublicQuickNavLink({
   label: string;
 }) {
   const className = getLinkClassName(active);
-  const content = (
-    <>
-      <span className="block">{label}</span>
-      <span className="mt-1 block text-[11px] font-normal text-white/38" dir="ltr">
-        {link.href}
-      </span>
-    </>
-  );
+  const content = label;
 
   if (isInternalHref(link.href)) {
     return (
@@ -181,7 +216,7 @@ export default function PublicQuickNav() {
       <style>{mobilePolishStyles}</style>
       <div dir={getLanguageDirection(language)} className={containerClassName}>
         {isOpen && (
-          <div className={panelClassName}>
+          <div id="hamza-quick-nav-panel" className={panelClassName}>
             <div className="mb-3 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3">
               <div className="text-xs font-black uppercase tracking-[0.25em] text-yellow-200">
                 HAMZA AGENCY
@@ -192,10 +227,10 @@ export default function PublicQuickNav() {
               </p>
             </div>
 
-            <nav className="grid gap-4">
+            <nav className="grid gap-4" aria-label={copy("quickNavTitle")}>
               {visibleGroups.map((group) => (
                 <div key={group.title} className="grid gap-2">
-                  <div className={groupTitleClassName}>{getSharedNavigationGroupTitle(language, group)}</div>
+                  <div className={groupTitleClassName}>{getQuickNavGroupTitle(language, group)}</div>
 
                   {group.links.map((link) => {
                     const active = isInternalHref(link.href) ? isActiveLink(pathname, link.href) : false;
@@ -220,7 +255,9 @@ export default function PublicQuickNav() {
           type="button"
           onClick={() => setIsOpen((current) => !current)}
           aria-label={isOpen ? copy("quickNavClose") : copy("quickNavOpen")}
-          className="rounded-full border border-yellow-300/40 bg-[#12051f]/95 px-4 py-3 text-xs font-black text-yellow-100 shadow-[0_0_34px_rgba(234,179,8,0.2)] transition hover:bg-purple-900/90 md:px-5 md:text-sm"
+          aria-controls="hamza-quick-nav-panel"
+          aria-expanded={isOpen}
+          className="min-h-12 rounded-full border border-yellow-300/40 bg-[#12051f]/95 px-4 py-3 text-xs font-black text-yellow-100 shadow-[0_0_34px_rgba(234,179,8,0.2)] transition hover:bg-purple-900/90 md:px-5 md:text-sm"
         >
           {isOpen ? copy("quickNavClose") : copy("quickNavOpen")}
         </button>

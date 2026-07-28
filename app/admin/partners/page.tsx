@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
 import { logAdminActivity } from "@/lib/adminActivityLogger";
@@ -150,11 +151,56 @@ export default function AdminPartnersPage() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error" | "info">("info");
 
-  useEffect(() => {
-    initializeAdminPage();
+  const loadPartners = useCallback(async () => {
+    if (!supabase) return;
+
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("partners")
+        .select("*")
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        setMessageType("error");
+        setMessage("تعذر تحميل بيانات الشركاء والبرامج حالياً.");
+        return;
+      }
+
+      setPartners((data || []) as Partner[]);
+    } catch {
+      setMessageType("error");
+      setMessage("حدث خطأ أثناء تحميل بيانات الشركاء والبرامج.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  async function initializeAdminPage() {
+  const loadMediaOptions = useCallback(async () => {
+    if (!supabase) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("media")
+        .select("id, name, file_url, file_type, category, alt_text, page_slug, is_active")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(80);
+
+      if (error || !data) {
+        setMediaOptions([]);
+        return;
+      }
+
+      setMediaOptions((data as MediaOption[]).filter(isLogoMedia));
+    } catch {
+      setMediaOptions([]);
+    }
+  }, []);
+
+  const initializeAdminPage = useCallback(async () => {
     setChecking(true);
     setMessage("");
 
@@ -194,56 +240,11 @@ export default function AdminPartnersPage() {
     } finally {
       setChecking(false);
     }
-  }
+  }, [loadMediaOptions, loadPartners]);
 
-  async function loadPartners() {
-    if (!supabase) return;
-
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase
-        .from("partners")
-        .select("*")
-        .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        setMessageType("error");
-        setMessage("تعذر تحميل بيانات الشركاء والبرامج حالياً.");
-        return;
-      }
-
-      setPartners((data || []) as Partner[]);
-    } catch {
-      setMessageType("error");
-      setMessage("حدث خطأ أثناء تحميل بيانات الشركاء والبرامج.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function loadMediaOptions() {
-    if (!supabase) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("media")
-        .select("id, name, file_url, file_type, category, alt_text, page_slug, is_active")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(80);
-
-      if (error || !data) {
-        setMediaOptions([]);
-        return;
-      }
-
-      setMediaOptions((data as MediaOption[]).filter(isLogoMedia));
-    } catch {
-      setMediaOptions([]);
-    }
-  }
+  useEffect(() => {
+    void initializeAdminPage();
+  }, [initializeAdminPage]);
 
   const filteredPartners = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -720,7 +721,14 @@ export default function AdminPartnersPage() {
                   {form.logo_url ? (
                     <div className="flex items-center gap-3 rounded-3xl border border-white/10 bg-black/25 p-3">
                       <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-purple-400/20 bg-purple-500/10">
-                        <img src={form.logo_url} alt="معاينة الشعار" className="h-full w-full object-contain" />
+                        <Image
+                          src={form.logo_url}
+                          alt="معاينة الشعار"
+                          width={64}
+                          height={64}
+                          unoptimized
+                          className="h-full w-full object-contain"
+                        />
                       </div>
                       <button
                         type="button"
@@ -829,7 +837,14 @@ export default function AdminPartnersPage() {
                       <div className="flex items-start gap-4">
                         <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-purple-400/20 bg-purple-500/10">
                           {partner.logo_url ? (
-                            <img src={partner.logo_url} alt={partner.name} className="h-full w-full object-cover" />
+                            <Image
+                              src={partner.logo_url}
+                              alt={partner.name}
+                              width={80}
+                              height={80}
+                              unoptimized
+                              className="h-full w-full object-cover"
+                            />
                           ) : (
                             <span className="text-xl font-black text-yellow-100">{partner.name.slice(0, 1)}</span>
                           )}

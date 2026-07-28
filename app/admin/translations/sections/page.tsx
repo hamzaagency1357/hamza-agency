@@ -255,7 +255,10 @@ export default function CmsSectionTranslationsPage() {
     });
   }, [pageId, search, sections]);
 
-  const selectedSection = filteredSections.find((section) => section.id === selectedId) || filteredSections[0] || null;
+  const selectedSection = useMemo(
+    () => filteredSections.find((section) => section.id === selectedId) || filteredSections[0] || null,
+    [filteredSections, selectedId]
+  );
 
   useEffect(() => {
     if (!selectedSection) {
@@ -265,7 +268,7 @@ export default function CmsSectionTranslationsPage() {
 
     setSelectedId(selectedSection.id);
     setDraft(buildState(selectedSection, language, translationRows));
-  }, [language, selectedSection?.id, translationRows]);
+  }, [language, selectedSection, translationRows]);
 
   function updateField(field: FieldName, value: string) {
     setDraft((current) => ({

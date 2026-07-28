@@ -1,12 +1,10 @@
-// @ts-nocheck
-/* eslint-disable */
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { SiteLanguage } from "@/lib/i18n/locale";
+import { getLanguageDirection, type SiteLanguage } from "@/lib/i18n/locale";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
 type HeaderNavLabelKey =
@@ -28,8 +26,12 @@ type HeaderNavLabelKey =
   | "applicationStatus"
   | "supportGroup"
   | "knowledgeCenter"
+  | "aiSupport"
   | "faq"
-  | "contact";
+  | "contact"
+  | "privacyPolicy"
+  | "termsAndConditions"
+  | "aiPolicy";
 
 type HeaderDropdownItem = {
   labelKey: HeaderNavLabelKey;
@@ -50,6 +52,7 @@ type PanelPosition = {
   top: number;
   left: number;
   width: number;
+  maxHeight: number;
 };
 
 const headerDropdownCopy: Record<SiteLanguage, Record<HeaderNavLabelKey, string>> = {
@@ -72,8 +75,12 @@ const headerDropdownCopy: Record<SiteLanguage, Record<HeaderNavLabelKey, string>
     applicationStatus: "تتبع طلب الانضمام",
     supportGroup: "الدعم",
     knowledgeCenter: "مركز المعرفة",
+    aiSupport: "الدعم الذكي",
     faq: "الأسئلة الشائعة",
     contact: "اتصل بنا",
+    privacyPolicy: "سياسة الخصوصية",
+    termsAndConditions: "الشروط والأحكام",
+    aiPolicy: "سياسة الذكاء الاصطناعي",
   },
   en: {
     home: "Home",
@@ -94,8 +101,12 @@ const headerDropdownCopy: Record<SiteLanguage, Record<HeaderNavLabelKey, string>
     applicationStatus: "Track application",
     supportGroup: "Support",
     knowledgeCenter: "Knowledge center",
+    aiSupport: "AI support",
     faq: "FAQ",
     contact: "Contact",
+    privacyPolicy: "Privacy policy",
+    termsAndConditions: "Terms and conditions",
+    aiPolicy: "AI policy",
   },
   tr: {
     home: "Ana sayfa",
@@ -116,8 +127,12 @@ const headerDropdownCopy: Record<SiteLanguage, Record<HeaderNavLabelKey, string>
     applicationStatus: "Başvuruyu takip et",
     supportGroup: "Destek",
     knowledgeCenter: "Bilgi merkezi",
+    aiSupport: "Yapay zekâ desteği",
     faq: "SSS",
     contact: "İletişim",
+    privacyPolicy: "Gizlilik politikası",
+    termsAndConditions: "Şartlar ve koşullar",
+    aiPolicy: "Yapay zekâ politikası",
   },
 };
 
@@ -153,15 +168,22 @@ const headerDropdownGroups: HeaderDropdownGroup[] = [
     titleKey: "supportGroup",
     links: [
       { labelKey: "knowledgeCenter", href: "/knowledge-center" },
+      { labelKey: "aiSupport", href: "/ai-support" },
       { labelKey: "faq", href: "/faq" },
       { labelKey: "contact", href: "/contact" },
+      { labelKey: "privacyPolicy", href: "/privacy-policy" },
+      { labelKey: "termsAndConditions", href: "/terms-and-conditions" },
+      { labelKey: "aiPolicy", href: "/ai-policy" },
     ],
   },
 ];
 
+const structuralNavReadyClass = "public-structural-nav-ready";
+const emptyHeaderTargets: HeaderTargets = { desktop: null, mobile: null };
+
 const structuralHeaderStyles = `
-body.public-site-page main nav div[class*="lg:flex"] > a,
-body.public-site-page main div[class*="lg:hidden"] div[class*="overflow-x-auto"] > a {
+body.public-site-page.${structuralNavReadyClass} main nav div[class*="lg:flex"] > a,
+body.public-site-page.${structuralNavReadyClass} main div[class*="lg:hidden"] div[class*="overflow-x-auto"] > a {
   display: none !important;
 }
 
@@ -203,10 +225,41 @@ body.public-site-page main div[class*="lg:hidden"] div[class*="overflow-x-auto"]
   width: min(100%, calc(100vw - 1.5rem));
   margin-inline: auto;
 }
+
+body.public-site-page a.hamza-structural-header-menu-link {
+  display: block !important;
+}
 `;
 
-function getLanguageDirection(language: SiteLanguage) {
-  return language === "ar" ? "rtl" : "ltr";
+function findHeaderTargets(): HeaderTargets {
+  return {
+    desktop: document.querySelector<HTMLElement>("main nav div.hidden.items-center.gap-2"),
+    mobile: document.querySelector<HTMLElement>(
+      'main div[class*="lg:hidden"] div[class*="overflow-x-auto"]'
+    ),
+  };
+}
+
+function areSameHeaderTargets(current: HeaderTargets, next: HeaderTargets) {
+  return current.desktop === next.desktop && current.mobile === next.mobile;
+}
+
+function hasMountedStructuralNavigation(
+  target: HTMLElement | null,
+  variant: "desktop" | "mobile"
+) {
+  return Boolean(
+    target?.isConnected &&
+      target.querySelector(`[data-public-structural-nav="${variant}"]`)
+  );
+}
+
+function updateStructuralNavigationReadiness(targets: HeaderTargets) {
+  const isReady =
+    hasMountedStructuralNavigation(targets.desktop, "desktop") &&
+    hasMountedStructuralNavigation(targets.mobile, "mobile");
+
+  document.body.classList.toggle(structuralNavReadyClass, isReady);
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -215,28 +268,45 @@ function clamp(value: number, min: number, max: number) {
 
 function getSafePanelPosition(button: HTMLButtonElement | null): PanelPosition {
   const viewportWidth = typeof window === "undefined" ? 360 : window.innerWidth || 360;
+  const viewportHeight = typeof window === "undefined" ? 640 : window.innerHeight || 640;
   const margin = 12;
   const width = Math.min(288, viewportWidth - margin * 2);
 
-  if (!button) return { top: 96, left: margin, width };
+  if (!button) {
+    const top = 96;
+    return {
+      top,
+      left: margin,
+      width,
+      maxHeight: Math.max(96, viewportHeight - top - margin),
+    };
+  }
 
   const rect = button.getBoundingClientRect();
   const preferredLeft = rect.left + rect.width / 2 - width / 2;
   const left = clamp(preferredLeft, margin, Math.max(margin, viewportWidth - width - margin));
+  const top = rect.bottom + 8;
 
   return {
-    top: rect.bottom + 8,
+    top,
     left,
     width,
+    maxHeight: Math.max(96, viewportHeight - top - margin),
   };
 }
 
 function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }) {
   const language = useSiteLanguage();
   const [openMenu, setOpenMenu] = useState<HeaderNavLabelKey | null>(null);
-  const [panelPosition, setPanelPosition] = useState<PanelPosition>({ top: 96, left: 12, width: 288 });
+  const [panelPosition, setPanelPosition] = useState<PanelPosition>({
+    top: 96,
+    left: 12,
+    width: 288,
+    maxHeight: 532,
+  });
   const shellRef = useRef<HTMLDivElement | null>(null);
   const buttonRefs = useRef<Partial<Record<HeaderNavLabelKey, HTMLButtonElement | null>>>({});
+  const panelId = useId();
   const labels = headerDropdownCopy[language];
   const direction = getLanguageDirection(language);
   const isDesktop = variant === "desktop";
@@ -265,6 +335,7 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
 
   useEffect(() => {
     if (!openMenu) return;
+    const activeMenu = openMenu;
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") closeMenu();
@@ -278,7 +349,7 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
 
     function handleViewportChange() {
       if (!isDesktop) return;
-      const button = buttonRefs.current[openMenu] || null;
+      const button = buttonRefs.current[activeMenu] || null;
       setPanelPosition(getSafePanelPosition(button));
     }
 
@@ -300,6 +371,7 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
   return (
     <div
       ref={shellRef}
+      data-public-structural-nav={variant}
       className={
         isDesktop
           ? "hamza-structural-header-shell-desktop"
@@ -316,7 +388,7 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
         <Link
           href="/"
           onClick={closeMenu}
-          className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/70"
+          className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/70 xl:px-4 xl:text-sm"
         >
           {labels.home}
         </Link>
@@ -330,11 +402,15 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
             type="button"
             aria-haspopup="menu"
             aria-expanded={openMenu === group.titleKey}
+            aria-controls={openMenu === group.titleKey ? panelId : undefined}
             onClick={() => toggleGroup(group)}
             onMouseEnter={() => {
               if (isDesktop) openGroup(group);
             }}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/70"
+            onFocus={() => {
+              if (isDesktop) openGroup(group);
+            }}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/70 xl:gap-2 xl:px-4 xl:text-sm"
           >
             <span>{labels[group.titleKey]}</span>
             <span aria-hidden="true" className="text-[10px] text-yellow-200/75">
@@ -346,15 +422,22 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
 
       {activeGroup ? (
         <div
+          id={panelId}
           dir={direction}
+          role="menu"
           className={
             isDesktop
-              ? "fixed z-[260] rounded-3xl border border-purple-300/25 bg-[#09000f]/95 p-2 shadow-[0_28px_90px_rgba(9,0,15,0.55)] backdrop-blur-xl"
-              : "hamza-structural-header-panel-mobile relative z-[120] rounded-3xl border border-purple-300/25 bg-[#09000f]/95 p-2 shadow-[0_20px_60px_rgba(9,0,15,0.35)] backdrop-blur-xl"
+              ? "fixed z-[260] overflow-y-auto overscroll-contain rounded-3xl border border-purple-300/25 bg-[#09000f]/95 p-2 shadow-[0_28px_90px_rgba(9,0,15,0.55)] backdrop-blur-xl"
+              : "hamza-structural-header-panel-mobile relative z-[120] max-h-[min(60svh,28rem)] overflow-y-auto overscroll-contain rounded-3xl border border-purple-300/25 bg-[#09000f]/95 p-2 shadow-[0_20px_60px_rgba(9,0,15,0.35)] backdrop-blur-xl"
           }
           style={
             isDesktop
-              ? { top: panelPosition.top, left: panelPosition.left, width: panelPosition.width }
+              ? {
+                  top: panelPosition.top,
+                  left: panelPosition.left,
+                  width: panelPosition.width,
+                  maxHeight: panelPosition.maxHeight,
+                }
               : undefined
           }
         >
@@ -363,13 +446,11 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
               <Link
                 key={link.href}
                 href={link.href}
+                role="menuitem"
                 onClick={closeMenu}
-                className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/80 transition hover:border-yellow-300/35 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200/65"
+                className="hamza-structural-header-menu-link rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/80 transition hover:border-yellow-300/35 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200/65"
               >
-                <span className="block">{labels[link.labelKey]}</span>
-                <span className="mt-1 block text-[11px] font-normal text-white/40" dir="ltr">
-                  {link.href}
-                </span>
+                {labels[link.labelKey]}
               </Link>
             ))}
           </div>
@@ -382,20 +463,49 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
 export default function PublicHeaderDropdownNav() {
   const pathname = usePathname();
   const [targets, setTargets] = useState<HeaderTargets>({ desktop: null, mobile: null });
+  const targetsRef = useRef<HeaderTargets>(emptyHeaderTargets);
   const isPublicHome = pathname === "/";
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    document.body.classList.remove(structuralNavReadyClass);
+
     if (!isPublicHome) {
-      setTargets({ desktop: null, mobile: null });
+      targetsRef.current = emptyHeaderTargets;
+      setTargets((current) =>
+        areSameHeaderTargets(current, emptyHeaderTargets) ? current : emptyHeaderTargets
+      );
       return;
     }
 
-    const desktop = document.querySelector<HTMLElement>("main nav div.hidden.items-center.gap-2");
-    const mobile = document.querySelector<HTMLElement>(
-      'main div[class*="lg:hidden"] div[class*="overflow-x-auto"]'
-    );
+    let isActive = true;
 
-    setTargets({ desktop, mobile });
+    function syncStructuralNavigation() {
+      if (!isActive) return;
+
+      const nextTargets = findHeaderTargets();
+
+      if (!areSameHeaderTargets(targetsRef.current, nextTargets)) {
+        document.body.classList.remove(structuralNavReadyClass);
+        targetsRef.current = nextTargets;
+        setTargets(nextTargets);
+        return;
+      }
+
+      updateStructuralNavigationReadiness(nextTargets);
+    }
+
+    const observer = new MutationObserver(syncStructuralNavigation);
+    observer.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("pageshow", syncStructuralNavigation);
+    syncStructuralNavigation();
+
+    return () => {
+      isActive = false;
+      observer.disconnect();
+      window.removeEventListener("pageshow", syncStructuralNavigation);
+      document.body.classList.remove(structuralNavReadyClass);
+      targetsRef.current = emptyHeaderTargets;
+    };
   }, [isPublicHome]);
 
   if (!isPublicHome) return null;

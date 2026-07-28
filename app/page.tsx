@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import {
   CmsPublishedText,
@@ -116,6 +117,7 @@ const mainNavigationLinks = [
   { label: "شركاؤنا", href: "/partners" },
   { label: "المعرض", href: "/gallery" },
   { label: "مركز المعرفة", href: "/knowledge-center" },
+  { label: "الدعم الذكي", href: "/ai-support" },
   { label: "FAQ", href: "/faq" },
   { label: "اتصل بنا", href: "/contact" },
 ];
@@ -266,6 +268,19 @@ function findHomeSection(sections: HomeSection[], sectionKey: string) {
   );
 }
 
+function isAnnouncementVisible(item: Announcement) {
+  const now = new Date();
+  const startDate = item.start_date ? new Date(item.start_date) : null;
+  const endDate = item.end_date ? new Date(item.end_date) : null;
+
+  return !(
+    item.is_active === false ||
+    item.show_on_homepage === false ||
+    (startDate && now < startDate) ||
+    (endDate && now > endDate)
+  );
+}
+
 export default function HomePage() {
   const language = useSiteLanguage();
   const homeCopy = getHomeStaticCopy(language);
@@ -300,10 +315,6 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    void loadPublicCmsData();
-  }, []);
-
-  useEffect(() => {
     let isCurrent = true;
 
     async function loadProgramTranslations() {
@@ -326,7 +337,7 @@ export default function HomePage() {
     };
   }, [language, programs]);
 
-  async function loadPublicCmsData() {
+  const loadPublicCmsData = useCallback(async () => {
     if (!isSupabaseConfigured || !supabase) return;
 
     const [
@@ -416,9 +427,13 @@ export default function HomePage() {
     if (!sectionsError && sections) {
       setHomeSections(sections);
     }
-  }
+  }, []);
 
-  function getSetting(keys: string[], fallback: string) {
+  useEffect(() => {
+    void loadPublicCmsData();
+  }, [loadPublicCmsData]);
+
+  const getSetting = useCallback((keys: string[], fallback: string) => {
     for (const key of keys) {
       const value = settings.find(
         (item) => item.setting_key === key
@@ -428,20 +443,7 @@ export default function HomePage() {
     }
 
     return fallback;
-  }
-
-  function isAnnouncementVisible(item: Announcement) {
-    const now = new Date();
-    const startDate = item.start_date ? new Date(item.start_date) : null;
-    const endDate = item.end_date ? new Date(item.end_date) : null;
-
-    return !(
-      item.is_active === false ||
-      item.show_on_homepage === false ||
-      (startDate && now < startDate) ||
-      (endDate && now > endDate)
-    );
-  }
+  }, [settings]);
 
   function getMediaByPurpose(options: {
     pageSlug?: string;
@@ -647,7 +649,7 @@ export default function HomePage() {
         getSetting(["announcement_bar_speed", "announcement_speed"], "22")
       ),
     };
-  }, [settings]);
+  }, [getSetting]);
 
   const footerLegalLinksFromSettings = useMemo(() => {
     const rawValue = settings.find(
@@ -1045,9 +1047,12 @@ export default function HomePage() {
             <div className="absolute h-96 w-96 animate-pulse rounded-full border border-purple-500/20" />
 
             <div className="relative text-center">
-              <img
+              <Image
                 src={logoUrl}
                 alt={publicSettings.englishName}
+                width={144}
+                height={144}
+                unoptimized
                 className="mx-auto h-36 w-36 rounded-3xl object-cover shadow-[0_0_90px_rgba(168,85,247,0.7)]"
               />
 
@@ -1072,9 +1077,12 @@ export default function HomePage() {
 
         <nav className="relative z-20 mx-auto flex max-w-7xl items-center justify-between gap-5 px-5 py-6">
           <Link href="/" className="flex items-center gap-3">
-            <img
+            <Image
               src={logoUrl}
               alt={publicSettings.englishName}
+              width={48}
+              height={48}
+              unoptimized
               className="h-12 w-12 rounded-xl object-cover shadow-[0_0_25px_rgba(168,85,247,0.45)]"
             />
 
@@ -1144,9 +1152,13 @@ export default function HomePage() {
             )}
 
           <div className="relative z-20">
-            <img
+            <Image
               src={logoUrl}
               alt={`${publicSettings.englishName} Logo`}
+              width={176}
+              height={176}
+              unoptimized
+              priority
               className="mx-auto mb-8 h-44 w-44 rounded-[2rem] object-cover shadow-[0_0_95px_rgba(168,85,247,0.65)]"
             />
 
@@ -1335,7 +1347,7 @@ export default function HomePage() {
         </section>
 
         {showJoinForm && (
-          <div className="fixed inset-0 z-40 overflow-y-auto bg-black/80 p-4 backdrop-blur">
+          <div className="fixed inset-0 z-[300] overflow-y-auto bg-black/80 p-4 backdrop-blur">
             <div className="mx-auto my-8 max-w-3xl rounded-[2rem] border border-purple-400/25 bg-[#100014] p-6 shadow-[0_0_80px_rgba(168,85,247,0.25)]">
               <div className="mb-6 flex items-center justify-between">
                 <button
@@ -1453,7 +1465,8 @@ export default function HomePage() {
         <a
           href={`https://wa.me/${publicSettings.cleanWhatsapp}`}
           target="_blank"
-          className="fixed bottom-5 left-5 z-30 rounded-full bg-green-500 px-5 py-4 text-sm font-black text-white shadow-2xl"
+          rel="noreferrer"
+          className="hamza-floating-whatsapp fixed bottom-5 left-5 z-[150] rounded-full bg-green-500 px-5 py-4 text-sm font-black text-white shadow-2xl"
         >
           {getStaticCopy(language, "whatsapp")}
         </a>
@@ -1462,9 +1475,12 @@ export default function HomePage() {
           <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-4">
             <div>
               <div className="flex items-center gap-3">
-                <img
+                <Image
                   src={logoUrl}
                   alt={publicSettings.englishName}
+                  width={48}
+                  height={48}
+                  unoptimized
                   className="h-12 w-12 rounded-xl object-cover"
                 />
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { getLanguageDirection } from "@/lib/i18n/locale";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
@@ -150,7 +151,7 @@ export default function SuccessStoriesPageContent({ stories }: { stories: Succes
   function StoryCard({ story, featured = false }: { story: SuccessStory; featured?: boolean }) {
     return <article className={`overflow-hidden rounded-[2rem] border backdrop-blur ${featured ? "border-yellow-400/25 bg-yellow-500/10 shadow-[0_0_45px_rgba(212,175,55,0.10)]" : "border-white/10 bg-white/[0.045]"}`}>
       <div className="relative min-h-48 border-b border-white/10 bg-black/25">
-        {story.image_url ? <img src={story.image_url} alt={story.title || t.imageAlt} className="h-48 w-full object-cover opacity-90" /> : <div className="flex h-48 items-center justify-center bg-[radial-gradient(circle_at_top,rgba(168,85,247,0.25),rgba(7,0,9,0.95))]"><div className="flex h-20 w-20 items-center justify-center rounded-[1.5rem] border border-yellow-400/25 bg-yellow-500/10 text-3xl font-black text-yellow-100">★</div></div>}
+        {story.image_url ? <Image src={story.image_url} alt={story.title || t.imageAlt} fill sizes="(min-width: 768px) 50vw, 100vw" unoptimized className="object-cover opacity-90" /> : <div className="flex h-48 items-center justify-center bg-[radial-gradient(circle_at_top,rgba(168,85,247,0.25),rgba(7,0,9,0.95))]"><div className="flex h-20 w-20 items-center justify-center rounded-[1.5rem] border border-yellow-400/25 bg-yellow-500/10 text-3xl font-black text-yellow-100">★</div></div>}
         {featured ? <div className="absolute right-4 top-4 rounded-full border border-yellow-300/25 bg-yellow-500/20 px-4 py-2 text-xs font-black text-yellow-100 backdrop-blur">{t.featuredTag}</div> : null}
       </div>
       <div className="p-6">

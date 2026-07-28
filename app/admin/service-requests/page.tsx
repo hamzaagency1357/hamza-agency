@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
 import { logAdminActivity } from "@/lib/adminActivityLogger";
@@ -101,32 +101,7 @@ export default function AdminServiceRequestsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [updatingId, setUpdatingId] = useState<number | null>(null);
 
-  useEffect(() => {
-    initializeAdminPage();
-  }, []);
-
-  async function initializeAdminPage() {
-    setMessage("");
-
-    const access = await requireAdminModuleAccess("service_requests");
-
-    if (!access.isAuthorized || !access.profile) {
-      setAdminStatus("unauthorized");
-      setIsLoading(false);
-
-      if (access.reason === "not_configured") {
-        setMessage("الاتصال بقاعدة البيانات غير مفعل.");
-      }
-
-      return;
-    }
-
-    setAdminEmail(access.profile.email || access.user?.email || "");
-    setAdminStatus("authorized");
-    await loadRequests();
-  }
-
-  async function loadRequests() {
+  const loadRequests = useCallback(async () => {
     if (!supabase) return;
 
     setIsLoading(true);
@@ -152,7 +127,32 @@ export default function AdminServiceRequestsPage() {
       notes[request.id] = request.internal_notes || "";
     });
     setDraftNotes(notes);
-  }
+  }, []);
+
+  const initializeAdminPage = useCallback(async () => {
+    setMessage("");
+
+    const access = await requireAdminModuleAccess("service_requests");
+
+    if (!access.isAuthorized || !access.profile) {
+      setAdminStatus("unauthorized");
+      setIsLoading(false);
+
+      if (access.reason === "not_configured") {
+        setMessage("الاتصال بقاعدة البيانات غير مفعل.");
+      }
+
+      return;
+    }
+
+    setAdminEmail(access.profile.email || access.user?.email || "");
+    setAdminStatus("authorized");
+    await loadRequests();
+  }, [loadRequests]);
+
+  useEffect(() => {
+    void initializeAdminPage();
+  }, [initializeAdminPage]);
 
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLowerCase();

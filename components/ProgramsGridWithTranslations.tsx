@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { getLanguageDirection } from "@/lib/i18n/locale";
 import {
@@ -181,7 +182,16 @@ export default function ProgramsGridWithTranslations({ programs, mediaItems }: {
             <div className="absolute inset-x-0 top-0 h-1" style={{ background: `linear-gradient(90deg, ${visual.accent}, ${visual.secondary})` }} />
             <div className="mb-6 flex items-center justify-between gap-3">
               <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl text-2xl font-black shadow-[0_0_28px_rgba(168,85,247,0.18)]" style={{ background: logoUrl ? "rgba(255,255,255,0.06)" : `linear-gradient(135deg, ${visual.accent}, ${visual.secondary})` }}>
-                {logoUrl ? <img src={logoUrl} alt={`${program.name} ${getStaticCopy(language, "programsLogoAlt")}`} className="h-full w-full object-contain p-2" /> : visual.icon}
+                {logoUrl ? (
+                  <Image
+                    src={logoUrl}
+                    alt={`${program.name} ${getStaticCopy(language, "programsLogoAlt")}`}
+                    width={64}
+                    height={64}
+                    unoptimized
+                    className="h-full w-full object-contain p-2"
+                  />
+                ) : visual.icon}
               </div>
               <span className={getStatusClass(program.status)}>{getStaticCopy(language, getStatusLabelKey(program.status))}</span>
             </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
 import { supabase } from "@/lib/supabase";
@@ -77,12 +77,7 @@ export default function HomepageSettingsPage() {
     checkAccess();
   }, [router]);
 
-  useEffect(() => {
-    if (!isAuthorized) return;
-    loadHomepageSettings();
-  }, [isAuthorized]);
-
-  async function loadHomepageSettings() {
+  const loadHomepageSettings = useCallback(async () => {
     if (!supabase) return;
 
     setIsLoading(true);
@@ -109,7 +104,12 @@ export default function HomepageSettingsPage() {
 
     setRows(rowMap);
     setValues(nextValues);
-  }
+  }, [fieldKeys]);
+
+  useEffect(() => {
+    if (!isAuthorized) return;
+    void loadHomepageSettings();
+  }, [isAuthorized, loadHomepageSettings]);
 
   async function prepareHomepageSettings() {
     if (!supabase) return;

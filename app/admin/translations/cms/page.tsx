@@ -64,10 +64,6 @@ function isField(value: string | null): value is TranslationField {
   return fields.some((field) => field.key === value);
 }
 
-function isLanguage(value: string | null): value is LanguageCode {
-  return value === "en" || value === "tr";
-}
-
 function emptyState(): TranslationState {
   return { values: {}, reviewed: false, published: false };
 }

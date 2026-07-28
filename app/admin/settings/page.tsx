@@ -666,7 +666,6 @@ export default function AdminSettingsPage() {
   }, [filteredSettings, drafts]);
 
   const publicCount = settings.filter((setting) => setting.is_public).length;
-  const privateCount = settings.filter((setting) => !setting.is_public).length;
   const navigationCount = settings.filter((setting) => getGroupKey(setting) === "navigation").length;
   const footerAndContactCount = settings.filter((setting) =>
     ["contact", "footer", "social"].includes(getGroupKey(setting))

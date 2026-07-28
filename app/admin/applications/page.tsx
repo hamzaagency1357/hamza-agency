@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   getAssignedProgramSlug,
@@ -123,46 +123,17 @@ export default function AdminApplicationsPage() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<MessageType>("info");
 
-  useEffect(() => {
-    initializeAdminPage();
-  }, []);
-
-  function showMessage(text: string, type: MessageType = "info") {
+  const showMessage = useCallback((text: string, type: MessageType = "info") => {
     setMessage(text);
     setMessageType(type);
-  }
+  }, []);
 
-  function clearMessage() {
+  const clearMessage = useCallback(() => {
     setMessage("");
     setMessageType("info");
-  }
+  }, []);
 
-  async function initializeAdminPage() {
-    setIsLoading(true);
-    clearMessage();
-
-    const access = await requireAdminModuleAccess("applications");
-
-    if (!access.isAuthorized || !access.profile) {
-      if (access.reason === "not_signed_in" || access.reason === "not_admin") {
-        window.location.href = "/admin/login";
-        return;
-      }
-
-      setAdminStatus("unauthorized");
-      setIsLoading(false);
-      showMessage("لا تملك صلاحية الوصول إلى طلبات الانضمام.", "error");
-      return;
-    }
-
-    setAdminEmail(access.profile.email || access.user?.email || "");
-    setAdminProfile(access.profile);
-    setAdminStatus("authorized");
-    await loadApplications(access.profile);
-    setIsLoading(false);
-  }
-
-  async function loadApplications(profile = adminProfile) {
+  const loadApplications = useCallback(async (profile: AdminProfile | null) => {
     if (!supabase) return;
 
     setIsLoading(true);
@@ -188,7 +159,36 @@ export default function AdminApplicationsPage() {
     }
 
     setApplications(rows);
-  }
+  }, [clearMessage, showMessage]);
+
+  const initializeAdminPage = useCallback(async () => {
+    setIsLoading(true);
+    clearMessage();
+
+    const access = await requireAdminModuleAccess("applications");
+
+    if (!access.isAuthorized || !access.profile) {
+      if (access.reason === "not_signed_in" || access.reason === "not_admin") {
+        window.location.href = "/admin/login";
+        return;
+      }
+
+      setAdminStatus("unauthorized");
+      setIsLoading(false);
+      showMessage("لا تملك صلاحية الوصول إلى طلبات الانضمام.", "error");
+      return;
+    }
+
+    setAdminEmail(access.profile.email || access.user?.email || "");
+    setAdminProfile(access.profile);
+    setAdminStatus("authorized");
+    await loadApplications(access.profile);
+    setIsLoading(false);
+  }, [clearMessage, loadApplications, showMessage]);
+
+  useEffect(() => {
+    void initializeAdminPage();
+  }, [initializeAdminPage]);
 
   const programOptions = useMemo(() => {
     const values = applications
@@ -286,7 +286,7 @@ export default function AdminApplicationsPage() {
       },
     });
 
-    await loadApplications();
+    await loadApplications(adminProfile);
     showMessage("تم تحديث حالة الطلب بنجاح.", "success");
   }
 
@@ -442,7 +442,7 @@ export default function AdminApplicationsPage() {
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => loadApplications()}
+                onClick={() => loadApplications(adminProfile)}
                 className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-black text-white/75 hover:bg-white/10"
               >
                 تحديث

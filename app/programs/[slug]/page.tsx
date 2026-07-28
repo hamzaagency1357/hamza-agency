@@ -408,7 +408,7 @@ export default function ProgramDetailsPage() {
       </section>
 
       {showForm && (
-        <div className="fixed inset-0 z-40 overflow-y-auto bg-black/80 p-4 backdrop-blur">
+        <div className="fixed inset-0 z-[300] overflow-y-auto bg-black/80 p-4 backdrop-blur">
           <div className="mx-auto my-8 max-w-3xl rounded-[2rem] border border-purple-400/25 bg-[#100014] p-6 shadow-[0_0_80px_rgba(168,85,247,0.25)]">
             <div className="mb-6 flex items-center justify-between gap-4">
               <button
@@ -450,7 +450,7 @@ export default function ProgramDetailsPage() {
         </div>
       )}
 
-      <a href={`https://wa.me/${primaryWhatsapp.replace(/[^\d]/g, "")}`} target="_blank" className="fixed bottom-5 left-5 z-30 rounded-full bg-green-500 px-5 py-4 text-sm font-black text-white shadow-2xl">
+      <a href={`https://wa.me/${primaryWhatsapp.replace(/[^\d]/g, "")}`} target="_blank" rel="noreferrer" className="hamza-floating-whatsapp fixed bottom-5 left-5 z-[150] rounded-full bg-green-500 px-5 py-4 text-sm font-black text-white shadow-2xl">
         {copy.whatsappCta}
       </a>
     </main>

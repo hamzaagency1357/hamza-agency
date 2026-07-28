@@ -7,7 +7,7 @@ export const size = {
 };
 export const contentType = "image/png";
 
-const logoUrl = "https://hamza-agency.vercel.app/Logo%20hamza%20agency.jpg";
+const logoUrl = "https://hamza-agency.com/Logo%20hamza%20agency.jpg";
 
 export default function OpenGraphImage() {
   return new ImageResponse(
@@ -17,6 +17,7 @@ export default function OpenGraphImage() {
           width: "100%",
           height: "100%",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
           background:
@@ -27,6 +28,8 @@ export default function OpenGraphImage() {
           style={{
             width: "420px",
             height: "420px",
+            display: "flex",
+            flexDirection: "column",
             borderRadius: "64px",
             overflow: "hidden",
             boxShadow: "0 0 90px rgba(124,58,237,0.55)",
