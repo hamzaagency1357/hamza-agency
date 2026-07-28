@@ -1,0 +1,4 @@
+import { notFound } from "next/navigation";
+import { fixtureEnabled,publicFixture } from "@/lib/pr99E2EFixture";
+export const dynamic="force-dynamic";
+export default async function Page({params}:{params:Promise<{locale:string;slug:string}>}){if(!fixtureEnabled())notFound();const {locale,slug}=await params;if(!["ar","en","tr"].includes(locale))notFound();const data=publicFixture(locale as "ar"|"en"|"tr",slug);if(!data)notFound();return <main data-testid="fixture-public" data-locale={locale} className="min-h-screen overflow-x-hidden bg-[#070009] p-8 text-white"><h1 className="text-4xl font-black">{data.title}</h1>{data.sections.map(section=><section key={section.id} data-testid={`section-${section.id}`} className="mt-5 rounded-2xl border border-white/10 p-5"><h2>{section.title}</h2></section>)}</main>}
