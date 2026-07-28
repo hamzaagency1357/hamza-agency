@@ -11,8 +11,6 @@ import {
 } from "react";
 import {
   applySiteLanguage,
-  getStoredSiteLanguage,
-  SITE_LANGUAGE_CHANGE_EVENT,
   setStoredSiteLanguage,
   type SiteLanguage,
 } from "@/lib/i18n/locale";
@@ -34,34 +32,13 @@ export function SiteLanguageProvider({
   const [language, setLanguage] = useState<SiteLanguage>(initialLanguage);
 
   useEffect(() => {
-    if (!isSupportedPublicPath(pathname || "/")) {
-      return;
-    }
+    if (!isSupportedPublicPath(pathname || "/")) return;
 
-    const pathLanguage = getPathLanguage(pathname || "/");
-    const nextLanguage =
-      pathLanguage === "ar" && initialLanguage !== "ar"
-        ? initialLanguage
-        : pathLanguage;
+    const nextLanguage = getPathLanguage(pathname || "/");
     setLanguage(nextLanguage);
     setStoredSiteLanguage(nextLanguage);
-  }, [initialLanguage, pathname]);
-
-  useEffect(() => {
-    function syncLanguage() {
-      const nextLanguage = getStoredSiteLanguage();
-      setLanguage(nextLanguage);
-      applySiteLanguage(nextLanguage);
-    }
-
-    window.addEventListener(SITE_LANGUAGE_CHANGE_EVENT, syncLanguage);
-    window.addEventListener("storage", syncLanguage);
-
-    return () => {
-      window.removeEventListener(SITE_LANGUAGE_CHANGE_EVENT, syncLanguage);
-      window.removeEventListener("storage", syncLanguage);
-    };
-  }, []);
+    applySiteLanguage(nextLanguage);
+  }, [pathname]);
 
   const value = useMemo(() => language, [language]);
 
