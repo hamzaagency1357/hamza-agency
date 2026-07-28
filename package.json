@@ -9,7 +9,11 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "verify:translations": "node scripts/verify-public-translations.mjs"
+    "verify:translations": "node scripts/verify-public-translations.mjs",
+    "verify:migrations": "node scripts/verify-safe-migrations.mjs",
+    "verify:secrets": "node scripts/verify-no-client-secrets.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:e2e": "node scripts/runtime-smoke-test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
