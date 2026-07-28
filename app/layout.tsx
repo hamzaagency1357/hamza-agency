@@ -5,6 +5,7 @@ import PublicAiSupport from "@/components/PublicAiSupport";
 import PublicDesktopEnhancer from "@/components/PublicDesktopEnhancer";
 import PublicHeaderDesktopClickGuard from "@/components/PublicHeaderDesktopClickGuard";
 import PublicGlobalHeader from "@/components/PublicGlobalHeader";
+import PublicSupportAvailability from "@/components/PublicSupportAvailability";
 import VisualBackgroundPresets from "@/components/VisualBackgroundPresets";
 import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
 import StructuredData from "@/components/StructuredData";
@@ -61,6 +62,7 @@ export default async function RootLayout({
           <VisualBackgroundPresets />
           <PublicGlobalHeader />
           {children}
+          <PublicSupportAvailability />
           <PublicHeaderDesktopClickGuard />
           <PublicAiSupport />
           <PublicQuickNav />
