@@ -41,7 +41,7 @@ create unique index if not exists notifications_event_key_uidx on public.notific
 create index if not exists notifications_inbox_idx on public.notifications(is_deleted,is_archived,is_read,occurred_at desc);
 
 create table if not exists public.public_submission_guards(
- id uuid primary key default gen_random_uuid(), form_type text not null check(form_type in ('application','service_request','contact','ai_support','password_reset')),
+ id uuid primary key default gen_random_uuid(), form_type text not null check(form_type in ('application','service_request','job_application','contact','ai_support','password_reset')),
  identity_hash text not null,payload_hash text not null,accepted boolean not null default false,reason text,created_at timestamptz not null default now()
 );
 alter table public.public_submission_guards enable row level security;
@@ -85,7 +85,6 @@ begin
  select coalesce(max(version_number),0)+1 into v_version from public.version_history where page_id=p_page_id or (page_id is null and item_type='page' and item_id=p_page_id::text);
  insert into public.version_history(item_type,item_id,version_number,data,changed_by_email,change_summary,entity_type,entity_id,action,title,summary,metadata,changed_by,page_id,operation,page_snapshot,sections_snapshot,locale)
  values('page',p_page_id::text,v_version,jsonb_build_object('page',v_page,'sections',v_sections),v_actor,p_summary,'page',p_page_id::text,coalesce(p_operation,'publish'),v_page->>'title',p_summary,jsonb_build_object('locale',p_locale),v_actor,p_page_id,coalesce(p_operation,'publish'),v_page,v_sections,p_locale) returning id into v_id;
- delete from public.version_history where id in(select id from public.version_history where page_id=p_page_id order by created_at desc,id desc offset 30);
  return v_id;
 end $$;
 revoke all on function public.pr99_create_page_version(bigint,text,text,text) from public,anon;
@@ -93,7 +92,7 @@ grant execute on function public.pr99_create_page_version(bigint,text,text,text)
 
 create or replace function public.save_page_builder_draft(p_page_id bigint,p_language text,p_sections jsonb,p_page_patch jsonb default '{}'::jsonb)
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $$
-declare v_actor text:=public.pr99_require_admin();v_item jsonb;v_index integer:=0;v_type text;v_allowed text[]:=array['hero','rich_text','text','text_image','cards','programs','stats','cta','faq','gallery','partners','reviews','success_stories','contact','spacer','divider'];
+declare v_actor text:=public.pr99_require_admin();v_item jsonb;v_index integer:=0;v_type text;v_key text;v_keys text[]:='{}';v_allowed text[]:=array['hero','rich_text','text','text_image','cards','programs','stats','cta','faq','gallery','partners','reviews','success_stories','contact','spacer','divider'];
 begin
  if p_language not in('ar','en','tr') then raise exception 'Unsupported language'; end if;
  if jsonb_typeof(p_sections)<>'array' or jsonb_array_length(p_sections)>80 then raise exception 'Invalid sections payload'; end if;
@@ -103,12 +102,13 @@ begin
   if not(v_type=any(v_allowed)) then raise exception 'Unsupported section type'; end if;
   if length(coalesce(v_item->>'title',''))>300 or length(coalesce(v_item->>'body',''))>50000 then raise exception 'Section content exceeds allowed size'; end if;
  end loop;
- delete from public.page_builder_sections where page_id=p_page_id and language=p_language;
  for v_item in select value from jsonb_array_elements(p_sections) loop
-  v_index:=v_index+1;v_type:=coalesce(v_item->>'section_type',v_item->>'type','text');
+  v_index:=v_index+1;v_type:=coalesce(v_item->>'section_type',v_item->>'type','text');v_key:=left(coalesce(nullif(v_item->>'section_key',''),nullif(v_item->>'id',''),'section-'||v_index),120);v_keys:=array_append(v_keys,v_key);
   insert into public.page_builder_sections(page_id,section_type,section_key,title,body,button_label,button_url,media_url,settings,sort_order,language,is_visible,created_by,updated_by)
-  values(p_page_id,v_type,left(coalesce(nullif(v_item->>'section_key',''),nullif(v_item->>'id',''),'section-'||v_index),120),public.pr99_sanitize_text(v_item->>'title',300),public.pr99_sanitize_text(v_item->>'body',50000),nullif(public.pr99_sanitize_text(v_item->>'button_label',120),''),nullif(public.pr99_sanitize_text(v_item->>'button_url',1000),''),nullif(public.pr99_sanitize_text(v_item->>'media_url',1000),''),case when jsonb_typeof(v_item->'settings')='object' then v_item->'settings' else '{}'::jsonb end,v_index,p_language,coalesce((v_item->>'is_visible')::boolean,true),v_actor,v_actor);
+  values(p_page_id,v_type,v_key,public.pr99_sanitize_text(v_item->>'title',300),public.pr99_sanitize_text(v_item->>'body',50000),nullif(public.pr99_sanitize_text(v_item->>'button_label',120),''),nullif(public.pr99_sanitize_text(v_item->>'button_url',1000),''),nullif(public.pr99_sanitize_text(v_item->>'media_url',1000),''),case when jsonb_typeof(v_item->'settings')='object' then v_item->'settings' else '{}'::jsonb end,v_index,p_language,coalesce((v_item->>'is_visible')::boolean,true),v_actor,v_actor)
+  on conflict(page_id,language,section_key) do update set section_type=excluded.section_type,title=excluded.title,body=excluded.body,button_label=excluded.button_label,button_url=excluded.button_url,media_url=excluded.media_url,settings=excluded.settings,sort_order=excluded.sort_order,is_visible=excluded.is_visible,updated_by=excluded.updated_by,updated_at=now();
  end loop;
+ update public.page_builder_sections set is_visible=false,sort_order=10000+sort_order,updated_by=v_actor,updated_at=now() where page_id=p_page_id and language=p_language and not(section_key=any(v_keys));
  update public.pages set title=case when p_page_patch?'title' then nullif(public.pr99_sanitize_text(p_page_patch->>'title',300),'') else title end,slug=case when p_page_patch?'slug' then nullif(lower(regexp_replace(p_page_patch->>'slug','[^a-zA-Z0-9/_-]','','g')),'') else slug end,seo_title=case when p_page_patch?'seo_title' then public.pr99_sanitize_text(p_page_patch->>'seo_title',300) else seo_title end,seo_description=case when p_page_patch?'seo_description' then public.pr99_sanitize_text(p_page_patch->>'seo_description',1000) else seo_description end,canonical_url=case when p_page_patch?'canonical_url' then nullif(public.pr99_sanitize_text(p_page_patch->>'canonical_url',1000),'') else canonical_url end,og_image_url=case when p_page_patch?'og_image_url' then nullif(public.pr99_sanitize_text(p_page_patch->>'og_image_url',1000),'') else og_image_url end,publishing_status=case when p_page_patch->>'publishing_status' in('draft','review','published','unpublished','scheduled') then p_page_patch->>'publishing_status' else publishing_status end,updated_at=now() where id=p_page_id;
  insert into public.activity_logs(admin_email,actor_user_id,action,entity_type,entity_id,new_data,metadata,source_route,outcome) values(v_actor,auth.uid(),'save_page_builder_draft','page',p_page_id::text,'',jsonb_build_object('language',p_language,'sections',jsonb_array_length(p_sections)),'/admin/page-builder','success');
  return jsonb_build_object('page_id',p_page_id,'language',p_language,'sections',jsonb_array_length(p_sections),'saved_at',now());
@@ -164,12 +164,13 @@ grant execute on function public.restore_page_version(bigint) to authenticated;
 create or replace function public.pr99_guard_submission(p_form_type text,p_identity text,p_payload jsonb,p_started_at timestamptz,p_honeypot text default '') returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $$
 declare v_identity_hash text;v_payload_hash text;v_recent integer;v_duplicate integer;v_reason text;
 begin
- if p_form_type not in('application','service_request','contact','ai_support','password_reset') then raise exception 'Invalid form type';end if;
+ if p_form_type not in('application','service_request','job_application','contact','ai_support','password_reset') then raise exception 'Invalid form type';end if;
  if length(coalesce(p_payload::text,''))>30000 then v_reason:='payload_too_large';elsif coalesce(trim(p_honeypot),'')<>'' then v_reason:='honeypot';elsif p_started_at is null or p_started_at>now() or now()-p_started_at<interval '2 seconds' then v_reason:='submitted_too_fast';end if;
  v_identity_hash:=encode(digest(convert_to(lower(trim(coalesce(p_identity,'')))||':'||p_form_type,'UTF8'),'sha256'),'hex');v_payload_hash:=encode(digest(convert_to(coalesce(p_payload,'{}'::jsonb)::text,'UTF8'),'sha256'),'hex');
  select count(*) into v_recent from public.public_submission_guards where form_type=p_form_type and identity_hash=v_identity_hash and accepted=true and created_at>now()-interval '15 minutes';select count(*) into v_duplicate from public.public_submission_guards where form_type=p_form_type and payload_hash=v_payload_hash and accepted=true and created_at>now()-interval '24 hours';
  if v_reason is null and v_recent>=3 then v_reason:='cooldown';end if;if v_reason is null and v_duplicate>=1 then v_reason:='duplicate';end if;
  insert into public.public_submission_guards(form_type,identity_hash,payload_hash,accepted,reason) values(p_form_type,v_identity_hash,v_payload_hash,v_reason is null,v_reason);
+ if v_reason is not null then insert into public.activity_logs(admin_email,action,entity_type,metadata,source_route,outcome) values('public','submission_guard_rejected','public_submission',jsonb_build_object('form_type',p_form_type,'reason',v_reason),'/api/public-submit','denied');end if;
  return jsonb_build_object('allowed',v_reason is null,'code',case when v_reason is null then 'ok' else 'try_again_later' end);
 end $$;
 revoke all on function public.pr99_guard_submission(text,text,jsonb,timestamptz,text) from public;
