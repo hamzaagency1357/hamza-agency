@@ -11,6 +11,7 @@ import FinalVisualPolish from "@/components/FinalVisualPolish";
 import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
 import StructuredData from "@/components/StructuredData";
 import SiteLanguageDocumentSync from "@/components/SiteLanguageDocumentSync";
+import PublicSiteRuntimeTranslator from "@/components/PublicSiteRuntimeTranslator";
 import "./globals.css";
 import "./final-fixes.css";
 import "./public-modal-fixes.css";
@@ -183,6 +184,7 @@ export default function RootLayout({
         <StructuredData />
         <AuthRecoveryRedirect />
         <SiteLanguageDocumentSync />
+        <PublicSiteRuntimeTranslator />
         <PublicDesktopEnhancer />
         <VisualBackgroundPresets />
         <FinalVisualPolish />
