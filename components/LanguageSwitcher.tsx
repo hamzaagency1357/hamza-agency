@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   setStoredSiteLanguage,
@@ -12,24 +12,27 @@ import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
 export default function LanguageSwitcher() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const language = useSiteLanguage();
   const [activeLanguage, setActiveLanguage] = useState<SiteLanguage>(language);
+  const [locationSuffix, setLocationSuffix] = useState("");
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => setActiveLanguage(language), [language]);
+  useEffect(() => {
+    setLocationSuffix(`${window.location.search}${window.location.hash}`);
+  }, [pathname]);
 
-  const localizedTargets = useMemo(() => {
-    const query = searchParams.toString();
-    const hash = typeof window === "undefined" ? "" : window.location.hash;
-    return Object.fromEntries(
-      SITE_LANGUAGES.map(({ code }) => {
-        const localizedPath = localizePublicPath(pathname || "/", code);
-        return [code, `${localizedPath}${query ? `?${query}` : ""}${hash}`];
-      })
-    ) as Record<SiteLanguage, string>;
-  }, [pathname, searchParams]);
+  const localizedTargets = useMemo(
+    () =>
+      Object.fromEntries(
+        SITE_LANGUAGES.map(({ code }) => [
+          code,
+          `${localizePublicPath(pathname || "/", code)}${locationSuffix}`,
+        ])
+      ) as Record<SiteLanguage, string>,
+    [locationSuffix, pathname]
+  );
 
   useEffect(() => {
     for (const target of Object.values(localizedTargets)) router.prefetch(target);
