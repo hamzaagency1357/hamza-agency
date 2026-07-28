@@ -18,7 +18,7 @@ function isPlaceholder(value) {
     /^\$\{\{\s*secrets\.[A-Z0-9_]+\s*\}\}$/i.test(normalized) ||
     /^\$\{?[A-Z0-9_]+\}?$/i.test(normalized) ||
     /^(?:<[^>]+>|\*{3,}|x{6,})$/i.test(normalized) ||
-    /^(?:your|replace|example|sample|test|fake|dummy)[-_ ]?(?:secret|key|token|value)?$/i.test(normalized)
+    /^(?:YOUR|REPLACE|EXAMPLE|SAMPLE|TEST|FAKE|DUMMY|PLACEHOLDER)(?:[_-][A-Z0-9]+)+$/i.test(normalized)
   );
 }
 
