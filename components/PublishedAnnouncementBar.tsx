@@ -16,11 +16,10 @@ type Announcement = { id: number; title: string | null; content: string | null }
 type Field = "title" | "content";
 type Animation = "fixed" | "marquee";
 const fields: Field[] = ["title", "content"];
-const forbiddenPlaceholders = ["Localized content is being updated.", "Yerelleştirilmiş içerik güncelleniyor."];
 
 function isUsable(value: string) {
   const text = value.trim();
-  return text.length > 0 && !forbiddenPlaceholders.some((placeholder) => text.includes(placeholder));
+  return text.length > 0 && !text.startsWith("Localized content") && !text.startsWith("Yerelleştirilmiş içerik");
 }
 
 function joinAnnouncement(title: string, content: string) {
