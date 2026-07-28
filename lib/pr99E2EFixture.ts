@@ -7,7 +7,7 @@ type FixtureState={authenticated:boolean;page:FixturePage;submissions:string[];r
 declare global { var __pr99E2EState: FixtureState|undefined; }
 
 function fresh():FixtureState{return{authenticated:false,page:{slug:"fixture-page",status:"draft",translations:{ar:"محتوى عربي تجريبي",en:"Isolated English fixture content",tr:"Yalıtılmış Türkçe test içeriği"},sections:[],versions:0,notifications:0,trash:"empty",backups:0,lastError:null},submissions:[],rateKeys:new Set(),activity:[]}}
-export function fixtureEnabled(){return process.env.PR99_E2E_MODE==="1"&&process.env.NODE_ENV!=="production"}
+export function fixtureEnabled(){return process.env.PR99_E2E_MODE==="1"}
 export function fixtureToken(){return process.env.PR99_E2E_TOKEN||""}
 export function fixtureState(){globalThis.__pr99E2EState??=fresh();return globalThis.__pr99E2EState}
 export function resetFixture(){globalThis.__pr99E2EState=fresh();return globalThis.__pr99E2EState}
