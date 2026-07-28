@@ -181,10 +181,22 @@ export default function PublicAiSupport() {
           className="hamza-ai-support-panel mb-3 flex max-h-[calc(100svh-6rem)] w-[min(360px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[2rem] border border-fuchsia-400/25 bg-[#09000f]/95 shadow-[0_0_70px_rgba(168,85,247,0.32)] backdrop-blur-xl"
         >
           <div className="border-b border-white/10 bg-gradient-to-r from-fuchsia-600/25 to-purple-600/20 p-4">
-            <div className="text-xs font-black uppercase tracking-[0.25em] text-fuchsia-100">
-              HAMZA AGENCY
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xs font-black uppercase tracking-[0.25em] text-fuchsia-100">
+                  HAMZA AGENCY
+                </div>
+                <div className="mt-1 text-lg font-black text-white">{copy.widgetTitle}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                aria-label={copy.widgetCloseAria}
+                className="shrink-0 rounded-full border border-white/15 bg-black/25 px-3 py-2 text-xs font-black text-white/85 transition hover:border-fuchsia-300/40 hover:bg-fuchsia-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300/70"
+              >
+                {copy.widgetClose}
+              </button>
             </div>
-            <div className="mt-1 text-lg font-black text-white">{copy.widgetTitle}</div>
             <p className="mt-2 text-xs leading-6 text-white/55">{copy.widgetIntro}</p>
           </div>
 
