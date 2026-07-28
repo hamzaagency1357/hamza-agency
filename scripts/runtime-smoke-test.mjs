@@ -1,0 +1,10 @@
+const base=(process.env.E2E_BASE_URL||process.env.VERCEL_URL||"http://127.0.0.1:3000").replace(/\/$/,"");
+const origin=base.startsWith("http")?base:`https://${base}`;
+const publicPaths=["/","/en","/tr","/programs","/en/programs","/tr/programs","/services","/contact","/application-status","/service-status","/privacy-policy"];
+const adminPaths=["/admin","/admin/page-builder","/admin/version-history","/admin/notifications","/admin/activity-logs","/admin/trash","/admin/backups","/admin/system-health","/admin/permissions"];
+const failures=[];
+const placeholderPatterns=[/lorem ipsum/i,/localized content is being updated/i,/yerelleştirilmiş içerik güncelleniyor/i,/\bTODO_PLACEHOLDER\b/i,/\[placeholder\]/i];
+async function check(path,{admin=false}={}){try{const response=await fetch(origin+path,{redirect:"manual",headers:{"user-agent":"HAMZA-PR99-QA"}});if(response.status>=500){failures.push(`${path}: ${response.status}`);return}const body=await response.text();if(admin){if(response.status>=300&&response.status<400){const location=response.headers.get("location")||"";if(!location.includes("/admin/login"))failures.push(`${path}: unexpected redirect ${location}`)}else if(!/admin|الإدارة|الصلاحيات|جاري التحقق|تسجيل الدخول|حالة النظام|النسخ الاحتياطي|المحذوفات|الإشعارات/i.test(body)){failures.push(`${path}: admin shell or guard marker missing`)}}else{for(const pattern of placeholderPatterns)if(pattern.test(body))failures.push(`${path}: placeholder-like content`);if(body.includes("SUPABASE_SERVICE_ROLE"))failures.push(`${path}: secret name leaked`);if(!/<html/i.test(body))failures.push(`${path}: HTML document missing`);}}
+catch(error){failures.push(`${path}: ${error instanceof Error?error.message:String(error)}`)}}
+for(const path of publicPaths)await check(path);for(const path of adminPaths)await check(path,{admin:true});
+if(failures.length){console.error(failures.join("\n"));process.exit(1)}console.log(`Runtime smoke passed for ${publicPaths.length+adminPaths.length} routes at ${origin}`);
