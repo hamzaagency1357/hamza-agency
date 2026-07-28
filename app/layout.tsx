@@ -2,6 +2,7 @@ import type { Viewport } from "next";
 import PublicQuickNav from "@/components/PublicQuickNav";
 import AdminQuickNav from "@/components/AdminQuickNav";
 import PublicAiSupport from "@/components/PublicAiSupport";
+import PublicMobileDock from "@/components/PublicMobileDock";
 import PublicDesktopEnhancer from "@/components/PublicDesktopEnhancer";
 import PublicHeaderDesktopClickGuard from "@/components/PublicHeaderDesktopClickGuard";
 import PublicGlobalHeader from "@/components/PublicGlobalHeader";
@@ -64,6 +65,7 @@ export default async function RootLayout({
           {children}
           <PublicSupportAvailability />
           <PublicHeaderDesktopClickGuard />
+          <PublicMobileDock />
           <PublicAiSupport />
           <PublicQuickNav />
           <AdminQuickNav />
