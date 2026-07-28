@@ -22,12 +22,17 @@ const siteDescription =
 
 const mobileFloatingControlsFix = `
 @media (max-width: 768px) {
+  .hamza-floating-whatsapp,
+  .hamza-ai-support,
+  .hamza-quick-nav {
+    inset-inline-start: auto !important;
+    inset-inline-end: auto !important;
+  }
+
   .hamza-floating-whatsapp {
     left: auto !important;
-    right: auto !important;
-    inset-inline-start: 0.75rem !important;
-    inset-inline-end: auto !important;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.55rem) !important;
+    right: 0.75rem !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 7.35rem) !important;
     width: 5.25rem !important;
     height: 2.85rem !important;
     padding-inline: 0.35rem !important;
@@ -36,11 +41,9 @@ const mobileFloatingControlsFix = `
   }
 
   .hamza-ai-support {
-    left: calc(50% - 2.875rem) !important;
-    right: auto !important;
-    inset-inline-start: auto !important;
-    inset-inline-end: auto !important;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.55rem) !important;
+    left: auto !important;
+    right: 0.75rem !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 3.95rem) !important;
     width: 5.75rem !important;
   }
 
@@ -54,9 +57,7 @@ const mobileFloatingControlsFix = `
 
   .hamza-quick-nav {
     left: auto !important;
-    right: auto !important;
-    inset-inline-end: 0.75rem !important;
-    inset-inline-start: auto !important;
+    right: 0.75rem !important;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 0.55rem) !important;
     width: 5.25rem !important;
   }
@@ -73,6 +74,8 @@ const mobileFloatingControlsFix = `
   .hamza-ai-support-panel,
   .hamza-quick-nav-panel {
     position: fixed !important;
+    inset-inline-start: auto !important;
+    inset-inline-end: auto !important;
     left: 0.75rem !important;
     right: 0.75rem !important;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 4.15rem) !important;
