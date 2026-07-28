@@ -43,29 +43,6 @@ function createCmsTranslationSource({ sourceKey, sourceType, sourceId, values, f
   return { sourceKey, sourceType, sourceId: sourceId ?? "", requiredFields: getRequiredFields(values), fallback };
 }
 
-const serviceCards = [
-  { title: "متابعة طلبات الانضمام", text: "تنظيم طلبات صناع المحتوى ومتابعة حالتها من لوحة إدارة واضحة." },
-  { title: "دعم البرامج", text: "توجيه المتقدمين حسب البرنامج المناسب ومتطلبات كل منصة." },
-  { title: "تنظيم التواصل", text: "تسهيل التواصل مع فريق الوكالة عبر قنوات واضحة ومتابعة منظمة." },
-  { title: "الخدمات الرقمية", text: "استقبال طلبات الخدمات الرقمية وتحويلها إلى مسار متابعة واضح." },
-];
-
-function buildServicesStructuredData(pageTitle: string, pageDescription: string) {
-  return JSON.stringify({
-    "@context": "https://schema.org", "@type": "Service", name: pageTitle, description: pageDescription,
-    provider: { "@type": "Organization", name: "HAMZA AGENCY", url: "https://hamza-agency.com" }, areaServed: "Online",
-    serviceType: serviceCards.map((service) => service.title),
-    hasOfferCatalog: { "@type": "OfferCatalog", name: "خدمات وكالة حمزة", itemListElement: serviceCards.map((service) => ({ "@type": "Offer", itemOffered: { "@type": "Service", name: service.title, description: service.text } })) },
-  }).replace(/</g, "\\u003c");
-}
-
-function buildServicesBreadcrumbData() {
-  return JSON.stringify({ "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [
-    { "@type": "ListItem", position: 1, name: "الرئيسية", item: "https://hamza-agency.com" },
-    { "@type": "ListItem", position: 2, name: "الخدمات", item: "https://hamza-agency.com/services" },
-  ] }).replace(/</g, "\\u003c");
-}
-
 export default async function ServicesPage() {
   const { page, sections } = await getCmsPageWithSections("services");
   const agencyServicesSection = findCmsSection(sections, "agency-services");
@@ -74,8 +51,6 @@ export default async function ServicesPage() {
   const supportProcess = getSectionContent(supportProcessSection, { title: "آلية الدعم والمتابعة", subtitle: "متابعة منظمة حسب نوع الطلب والبرنامج", content: "يتم التعامل مع كل طلب حسب حالته، مع مراجعة البيانات وتوجيه صاحب الطلب إلى المسار المناسب داخل الوكالة." });
   const pageTitle = page?.title || agencyServices.title;
   const pageDescription = page?.content || agencyServices.content;
-  const servicesStructuredData = buildServicesStructuredData(pageTitle, pageDescription);
-  const servicesBreadcrumbData = buildServicesBreadcrumbData();
   const translationSources: CmsPublishedTranslationSource[] = [
     createCmsTranslationSource({ sourceKey: "services-page", sourceType: "pages", sourceId: page?.id, values: { title: page?.title, summary: page?.seo_description, content: page?.content }, fallback: { title: pageTitle, content: page?.content?.trim() || "" } }),
     createCmsTranslationSource({ sourceKey: "agency-services", sourceType: "sections", sourceId: agencyServicesSection?.id, values: { title: agencyServicesSection?.title, summary: agencyServicesSection?.subtitle, content: agencyServicesSection?.content }, fallback: { title: agencyServices.title, summary: agencyServices.subtitle, content: agencyServices.content } }),
@@ -85,8 +60,6 @@ export default async function ServicesPage() {
   return (
     <CmsPublishedTranslationsProvider sources={translationSources}>
       <main className="min-h-screen bg-[#070009] px-5 py-8 text-white">
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: servicesStructuredData }} />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: servicesBreadcrumbData }} />
         <div className="pointer-events-none fixed inset-0 overflow-hidden"><div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.32),transparent_45%)]" /><div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(40,10,70,0.35),rgba(7,0,9,0.95))]" /><div className="absolute inset-0 opacity-[0.07] [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.55)_1px,transparent_0)] [background-size:44px_44px]" /></div>
         <section className="relative z-10 mx-auto max-w-6xl">
           <ServicesNav />

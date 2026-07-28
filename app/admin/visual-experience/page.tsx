@@ -5,9 +5,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import {
+  normalizeVisualBackgroundPreset,
+  type VisualBackgroundPresetId,
+} from "@/lib/visualBackgroundPresets";
 
 type Tone = "purple" | "green" | "yellow" | "cyan" | "red";
-type BackgroundKey = "royal" | "hepta" | "gold" | "nebula";
 type MotionLevel = "low" | "medium" | "high";
 type VisualStatus = "draft" | "review" | "approved" | "archived";
 
@@ -15,7 +18,7 @@ type VisualCard = { id: string; title: string; subtitle: string; tone: Exclude<T
 
 type VisualDraft = {
   presetName: string;
-  background: BackgroundKey;
+  background: VisualBackgroundPresetId;
   motion: MotionLevel;
   glow: boolean;
   glass: boolean;
@@ -24,6 +27,7 @@ type VisualDraft = {
   cards: VisualCard[];
   notes: string;
   status: VisualStatus;
+  applyToPublic: boolean;
 };
 
 type VisualExperienceRow = {
@@ -47,18 +51,26 @@ type VisualExperienceRow = {
 
 const STORAGE_KEY = "hamza_visual_experience_v1";
 
-const backgrounds: { key: BackgroundKey; label: string; description: string }[] = [
-  { key: "royal", label: "Royal Black Purple", description: "أسود فاخر مع موف ملكي ولمعة ذهبية خفيفة." },
-  { key: "hepta", label: "Hepta Universe", description: "طبقات كونية داكنة، هالات موف، وشعور فضائي فاخر." },
-  { key: "gold", label: "Golden Agency", description: "تدرجات ذهبية ناعمة فوق خلفية سوداء فخمة." },
-  { key: "nebula", label: "Purple Nebula", description: "سديم موف متحرك مناسب للصفحات التعريفية." },
+const backgrounds: {
+  key: VisualBackgroundPresetId;
+  label: string;
+  description: string;
+}[] = [
+  { key: "global-luxury-aurora", label: "Global Luxury Aurora", description: "هالات بنفسجية وذهبية متوازنة بخلفية سوداء." },
+  { key: "classic-purple-agency", label: "Classic Purple Agency", description: "تكوين هادئ وهوية بنفسجية كلاسيكية." },
+  { key: "royal-creator-waves", label: "Royal Creator Waves", description: "موجات ملكية ناعمة لصناع المحتوى." },
+  { key: "golden-network-pulse", label: "Golden Network Pulse", description: "شبكة ذهبية خفيفة مع نبض بصري." },
+  { key: "galaxy-agency-flow", label: "Galaxy Agency Flow", description: "تدفق كوني داكن بنقاط ضوئية محسوبة." },
+  { key: "live-streaming-signal", label: "Live Streaming Signal", description: "إشارات دائرية خفيفة مستوحاة من البث." },
+  { key: "premium-glass-orbits", label: "Premium Glass Orbits", description: "مدارات زجاجية هادئة فوق العمق البنفسجي." },
+  { key: "digital-stage-lights", label: "Digital Stage Lights", description: "إضاءة منصة رقمية بلمسات ذهبية." },
 ];
 
 const scopeOptions = ["الخدمات", "الإحصائيات", "مميزات الوكالة", "خطوات الانضمام", "لوحة التحكم", "الخلفيات"];
 
 const defaultDraft: VisualDraft = {
   presetName: "HAMZA AGENCY Visual Draft",
-  background: "hepta",
+  background: "global-luxury-aurora",
   motion: "medium",
   glow: true,
   glass: true,
@@ -71,11 +83,8 @@ const defaultDraft: VisualDraft = {
   ],
   notes: "هذه اللوحة للتجهيز والمراجعة فقط. لا تطبق على الموقع العام قبل الاعتماد النهائي.",
   status: "draft",
+  applyToPublic: false,
 };
-
-function normalizeBackground(value: string | null | undefined): BackgroundKey {
-  return value === "royal" || value === "gold" || value === "nebula" ? value : "hepta";
-}
 
 function normalizeMotion(value: string | null | undefined): MotionLevel {
   return value === "low" || value === "high" ? value : "medium";
@@ -106,11 +115,13 @@ function normalizeDraft(value: Partial<VisualDraft>): VisualDraft {
   return {
     ...defaultDraft,
     ...value,
-    background: normalizeBackground(value.background),
+    background: normalizeVisualBackgroundPreset(value.background),
     motion: normalizeMotion(value.motion),
     status: normalizeStatus(value.status),
     cardsScope: Array.isArray(value.cardsScope) && value.cardsScope.length > 0 ? value.cardsScope : defaultDraft.cardsScope,
     cards: normalizeCards(value.cards),
+    applyToPublic:
+      value.status === "approved" && value.applyToPublic === true,
   };
 }
 
@@ -127,7 +138,7 @@ function safeParse(value: string | null): VisualDraft {
 function rowToDraft(row: VisualExperienceRow): VisualDraft {
   return normalizeDraft({
     presetName: row.preset_name || defaultDraft.presetName,
-    background: normalizeBackground(row.background),
+    background: normalizeVisualBackgroundPreset(row.background),
     motion: normalizeMotion(row.motion),
     glow: row.glow !== false,
     glass: row.glass !== false,
@@ -136,10 +147,17 @@ function rowToDraft(row: VisualExperienceRow): VisualDraft {
     cards: row.cards || defaultDraft.cards,
     notes: row.notes || defaultDraft.notes,
     status: normalizeStatus(row.status),
+    applyToPublic:
+      row.status === "approved" && row.apply_to_public === true,
   });
 }
 
 function draftToPayload(draft: VisualDraft, adminEmail: string) {
+  const applyToPublic =
+    draft.status === "approved" &&
+    draft.applyToPublic &&
+    Boolean(adminEmail);
+
   return {
     preset_name: draft.presetName.trim() || defaultDraft.presetName,
     background: draft.background,
@@ -151,19 +169,23 @@ function draftToPayload(draft: VisualDraft, adminEmail: string) {
     cards: draft.cards,
     notes: draft.notes.trim(),
     status: draft.status,
-    apply_to_public: false,
-    approved_by: null,
-    approved_at: null,
+    apply_to_public: applyToPublic,
+    approved_by: applyToPublic ? adminEmail : null,
+    approved_at: applyToPublic ? new Date().toISOString() : null,
     updated_by: adminEmail || null,
   };
 }
 
-function backgroundClass(key: BackgroundKey) {
-  const classes: Record<BackgroundKey, string> = {
-    royal: "from-black via-purple-950 to-black",
-    hepta: "from-[#050008] via-[#25003d] to-[#09000f]",
-    gold: "from-black via-[#2b1b00] to-[#070009]",
-    nebula: "from-[#080011] via-[#32115d] to-[#050008]",
+function backgroundClass(key: VisualBackgroundPresetId) {
+  const classes: Record<VisualBackgroundPresetId, string> = {
+    "global-luxury-aurora": "from-[#050008] via-[#25003d] to-[#09000f]",
+    "classic-purple-agency": "from-black via-purple-950 to-black",
+    "royal-creator-waves": "from-[#070009] via-[#35115f] to-[#12001d]",
+    "golden-network-pulse": "from-black via-[#2b1b00] to-[#070009]",
+    "galaxy-agency-flow": "from-[#080011] via-[#32115d] to-[#050008]",
+    "live-streaming-signal": "from-[#03010a] via-[#241041] to-[#08000f]",
+    "premium-glass-orbits": "from-[#08070c] via-[#21172f] to-[#050008]",
+    "digital-stage-lights": "from-[#050008] via-[#2b103f] to-[#221400]",
   };
   return classes[key];
 }
@@ -287,8 +309,16 @@ export default function AdminVisualExperiencePage() {
     setPresetId(savedRow.id);
     setDraft(savedDraft);
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(savedDraft));
-    setStorageMode("Supabase دائم");
-    setMessage("تم حفظ إعدادات Visual Experience في Supabase مع إبقاء التطبيق العام مقفلاً.");
+    setStorageMode(
+      savedRow.apply_to_public
+        ? "Supabase دائم — الإعداد العام معتمد"
+        : "Supabase دائم"
+    );
+    setMessage(
+      savedRow.apply_to_public
+        ? "تم حفظ الإعداد واعتماده كخلفية عامة. سيقرأ الموقع العام أحدث إعداد معتمد عبر Supabase."
+        : "تم حفظ إعدادات Visual Experience في Supabase دون تطبيقها على الموقع العام."
+    );
   }
 
   function exportDraft() {
@@ -336,7 +366,7 @@ export default function AdminVisualExperiencePage() {
             <div className="mb-3 inline-flex rounded-full border border-fuchsia-400/25 bg-fuchsia-500/10 px-5 py-2 text-sm font-bold text-fuchsia-100">Visual Experience</div>
             <h1 className="text-4xl font-black md:text-5xl">الخلفيات والكروت المتحركة</h1>
             <p className="mt-3 max-w-3xl leading-8 text-white/55">
-              تجهيز ستايل Hepta Universe وخيارات الخلفيات والكروت المتحركة. الحفظ دائم في Supabase، والتطبيق العام مقفل حتى موافقة بصرية صريحة.
+              إدارة الخلفيات الثمانية والكروت المتحركة. الحفظ دائم في Supabase، ولا يصبح الإعداد عاماً إلا بعد اختيار حالة «معتمد» وتفعيل التطبيق العام صراحة.
             </p>
           </div>
 
@@ -362,7 +392,7 @@ export default function AdminVisualExperiencePage() {
         )}
 
         <div className="mb-8 rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-5 text-sm leading-7 text-yellow-100">
-          هذه الصفحة تحفظ إعدادات Visual Experience فقط. لا تغير خلفية الموقع العام أو الألوان أو الحركة. التطبيق العام سيحتاج خطوة مستقلة وموافقة بصرية صريحة منك.
+          الحفظ وحده لا يغيّر الموقع العام. لتطبيق الخلفية، اجعل حالة الإعداد «معتمد» ثم فعّل خيار التطبيق العام. القراءة العامة مقيدة بإعداد معتمد عبر RLS، و`localStorage` مجرد نسخة احتياطية للعرض.
         </div>
 
         <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -379,7 +409,7 @@ export default function AdminVisualExperiencePage() {
             <div className="grid gap-4 md:grid-cols-3">
               <label className="grid gap-2 text-sm font-black text-white/70">
                 الخلفية
-                <select value={draft.background} onChange={(event) => updateDraft({ ...draft, background: event.target.value as BackgroundKey })} className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none">
+                <select value={draft.background} onChange={(event) => updateDraft({ ...draft, background: event.target.value as VisualBackgroundPresetId })} className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none">
                   {backgrounds.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
                 </select>
               </label>
@@ -395,7 +425,15 @@ export default function AdminVisualExperiencePage() {
 
               <label className="grid gap-2 text-sm font-black text-white/70">
                 حالة الإعداد
-                <select value={draft.status} onChange={(event) => updateDraft({ ...draft, status: event.target.value as VisualStatus })} className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none">
+                <select value={draft.status} onChange={(event) => {
+                  const status = event.target.value as VisualStatus;
+                  updateDraft({
+                    ...draft,
+                    status,
+                    applyToPublic:
+                      status === "approved" && draft.applyToPublic,
+                  });
+                }} className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none">
                   <option value="draft">مسودة</option>
                   <option value="review">مراجعة</option>
                   <option value="approved">معتمد داخلياً</option>
@@ -409,6 +447,27 @@ export default function AdminVisualExperiencePage() {
               <Toggle label="Glass Cards" checked={draft.glass} onChange={(checked) => updateDraft({ ...draft, glass: checked })} />
               <Toggle label="Animated Cards" checked={draft.animatedCards} onChange={(checked) => updateDraft({ ...draft, animatedCards: checked })} />
             </div>
+
+            <label className={`flex items-start gap-3 rounded-2xl border p-4 text-sm font-black ${draft.status === "approved" ? "border-yellow-400/25 bg-yellow-500/10 text-yellow-100" : "border-white/10 bg-black/25 text-white/40"}`}>
+              <input
+                type="checkbox"
+                checked={draft.applyToPublic}
+                disabled={draft.status !== "approved"}
+                onChange={(event) =>
+                  updateDraft({
+                    ...draft,
+                    applyToPublic: event.target.checked,
+                  })
+                }
+                className="mt-1"
+              />
+              <span>
+                تطبيق هذا الإعداد على الموقع العام
+                <span className="mt-1 block text-xs font-normal opacity-75">
+                  متاح فقط عندما تكون الحالة «معتمد». الحفظ سيستخدم حساب المسؤول الحالي في حقول الاعتماد.
+                </span>
+              </span>
+            </label>
 
             <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
               <div className="mb-3 text-sm font-black text-white/70">أماكن تطبيق الكروت المتحركة</div>
@@ -451,7 +510,9 @@ export default function AdminVisualExperiencePage() {
               <div className="rounded-3xl border border-white/10 bg-white/[0.07] p-5 backdrop-blur">
                 <div className="text-xs font-black text-yellow-100">HAMZA AGENCY</div>
                 <h3 className="mt-3 text-2xl font-black">{draft.presetName || "Hepta Universe Style"}</h3>
-                <p className="mt-3 leading-7 text-white/65">أسود فاخر، موف ملكي، ذهب ناعم، وكروت متحركة خفيفة.</p>
+                <p className="mt-3 leading-7 text-white/65">
+                  {backgrounds.find((item) => item.key === draft.background)?.description}
+                </p>
               </div>
               <div className="mt-4 grid gap-3">
                 {draft.cards.map((card) => (

@@ -9,6 +9,7 @@ import {
   CmsPublishedTranslationsProvider,
   type CmsPublishedTranslationSource,
 } from "@/components/CmsPublishedTranslations";
+import PublicAgencyName from "@/components/PublicAgencyName";
 import { supabase } from "@/lib/supabase";
 import {
   findCmsSection,
@@ -69,7 +70,7 @@ export default async function DigitalServicesPage() {
   const overviewSection = findCmsSection(sections, "digital-services-overview");
   const requestCtaSection = findCmsSection(sections, "service-request-cta");
   const overview = getSectionContent(overviewSection, { title: "الخدمات الرقمية", subtitle: "طلبات منظمة ومتابعة واضحة", content: "توفر وكالة حمزة صفحة مخصصة لتنظيم طلبات الخدمات الرقمية مثل شحن المنصات، سحب الأرباح، ومتابعة الخدمات المساعدة. الهدف هو استقبال الطلب بشكل واضح، مراجعته من فريق الوكالة، ثم تأكيد التفاصيل عبر واتساب عند الحاجة قبل أي تنفيذ." });
-  const requestCta = getSectionContent(requestCtaSection, { title: "إرسال طلب خدمة", subtitle: "أرسل تفاصيل طلبك ليتم متابعته من لوحة الإدارة", content: "يمكنك إرسال طلب خدمة بالبيانات الأساسية فقط. بعد ذلك تتم مراجعة الطلب وتحديث حالته من لوحة التحكم، وقد يتم التواصل معك عبر واتساب لتأكيد التفاصيل أو استكمال المعلومات." });
+  const requestCta = getSectionContent(requestCtaSection, { title: "إرسال طلب خدمة", subtitle: "أرسل تفاصيل طلبك للمتابعة", content: "يمكنك إرسال طلب خدمة بالبيانات الأساسية فقط. بعد ذلك تتم مراجعة الطلب وتحديث حالته، وقد يتم التواصل معك عبر واتساب لتأكيد التفاصيل أو استكمال المعلومات." });
   const title = page?.title || overview.title;
   const hasPageContent = Boolean(page?.content?.trim());
   const translationSources: CmsPublishedTranslationSource[] = [
@@ -85,7 +86,7 @@ export default async function DigitalServicesPage() {
         <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
           <DigitalBackLink />
           <div className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur md:p-10">
-            <div className="mb-6 inline-flex rounded-full border border-yellow-400/30 bg-yellow-500/10 px-5 py-2 text-sm font-bold text-yellow-100">{agencyName}</div>
+            <div className="mb-6 inline-flex rounded-full border border-yellow-400/30 bg-yellow-500/10 px-5 py-2 text-sm font-bold text-yellow-100"><PublicAgencyName value={agencyName} /></div>
             <h1 className="text-5xl font-black leading-tight md:text-7xl"><CmsPublishedText sourceKey="digital-services-page" field="title" fallback={title} /><span className="block bg-gradient-to-r from-yellow-300 via-white to-purple-300 bg-clip-text text-transparent"><CmsPublishedText sourceKey="digital-services-overview" field="summary" fallback={overview.subtitle} /></span></h1>
             <p className="mt-8 max-w-5xl text-xl leading-10 text-white/75">{hasPageContent ? <CmsPublishedText sourceKey="digital-services-page" field="content" fallback={page?.content || ""} /> : <CmsPublishedText sourceKey="digital-services-overview" field="content" fallback={overview.content} />}</p>
             <DigitalHeroActions cleanWhatsapp={cleanWhatsapp} />

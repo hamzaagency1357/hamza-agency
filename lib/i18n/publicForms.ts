@@ -41,7 +41,7 @@ const copy = {
       submit: "إرسال الطلب",
       submitting: "جارٍ الإرسال...",
       required: "يرجى تعبئة الحقول الأساسية.",
-      unavailable: "الاتصال بقاعدة البيانات غير مفعل حالياً.",
+      unavailable: "تعذر إرسال الطلب حالياً. يرجى المحاولة مرة أخرى أو التواصل معنا عبر واتساب.",
       duplicate: "تم إرسال طلب سابق بنفس رقم الواتساب والمنصة.",
       error: "حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.",
       success: "تم استلام طلبك بنجاح. سيقوم فريق الوكالة بمراجعة الطلب وقد يتم التواصل معك عبر واتساب.",
@@ -76,7 +76,7 @@ const copy = {
         "تستخدم الصفحة رقم الواتساب مع اسم البرنامج لتقليل ظهور نتيجة غير مقصودة لشخص آخر.",
         "لا تعرض الصفحة الاسم الكامل أو الملاحظات أو الخبرات السابقة أو أي تفاصيل شخصية كاملة.",
         "للدقة، أدخل نفس رقم الواتساب ونفس البرنامج الذي استخدمته عند إرسال طلب الانضمام.",
-        "للخصوصية الأقوى في النسخ القادمة، يُفضّل اعتماد كود تتبع خاص لكل طلب من قاعدة البيانات ولوحة الإدارة.",
+        "إذا لم تظهر نتيجة مطابقة، استخدم واتساب الرسمي واذكر البرنامج وتاريخ التقديم التقريبي.",
       ],
     },
     serviceRequest: {
@@ -109,7 +109,7 @@ const copy = {
       fullNameRequired: "يرجى كتابة الاسم الكامل.",
       invalidWhatsapp: "يرجى كتابة رقم واتساب صحيح لا يقل عن 8 أرقام.",
       selectService: "يرجى اختيار نوع الخدمة.",
-      unavailable: "الاتصال بقاعدة البيانات غير مفعل حالياً.",
+      unavailable: "تعذر إرسال الطلب حالياً. يرجى المحاولة مرة أخرى أو التواصل معنا عبر واتساب.",
       error: "حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى أو التواصل معنا عبر واتساب.",
       success: "تم استلام طلبك بنجاح. احتفظ بكود الطلب لاستخدامه في صفحة التتبع، وسيقوم فريق وكالة حمزة بمراجعة الطلب والتواصل معك عبر واتساب.",
       safetyNotes: [
@@ -174,7 +174,7 @@ const copy = {
       submit: "Submit application",
       submitting: "Sending...",
       required: "Please complete the required fields.",
-      unavailable: "The database connection is not available right now.",
+      unavailable: "We could not send your application right now. Please try again or contact us on WhatsApp.",
       duplicate: "An application with this WhatsApp number and platform was already submitted.",
       error: "We could not send your application. Please try again.",
       success: "Your application was received successfully. Our agency team will review it and may contact you through WhatsApp.",
@@ -209,7 +209,7 @@ const copy = {
         "This page uses your WhatsApp number and program name to reduce unintended matches.",
         "It does not display your full name, notes, previous experience, or other full personal details.",
         "For accuracy, use the same WhatsApp number and program selected when you submitted your application.",
-        "For stronger privacy in future versions, each application should use a dedicated tracking code from the database and admin panel.",
+        "If no match appears, use the official WhatsApp channel and mention the program and approximate application date.",
       ],
     },
     serviceRequest: {
@@ -242,7 +242,7 @@ const copy = {
       fullNameRequired: "Enter your full name.",
       invalidWhatsapp: "Enter a valid WhatsApp number with at least 8 digits.",
       selectService: "Select a service type.",
-      unavailable: "The database connection is not available right now.",
+      unavailable: "We could not send your request right now. Please try again or contact us on WhatsApp.",
       error: "We could not send your request. Please try again or contact us on WhatsApp.",
       success: "Your request was received successfully. Keep the request code to track it, and our agency team will review your request and contact you on WhatsApp.",
       safetyNotes: [
@@ -307,7 +307,7 @@ const copy = {
       submit: "Başvuruyu gönder",
       submitting: "Gönderiliyor...",
       required: "Lütfen gerekli alanları doldurun.",
-      unavailable: "Veritabanı bağlantısı şu anda kullanılamıyor.",
+      unavailable: "Başvurunuz şu anda gönderilemedi. Lütfen tekrar deneyin veya WhatsApp üzerinden bize ulaşın.",
       duplicate: "Bu WhatsApp numarası ve platformla daha önce bir başvuru gönderildi.",
       error: "Başvurunuz gönderilemedi. Lütfen tekrar deneyin.",
       success: "Başvurunuz başarıyla alındı. Ajans ekibimiz başvurunuzu inceleyecek ve WhatsApp üzerinden sizinle iletişime geçebilir.",
@@ -342,7 +342,7 @@ const copy = {
         "Bu sayfa, istenmeyen eşleşmeleri azaltmak için WhatsApp numaranızı ve program adını kullanır.",
         "Ad soyadınızı, notlarınızı, önceki deneyimlerinizi veya diğer tam kişisel bilgileri göstermez.",
         "Doğruluk için başvuruda kullandığınız aynı WhatsApp numarasını ve programı kullanın.",
-        "Gelecekte daha güçlü gizlilik için her başvuruya veritabanı ve yönetim panelinden özel bir takip kodu verilmelidir.",
+        "Eşleşme görünmezse resmî WhatsApp kanalını kullanın; programı ve yaklaşık başvuru tarihini belirtin.",
       ],
     },
     serviceRequest: {
@@ -375,7 +375,7 @@ const copy = {
       fullNameRequired: "Ad soyadınızı yazın.",
       invalidWhatsapp: "En az 8 haneli geçerli bir WhatsApp numarası girin.",
       selectService: "Bir hizmet türü seçin.",
-      unavailable: "Veritabanı bağlantısı şu anda kullanılamıyor.",
+      unavailable: "Talebiniz şu anda gönderilemedi. Lütfen tekrar deneyin veya WhatsApp üzerinden bize ulaşın.",
       error: "Talebiniz gönderilemedi. Lütfen tekrar deneyin veya WhatsApp üzerinden bizimle iletişime geçin.",
       success: "Talebiniz başarıyla alındı. Takip etmek için talep kodunu saklayın; ajans ekibimiz talebinizi inceleyip WhatsApp üzerinden sizinle iletişime geçecektir.",
       safetyNotes: [
@@ -432,7 +432,7 @@ export function getPublicFormsCopy(language: SiteLanguage) {
 }
 
 export function getPlatformLabel(language: SiteLanguage, platform: string) {
-  if (platform === "منصة أخرى") {
+  if (platform === "other" || platform === "منصة أخرى") {
     return getPublicFormsCopy(language).application.otherPlatform;
   }
 

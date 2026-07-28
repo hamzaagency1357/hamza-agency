@@ -7,6 +7,7 @@ import {
   type PublishedTranslationMap,
 } from "@/lib/i18n/publishedTranslations";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
+import { localizeDynamicPublicCopy } from "@/lib/i18n/localizeDynamicPublicCopy";
 
 export type SuccessStoryTranslationRecord = {
   id: number;
@@ -54,18 +55,30 @@ function localizeStory<T extends SuccessStoryTranslationRecord>(
   language: "ar" | "en" | "tr"
 ): T {
   const required = activeFields(story);
-  if (language === "ar" || !required.length || !hasCompletePublishedTranslation(translations, required)) {
+  if (language === "ar" || !required.length) {
     return story;
   }
 
+  const hasTranslation = hasCompletePublishedTranslation(
+    translations,
+    required
+  );
+  const value = (field: SuccessStoryTranslationField) =>
+    localizeDynamicPublicCopy(
+      hasTranslation
+        ? translations?.[field]
+        : sourceValue(story, field),
+      language
+    );
+
   return {
     ...story,
-    title: translations?.title || story.title,
-    person_name: translations?.person_name || story.person_name,
-    country: translations?.country || story.country,
-    platform: translations?.platform || story.platform,
-    result_summary: translations?.summary || story.result_summary,
-    story: translations?.content || story.story,
+    title: value("title"),
+    person_name: value("person_name"),
+    country: value("country"),
+    platform: value("platform"),
+    result_summary: value("summary"),
+    story: value("content"),
   };
 }
 

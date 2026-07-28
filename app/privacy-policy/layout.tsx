@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
+import { generatePublicMetadataForRequest } from "@/lib/i18n/serverPublicMetadata";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy | Hamza Agency",
-  description: "Privacy policy for Hamza Agency website, applications, digital service requests, and official contact channels.",
-  alternates: { canonical: "https://hamza-agency.com/privacy-policy" },
-};
+export const generateMetadata = generatePublicMetadataForRequest;
 
-export default function PrivacyPolicyLayout({ children }: { children: React.ReactNode }) {
+export default function PrivacyPolicyLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return children;
 }

@@ -11,6 +11,8 @@ import {
 } from "@/lib/i18n/publishedTranslations";
 import { getStaticCopy, type StaticCopyKey } from "@/lib/i18n/staticCopy";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
+import { localizeDynamicPublicCopy } from "@/lib/i18n/localizeDynamicPublicCopy";
+import { localizePublicPath } from "@/lib/i18n/publicLocales";
 
 const PROGRAM_CARD_TRANSLATION_FIELDS = ["title", "summary"] as const;
 
@@ -163,8 +165,18 @@ export default function ProgramsGridWithTranslations({ programs, mediaItems }: {
 
       return {
         ...program,
-        displayName: hasCompleteCardTranslation && !isBrandProgram(program) ? translation?.title || program.name : program.name,
-        displaySummary: hasCompleteCardTranslation ? translation?.summary || fallbackSummary : fallbackSummary,
+        displayName:
+          isBrandProgram(program)
+            ? program.name
+            : hasCompleteCardTranslation
+              ? translation?.title || program.name
+              : localizeDynamicPublicCopy(program.name, language),
+        displaySummary: hasCompleteCardTranslation
+          ? localizeDynamicPublicCopy(
+              translation?.summary || fallbackSummary,
+              language
+            )
+          : localizeDynamicPublicCopy(fallbackSummary, language),
       };
     }),
     [language, programs, translations]
@@ -175,7 +187,10 @@ export default function ProgramsGridWithTranslations({ programs, mediaItems }: {
       {translatedPrograms.map((program) => {
         const visual = getProgramVisual(program.slug, program.name);
         const logoUrl = getProgramLogoUrl(program, mediaItems);
-        const programHref = program.slug ? `/programs/${program.slug}` : "/programs";
+        const programHref = localizePublicPath(
+          program.slug ? `/programs/${program.slug}` : "/programs",
+          language
+        );
 
         return (
           <Link key={program.id} href={programHref} className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-black/35 p-6 shadow-[0_0_35px_rgba(168,85,247,0.10)] backdrop-blur transition hover:-translate-y-1 hover:border-purple-400/50 hover:bg-purple-500/10">

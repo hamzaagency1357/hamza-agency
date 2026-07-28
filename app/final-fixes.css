@@ -22,27 +22,27 @@ body > div[class^="sticky"] {
 }
 
 /* Final launch header cleanup: keep the home hero header focused and move secondary routes to the footer. */
-body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/service-status"],
-body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/application-status"],
-body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/jobs"],
-body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/reviews"],
-body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/success-stories"],
-body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/partners"],
-body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/gallery"],
-body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/knowledge-center"],
-body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href="/faq"] {
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href$="/service-status"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href$="/application-status"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href$="/jobs"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href$="/reviews"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href$="/success-stories"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href$="/partners"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href$="/gallery"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href$="/knowledge-center"],
+body.public-site-page.public-structural-nav-ready main > nav > div.lg\:flex > a[href$="/faq"] {
   display: none !important;
 }
 
-body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/service-status"],
-body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/application-status"],
-body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/jobs"],
-body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/reviews"],
-body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/success-stories"],
-body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/partners"],
-body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/gallery"],
-body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/knowledge-center"],
-body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href="/faq"] {
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href$="/service-status"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href$="/application-status"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href$="/jobs"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href$="/reviews"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href$="/success-stories"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href$="/partners"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href$="/gallery"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href$="/knowledge-center"],
+body.public-site-page.public-structural-nav-ready main > div.lg\:hidden > div.overflow-x-auto > a[href$="/faq"] {
   display: none !important;
 }
 
@@ -53,7 +53,6 @@ main > div.fixed.inset-0.z-50 {
 }
 
 /* Keep only one stable visual system to prevent flicker on low/mid mobile GPUs. */
-.hamza-visual-background-presets,
 .hamza-final-polish {
   display: none !important;
 }
@@ -298,9 +297,8 @@ main > div.fixed.inset-0.z-50 {
   }
 }
 
-/* Restore announcement marquee only; background animations stay disabled on mobile. */
+/* The announcement component owns locale-aware marquee direction and timing. */
 body.public-site-page .hamza-marquee-track {
-  animation: hamzaMarquee var(--marquee-duration, 22s) linear infinite !important;
   will-change: transform !important;
 }
 
@@ -320,5 +318,123 @@ body.public-site-page .hamza-marquee-track {
   .hamza-quick-nav > button {
     height: 2.85rem !important;
     font-size: 0.74rem !important;
+  }
+}
+
+/* PR #98 final public typography, interaction, and overflow pass. */
+body.public-site-page {
+  background: #050008;
+}
+
+body.public-site-page main,
+body.public-site-page main * {
+  min-width: 0;
+}
+
+body.public-site-page h1,
+body.public-site-page h2,
+body.public-site-page h3,
+body.public-site-page p,
+body.public-site-page a,
+body.public-site-page button,
+body.public-site-page label {
+  overflow-wrap: anywhere;
+}
+
+body[data-site-language="en"] h1,
+body[data-site-language="tr"] h1,
+body[data-site-language="en"] h2,
+body[data-site-language="tr"] h2 {
+  text-wrap: balance;
+  letter-spacing: -0.025em;
+}
+
+body.public-site-page p {
+  text-wrap: pretty;
+}
+
+body.public-site-page a,
+body.public-site-page button,
+body.public-site-page input,
+body.public-site-page select,
+body.public-site-page textarea {
+  touch-action: manipulation;
+}
+
+body.public-site-page a:focus-visible,
+body.public-site-page button:focus-visible,
+body.public-site-page input:focus-visible,
+body.public-site-page select:focus-visible,
+body.public-site-page textarea:focus-visible {
+  outline: 3px solid rgba(250, 204, 21, 0.82) !important;
+  outline-offset: 3px !important;
+}
+
+body.public-site-page footer a,
+body.public-site-page section a,
+body.public-site-page section button {
+  min-height: 44px;
+}
+
+body.public-site-page footer {
+  border-color: rgba(216, 180, 254, 0.14) !important;
+  background:
+    linear-gradient(180deg, rgba(5, 0, 8, 0.72), rgba(0, 0, 0, 0.94)) !important;
+}
+
+body.public-site-page .hamza-marquee-track {
+  width: max-content;
+  max-width: none;
+  white-space: nowrap;
+}
+
+@media (min-width: 769px) {
+  body.public-site-page section:first-of-type h1 {
+    max-width: 980px;
+    margin-inline: auto;
+  }
+
+  body.public-site-page section:first-of-type p {
+    max-width: 780px;
+  }
+
+  body.public-site-page footer > div:first-child {
+    align-items: start;
+  }
+}
+
+@media (max-width: 768px) {
+  body.public-site-page footer {
+    padding-bottom: 8.5rem !important;
+  }
+
+  body.public-site-page footer > div:first-child {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body.public-site-page input,
+  body.public-site-page select,
+  body.public-site-page textarea {
+    max-width: 100%;
+    font-size: 16px !important;
+  }
+
+  body.public-site-page .hamza-marquee-track {
+    animation-duration: max(24s, var(--marquee-duration, 24s));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.public-site-page *,
+  body.public-site-page *::before,
+  body.public-site-page *::after {
+    scroll-behavior: auto !important;
+  }
+
+  body.public-site-page .hamza-marquee-track {
+    animation: none !important;
+    transform: none !important;
+    white-space: normal !important;
+    width: auto !important;
   }
 }

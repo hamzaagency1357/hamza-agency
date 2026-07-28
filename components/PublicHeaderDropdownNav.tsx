@@ -6,6 +6,10 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getLanguageDirection, type SiteLanguage } from "@/lib/i18n/locale";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
+import {
+  localizePublicPath,
+  stripLocalePrefix,
+} from "@/lib/i18n/publicLocales";
 
 type HeaderNavLabelKey =
   | "home"
@@ -386,7 +390,7 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
         }`}
       >
         <Link
-          href="/"
+          href={localizePublicPath("/", language)}
           onClick={closeMenu}
           className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/70 xl:px-4 xl:text-sm"
         >
@@ -445,7 +449,7 @@ function HeaderDropdownNavigation({ variant }: { variant: "desktop" | "mobile" }
             {activeGroup.links.map((link) => (
               <Link
                 key={link.href}
-                href={link.href}
+                href={localizePublicPath(link.href, language)}
                 role="menuitem"
                 onClick={closeMenu}
                 className="hamza-structural-header-menu-link rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/80 transition hover:border-yellow-300/35 hover:bg-purple-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200/65"
@@ -464,7 +468,7 @@ export default function PublicHeaderDropdownNav() {
   const pathname = usePathname();
   const [targets, setTargets] = useState<HeaderTargets>({ desktop: null, mobile: null });
   const targetsRef = useRef<HeaderTargets>(emptyHeaderTargets);
-  const isPublicHome = pathname === "/";
+  const isPublicHome = stripLocalePrefix(pathname || "/") === "/";
 
   useLayoutEffect(() => {
     document.body.classList.remove(structuralNavReadyClass);

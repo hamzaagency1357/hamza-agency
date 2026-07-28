@@ -1,128 +1,182 @@
 import { readFile } from "node:fs/promises";
 
-const dictionaryPath = new URL("../lib/i18n/siteRuntimeTranslations.ts", import.meta.url);
-const source = await readFile(dictionaryPath, "utf8");
+const readProjectFile = (path) =>
+  readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
+const [
+  runtimeSurface,
+  runtimeDictionary,
+  approvedTranslations,
+  publicLocales,
+  publicSeo,
+  serverMetadata,
+  middleware,
+  siteLanguageProvider,
+  languageSwitcher,
+  globalHeader,
+  runtimeTranslator,
+  cmsTranslations,
+  announcement,
+  marketingSafety,
+  homePage,
+  contactUi,
+  supportCopy,
+  ownerQaCss,
+  rootLayout,
+] = await Promise.all([
+  readProjectFile("lib/i18n/siteRuntimeTranslations.ts"),
+  readProjectFile("lib/i18n/siteRuntimeTranslationsLegacy.ts"),
+  readProjectFile("lib/i18n/approvedPublishedTranslations.ts"),
+  readProjectFile("lib/i18n/publicLocales.ts"),
+  readProjectFile("lib/i18n/publicSeo.ts"),
+  readProjectFile("lib/i18n/serverPublicMetadata.ts"),
+  readProjectFile("middleware.ts"),
+  readProjectFile("lib/i18n/useSiteLanguage.tsx"),
+  readProjectFile("components/LanguageSwitcher.tsx"),
+  readProjectFile("components/PublicGlobalHeader.tsx"),
+  readProjectFile("components/PublicSiteRuntimeTranslator.tsx"),
+  readProjectFile("components/CmsPublishedTranslations.tsx"),
+  readProjectFile("components/PublishedAnnouncementBar.tsx"),
+  readProjectFile("lib/i18n/marketingSafety.ts"),
+  readProjectFile("app/page.tsx"),
+  readProjectFile("components/ContactStaticUi.tsx"),
+  readProjectFile("lib/i18n/supportCopy.ts"),
+  readProjectFile("app/owner-final-qa.css"),
+  readProjectFile("app/layout.tsx"),
+]);
+
+const errors = [];
+const arabicPattern = /[\u0600-\u06ff]/;
+const normalize = (value) => value.replace(/\\n/g, "\n").replace(/\s+/g, " ").trim();
 const entryPattern = /^\s*\["((?:\\.|[^"\\])*)",\s*"((?:\\.|[^"\\])*)",\s*"((?:\\.|[^"\\])*)"\],?\s*$/gm;
 const entries = [];
 let match;
-
-while ((match = entryPattern.exec(source)) !== null) {
+while ((match = entryPattern.exec(runtimeDictionary)) !== null) {
   entries.push({ source: match[1], en: match[2], tr: match[3] });
 }
 
-const errors = [];
-const normalize = (value) => value.replace(/\\n/g, "\n").replace(/\s+/g, " ").trim();
-const arabicPattern = /[\u0600-\u06ff]/;
-const bySource = new Map();
-const approvedContextualDuplicates = new Set([
-  "كيف تتم المتابعة؟",
-  "التواصل عبر واتساب",
-]);
-
-if (entries.length < 300) {
-  errors.push(`Expected at least 300 translation entries, found ${entries.length}.`);
-}
-
+if (entries.length < 300) errors.push(`Expected at least 300 translation entries, found ${entries.length}.`);
 for (const entry of entries) {
-  const sourceText = normalize(entry.source);
+  const source = normalize(entry.source);
   const en = normalize(entry.en);
   const tr = normalize(entry.tr);
-
-  if (!sourceText || !en || !tr) {
-    errors.push(`Empty translation field found for source: ${sourceText || "<empty>"}`);
-    continue;
-  }
-
-  if (arabicPattern.test(en)) {
-    errors.push(`English translation still contains Arabic text: ${sourceText}`);
-  }
-
-  if (arabicPattern.test(tr)) {
-    errors.push(`Turkish translation still contains Arabic text: ${sourceText}`);
-  }
-
-  const existing = bySource.get(sourceText);
-  const isConflictingDuplicate =
-    existing && (existing.en !== en || existing.tr !== tr);
-
-  if (isConflictingDuplicate && !approvedContextualDuplicates.has(sourceText)) {
-    errors.push(`Conflicting duplicate translation for: ${sourceText}`);
-  }
-
-  // The runtime dictionary intentionally uses the last approved contextual value.
-  bySource.set(sourceText, { en, tr });
+  if (!source || !en || !tr) errors.push(`Empty translation field: ${source || "<empty>"}`);
+  if (arabicPattern.test(en)) errors.push(`English translation contains Arabic: ${source}`);
+  if (arabicPattern.test(tr)) errors.push(`Turkish translation contains Arabic: ${source}`);
 }
 
-const requiredSources = [
-  "وكالة حمزة",
-  "البرامج",
-  "من نحن",
-  "الخدمات",
-  "الخدمات الرقمية",
-  "طلب خدمة",
-  "تتبع طلب خدمة",
-  "تتبع طلب الانضمام",
-  "الوظائف",
-  "التقييمات",
-  "قصص النجاح",
-  "الشركاء والبرامج",
-  "المعرض",
-  "مركز المعرفة",
-  "الأسئلة الشائعة",
-  "اتصل بنا",
-  "سياسة الخصوصية",
-  "الشروط والأحكام",
-  "سياسة الذكاء الاصطناعي",
-  "دعم ذكي",
-  "برنامج TikTok مخصص لصناع المحتوى الذين يريدون تطوير ظهورهم، تحسين جودة المحتوى، وفهم طريقة العمل داخل الوكالة بشكل احترافي.",
-  "برنامج BIGO LIVE مناسب لصناع المحتوى المهتمين بالبث المباشر، بناء جمهور نشط، وتحسين طريقة الظهور والتفاعل داخل اللايف.",
-  "برنامج Yaahlan يركز على بناء حضور اجتماعي وتفاعل مباشر مع الجمهور، مع دعم وكالة حمزة في المتابعة والتوجيه.",
-  "برنامج Xena مناسب لصناع المحتوى الراغبين بالانضمام إلى برنامج منظم مع متابعة إدارية ودعم لتطوير الحساب.",
-  "برنامج Catchii مناسب لصناع المحتوى المهتمين بالتواصل والترفيه وبناء حضور اجتماعي ضمن بيئة وكالة احترافية.",
+const forbiddenPlaceholders = [
+  "Localized content is being updated.",
+  "Yerelleştirilmiş içerik güncelleniyor.",
 ];
-
-for (const requiredSource of requiredSources) {
-  if (!bySource.has(normalize(requiredSource))) {
-    errors.push(`Required public translation is missing: ${requiredSource}`);
+const displayableSources = [runtimeSurface, cmsTranslations, announcement, runtimeTranslator, homePage];
+for (const placeholder of forbiddenPlaceholders) {
+  if (displayableSources.some((source) => source.includes(placeholder))) {
+    errors.push(`Forbidden public placeholder remains displayable: ${placeholder}`);
   }
 }
 
-const requiredRoutes = [
-  "/",
-  "/about",
-  "/programs",
-  "/services",
-  "/digital-services",
-  "/service-request",
-  "/service-status",
-  "/application-status",
-  "/jobs",
-  "/reviews",
-  "/success-stories",
-  "/partners",
-  "/gallery",
-  "/knowledge-center",
-  "/faq",
-  "/contact",
-  "/privacy-policy",
-  "/terms-and-conditions",
-  "/ai-policy",
-  "/ai-support",
-];
+if (!runtimeSurface.includes("siteRuntimeTranslationsLegacy")) errors.push("Safe runtime translation surface is not wrapping the legacy dictionary.");
+if (!runtimeSurface.includes("isLegacyPlaceholder")) errors.push("Safe runtime translation surface does not block legacy placeholders.");
 
+for (const token of ["SAFE_UNMATCHED_COPY", "HAMZA AGENCY information", "HAMZA AGENCY bilgileri"]) {
+  if (`${runtimeTranslator}\n${languageSwitcher}`.includes(token)) errors.push(`Forbidden generic public fallback remains: ${token}`);
+}
+
+for (const token of ["window.location.assign", "MutationObserver", "createPortal", "document.createElement", 'aria-haspopup="menu"']) {
+  if (languageSwitcher.includes(token)) errors.push(`LanguageSwitcher still uses forbidden architecture: ${token}`);
+}
+
+for (const token of [
+  "router.prefetch",
+  "router.replace",
+  "useTransition",
+  "scroll: false",
+  "localizePublicPath",
+  "window.location.search",
+  "window.location.hash",
+  'data-language-switcher="segmented"',
+  "min-h-11",
+  "min-w-11",
+]) {
+  if (!languageSwitcher.includes(token)) errors.push(`Segmented language switcher is missing: ${token}`);
+}
+
+for (const token of ["<LanguageSwitcher />", 'en: "Content Creator Agency"', 'tr: "İçerik Üreticisi Ajansı"', 'ar: "وكالة حمزة"']) {
+  if (!globalHeader.includes(token)) errors.push(`Direct public header is missing: ${token}`);
+}
+if ((globalHeader.match(/HAMZA AGENCY/g) || []).length > 3) errors.push("Public header repeats the agency name excessively.");
+
+if (runtimeTranslator.includes("MutationObserver") || runtimeTranslator.includes("document.body")) errors.push("Runtime translator still scans or observes document.body.");
+if (!runtimeTranslator.includes("[data-runtime-translate='true']")) errors.push("Runtime translator is not restricted to explicit legacy markers.");
+if (rootLayout.includes("PublicLocaleLinkSync")) errors.push("DOM locale-link synchronization is still mounted.");
+if (rootLayout.includes("ApprovedSupportCopySync") || rootLayout.includes("PublicHeaderDropdownNav")) errors.push("Removed DOM synchronization/header portal components are still mounted.");
+if (!rootLayout.includes("<PublicGlobalHeader />")) errors.push("Direct React public header is not mounted.");
+
+if (middleware.includes('request.cookies.get("hamza-agency-language")') || middleware.includes("localizePublicPath")) errors.push("Middleware still redirects an Arabic URL from the saved locale cookie.");
+for (const token of ["NextResponse.rewrite", "x-site-locale", "isSupportedPublicPath"]) {
+  if (!middleware.includes(token)) errors.push(`Locale middleware is missing: ${token}`);
+}
+
+if (!siteLanguageProvider.includes('const nextLanguage = getPathLanguage(pathname || "/");')) errors.push("SiteLanguageProvider does not derive language directly from the URL.");
+for (const token of ["getStoredSiteLanguage", "SITE_LANGUAGE_CHANGE_EVENT", 'pathLanguage === "ar"']) {
+  if (siteLanguageProvider.includes(token)) errors.push(`SiteLanguageProvider still allows a non-URL language source: ${token}`);
+}
+
+for (const token of ['"pages:1"', '"sections:1"', '"sections:2"', '"sections:3"', '"announcements:2"', '"announcements:3"', '"home-page:title"', '"home-hero:title"']) {
+  if (!approvedTranslations.includes(token)) errors.push(`Approved published translation is missing: ${token}`);
+}
+
+const requiredRoutes = ["/", "/about", "/apply", "/programs", "/services", "/digital-services", "/service-request", "/service-status", "/application-status", "/jobs", "/reviews", "/success-stories", "/partners", "/gallery", "/knowledge-center", "/faq", "/contact", "/privacy-policy", "/terms-and-conditions", "/ai-policy", "/ai-support"];
 for (const route of requiredRoutes) {
   const routeToken = route === "/" ? '"/": {' : `"${route}": {`;
-  if (!source.includes(routeToken)) {
-    errors.push(`Localized metadata is missing for route: ${route}`);
-  }
+  if (!runtimeDictionary.includes(routeToken)) errors.push(`Localized route metadata missing: ${route}`);
+  if (!publicSeo.includes(routeToken)) errors.push(`Arabic SEO entry missing: ${route}`);
+  if (!publicLocales.includes(`"${route}"`)) errors.push(`Locale route registry missing: ${route}`);
+}
+for (const slug of ["tiktok", "bigo-live", "yaahlan", "xena", "catchii"]) {
+  const token = slug.includes("-") ? `"${slug}": {` : `${slug}: {`;
+  if (!runtimeDictionary.includes(token)) errors.push(`Program metadata translation missing: ${slug}`);
 }
 
-for (const slug of ["tiktok", "bigo-live", "yaahlan", "xena", "catchii"]) {
-  const slugToken = slug.includes("-") ? `"${slug}": {` : `${slug}: {`;
-  if (!source.includes(slugToken)) {
-    errors.push(`Program translation metadata is missing for: ${slug}`);
-  }
+for (const token of ["canonical", "getLanguageAlternates", "openGraph", "twitter"]) {
+  if (!serverMetadata.includes(token)) errors.push(`Server locale metadata is missing: ${token}`);
+}
+
+for (const token of [
+  "hamza-marquee-group",
+  "hamzaAnnouncementRight",
+  "hamzaAnnouncementLeft",
+  'data-marquee-mechanics="ltr"',
+  "data-marquee-language={language}",
+  'data-marquee-language="ar"',
+  'data-marquee-language="en"',
+  'data-marquee-language="tr"',
+  "from { transform: translate3d(-50%, 0, 0); }",
+  "to { transform: translate3d(0, 0, 0); }",
+  "from { transform: translate3d(0, 0, 0); }",
+  "to { transform: translate3d(-50%, 0, 0); }",
+  "✦",
+]) {
+  if (!announcement.includes(token)) errors.push(`Localized ticker direction is missing: ${token}`);
+}
+if (announcement.includes("justify-around") || announcement.includes("direction: rtl")) errors.push("Ticker track must remain mechanically LTR without distributed spacing.");
+if ((announcement.match(/hamza-marquee-group/g) || []).length !== 2) errors.push("Ticker must render exactly two identical marquee groups.");
+
+const approvedSupportCopy = [
+  "نستقبل رسائلكم وطلباتكم على مدار الساعة، وسيتم الرد عليكم في أقرب وقت ممكن.",
+  "We receive your messages and requests around the clock and will respond as soon as possible.",
+  "Mesajlarınızı ve taleplerinizi günün her saati alıyor ve en kısa sürede yanıtlıyoruz.",
+];
+for (const copy of approvedSupportCopy) {
+  if (!supportCopy.includes(copy) || !contactUi.includes(copy)) errors.push(`Approved support copy missing: ${copy}`);
+}
+
+if (!homePage.includes("home_stat_${index + 1}_number")) errors.push("Home statistics are no longer sourced from settings/CMS.");
+if (!marketingSafety.includes("Numeric values are intentionally excluded")) errors.push("Owner-managed numeric preservation documentation is missing.");
+if (!rootLayout.includes('import "./owner-final-qa.css"')) errors.push("Owner final QA stylesheet is not mounted.");
+for (const token of ["safe-area-inset-bottom", "--public-mobile-dock-clearance", "scroll-padding-bottom"]) {
+  if (!ownerQaCss.includes(token)) errors.push(`Mobile dock clearance is missing: ${token}`);
 }
 
 if (errors.length) {
@@ -131,6 +185,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(
-  `Public translation verification passed: ${entries.length} entries, ${bySource.size} unique sources, ${requiredRoutes.length} localized routes, and 5 program metadata records.`
-);
+console.log(`Public experience verification passed: ${entries.length} translations, ${requiredRoutes.length} routes × 3 URL-owned locales, approved homepage and announcement translations, safe runtime fallbacks, Arabic ticker rightward movement, EN/TR ticker leftward movement, and mobile dock clearance.`);

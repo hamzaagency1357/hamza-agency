@@ -13,13 +13,19 @@ import PublishedAnnouncementBar from "@/components/PublishedAnnouncementBar";
 import { getLanguageDirection } from "@/lib/i18n/locale";
 import { getHomeStaticCopy } from "@/lib/i18n/homeStaticCopy";
 import {
+  containsUnsupportedMarketingClaim,
+  sanitizeMarketingCopy,
+} from "@/lib/i18n/marketingSafety";
+import {
   hasCompletePublishedTranslation,
   readPublishedTranslations,
   type PublishedTranslationMap,
 } from "@/lib/i18n/publishedTranslations";
 import { getSharedNavigationLabelByHref } from "@/lib/i18n/sharedChrome";
 import { getStaticCopy } from "@/lib/i18n/staticCopy";
+import { translateSiteRuntimeText } from "@/lib/i18n/siteRuntimeTranslations";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
+import { localizePublicHref } from "@/lib/i18n/publicLocales";
 import {
   defaultPublicNavigationConfig,
   normalizePublicNavigationConfig,
@@ -209,13 +215,6 @@ const fallbackPrograms: Program[] = [
   },
 ];
 
-const fallbackStats = [
-  ["+500", "صانع محتوى"],
-  ["5", "منصات متاحة"],
-  ["24/7", "دعم ومتابعة"],
-  ["50+", "فرصة نجاح شهرية"],
-];
-
 function normalizeProgramKey(value: string | null | undefined) {
   return (value || "")
     .trim()
@@ -223,6 +222,16 @@ function normalizeProgramKey(value: string | null | undefined) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+function localizePublicValue(
+  value: string,
+  language: "ar" | "en" | "tr"
+) {
+  return sanitizeMarketingCopy(
+    translateSiteRuntimeText(value, language),
+    language
+  );
 }
 
 function isBrandProgram(program: Program) {
@@ -538,20 +547,34 @@ export default function HomePage() {
   }
 
   const publicSettings = useMemo(() => {
-    const agencyName = getSetting(
+    const agencyNameSource = getSetting(
       ["agency_name_ar", "agency_name", "site_name", "brand_name"],
       "وكالة حمزة"
     );
+    const agencyName = sanitizeMarketingCopy(
+      language === "ar"
+        ? agencyNameSource
+        : getSetting(
+              language === "tr"
+                ? ["agency_name_tr", "site_name_tr"]
+                : ["agency_name_en", "site_name_en", "english_name"],
+              ""
+            ) || localizePublicValue(agencyNameSource, language),
+      language
+    );
 
-    const englishName = getSetting(
-      [
-        "agency_name_en",
-        "site_name",
-        "site_name_en",
-        "english_name",
-        "company_name",
-      ],
-      "HAMZA AGENCY"
+    const englishName = localizePublicValue(
+      getSetting(
+        [
+          "agency_name_en",
+          "site_name_en",
+          "english_name",
+          "site_name",
+          "company_name",
+        ],
+        "HAMZA AGENCY"
+      ),
+      language
     );
 
     const whatsapp = getSetting(
@@ -566,14 +589,36 @@ export default function HomePage() {
       "hamza.alshami.13579@gmail.com"
     );
 
-    const footerDescription = getSetting(
+    const footerDescriptionSource = getSetting(
       ["footer_description_ar", "footer_description", "site_description"],
       "وكالة حمزة منصة وكالة متخصصة في تنظيم ودعم صناع المحتوى على برامج ومنصات البث والتواصل."
     );
+    const footerDescription = sanitizeMarketingCopy(
+      language === "ar"
+        ? footerDescriptionSource
+        : getSetting(
+              language === "tr"
+                ? ["footer_description_tr"]
+                : ["footer_description_en"],
+              ""
+            ) || localizePublicValue(footerDescriptionSource, language),
+      language
+    );
 
-    const footerCopyright = getSetting(
+    const footerCopyrightSource = getSetting(
       ["footer_copyright_ar", "footer_copyright", "footer_text"],
       "جميع الحقوق محفوظة لوكالة حمزة"
+    );
+    const footerCopyright = sanitizeMarketingCopy(
+      language === "ar"
+        ? footerCopyrightSource
+        : getSetting(
+              language === "tr"
+                ? ["footer_copyright_tr"]
+                : ["footer_copyright_en"],
+              ""
+            ) || localizePublicValue(footerCopyrightSource, language),
+      language
     );
 
     const socialLinks = [
@@ -596,39 +641,51 @@ export default function HomePage() {
       footerCopyright,
       socialLinks,
 
-      footerWhatsappLabel: getSetting(
-        ["footer_whatsapp_label"],
-        "فتح واتساب"
+      footerWhatsappLabel: localizePublicValue(
+        getSetting(["footer_whatsapp_label"], "فتح واتساب"),
+        language
       ),
 
-      workingHours: getSetting(
-        ["working_hours"],
-        "تتم المتابعة حسب توفر فريق الوكالة وضغط الطلبات"
+      workingHours: localizePublicValue(
+        getSetting(
+          ["working_hours"],
+          "تتم المتابعة حسب توفر فريق الوكالة وضغط الطلبات"
+        ),
+        language
       ),
 
       primaryColor: getSetting(["primary_color"], "#7c3aed"),
       secondaryColor: getSetting(["secondary_color"], "#d4af37"),
 
-      heroTitle: getSetting(
-        ["home_hero_title", "hero_title"],
-        "وكالة حمزة لإدارة وتطوير"
+      heroTitle: sanitizeMarketingCopy(
+        getSetting(
+          ["home_hero_title", "hero_title"],
+          "وكالة حمزة لإدارة وتطوير"
+        ),
+        "ar"
       ),
 
       heroHighlight: "وكالة حمزة",
 
-      heroDescription: getSetting(
-        [
-          "home_hero_description",
-          "hero_description",
-          "site_description",
-          "site_tagline_ar",
-        ],
-        "نساعد صناع المحتوى على النمو وتحقيق الأرباح على منصات البث المباشر والتواصل الاجتماعي من خلال إدارة احترافية، دعم يومي، وفرص حقيقية للتطور."
+      heroDescription: sanitizeMarketingCopy(
+        getSetting(
+          [
+            "home_hero_description",
+            "hero_description",
+            "site_description",
+            "site_tagline_ar",
+          ],
+          "نساعد صناع المحتوى على تطوير حضورهم وتحسين فرص النجاح والنمو على منصات البث المباشر والتواصل الاجتماعي من خلال إدارة احترافية ودعم ومتابعة وفرص متجددة للتطور."
+        ),
+        "ar"
       ),
 
-      heroBadge: getSetting(
-        ["home_hero_badge", "hero_badge"],
-        "وكالة عالمية محترفة لإدارة صناع المحتوى"
+      heroBadge: sanitizeMarketingCopy(
+        getSetting(
+          ["home_hero_badge", "hero_badge"],
+          "وكالة احترافية لإدارة صناع المحتوى"
+        ),
+        "ar"
       ),
 
       announcementPosition: normalizeAnnouncementPosition(
@@ -649,7 +706,7 @@ export default function HomePage() {
         getSetting(["announcement_bar_speed", "announcement_speed"], "22")
       ),
     };
-  }, [getSetting]);
+  }, [getSetting, language]);
 
   const footerLegalLinksFromSettings = useMemo(() => {
     const rawValue = settings.find(
@@ -905,17 +962,37 @@ export default function HomePage() {
   const activePrograms = programs.length ? programs : fallbackPrograms;
   const activeAnnouncement = announcements[0] || null;
 
-  const homeStats = fallbackStats.map(
-    ([fallbackNumber, fallbackLabel], index) => [
-      getSetting(
-        [`home_stat_${index + 1}_number`],
+  const homeStats = homeCopy.stats.map(
+    ([fallbackNumber, fallbackLabel], index) => {
+      const localeSuffix = language === "ar" ? "ar" : language;
+      const storedNumber = getSetting(
+        [
+          `home_stat_${index + 1}_number_${localeSuffix}`,
+          `home_stat_${index + 1}_number`,
+        ],
         fallbackNumber
-      ),
-      getSetting(
-        [`home_stat_${index + 1}_label`],
+      );
+      const storedLabel = getSetting(
+        [
+          `home_stat_${index + 1}_label_${localeSuffix}`,
+          `home_stat_${index + 1}_label`,
+        ],
         fallbackLabel
-      ),
-    ]
+      );
+
+      if (
+        containsUnsupportedMarketingClaim(
+          `${storedNumber} ${storedLabel}`
+        )
+      ) {
+        return [fallbackNumber, fallbackLabel] as const;
+      }
+
+      return [
+        localizePublicValue(storedNumber, language),
+        localizePublicValue(storedLabel, language),
+      ] as const;
+    }
   );
 
   const translatedPrograms = useMemo(
@@ -933,20 +1010,32 @@ export default function HomePage() {
         return {
           ...program,
 
-          displaySummary: hasTranslation
-            ? translation?.summary ||
-              program.short_description ||
-              program.description ||
-              "عرض تفاصيل البرنامج"
-            : program.short_description || "عرض تفاصيل البرنامج",
+          displaySummary: sanitizeMarketingCopy(
+            hasTranslation
+              ? translation?.summary ||
+                  program.short_description ||
+                  program.description ||
+                  "عرض تفاصيل البرنامج"
+              : localizePublicValue(
+                  program.short_description ||
+                    program.description ||
+                    "عرض تفاصيل البرنامج",
+                  language
+                ),
+            language
+          ),
 
           usesTranslatedName:
             hasTranslation && !isBrandProgram(program),
 
-          translatedName:
+          translatedName: sanitizeMarketingCopy(
             hasTranslation && !isBrandProgram(program)
               ? translation?.title || program.name || ""
-              : program.name || "",
+              : isBrandProgram(program)
+                ? program.name || ""
+                : localizePublicValue(program.name || "", language),
+            language
+          ),
         };
       }),
     [activePrograms, language, programCardTranslations]
@@ -954,6 +1043,9 @@ export default function HomePage() {
 
   const getSharedLabel = (href: string, fallback: string) =>
     getSharedNavigationLabelByHref(language, href, fallback);
+
+  const getLocalizedHref = (href: string) =>
+    localizePublicHref(href, language);
 
   const updateField = (
     key: keyof typeof form,
@@ -1076,7 +1168,10 @@ export default function HomePage() {
           )}
 
         <nav className="relative z-20 mx-auto flex max-w-7xl items-center justify-between gap-5 px-5 py-6">
-          <Link href="/" className="flex items-center gap-3">
+          <Link
+            href={getLocalizedHref("/")}
+            className="flex items-center gap-3"
+          >
             <Image
               src={logoUrl}
               alt={publicSettings.englishName}
@@ -1101,7 +1196,7 @@ export default function HomePage() {
             {headerLinksFromSettings.map((link) => (
               <Link
                 key={link.href}
-                href={link.href}
+                href={getLocalizedHref(link.href)}
                 className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white/70 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-white"
               >
                 {getSharedLabel(link.href, link.label)}
@@ -1115,7 +1210,7 @@ export default function HomePage() {
             {headerLinksFromSettings.map((link) => (
               <Link
                 key={link.href}
-                href={link.href}
+                href={getLocalizedHref(link.href)}
                 className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white/75 backdrop-blur"
               >
                 {getSharedLabel(link.href, link.label)}
@@ -1210,7 +1305,7 @@ export default function HomePage() {
 
               {viewProgramsCta.isVisible !== false && (
                 <Link
-                  href={viewProgramsCta.href}
+                  href={getLocalizedHref(viewProgramsCta.href)}
                   className="rounded-full border border-white/15 bg-white/[0.05] px-9 py-4 text-lg font-bold text-white/80 backdrop-blur transition hover:border-purple-400/50 hover:bg-purple-500/10"
                 >
                   {getSharedLabel(
@@ -1259,11 +1354,11 @@ export default function HomePage() {
             {translatedPrograms.map((program) => (
               <Link
                 key={program.id}
-                href={
+                href={getLocalizedHref(
                   program.slug
                     ? `/programs/${program.slug}`
                     : "/programs"
-                }
+                )}
                 className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-center backdrop-blur transition hover:border-purple-400/60 hover:bg-purple-500/10"
               >
                 <div className="mb-3 inline-flex rounded-full border border-green-400/30 bg-green-500/10 px-3 py-1 text-xs font-bold text-green-200">
@@ -1294,7 +1389,7 @@ export default function HomePage() {
           {viewProgramsCta.isVisible !== false && (
             <div className="mt-10 text-center">
               <Link
-                href={viewProgramsCta.href}
+                href={getLocalizedHref(viewProgramsCta.href)}
                 className="inline-flex rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 font-black shadow-[0_0_35px_rgba(168,85,247,0.22)]"
               >
                 {getSharedLabel(
@@ -1323,21 +1418,21 @@ export default function HomePage() {
 
             <div className="mt-8 grid gap-4 md:grid-cols-3">
               <Link
-                href="/about"
+                href={getLocalizedHref("/about")}
                 className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center font-bold text-white/75 transition hover:border-purple-400/50"
               >
                 {getSharedLabel("/about", "تعرف علينا")}
               </Link>
 
               <Link
-                href="/services"
+                href={getLocalizedHref("/services")}
                 className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center font-bold text-white/75 transition hover:border-purple-400/50"
               >
                 {getSharedLabel("/services", "خدمات الوكالة")}
               </Link>
 
               <Link
-                href="/contact"
+                href={getLocalizedHref("/contact")}
                 className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center font-bold text-white/75 transition hover:border-purple-400/50"
               >
                 {getSharedLabel("/contact", "تواصل معنا")}
@@ -1524,7 +1619,7 @@ export default function HomePage() {
                 {headerLinksFromSettings.map((link) => (
                   <Link
                     key={link.href}
-                    href={link.href}
+                    href={getLocalizedHref(link.href)}
                     className="transition hover:text-purple-200"
                   >
                     {getSharedLabel(link.href, link.label)}
@@ -1543,7 +1638,7 @@ export default function HomePage() {
                   link.href.startsWith("/") || link.href.startsWith("#") ? (
                     <Link
                       key={link.href}
-                      href={link.href}
+                      href={getLocalizedHref(link.href)}
                       className="transition hover:text-yellow-200"
                     >
                       {getSharedLabel(link.href, link.label)}
@@ -1551,7 +1646,7 @@ export default function HomePage() {
                   ) : (
                     <a
                       key={link.href}
-                      href={link.href}
+                      href={getLocalizedHref(link.href)}
                       target={link.target || "_blank"}
                       rel={link.rel || "noreferrer"}
                       className="transition hover:text-yellow-200"
@@ -1699,20 +1794,6 @@ function HeroVideoVisual() {
 function SiteAnimationStyles() {
   return (
     <style>{`
-      @keyframes hamzaMarquee {
-        0% {
-          transform: translateX(0);
-        }
-
-        100% {
-          transform: translateX(50%);
-        }
-      }
-
-      .hamza-marquee-track {
-        animation: hamzaMarquee var(--marquee-duration, 22s) linear infinite;
-      }
-
       @keyframes premiumDepth {
         0%,
         100% {

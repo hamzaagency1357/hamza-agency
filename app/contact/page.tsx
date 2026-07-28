@@ -5,6 +5,7 @@ import {
   ContactNowLink,
   ContactQuickLinks,
   ContactReasons,
+  ContactSocialLinks,
   ContactWhatsAppAction,
 } from "@/components/ContactStaticUi";
 import {
@@ -13,6 +14,7 @@ import {
   type CmsPublishedTranslationSource,
 } from "@/components/CmsPublishedTranslations";
 import PublicLanguageMain from "@/components/PublicLanguageMain";
+import PublicAgencyName from "@/components/PublicAgencyName";
 import { supabase } from "@/lib/supabase";
 import {
   findCmsSection,
@@ -106,7 +108,7 @@ export default async function ContactPage() {
         <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
           <ContactBackHomeLink />
           <div className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur md:p-10">
-            <div className="mb-6 inline-flex rounded-full border border-green-400/30 bg-green-500/10 px-5 py-2 text-sm font-bold text-green-100">{agencyName}</div>
+            <div className="mb-6 inline-flex rounded-full border border-green-400/30 bg-green-500/10 px-5 py-2 text-sm font-bold text-green-100"><PublicAgencyName value={agencyName} /></div>
             <h1 className="text-5xl font-black leading-tight md:text-7xl">
               <CmsPublishedText sourceKey="contact-page" field="title" fallback={title} />
               <span className="block bg-gradient-to-r from-green-300 via-white to-purple-300 bg-clip-text text-transparent"><CmsPublishedText sourceKey="contact-options" field="summary" fallback={contactOptions.subtitle} /></span>
@@ -122,25 +124,7 @@ export default async function ContactPage() {
             </div>
             <ContactEmailAndHoursCards email={email} workingHours={workingHours} />
           </div>
-          {socialLinks.length > 0 && (
-            <div className="mt-10 rounded-[2rem] border border-cyan-400/20 bg-cyan-500/10 p-7 backdrop-blur">
-              <h2 className="text-3xl font-black">روابطنا الرسمية</h2>
-              <p className="mt-4 leading-8 text-white/65">تظهر هنا فقط الروابط الرسمية المحفوظة في إعدادات الموقع.</p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                {socialLinks.map((link) => (
-                  <a
-                    key={link.label}
-                    href={link.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 font-black text-white/75 transition hover:border-cyan-300/50 hover:text-white"
-                  >
-                    {link.label}
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
+          <ContactSocialLinks links={socialLinks} />
           <ContactReasons />
           <ContactBeforeMessage />
           <ContactQuickLinks />

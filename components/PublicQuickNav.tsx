@@ -13,16 +13,22 @@ import { getLanguageDirection, type SiteLanguage } from "@/lib/i18n/locale";
 import { getSharedNavigationLabel } from "@/lib/i18n/sharedChrome";
 import { getStaticCopy } from "@/lib/i18n/staticCopy";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
+import { localizePublicHref, stripLocalePrefix } from "@/lib/i18n/publicLocales";
+
+type PublicQuickNavProps = {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  mobileDockMode?: boolean;
+  panelId?: string;
+};
 
 const hiddenPublicQuickNavRoutes = ["/maintenance"];
-const containerClassName =
-  "hamza-quick-nav fixed bottom-[7.75rem] right-4 z-[160] print:hidden md:bottom-6 md:left-auto md:right-6";
-const panelClassName =
-  "hamza-quick-nav-panel mb-3 max-h-[calc(100svh-7rem)] w-[min(340px,calc(100vw-2rem))] overflow-y-auto overscroll-contain rounded-3xl border border-purple-400/25 bg-[#09000f]/95 p-3 pt-4 shadow-[0_0_70px_rgba(124,58,237,0.35)] backdrop-blur-xl";
 const groupTitleClassName =
   "rounded-2xl border border-purple-400/15 bg-purple-500/10 px-3 py-2 text-xs font-black text-purple-100";
-const linkBaseClassName = "rounded-2xl border px-4 py-3 text-sm font-bold transition";
-const activeLinkClassName = "border-yellow-300/35 bg-yellow-400/15 text-yellow-100";
+const linkBaseClassName =
+  "min-h-[44px] rounded-2xl border px-4 py-3 text-sm font-bold transition";
+const activeLinkClassName =
+  "border-yellow-300/35 bg-yellow-400/15 text-yellow-100";
 const inactiveLinkClassName =
   "border-white/10 bg-white/[0.04] text-white/75 hover:border-purple-300/45 hover:bg-purple-500/10 hover:text-white";
 
@@ -50,47 +56,6 @@ const quickNavGroupTitleCopy: Record<SiteLanguage, Record<string, string>> = {
   },
 };
 
-const mobilePolishStyles = `
-body.public-site-page footer h3 + p,
-body.public-site-page footer p.break-all {
-  direction: ltr !important;
-  unicode-bidi: isolate !important;
-  text-align: left !important;
-  max-width: 100% !important;
-  display: block !important;
-}
-
-body.public-site-page footer h3 + p {
-  white-space: nowrap !important;
-}
-
-body.public-site-page footer p.break-all {
-  margin-top: 0.5rem !important;
-  white-space: nowrap !important;
-  word-break: normal !important;
-  overflow-wrap: normal !important;
-}
-
-@media (max-width: 768px) {
-  body.public-quick-nav-open > div[class*="top-3"][class*="left-3"],
-  body.public-quick-nav-open > div[class*="top-4"][class*="left-4"] {
-    opacity: 0 !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-  }
-
-  body.public-site-page footer {
-    padding-bottom: calc(7.5rem + env(safe-area-inset-bottom, 0px)) !important;
-  }
-
-  body.public-site-page footer p.break-all {
-    max-width: 100% !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-  }
-}
-`;
-
 function shouldHidePublicQuickNav(pathname: string) {
   return pathname.startsWith("/admin") || hiddenPublicQuickNavRoutes.includes(pathname);
 }
@@ -114,7 +79,6 @@ function getQuickNavLinkKey(link: PublicNavigationLink) {
 
 function sanitizePublicQuickNavGroups(groups: PublicNavigationGroup[]) {
   const seenLinks = new Set<string>();
-
   return groups
     .map((group) => ({
       ...group,
@@ -143,66 +107,73 @@ function PublicQuickNavLink({
   active,
   onClick,
   label,
+  language,
 }: {
   link: PublicNavigationLink;
   active: boolean;
   onClick: () => void;
   label: string;
+  language: SiteLanguage;
 }) {
   const className = getLinkClassName(active);
-  const content = label;
 
   if (isInternalHref(link.href)) {
     return (
-      <Link href={link.href} onClick={onClick} className={className}>
-        {content}
+      <Link href={localizePublicHref(link.href, language)} onClick={onClick} className={className}>
+        {label}
       </Link>
     );
   }
 
   return (
     <a href={link.href} target={link.target || "_blank"} rel={link.rel || "noreferrer"} onClick={onClick} className={className}>
-      {content}
+      {label}
     </a>
   );
 }
 
-export default function PublicQuickNav() {
+export default function PublicQuickNav({
+  open,
+  onOpenChange,
+  mobileDockMode = false,
+  panelId = "hamza-quick-nav-panel",
+}: PublicQuickNavProps = {}) {
   const pathname = usePathname();
   const language = useSiteLanguage();
-  const [isOpen, setIsOpen] = useState(false);
-  const [quickNavGroups, setQuickNavGroups] = useState<PublicNavigationGroup[]>(
-    defaultPublicNavigationConfig.quickNavGroups
-  );
+  const [internalOpen, setInternalOpen] = useState(false);
+  const [quickNavGroups, setQuickNavGroups] = useState<PublicNavigationGroup[]>(defaultPublicNavigationConfig.quickNavGroups);
+  const isControlled = open !== undefined;
+  const isOpen = isControlled ? open : internalOpen;
   const copy = (key: Parameters<typeof getStaticCopy>[1]) => getStaticCopy(language, key);
+  const publicPath = stripLocalePrefix(pathname || "/");
+
+  function setIsOpen(nextOpen: boolean) {
+    if (!isControlled) setInternalOpen(nextOpen);
+    onOpenChange?.(nextOpen);
+  }
 
   useEffect(() => {
     let isMounted = true;
-
     async function loadNavigation() {
       const config = await getPublicNavigationConfig();
-      if (!isMounted) return;
-      setQuickNavGroups(sanitizePublicQuickNavGroups(config.quickNavGroups));
+      if (isMounted) setQuickNavGroups(sanitizePublicQuickNavGroups(config.quickNavGroups));
     }
-
     void loadNavigation();
-
     return () => {
       isMounted = false;
     };
   }, []);
 
   useEffect(() => {
+    if (mobileDockMode) return;
     document.body.classList.toggle("public-quick-nav-open", isOpen);
-
-    return () => {
-      document.body.classList.remove("public-quick-nav-open");
-    };
-  }, [isOpen]);
+    return () => document.body.classList.remove("public-quick-nav-open");
+  }, [isOpen, mobileDockMode]);
 
   useEffect(() => {
-    setIsOpen(false);
-  }, [pathname]);
+    if (mobileDockMode || isControlled) return;
+    setInternalOpen(false);
+  }, [pathname, mobileDockMode, isControlled]);
 
   const visibleGroups = useMemo(() => {
     const sanitizedGroups = sanitizePublicQuickNavGroups(quickNavGroups);
@@ -211,57 +182,64 @@ export default function PublicQuickNav() {
 
   if (shouldHidePublicQuickNav(pathname)) return null;
 
-  return (
-    <>
-      <style>{mobilePolishStyles}</style>
-      <div dir={getLanguageDirection(language)} className={containerClassName}>
-        {isOpen && (
-          <div id="hamza-quick-nav-panel" className={panelClassName}>
-            <div className="mb-3 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3">
-              <div className="text-xs font-black uppercase tracking-[0.25em] text-yellow-200">
-                HAMZA AGENCY
-              </div>
-              <div className="mt-1 text-sm font-black text-white">{copy("quickNavTitle")}</div>
-              <p className="mt-2 text-xs leading-6 text-white/55">
-                {copy("quickNavDescription")}
-              </p>
-            </div>
-
-            <nav className="grid gap-4" aria-label={copy("quickNavTitle")}>
-              {visibleGroups.map((group) => (
-                <div key={group.title} className="grid gap-2">
-                  <div className={groupTitleClassName}>{getQuickNavGroupTitle(language, group)}</div>
-
-                  {group.links.map((link) => {
-                    const active = isInternalHref(link.href) ? isActiveLink(pathname, link.href) : false;
-
-                    return (
-                      <PublicQuickNavLink
-                        key={`${group.title}-${link.href}-${link.label}`}
-                        link={link}
-                        active={active}
-                        label={getSharedNavigationLabel(language, link)}
-                        onClick={() => setIsOpen(false)}
-                      />
-                    );
-                  })}
-                </div>
-              ))}
-            </nav>
+  const panel = isOpen ? (
+    <div
+      id={panelId}
+      className="hamza-quick-nav-panel max-h-[calc(100svh-var(--public-mobile-dock-height)-2rem)] w-full overflow-y-auto overscroll-contain rounded-3xl border border-purple-400/25 bg-[#09000f]/95 p-3 pt-4 shadow-[0_0_70px_rgba(124,58,237,0.35)] backdrop-blur-xl md:mb-3 md:w-[min(340px,calc(100vw-2rem))]"
+    >
+      <div className="mb-3 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-xs font-black uppercase tracking-[0.25em] text-yellow-200">HAMZA AGENCY</div>
+            <div className="mt-1 text-sm font-black text-white">{copy("quickNavTitle")}</div>
           </div>
-        )}
-
-        <button
-          type="button"
-          onClick={() => setIsOpen((current) => !current)}
-          aria-label={isOpen ? copy("quickNavClose") : copy("quickNavOpen")}
-          aria-controls="hamza-quick-nav-panel"
-          aria-expanded={isOpen}
-          className="min-h-12 rounded-full border border-yellow-300/40 bg-[#12051f]/95 px-4 py-3 text-xs font-black text-yellow-100 shadow-[0_0_34px_rgba(234,179,8,0.2)] transition hover:bg-purple-900/90 md:px-5 md:text-sm"
-        >
-          {isOpen ? copy("quickNavClose") : copy("quickNavOpen")}
-        </button>
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            className="min-h-[44px] shrink-0 rounded-full border border-white/15 bg-black/25 px-3 py-2 text-xs font-black text-white/85"
+            aria-label={copy("quickNavClose")}
+          >
+            {copy("quickNavClose")}
+          </button>
+        </div>
+        <p className="mt-2 text-xs leading-6 text-white/55">{copy("quickNavDescription")}</p>
       </div>
-    </>
+
+      <nav className="grid gap-4" aria-label={copy("quickNavTitle")}>
+        {visibleGroups.map((group) => (
+          <div key={group.title} className="grid gap-2">
+            <div className={groupTitleClassName}>{getQuickNavGroupTitle(language, group)}</div>
+            {group.links.map((link) => (
+              <PublicQuickNavLink
+                key={`${group.title}-${link.href}-${link.label}`}
+                link={link}
+                active={isInternalHref(link.href) ? isActiveLink(publicPath, stripLocalePrefix(link.href)) : false}
+                label={getSharedNavigationLabel(language, link)}
+                language={language}
+                onClick={() => setIsOpen(false)}
+              />
+            ))}
+          </div>
+        ))}
+      </nav>
+    </div>
+  ) : null;
+
+  if (mobileDockMode) return panel;
+
+  return (
+    <div dir={getLanguageDirection(language)} className="hamza-quick-nav fixed bottom-6 right-6 z-[160] hidden print:hidden md:block">
+      {panel}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        aria-label={isOpen ? copy("quickNavClose") : copy("quickNavOpen")}
+        aria-controls={panelId}
+        aria-expanded={isOpen}
+        className="min-h-12 rounded-full border border-yellow-300/40 bg-[#12051f]/95 px-5 py-3 text-sm font-black text-yellow-100 shadow-[0_0_34px_rgba(234,179,8,0.2)] transition hover:bg-purple-900/90"
+      >
+        {isOpen ? copy("quickNavClose") : copy("quickNavOpen")}
+      </button>
+    </div>
   );
 }

@@ -46,11 +46,11 @@ type PartnerRow = {
 };
 
 const defaultPartners: PartnerItem[] = [
-  { id: "tiktok", name: "TikTok", category: "صناعة المحتوى والبث المباشر", description: "تعمل وكالة حمزة ضمن اتفاق تعاون مع TikTok لتقديم مسار منظم لصناع المحتوى، يبدأ من التوجيه وفهم المتطلبات وصولاً إلى المتابعة المناسبة حسب طبيعة كل حالة.", agreementLabel: "اتفاق تعاون", logoUrl: null, programUrl: "/programs/tiktok", sortOrder: 1, isFeatured: true },
-  { id: "bigo-live", name: "BIGO LIVE", category: "البث المباشر والمواهب", description: "ضمن اتفاقات التعاون الخاصة بالوكالة، يمثل BIGO LIVE أحد المسارات المهمة لصناع المحتوى المهتمين بالبث المباشر وبناء حضور تفاعلي احترافي.", agreementLabel: "اتفاق تعاون", logoUrl: null, programUrl: "/programs/bigo-live", sortOrder: 2, isFeatured: true },
-  { id: "yaahlan", name: "Yaahlan", category: "المجتمعات والتواصل المباشر", description: "تعمل وكالة حمزة مع Yaahlan ضمن مسار يركز على تنظيم انضمام صناع المحتوى ومساعدتهم على فهم طبيعة البرنامج وخطوات المتابعة المناسبة.", agreementLabel: "اتفاق تعاون", logoUrl: null, programUrl: "/programs/yaahlan", sortOrder: 3, isFeatured: true },
-  { id: "xena", name: "Xena", category: "صناعة المحتوى والتفاعل", description: "يأتي Xena ضمن البرامج التي تعمل معها وكالة حمزة لتوفير خيارات متنوعة أمام صناع المحتوى، مع شرح واضح لطبيعة العمل وما يناسب كل متقدم.", agreementLabel: "اتفاق تعاون", logoUrl: null, programUrl: "/programs/xena", sortOrder: 4, isFeatured: false },
-  { id: "catchii", name: "Catchii", category: "المحتوى الاجتماعي والبث", description: "تعمل وكالة حمزة مع Catchii ضمن منظومة برامجها لدعم صناع المحتوى الراغبين بخيارات إضافية في مجال التواصل والبث والتفاعل الرقمي.", agreementLabel: "اتفاق تعاون", logoUrl: null, programUrl: "/programs/catchii", sortOrder: 5, isFeatured: false },
+  { id: "tiktok", name: "TikTok", category: "صناعة المحتوى والبث المباشر", description: "يوضح مسار TikTok لصناع المحتوى خطوات فهم المتطلبات والتقديم والمتابعة المناسبة لكل حالة.", agreementLabel: "مسار برنامج", logoUrl: null, programUrl: "/programs/tiktok", sortOrder: 1, isFeatured: true },
+  { id: "bigo-live", name: "BIGO LIVE", category: "البث المباشر والمواهب", description: "يمثل BIGO LIVE مساراً متاحاً لصناع المحتوى المهتمين بالبث المباشر وبناء حضور تفاعلي احترافي.", agreementLabel: "مسار برنامج", logoUrl: null, programUrl: "/programs/bigo-live", sortOrder: 2, isFeatured: true },
+  { id: "yaahlan", name: "Yaahlan", category: "المجتمعات والتواصل المباشر", description: "يركز مسار Yaahlan على مساعدة صناع المحتوى في فهم طبيعة البرنامج وخطوات التقديم والمتابعة.", agreementLabel: "مسار برنامج", logoUrl: null, programUrl: "/programs/yaahlan", sortOrder: 3, isFeatured: true },
+  { id: "xena", name: "Xena", category: "صناعة المحتوى والتفاعل", description: "يقدم مسار Xena خياراً إضافياً لصناع المحتوى، مع شرح واضح لطبيعة العمل وما يناسب كل متقدم.", agreementLabel: "مسار برنامج", logoUrl: null, programUrl: "/programs/xena", sortOrder: 4, isFeatured: false },
+  { id: "catchii", name: "Catchii", category: "المحتوى الاجتماعي والبث", description: "يقدم مسار Catchii خياراً لصناع المحتوى المهتمين بالتواصل والبث والتفاعل الرقمي.", agreementLabel: "مسار برنامج", logoUrl: null, programUrl: "/programs/catchii", sortOrder: 5, isFeatured: false },
 ];
 
 function normalizePartner(item: PartnerRow, index: number): PartnerItem {
@@ -59,9 +59,9 @@ function normalizePartner(item: PartnerRow, index: number): PartnerItem {
   return {
     id: item.id ?? item.slug ?? index + 1,
     name: item.name || item.title || "برنامج وكالة حمزة",
-    category: item.category || item.type || "برنامج تعاون",
-    description: item.description || item.summary || "برنامج ضمن اتفاقات التعاون الخاصة بوكالة حمزة لدعم وتنظيم مسارات صناع المحتوى.",
-    agreementLabel: item.agreement_label || item.badge || "اتفاق تعاون",
+    category: item.category || item.type || "برنامج لصناع المحتوى",
+    description: item.description || item.summary || "مسار برنامج متاح عبر وكالة حمزة لمساعدة صناع المحتوى على فهم الخيارات وخطوات التقديم.",
+    agreementLabel: item.agreement_label || item.badge || "مسار برنامج",
     logoUrl: item.logo_url || item.image_url || null,
     programUrl: item.program_url || item.website_url || item.url || `/programs/${slug}`,
     sortOrder: item.sort_order ?? index + 1,

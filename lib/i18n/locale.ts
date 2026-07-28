@@ -55,5 +55,6 @@ export function setStoredSiteLanguage(language: SiteLanguage) {
 
   applySiteLanguage(language);
   window.localStorage.setItem(SITE_LANGUAGE_STORAGE_KEY, language);
+  document.cookie = `${SITE_LANGUAGE_STORAGE_KEY}=${language}; Path=/; Max-Age=31536000; SameSite=Lax`;
   window.dispatchEvent(new CustomEvent(SITE_LANGUAGE_CHANGE_EVENT, { detail: { language } }));
 }

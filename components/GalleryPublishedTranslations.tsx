@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { hasCompletePublishedTranslation, readPublishedTranslations, type PublishedTranslationMap } from "@/lib/i18n/publishedTranslations";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
+import { localizeDynamicPublicCopy } from "@/lib/i18n/localizeDynamicPublicCopy";
 
 export type GalleryTranslationRecord = { id: number; title: string | null; category: string | null; description: string | null; button_label: string | null; };
 type GalleryTranslationField = "title" | "summary" | "content" | "button_label";
@@ -10,7 +11,7 @@ const fields: GalleryTranslationField[] = ["title", "summary", "content", "butto
 
 function sourceValue(item: GalleryTranslationRecord, field: GalleryTranslationField) { if (field === "title") return item.title || ""; if (field === "summary") return item.category || ""; if (field === "content") return item.description || ""; return item.button_label || ""; }
 function activeFields(item: GalleryTranslationRecord) { return fields.filter((field) => Boolean(sourceValue(item, field).trim())); }
-function localizeItem<T extends GalleryTranslationRecord>(item: T, translations: Partial<Record<GalleryTranslationField, string>> | undefined, language: "ar" | "en" | "tr"): T { const required = activeFields(item); if (language === "ar" || !required.length || !hasCompletePublishedTranslation(translations, required)) return item; return { ...item, title: translations?.title || item.title, category: translations?.summary || item.category, description: translations?.content || item.description, button_label: translations?.button_label || item.button_label }; }
+function localizeItem<T extends GalleryTranslationRecord>(item: T, translations: Partial<Record<GalleryTranslationField, string>> | undefined, language: "ar" | "en" | "tr"): T { const required = activeFields(item); if (language === "ar" || !required.length) return item; const hasTranslation = hasCompletePublishedTranslation(translations, required); const value = (field: GalleryTranslationField) => localizeDynamicPublicCopy(hasTranslation ? translations?.[field] : sourceValue(item, field), language); return { ...item, title: value("title"), category: value("summary"), description: value("content"), button_label: value("button_label") }; }
 
 export function usePublishedGalleryItems<T extends GalleryTranslationRecord>(items: T[]) {
   const language = useSiteLanguage();
