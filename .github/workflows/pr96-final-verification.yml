@@ -40,7 +40,27 @@ jobs:
         run: npm run typecheck
 
       - name: Verify public translations
-        run: node scripts/verify-public-translations.mjs
+        run: npm run verify:translations
 
       - name: Build
         run: npm run build
+
+      - name: Verify URL-owned locales at runtime
+        shell: bash
+        run: |
+          npm run start -- -p 3000 > /tmp/hamza-agency-next.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ > /dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              cat /tmp/hamza-agency-next.log
+              exit 1
+            fi
+            sleep 1
+          done
+
+          node scripts/verify-public-runtime.mjs
