@@ -1,4 +1,4 @@
-export default {
+const config = {
   testDir: "./e2e",
   timeout: 45_000,
   retries: 0,
@@ -10,3 +10,5 @@ export default {
     trace: "retain-on-failure",
   },
 };
+
+export default config;
