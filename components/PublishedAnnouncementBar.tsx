@@ -121,6 +121,7 @@ export default function PublishedAnnouncementBar({
           <div
             className="hamza-marquee-track flex w-max items-center whitespace-nowrap py-3 text-sm font-bold md:text-base"
             data-marquee-mechanics="ltr"
+            data-marquee-language={language}
             style={style}
           >
             <div className="hamza-marquee-group flex shrink-0 items-center">{tickerItem}</div>
@@ -135,13 +136,23 @@ export default function PublishedAnnouncementBar({
         </div>
       )}
       <style>{`
-        @keyframes hamzaAnnouncementTrack {
+        @keyframes hamzaAnnouncementRight {
+          from { transform: translate3d(-50%, 0, 0); }
+          to { transform: translate3d(0, 0, 0); }
+        }
+        @keyframes hamzaAnnouncementLeft {
           from { transform: translate3d(0, 0, 0); }
           to { transform: translate3d(-50%, 0, 0); }
         }
         .hamza-marquee-track[data-marquee-mechanics="ltr"] {
           direction: ltr;
-          animation: hamzaAnnouncementTrack var(--marquee-duration) linear infinite;
+        }
+        .hamza-marquee-track[data-marquee-language="ar"] {
+          animation: hamzaAnnouncementRight var(--marquee-duration) linear infinite;
+        }
+        .hamza-marquee-track[data-marquee-language="en"],
+        .hamza-marquee-track[data-marquee-language="tr"] {
+          animation: hamzaAnnouncementLeft var(--marquee-duration) linear infinite;
         }
         @media (prefers-reduced-motion: reduce) {
           .hamza-marquee-track { animation: none !important; transform: none !important; white-space: normal; width: auto; }
