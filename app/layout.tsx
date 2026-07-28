@@ -12,7 +12,6 @@ import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
 import StructuredData from "@/components/StructuredData";
 import SiteLanguageDocumentSync from "@/components/SiteLanguageDocumentSync";
 import PublicSiteRuntimeTranslator from "@/components/PublicSiteRuntimeTranslator";
-import PublicLocaleLinkSync from "@/components/PublicLocaleLinkSync";
 import { SiteLanguageProvider } from "@/lib/i18n/useSiteLanguage";
 import {
   generatePublicMetadataForRequest,
@@ -58,7 +57,6 @@ export default async function RootLayout({
           <AuthRecoveryRedirect />
           <SiteLanguageDocumentSync />
           <PublicSiteRuntimeTranslator />
-          <PublicLocaleLinkSync />
           <PublicDesktopEnhancer />
           <VisualBackgroundPresets />
           <PublicGlobalHeader />
