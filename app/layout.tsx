@@ -6,6 +6,7 @@ import PublicAiSupport from "@/components/PublicAiSupport";
 import PublicDesktopEnhancer from "@/components/PublicDesktopEnhancer";
 import PublicHeaderDropdownNav from "@/components/PublicHeaderDropdownNav";
 import PublicHeaderDesktopClickGuard from "@/components/PublicHeaderDesktopClickGuard";
+import ApprovedSupportCopySync from "@/components/ApprovedSupportCopySync";
 import VisualBackgroundPresets from "@/components/VisualBackgroundPresets";
 import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
 import StructuredData from "@/components/StructuredData";
@@ -57,6 +58,7 @@ export default async function RootLayout({
           <AuthRecoveryRedirect />
           <SiteLanguageDocumentSync />
           <PublicSiteRuntimeTranslator />
+          <ApprovedSupportCopySync />
           <PublicLocaleLinkSync />
           <PublicDesktopEnhancer />
           <VisualBackgroundPresets />
