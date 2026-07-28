@@ -33,6 +33,14 @@ const SKIPPED_TAGS = new Set([
   "SVG",
   "PATH",
 ]);
+const PLACEHOLDER_PATTERNS = [
+  "Localized content is being updated.",
+  "Yerelleştirilmiş içerik güncelleniyor.",
+];
+const SAFE_UNMATCHED_COPY: Record<Exclude<SiteLanguage, "ar">, string> = {
+  en: "HAMZA AGENCY information",
+  tr: "HAMZA AGENCY bilgileri",
+};
 
 type AttributeName = (typeof TRANSLATABLE_ATTRIBUTES)[number];
 type AttributeState = { original: string; lastApplied: string };
@@ -52,35 +60,43 @@ function isPublicRoute(pathname: string) {
 }
 
 function shouldSkipElement(element: Element | null) {
-  if (!element) return true;
-  if (SKIPPED_TAGS.has(element.tagName)) return true;
+  if (!element || SKIPPED_TAGS.has(element.tagName)) return true;
   return Boolean(element.closest("[data-no-runtime-translate='true']"));
+}
+
+function isInternalPlaceholder(value: string) {
+  return PLACEHOLDER_PATTERNS.some((placeholder) => value.includes(placeholder));
+}
+
+function translateOne(value: string, language: SiteLanguage) {
+  if (language === "ar") return value;
+  const translated = translateSiteRuntimeText(value, language);
+  return isInternalPlaceholder(translated)
+    ? SAFE_UNMATCHED_COPY[language]
+    : translated;
 }
 
 function translateCompositeText(value: string, language: SiteLanguage) {
   if (language === "ar") return value;
 
-  const directTranslation = translateSiteRuntimeText(value, language);
+  const directTranslation = translateOne(value, language);
   if (directTranslation !== value) return directTranslation;
 
   return value
     .split(/(\n+)/)
     .map((segment) => {
       if (!segment || /^\n+$/.test(segment)) return segment;
-
       const match = segment.match(/^(\s*)([\s\S]*?)(\s*)$/);
       if (!match) return segment;
-
       const [, leading, core, trailing] = match;
       if (!core.trim()) return segment;
-      return `${leading}${translateSiteRuntimeText(core, language)}${trailing}`;
+      return `${leading}${translateOne(core, language)}${trailing}`;
     })
     .join("");
 }
 
 function translateTextNode(node: Text, language: SiteLanguage) {
   if (shouldSkipElement(node.parentElement)) return;
-
   const currentValue = node.nodeValue || "";
   if (!currentValue.trim()) return;
 
@@ -104,7 +120,6 @@ function getTranslatedAttributeValue(
   if (attributeName !== "dir") {
     return translateCompositeText(original, language);
   }
-
   if (language === "ar") return original;
   if (
     element.tagName === "INPUT" ||
@@ -118,7 +133,6 @@ function getTranslatedAttributeValue(
 
 function translateElementAttributes(element: Element, language: SiteLanguage) {
   if (shouldSkipElement(element)) return;
-
   let states = attributeState.get(element);
   if (!states) {
     states = new Map();
@@ -127,7 +141,6 @@ function translateElementAttributes(element: Element, language: SiteLanguage) {
 
   for (const attributeName of TRANSLATABLE_ATTRIBUTES) {
     if (!element.hasAttribute(attributeName)) continue;
-
     const currentValue = element.getAttribute(attributeName) || "";
     if (!currentValue.trim()) continue;
 
@@ -141,7 +154,6 @@ function translateElementAttributes(element: Element, language: SiteLanguage) {
 
     const state = states.get(attributeName);
     if (!state) continue;
-
     const translated = getTranslatedAttributeValue(
       element,
       attributeName,
@@ -188,13 +200,15 @@ function translateSubtree(root: Node, language: SiteLanguage) {
 function captureOriginalMetadata(pathname: string) {
   const normalizedPath = normalizePathname(pathname);
   if (originalMetadataByPath.has(normalizedPath)) return;
-
   const values: Record<string, string> = {};
   for (const selector of METADATA_SELECTORS) {
     values[selector] =
       document.querySelector(selector)?.getAttribute("content") || "";
   }
-  originalMetadataByPath.set(normalizedPath, { title: document.title, values });
+  originalMetadataByPath.set(normalizedPath, {
+    title: document.title,
+    values,
+  });
 }
 
 function updateLocalizedMetadata(pathname: string, language: SiteLanguage) {
@@ -214,7 +228,6 @@ function updateLocalizedMetadata(pathname: string, language: SiteLanguage) {
 
   const metadata = getSiteRuntimeMetadata(normalizedPath, language);
   if (!metadata) return;
-
   document.title = metadata.title;
   const values: Record<string, string> = {
     'meta[name="description"]': metadata.description,
@@ -234,7 +247,6 @@ export default function PublicSiteRuntimeTranslator() {
 
   useLayoutEffect(() => {
     if (!isPublicRoute(pathname)) return;
-
     const root = document.body;
     translateSubtree(root, language);
     updateLocalizedMetadata(pathname, language);
@@ -245,7 +257,6 @@ export default function PublicSiteRuntimeTranslator() {
     const scheduleTranslation = (nodes: Node[]) => {
       nodes.forEach((node) => pendingNodes.add(node));
       if (scheduled) return;
-
       scheduled = true;
       window.requestAnimationFrame(() => {
         scheduled = false;
