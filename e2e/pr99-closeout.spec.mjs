@@ -1,10 +1,13 @@
 import { test, expect } from "@playwright/test";
 
 const token = process.env.PR99_E2E_TOKEN || "";
+const expectedRejectionConsole=/Failed to load resource: the server responded with a status of (409|422|429)/;
 
 test("PR99 isolated authenticated operations closeout", async ({ page, request }) => {
   expect(token).not.toBe("");
-  const consoleErrors=[];page.on("console",message=>{if(message.type()==="error")consoleErrors.push(message.text())});page.on("pageerror",error=>consoleErrors.push(error.message));
+  const consoleErrors=[];
+  page.on("console",message=>{if(message.type()==="error"&&!expectedRejectionConsole.test(message.text()))consoleErrors.push(message.text())});
+  page.on("pageerror",error=>consoleErrors.push(error.message));
 
   await page.goto("/admin/page-builder");
   await expect(page).toHaveURL(/\/admin\/login|\/admin$/);
@@ -19,8 +22,8 @@ test("PR99 isolated authenticated operations closeout", async ({ page, request }
   await expect(page.getByTestId("state")).toContainText('"versions": 1');
   await expect(page.getByTestId("state")).toContainText('"visible": false');
 
-  for (const [locale,copy] of [["ar","محتوى عربي تجريبي"],["en","Isolated English fixture content"],["tr","Yalıtılmış Türkçe test içeriği"]]) {
-    const response=await request.get(`/pr99-e2e/public/${locale}/fixture-page`);
+  for (const [path,copy] of [["/fixture-page","محتوى عربي تجريبي"],["/en/fixture-page","Isolated English fixture content"],["/tr/fixture-page","Yalıtılmış Türkçe test içeriği"]]) {
+    const response=await request.get(path);
     expect(response.status()).toBe(200);
     expect(await response.text()).toContain(copy);
   }
@@ -58,7 +61,7 @@ test("PR99 isolated authenticated operations closeout", async ({ page, request }
   await page.getByTestId("publish").click();
   await page.getByTestId("unpublish").click();
   await expect(page.getByTestId("state")).toContainText('"status": "unpublished"');
-  expect((await request.get("/pr99-e2e/public/en/fixture-page")).status()).toBe(404);
+  for (const path of ["/fixture-page","/en/fixture-page","/tr/fixture-page"]) expect((await request.get(path)).status()).toBe(404);
 
   const bodyWidth=await page.evaluate(()=>document.body.scrollWidth<=window.innerWidth);
   expect(bodyWidth).toBe(true);
