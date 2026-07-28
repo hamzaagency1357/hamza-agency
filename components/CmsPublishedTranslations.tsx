@@ -36,7 +36,6 @@ type CmsPublishedTranslationsContextValue = {
 
 const CmsPublishedTranslationsContext = createContext<CmsPublishedTranslationsContextValue | null>(null);
 const CMS_TRANSLATION_FIELDS: readonly CmsPublishedTranslationField[] = ["title", "summary", "content"];
-const forbiddenPlaceholders = ["Localized content is being updated.", "Yerelleştirilmiş içerik güncelleniyor."];
 
 function hasRequiredCmsFields(source: CmsPublishedTranslationSource) {
   return source.requiredFields.length > 0 && Boolean(String(source.sourceId).trim());
@@ -44,7 +43,7 @@ function hasRequiredCmsFields(source: CmsPublishedTranslationSource) {
 
 function isDisplayableTranslation(value: string) {
   const normalized = value.trim();
-  return normalized.length > 0 && !forbiddenPlaceholders.some((placeholder) => normalized.includes(placeholder));
+  return normalized.length > 0 && !normalized.startsWith("Localized content") && !normalized.startsWith("Yerelleştirilmiş içerik");
 }
 
 export function CmsPublishedTranslationsProvider({ sources, children }: { sources: ReadonlyArray<CmsPublishedTranslationSource>; children: ReactNode }) {
