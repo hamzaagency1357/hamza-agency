@@ -20,6 +20,69 @@ const siteName = "Hamza Agency | وكالة حمزة";
 const siteDescription =
   "وكالة حمزة — وكالة رقمية فاخرة لإدارة وتوظيف ودعم صناع المحتوى على TikTok وBIGO LIVE ومنصات البث المباشر والخدمات الرقمية.";
 
+const mobileFloatingControlsFix = `
+@media (max-width: 768px) {
+  .hamza-floating-whatsapp {
+    left: auto !important;
+    right: auto !important;
+    inset-inline-start: 0.75rem !important;
+    inset-inline-end: auto !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.55rem) !important;
+    width: 5.25rem !important;
+    height: 2.85rem !important;
+    padding-inline: 0.35rem !important;
+    font-size: 0.72rem !important;
+    white-space: nowrap !important;
+  }
+
+  .hamza-ai-support {
+    left: calc(50% - 2.875rem) !important;
+    right: auto !important;
+    inset-inline-start: auto !important;
+    inset-inline-end: auto !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.55rem) !important;
+    width: 5.75rem !important;
+  }
+
+  .hamza-ai-support > button {
+    width: 100% !important;
+    height: 2.85rem !important;
+    padding-inline: 0.35rem !important;
+    font-size: 0.72rem !important;
+    white-space: nowrap !important;
+  }
+
+  .hamza-quick-nav {
+    left: auto !important;
+    right: auto !important;
+    inset-inline-end: 0.75rem !important;
+    inset-inline-start: auto !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.55rem) !important;
+    width: 5.25rem !important;
+  }
+
+  .hamza-quick-nav > button {
+    width: 100% !important;
+    min-height: 2.85rem !important;
+    height: 2.85rem !important;
+    padding-inline: 0.35rem !important;
+    font-size: 0.72rem !important;
+    white-space: nowrap !important;
+  }
+
+  .hamza-ai-support-panel,
+  .hamza-quick-nav-panel {
+    position: fixed !important;
+    left: 0.75rem !important;
+    right: 0.75rem !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 4.15rem) !important;
+    width: auto !important;
+    max-height: calc(100svh - env(safe-area-inset-top, 0px) - 5rem) !important;
+    margin: 0 !important;
+  }
+}
+`;
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
@@ -113,6 +176,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl">
       <body>
+        <style>{mobileFloatingControlsFix}</style>
         <StructuredData />
         <AuthRecoveryRedirect />
         <SiteLanguageDocumentSync />
