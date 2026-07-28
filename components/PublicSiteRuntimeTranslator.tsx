@@ -34,16 +34,8 @@ const SKIPPED_TAGS = new Set([
 ]);
 
 type AttributeName = (typeof TRANSLATABLE_ATTRIBUTES)[number];
-
-type AttributeState = {
-  original: string;
-  lastApplied: string;
-};
-
-type OriginalMetadata = {
-  title: string;
-  values: Record<string, string>;
-};
+type AttributeState = { original: string; lastApplied: string };
+type OriginalMetadata = { title: string; values: Record<string, string> };
 
 const originalText = new WeakMap<Text, string>();
 const lastAppliedText = new WeakMap<Text, string>();
@@ -61,8 +53,7 @@ function isPublicRoute(pathname: string) {
 function shouldSkipElement(element: Element | null) {
   if (!element) return true;
   if (SKIPPED_TAGS.has(element.tagName)) return true;
-  if (element.closest("[data-no-runtime-translate='true']")) return true;
-  return false;
+  return Boolean(element.closest("[data-no-runtime-translate='true']"));
 }
 
 function translateCompositeText(value: string, language: SiteLanguage) {
@@ -76,20 +67,18 @@ function translateCompositeText(value: string, language: SiteLanguage) {
     .map((segment) => {
       if (!segment || /^\n+$/.test(segment)) return segment;
 
-      const match = segment.match(/^(\s*)(.*?)(\s*)$/s);
+      const match = segment.match(/^(\s*)([\s\S]*?)(\s*)$/);
       if (!match) return segment;
 
       const [, leading, core, trailing] = match;
       if (!core.trim()) return segment;
-
       return `${leading}${translateSiteRuntimeText(core, language)}${trailing}`;
     })
     .join("");
 }
 
 function translateTextNode(node: Text, language: SiteLanguage) {
-  const parent = node.parentElement;
-  if (shouldSkipElement(parent)) return;
+  if (shouldSkipElement(node.parentElement)) return;
 
   const currentValue = node.nodeValue || "";
   if (!currentValue.trim()) return;
@@ -101,11 +90,7 @@ function translateTextNode(node: Text, language: SiteLanguage) {
 
   const source = originalText.get(node) || currentValue;
   const translated = translateCompositeText(source, language);
-
-  if (currentValue !== translated) {
-    node.nodeValue = translated;
-  }
-
+  if (currentValue !== translated) node.nodeValue = translated;
   lastAppliedText.set(node, translated);
 }
 
@@ -115,30 +100,28 @@ function getTranslatedAttributeValue(
   original: string,
   language: SiteLanguage
 ) {
-  if (attributeName === "dir") {
-    if (language === "ar") return original;
-
-    if (
-      element.tagName === "INPUT" ||
-      element.tagName === "TEXTAREA" ||
-      element.hasAttribute("data-preserve-direction")
-    ) {
-      return original;
-    }
-
-    return "ltr";
+  if (attributeName !== "dir") {
+    return translateCompositeText(original, language);
   }
 
-  return translateCompositeText(original, language);
+  if (language === "ar") return original;
+  if (
+    element.tagName === "INPUT" ||
+    element.tagName === "TEXTAREA" ||
+    element.hasAttribute("data-preserve-direction")
+  ) {
+    return original;
+  }
+  return "ltr";
 }
 
 function translateElementAttributes(element: Element, language: SiteLanguage) {
   if (shouldSkipElement(element)) return;
 
-  let elementState = attributeState.get(element);
-  if (!elementState) {
-    elementState = new Map();
-    attributeState.set(element, elementState);
+  let states = attributeState.get(element);
+  if (!states) {
+    states = new Map();
+    attributeState.set(element, states);
   }
 
   for (const attributeName of TRANSLATABLE_ATTRIBUTES) {
@@ -147,15 +130,15 @@ function translateElementAttributes(element: Element, language: SiteLanguage) {
     const currentValue = element.getAttribute(attributeName) || "";
     if (!currentValue.trim()) continue;
 
-    const saved = elementState.get(attributeName);
+    const saved = states.get(attributeName);
     if (!saved || currentValue !== saved.lastApplied) {
-      elementState.set(attributeName, {
+      states.set(attributeName, {
         original: currentValue,
         lastApplied: currentValue,
       });
     }
 
-    const state = elementState.get(attributeName);
+    const state = states.get(attributeName);
     if (!state) continue;
 
     const translated = getTranslatedAttributeValue(
@@ -164,10 +147,7 @@ function translateElementAttributes(element: Element, language: SiteLanguage) {
       state.original,
       language
     );
-
-    if (currentValue !== translated) {
-      element.setAttribute(attributeName, translated);
-    }
+    if (currentValue !== translated) element.setAttribute(attributeName, translated);
     state.lastApplied = translated;
   }
 }
@@ -177,7 +157,6 @@ function translateSubtree(root: Node, language: SiteLanguage) {
     translateTextNode(root as Text, language);
     return;
   }
-
   if (
     root.nodeType !== Node.ELEMENT_NODE &&
     root.nodeType !== Node.DOCUMENT_FRAGMENT_NODE
@@ -194,7 +173,6 @@ function translateSubtree(root: Node, language: SiteLanguage) {
     root,
     NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT
   );
-
   let current = walker.nextNode();
   while (current) {
     if (current.nodeType === Node.TEXT_NODE) {
@@ -215,11 +193,7 @@ function captureOriginalMetadata(pathname: string) {
     values[selector] =
       document.querySelector(selector)?.getAttribute("content") || "";
   }
-
-  originalMetadataByPath.set(normalizedPath, {
-    title: document.title,
-    values,
-  });
+  originalMetadataByPath.set(normalizedPath, { title: document.title, values });
 }
 
 function updateLocalizedMetadata(pathname: string, language: SiteLanguage) {
@@ -241,7 +215,6 @@ function updateLocalizedMetadata(pathname: string, language: SiteLanguage) {
   if (!metadata) return;
 
   document.title = metadata.title;
-
   const values: Record<string, string> = {
     'meta[name="description"]': metadata.description,
     'meta[property="og:title"]': metadata.title,
@@ -249,7 +222,6 @@ function updateLocalizedMetadata(pathname: string, language: SiteLanguage) {
     'meta[name="twitter:title"]': metadata.title,
     'meta[name="twitter:description"]': metadata.description,
   };
-
   for (const selector of METADATA_SELECTORS) {
     document.querySelector(selector)?.setAttribute("content", values[selector]);
   }
@@ -268,7 +240,6 @@ export default function PublicSiteRuntimeTranslator() {
 
     let scheduled = false;
     const pendingNodes = new Set<Node>();
-
     const scheduleTranslation = (nodes: Node[]) => {
       nodes.forEach((node) => pendingNodes.add(node));
       if (scheduled) return;
@@ -278,26 +249,20 @@ export default function PublicSiteRuntimeTranslator() {
         scheduled = false;
         const nodesToTranslate = Array.from(pendingNodes);
         pendingNodes.clear();
-
-        for (const node of nodesToTranslate) {
-          translateSubtree(node, language);
-        }
+        for (const node of nodesToTranslate) translateSubtree(node, language);
         updateLocalizedMetadata(pathname, language);
       });
     };
 
     const observer = new MutationObserver((mutations) => {
       const changedNodes: Node[] = [];
-
       for (const mutation of mutations) {
         if (mutation.type === "characterData" || mutation.type === "attributes") {
           changedNodes.push(mutation.target);
-          continue;
+        } else {
+          mutation.addedNodes.forEach((node) => changedNodes.push(node));
         }
-
-        mutation.addedNodes.forEach((node) => changedNodes.push(node));
       }
-
       if (changedNodes.length) scheduleTranslation(changedNodes);
     });
 
