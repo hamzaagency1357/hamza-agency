@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import type { SiteLanguage } from "@/lib/i18n/locale";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 import {
   getSiteRuntimeMetadata,
@@ -9,6 +10,13 @@ import {
 } from "@/lib/i18n/siteRuntimeTranslations";
 
 const TRANSLATABLE_ATTRIBUTES = ["placeholder", "aria-label", "title", "alt"] as const;
+const METADATA_SELECTORS = [
+  'meta[name="description"]',
+  'meta[property="og:title"]',
+  'meta[property="og:description"]',
+  'meta[name="twitter:title"]',
+  'meta[name="twitter:description"]',
+] as const;
 const SKIPPED_TAGS = new Set([
   "SCRIPT",
   "STYLE",
@@ -26,9 +34,19 @@ type AttributeState = {
   lastApplied: string;
 };
 
+type OriginalMetadata = {
+  title: string;
+  values: Record<string, string>;
+};
+
 const originalText = new WeakMap<Text, string>();
 const lastAppliedText = new WeakMap<Text, string>();
 const attributeState = new WeakMap<Element, Map<AttributeName, AttributeState>>();
+const originalMetadataByPath = new Map<string, OriginalMetadata>();
+
+function normalizePathname(pathname: string) {
+  return pathname.replace(/\/$/, "") || "/";
+}
 
 function isPublicRoute(pathname: string) {
   return !pathname.startsWith("/admin") && pathname !== "/maintenance";
@@ -41,7 +59,7 @@ function shouldSkipElement(element: Element | null) {
   return false;
 }
 
-function translateTextNode(node: Text, language: ReturnType<typeof useSiteLanguage>) {
+function translateTextNode(node: Text, language: SiteLanguage) {
   const parent = node.parentElement;
   if (shouldSkipElement(parent)) return;
 
@@ -63,10 +81,7 @@ function translateTextNode(node: Text, language: ReturnType<typeof useSiteLangua
   lastAppliedText.set(node, translated);
 }
 
-function translateElementAttributes(
-  element: Element,
-  language: ReturnType<typeof useSiteLanguage>
-) {
+function translateElementAttributes(element: Element, language: SiteLanguage) {
   if (shouldSkipElement(element)) return;
 
   let elementState = attributeState.get(element);
@@ -100,16 +115,16 @@ function translateElementAttributes(
   }
 }
 
-function translateSubtree(
-  root: Node,
-  language: ReturnType<typeof useSiteLanguage>
-) {
+function translateSubtree(root: Node, language: SiteLanguage) {
   if (root.nodeType === Node.TEXT_NODE) {
     translateTextNode(root as Text, language);
     return;
   }
 
-  if (root.nodeType !== Node.ELEMENT_NODE && root.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) {
+  if (
+    root.nodeType !== Node.ELEMENT_NODE &&
+    root.nodeType !== Node.DOCUMENT_FRAGMENT_NODE
+  ) {
     return;
   }
 
@@ -134,23 +149,51 @@ function translateSubtree(
   }
 }
 
-function updateLocalizedMetadata(pathname: string, language: ReturnType<typeof useSiteLanguage>) {
-  if (language === "ar") return;
-  const metadata = getSiteRuntimeMetadata(pathname, language);
+function captureOriginalMetadata(pathname: string) {
+  const normalizedPath = normalizePathname(pathname);
+  if (originalMetadataByPath.has(normalizedPath)) return;
+
+  const values: Record<string, string> = {};
+  for (const selector of METADATA_SELECTORS) {
+    values[selector] = document.querySelector(selector)?.getAttribute("content") || "";
+  }
+
+  originalMetadataByPath.set(normalizedPath, {
+    title: document.title,
+    values,
+  });
+}
+
+function updateLocalizedMetadata(pathname: string, language: SiteLanguage) {
+  const normalizedPath = normalizePathname(pathname);
+  captureOriginalMetadata(normalizedPath);
+  const original = originalMetadataByPath.get(normalizedPath);
+
+  if (language === "ar") {
+    if (!original) return;
+    document.title = original.title;
+    for (const selector of METADATA_SELECTORS) {
+      const value = original.values[selector];
+      if (value) document.querySelector(selector)?.setAttribute("content", value);
+    }
+    return;
+  }
+
+  const metadata = getSiteRuntimeMetadata(normalizedPath, language);
   if (!metadata) return;
 
   document.title = metadata.title;
 
-  const selectors: Array<[string, string]> = [
-    ['meta[name="description"]', metadata.description],
-    ['meta[property="og:title"]', metadata.title],
-    ['meta[property="og:description"]', metadata.description],
-    ['meta[name="twitter:title"]', metadata.title],
-    ['meta[name="twitter:description"]', metadata.description],
-  ];
+  const values: Record<string, string> = {
+    'meta[name="description"]': metadata.description,
+    'meta[property="og:title"]': metadata.title,
+    'meta[property="og:description"]': metadata.description,
+    'meta[name="twitter:title"]': metadata.title,
+    'meta[name="twitter:description"]': metadata.description,
+  };
 
-  for (const [selector, content] of selectors) {
-    document.querySelector(selector)?.setAttribute("content", content);
+  for (const selector of METADATA_SELECTORS) {
+    document.querySelector(selector)?.setAttribute("content", values[selector]);
   }
 }
 
@@ -166,12 +209,19 @@ export default function PublicSiteRuntimeTranslator() {
     updateLocalizedMetadata(pathname, language);
 
     let scheduled = false;
+    const pendingNodes = new Set<Node>();
+
     const scheduleTranslation = (nodes: Node[]) => {
+      nodes.forEach((node) => pendingNodes.add(node));
       if (scheduled) return;
+
       scheduled = true;
       window.requestAnimationFrame(() => {
         scheduled = false;
-        for (const node of nodes) {
+        const nodesToTranslate = Array.from(pendingNodes);
+        pendingNodes.clear();
+
+        for (const node of nodesToTranslate) {
           translateSubtree(node, language);
         }
         updateLocalizedMetadata(pathname, language);
@@ -182,12 +232,7 @@ export default function PublicSiteRuntimeTranslator() {
       const changedNodes: Node[] = [];
 
       for (const mutation of mutations) {
-        if (mutation.type === "characterData") {
-          changedNodes.push(mutation.target);
-          continue;
-        }
-
-        if (mutation.type === "attributes") {
+        if (mutation.type === "characterData" || mutation.type === "attributes") {
           changedNodes.push(mutation.target);
           continue;
         }
