@@ -1,7 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   hasCompletePublishedTranslation,
@@ -34,7 +33,8 @@ type CmsPublishedTranslationsContextValue = {
   language: "ar" | "en" | "tr";
 };
 
-const CmsPublishedTranslationsContext = createContext<CmsPublishedTranslationsContextValue | null>(null);
+const CmsPublishedTranslationsContext =
+  createContext<CmsPublishedTranslationsContextValue | null>(null);
 
 const CMS_TRANSLATION_FIELDS: readonly CmsPublishedTranslationField[] = [
   "title",
@@ -42,25 +42,22 @@ const CMS_TRANSLATION_FIELDS: readonly CmsPublishedTranslationField[] = [
   "content",
 ];
 
-const HOME_HERO_BRAND_LINE: Record<"ar" | "en" | "tr", string> = {
-  ar: "وكالة حمزة",
-  en: "Hamza Agency",
-  tr: "Hamza Ajansı",
-};
-
 const HOME_HERO_CLEAN_AR_TITLE = "وكالة حمزة لإدارة وتطوير صناع المحتوى";
 
 function hasRequiredCmsFields(source: CmsPublishedTranslationSource) {
-  return source.requiredFields.length > 0 && Boolean(String(source.sourceId).trim());
+  return (
+    source.requiredFields.length > 0 && Boolean(String(source.sourceId).trim())
+  );
 }
 
-function normalizeHomeHeroTitle(sourceKey: string, field: CmsPublishedTranslationField, value: string) {
-  if (sourceKey !== "home-page" || field !== "title") {
-    return value;
-  }
+function normalizeHomeHeroTitle(
+  sourceKey: string,
+  field: CmsPublishedTranslationField,
+  value: string
+) {
+  if (sourceKey !== "home-page" || field !== "title") return value;
 
   const normalizedValue = value.replace(/\s+/g, " ").trim();
-
   if (
     normalizedValue === "وكالة حمزة لإدارة وتطوير" ||
     normalizedValue === "وكالة حمزة لإدارة وتطوير وكالة حمزة"
@@ -71,62 +68,6 @@ function normalizeHomeHeroTitle(sourceKey: string, field: CmsPublishedTranslatio
   return value;
 }
 
-function HomeHeroBrandLine({
-  language,
-  className,
-}: {
-  language: "ar" | "en" | "tr";
-  className?: string;
-}) {
-  const placeholderRef = useRef<HTMLSpanElement | null>(null);
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    const placeholder = placeholderRef.current;
-    const wrapper = placeholder?.parentElement;
-    const heading = placeholder?.closest("h1");
-    const headingParent = heading?.parentElement;
-
-    if (!placeholder || !wrapper || !heading || !headingParent) return;
-
-    const brandLine = document.createElement("div");
-    brandLine.dataset.homeHeroBrandLine = "true";
-    brandLine.className = [heading.className, wrapper.className, "mt-4 md:mt-5"]
-      .filter(Boolean)
-      .join(" ");
-    brandLine.setAttribute("dir", language === "ar" ? "rtl" : "ltr");
-    brandLine.setAttribute("lang", language);
-
-    wrapper.setAttribute("aria-hidden", "true");
-    wrapper.style.display = "none";
-    heading.insertAdjacentElement("afterend", brandLine);
-    setPortalTarget(brandLine);
-
-    return () => {
-      wrapper.style.display = "";
-      wrapper.removeAttribute("aria-hidden");
-      brandLine.remove();
-    };
-  }, [language]);
-
-  return (
-    <>
-      <span
-        ref={placeholderRef}
-        data-home-hero-brand-placeholder="true"
-        aria-hidden="true"
-        className="sr-only"
-      />
-      {portalTarget
-        ? createPortal(
-            <span className={className}>{HOME_HERO_BRAND_LINE[language]}</span>,
-            portalTarget
-          )
-        : null}
-    </>
-  );
-}
-
 export function CmsPublishedTranslationsProvider({
   sources,
   children,
@@ -135,20 +76,23 @@ export function CmsPublishedTranslationsProvider({
   children: ReactNode;
 }) {
   const language = useSiteLanguage();
-  const [completeTranslations, setCompleteTranslations] = useState<CompleteTranslationMap>({});
+  const [completeTranslations, setCompleteTranslations] =
+    useState<CompleteTranslationMap>({});
 
   const sourceMap = useMemo(
     () =>
-      sources.reduce<Record<string, CmsPublishedTranslationSource>>((result, source) => {
-        result[source.sourceKey] = source;
-        return result;
-      }, {}),
+      sources.reduce<Record<string, CmsPublishedTranslationSource>>(
+        (result, source) => {
+          result[source.sourceKey] = source;
+          return result;
+        },
+        {}
+      ),
     [sources]
   );
 
   useEffect(() => {
     let isCurrent = true;
-
     setCompleteTranslations({});
 
     if (language === "ar") {
@@ -186,32 +130,29 @@ export function CmsPublishedTranslationsProvider({
 
           groupedSources.forEach((source) => {
             const translations = translationMap[String(source.sourceId)];
-
-            if (hasCompletePublishedTranslation(translations, source.requiredFields)) {
+            if (
+              hasCompletePublishedTranslation(
+                translations,
+                source.requiredFields
+              )
+            ) {
               nextCompleteTranslations[source.sourceKey] = translations;
             }
           });
         })
       );
 
-      if (isCurrent) {
-        setCompleteTranslations(nextCompleteTranslations);
-      }
+      if (isCurrent) setCompleteTranslations(nextCompleteTranslations);
     }
 
     void loadPublishedTranslations();
-
     return () => {
       isCurrent = false;
     };
   }, [language, sources]);
 
   const value = useMemo<CmsPublishedTranslationsContextValue>(
-    () => ({
-      sources: sourceMap,
-      completeTranslations,
-      language,
-    }),
+    () => ({ sources: sourceMap, completeTranslations, language }),
     [completeTranslations, language, sourceMap]
   );
 
@@ -235,9 +176,15 @@ export function CmsPublishedText({
 }) {
   const context = useContext(CmsPublishedTranslationsContext);
   const source = context?.sources[sourceKey];
-  const translatedValue = context?.completeTranslations[sourceKey]?.[field]?.trim();
+  const translatedValue =
+    context?.completeTranslations[sourceKey]?.[field]?.trim();
   const arabicFallback = source?.fallback[field] || fallback || "";
   const language = context?.language || "ar";
+
+  // The home page H1 already renders the complete localized title. The former
+  // highlighted brand line duplicated Hamza Agency/Hamza Ajansı beneath it.
+  if (sourceKey === "home-hero" && field === "title") return null;
+
   const localizedFallback = translateSiteRuntimeText(arabicFallback, language);
   const text = sanitizeMarketingCopy(
     normalizeHomeHeroTitle(
@@ -247,12 +194,6 @@ export function CmsPublishedText({
     ),
     language
   );
-
-  /* The homepage public H1 already renders home-page.title.
-     Render the legacy highlighted brand line visually outside the H1. */
-  if (sourceKey === "home-hero" && field === "title") {
-    return <HomeHeroBrandLine language={language} className={className} />;
-  }
 
   return (
     <span
