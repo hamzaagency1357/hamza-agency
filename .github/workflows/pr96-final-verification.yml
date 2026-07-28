@@ -1,16 +1,19 @@
-name: PR 96 Final Verification
+name: HAMZA AGENCY Quality Gate
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
-      - chore/g0-codebase-safe-cleanup
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: pr96-final-verification-${{ github.ref }}
+  group: quality-gate-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -35,6 +38,9 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Verify public translations
+        run: node scripts/verify-public-translations.mjs
 
       - name: Build
         run: npm run build

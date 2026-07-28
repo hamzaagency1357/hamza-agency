@@ -12,6 +12,12 @@ import {
 } from "@/lib/i18n/locale";
 import { getStaticCopy } from "@/lib/i18n/staticCopy";
 
+const scopeCopy: Record<SiteLanguage, string> = {
+  ar: "تم تفعيل الترجمة الكاملة للصفحات العامة والمحتوى والنماذج إلى العربية والإنجليزية والتركية.",
+  en: "Full translation is active across public pages, content, and forms in Arabic, English, and Turkish.",
+  tr: "Genel sayfalar, içerikler ve formlar için Arapça, İngilizce ve Türkçe tam çeviri etkindir.",
+};
+
 export default function LanguageSwitcher() {
   const pathname = usePathname();
   const [language, setLanguage] = useState<SiteLanguage>("ar");
@@ -75,8 +81,11 @@ export default function LanguageSwitcher() {
         </div>
 
         {showScope && (
-          <div className="mt-1 max-w-56 px-3 pb-2 text-[11px] leading-5 text-white/48" dir={getLanguageDirection(language)}>
-            {copy("languageScope")}
+          <div
+            className="mt-1 max-w-64 px-3 pb-2 text-[11px] leading-5 text-white/48"
+            dir={getLanguageDirection(language)}
+          >
+            {scopeCopy[language]}
           </div>
         )}
       </div>
