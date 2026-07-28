@@ -5,64 +5,7 @@ import { supabase } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const fallbackReviews: Review[] = [
-  {
-    id: 1,
-    reviewer_name: "نموذج تجربة من TikTok",
-    country: "تركيا",
-    platform: "TikTok",
-    rating: 5,
-    content: "مثال توضيحي لطريقة عرض تقييم من صانع محتوى بعد شرح خطوات الانضمام والمتابعة عبر واتساب.",
-    avatar_url: null,
-    is_featured: true,
-    sort_order: 1,
-    status: "published",
-    is_visible: true,
-    created_at: null,
-  },
-  {
-    id: 2,
-    reviewer_name: "نموذج تجربة بث مباشر",
-    country: "سوريا",
-    platform: "BIGO LIVE",
-    rating: 5,
-    content: "مثال توضيحي لتجربة تواصل واضحة ومتابعة طلب بدون تعقيد، ويستبدل لاحقاً بتقييمات حقيقية من لوحة الإدارة.",
-    avatar_url: null,
-    is_featured: true,
-    sort_order: 2,
-    status: "published",
-    is_visible: true,
-    created_at: null,
-  },
-  {
-    id: 3,
-    reviewer_name: "نموذج صانع محتوى جديد",
-    country: "العراق",
-    platform: "Yaahlan",
-    rating: 5,
-    content: "مثال يوضح كيف يمكن عرض رأي مختصر حول فهم الفرق بين البرامج والخطوات المطلوبة قبل التقديم.",
-    avatar_url: null,
-    is_featured: false,
-    sort_order: 3,
-    status: "published",
-    is_visible: true,
-    created_at: null,
-  },
-  {
-    id: 4,
-    reviewer_name: "نموذج خدمات رقمية",
-    country: "تركيا",
-    platform: "Digital Services",
-    rating: 5,
-    content: "مثال لطريقة عرض تجربة طلب خدمة من الموقع ثم المتابعة عبر واتساب بعد إرسال التفاصيل.",
-    avatar_url: null,
-    is_featured: false,
-    sort_order: 4,
-    status: "published",
-    is_visible: true,
-    created_at: null,
-  },
-];
+const fallbackReviews: Review[] = [];
 
 async function getReviews(): Promise<Review[]> {
   if (!supabase) return fallbackReviews;

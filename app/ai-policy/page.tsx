@@ -5,6 +5,7 @@ import {
 } from "@/components/AiPolicyStaticUi";
 import PublicBackHomeLink from "@/components/PublicBackHomeLink";
 import PublicLanguageMain from "@/components/PublicLanguageMain";
+import PublicAgencyName from "@/components/PublicAgencyName";
 import { supabase } from "@/lib/supabase";
 import {
   CmsPublishedText,
@@ -129,7 +130,7 @@ export default async function AiPolicyPage() {
         <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
           <PublicBackHomeLink />
           <div className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur md:p-10">
-            <div className="mb-6 inline-flex rounded-full border border-cyan-400/30 bg-cyan-500/10 px-5 py-2 text-sm font-bold text-cyan-100">{agencyName}</div>
+            <div className="mb-6 inline-flex rounded-full border border-cyan-400/30 bg-cyan-500/10 px-5 py-2 text-sm font-bold text-cyan-100"><PublicAgencyName value={agencyName} /></div>
             <h1 className="text-5xl font-black leading-tight md:text-7xl">
               <CmsPublishedText sourceKey="ai-policy-page" field="title" fallback={title} />
               <span className="block bg-gradient-to-r from-cyan-300 via-white to-purple-300 bg-clip-text text-transparent">

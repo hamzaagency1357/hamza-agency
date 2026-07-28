@@ -1,6 +1,7 @@
 import FaqListWithTranslations from "@/components/FaqListWithTranslations";
 import { FaqBackHomeLink, FaqDirectContact } from "@/components/FaqStaticUi";
 import PublicLanguageMain from "@/components/PublicLanguageMain";
+import PublicAgencyName from "@/components/PublicAgencyName";
 import {
   CmsPublishedText,
   CmsPublishedTranslationsProvider,
@@ -58,15 +59,6 @@ function getSetting(settings: Setting[], keys: string[], fallback: string) {
   return fallback;
 }
 
-function buildFaqStructuredData(faqs: FaqItem[]) {
-  const mainEntity = faqs.filter((faq) => faq.question && faq.answer).map((faq) => ({
-    "@type": "Question",
-    name: faq.question,
-    acceptedAnswer: { "@type": "Answer", text: faq.answer },
-  }));
-  return JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity }).replace(/</g, "\\u003c");
-}
-
 async function getFaqPageData() {
   const [pageData, settingsResult, faqsResult] = await Promise.all([
     getCmsPageWithSections("faq"),
@@ -92,7 +84,6 @@ export default async function FaqPage() {
   const faqList = getSectionContent(faqListSection, { title: "أهم الأسئلة", subtitle: "معلومات مختصرة تساعدك قبل التواصل", content: "استعرض الأسئلة حسب التصنيف، ثم تواصل مع فريق الوكالة عند الحاجة إلى توضيح إضافي." });
   const title = page?.title || faqIntro.title;
   const hasPageContent = Boolean(page?.content?.trim());
-  const faqStructuredData = buildFaqStructuredData(faqs);
   const translationSources: CmsPublishedTranslationSource[] = [
     createCmsTranslationSource({ sourceKey: "faq-page", sourceType: "pages", sourceId: page?.id, values: { title: page?.title, summary: page?.seo_description, content: page?.content }, fallback: { title, content: page?.content?.trim() || "" } }),
     createCmsTranslationSource({ sourceKey: "faq-intro", sourceType: "sections", sourceId: faqIntroSection?.id, values: { title: faqIntroSection?.title, summary: faqIntroSection?.subtitle, content: faqIntroSection?.content }, fallback: { title: faqIntro.title, summary: faqIntro.subtitle, content: faqIntro.content } }),
@@ -102,12 +93,11 @@ export default async function FaqPage() {
   return (
     <CmsPublishedTranslationsProvider sources={translationSources}>
       <PublicLanguageMain className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqStructuredData }} />
         <FaqBackground />
         <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
           <FaqBackHomeLink />
           <div className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur md:p-10">
-            <div className="mb-6 inline-flex rounded-full border border-purple-400/30 bg-purple-500/10 px-5 py-2 text-sm font-bold text-purple-100">{agencyName}</div>
+            <div className="mb-6 inline-flex rounded-full border border-purple-400/30 bg-purple-500/10 px-5 py-2 text-sm font-bold text-purple-100"><PublicAgencyName value={agencyName} /></div>
             <h1 className="text-5xl font-black leading-tight md:text-7xl">
               <CmsPublishedText sourceKey="faq-page" field="title" fallback={title} />
               <span className="block bg-gradient-to-r from-purple-300 via-white to-yellow-300 bg-clip-text text-transparent"><CmsPublishedText sourceKey="faq-intro" field="summary" fallback={faqIntro.subtitle} /></span>

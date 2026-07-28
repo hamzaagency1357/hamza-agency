@@ -22,7 +22,7 @@ type ApplicationRecord = {
   created_at: string | null;
 };
 
-const platformOptions = ["TikTok", "BIGO LIVE", "Yaahlan", "Xena", "Catchii", "منصة أخرى"];
+const platformOptions = ["TikTok", "BIGO LIVE", "Yaahlan", "Xena", "Catchii", "other"];
 
 function normalizeDigits(value: string) {
   return value.replace(/[^0-9]/g, "");
@@ -49,7 +49,8 @@ export default function ApplicationStatusPage() {
     setApplication(null);
 
     const cleanedWhatsapp = normalizeDigits(whatsapp);
-    const selectedPlatform = platform.trim();
+    const selectedPlatform =
+      platform.trim() === "other" ? "منصة أخرى" : platform.trim();
 
     if (!cleanedWhatsapp || cleanedWhatsapp.length < 8) {
       setMessage(forms.invalidWhatsapp);

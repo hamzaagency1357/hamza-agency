@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "HAMZA AGENCY | وكالة حمزة",
+    name: "HAMZA AGENCY",
     short_name: "HAMZA AGENCY",
     description:
-      "وكالة احترافية لإدارة وتوظيف ودعم صناع المحتوى على منصات البث المباشر والتواصل الاجتماعي.",
+      "Professional content creator management, program guidance, and digital services.",
     start_url: "/",
     scope: "/",
     display: "standalone",
@@ -13,8 +13,8 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#180826",
     theme_color: "#7C3AED",
     categories: ["business", "productivity", "social"],
-    lang: "ar",
-    dir: "rtl",
+    lang: "en",
+    dir: "ltr",
     icons: [
       {
         src: "/Logo%20hamza%20agency.jpg",

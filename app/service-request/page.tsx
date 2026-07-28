@@ -27,7 +27,7 @@ type FormState = {
 };
 
 const serviceTypes: ServiceType[] = ["platform_topup", "withdrawal", "digital_service", "technical_support", "other"];
-const platforms = ["TikTok", "BIGO LIVE", "Yaahlan", "Xena", "Catchii", "منصة أخرى"];
+const platforms = ["TikTok", "BIGO LIVE", "Yaahlan", "Xena", "Catchii", "other"];
 const initialFormState: FormState = { fullName: "", country: "", whatsapp: "", serviceType: "platform_topup", platform: "TikTok", accountIdentifier: "", requestedAmount: "", notes: "" };
 
 function normalizeDigits(value: string) {
@@ -86,7 +86,10 @@ export default function ServiceRequestPage() {
       country: form.country.trim(),
       whatsapp: form.whatsapp.trim(),
       service_type: form.serviceType,
-      platform: form.platform.trim(),
+      platform:
+        form.platform.trim() === "other"
+          ? "منصة أخرى"
+          : form.platform.trim(),
       account_identifier: form.accountIdentifier.trim(),
       requested_amount: form.requestedAmount.trim(),
       notes: form.notes.trim(),

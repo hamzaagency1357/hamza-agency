@@ -9,6 +9,7 @@ import {
   type PublishedTranslationMap,
 } from "@/lib/i18n/publishedTranslations";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
+import { localizeDynamicPublicCopy } from "@/lib/i18n/localizeDynamicPublicCopy";
 
 const KNOWLEDGE_TRANSLATION_FIELDS = ["title", "summary", "content"] as const;
 
@@ -89,16 +90,31 @@ export default function KnowledgeListWithTranslations({ knowledge }: { knowledge
         translation,
         KNOWLEDGE_TRANSLATION_FIELDS
       );
-      const hasArabicSourceText = Boolean(item.title || item.summary || item.content);
       const staticFallback = fallbackCopy[language];
 
       return {
         id: item.id,
-        title: hasPublishedTranslation ? translation?.title || "" : item.title || staticFallback.title,
-        summary: hasPublishedTranslation ? translation?.summary || "" : item.summary || "",
-        content: hasPublishedTranslation ? translation?.content || "" : item.content || staticFallback.content,
-        category: item.category || staticFallback.category,
-        direction: hasPublishedTranslation && language !== "ar" ? "ltr" : hasArabicSourceText ? "rtl" : getLanguageDirection(language),
+        title: localizeDynamicPublicCopy(
+          hasPublishedTranslation
+            ? translation?.title
+            : item.title || staticFallback.title,
+          language
+        ),
+        summary: localizeDynamicPublicCopy(
+          hasPublishedTranslation ? translation?.summary : item.summary,
+          language
+        ),
+        content: localizeDynamicPublicCopy(
+          hasPublishedTranslation
+            ? translation?.content
+            : item.content || staticFallback.content,
+          language
+        ),
+        category: localizeDynamicPublicCopy(
+          item.category || staticFallback.category,
+          language
+        ),
+        direction: getLanguageDirection(language),
       };
     });
 

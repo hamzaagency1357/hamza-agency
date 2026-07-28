@@ -19,6 +19,7 @@ import {
   AboutMission,
   AboutValues,
 } from "@/components/AboutStaticUi";
+import PublicAgencyName from "@/components/PublicAgencyName";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -96,7 +97,7 @@ export default async function AboutPage() {
         <AboutContentShell>
           <AboutBackLink />
           <div className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur md:p-10">
-            <div className="mb-6 inline-flex rounded-full border border-purple-400/30 bg-purple-500/10 px-5 py-2 text-sm font-bold text-purple-100">{agencyName}</div>
+            <div className="mb-6 inline-flex rounded-full border border-purple-400/30 bg-purple-500/10 px-5 py-2 text-sm font-bold text-purple-100"><PublicAgencyName value={agencyName} /></div>
             <h1 className="text-5xl font-black leading-tight md:text-7xl"><CmsPublishedText sourceKey="about-page" field="title" fallback={title} /><span className="block bg-gradient-to-r from-purple-300 via-white to-yellow-300 bg-clip-text text-transparent"><CmsPublishedText sourceKey="about-agency-intro" field="summary" fallback={agencyIntro.subtitle} /></span></h1>
             <h2 className="mt-8 text-2xl font-black text-purple-100"><CmsPublishedText sourceKey="about-agency-intro" field="title" fallback={agencyIntro.title} /></h2>
             <p className="mt-5 max-w-5xl text-xl leading-10 text-white/75">{hasPageContent ? <CmsPublishedText sourceKey="about-page" field="content" fallback={page?.content || ""} /> : <CmsPublishedText sourceKey="about-agency-intro" field="content" fallback={agencyIntro.content} />}</p>

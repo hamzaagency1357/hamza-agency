@@ -1,55 +1,104 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { isSupportedPublicPath } from "@/lib/i18n/publicLocales";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import {
+  DEFAULT_VISUAL_BACKGROUND_PRESET,
+  normalizeVisualBackgroundPreset,
+  VISUAL_BACKGROUND_PRESET_CLASSES,
+  type VisualBackgroundPresetId,
+} from "@/lib/visualBackgroundPresets";
 
-type PresetId =
-  | "global-luxury-aurora"
-  | "classic-purple-agency"
-  | "royal-creator-waves"
-  | "golden-network-pulse"
-  | "galaxy-agency-flow"
-  | "live-streaming-signal"
-  | "premium-glass-orbits"
-  | "digital-stage-lights";
+const PUBLIC_PRESET_CACHE_KEY = "hamza_visual_background_preset";
 
-const defaultPreset: PresetId = "global-luxury-aurora";
-
-const visualBackgroundPresets: Record<PresetId, string> = {
-  "global-luxury-aurora": "preset-global-luxury-aurora",
-  "classic-purple-agency": "preset-classic-purple-agency",
-  "royal-creator-waves": "preset-royal-creator-waves",
-  "golden-network-pulse": "preset-golden-network-pulse",
-  "galaxy-agency-flow": "preset-galaxy-agency-flow",
-  "live-streaming-signal": "preset-live-streaming-signal",
-  "premium-glass-orbits": "preset-premium-glass-orbits",
-  "digital-stage-lights": "preset-digital-stage-lights",
+type PublicVisualSettings = {
+  background: string | null;
+  motion: string | null;
+  glow: boolean | null;
 };
 
-function getActivePreset(): PresetId {
-  if (typeof window === "undefined") return defaultPreset;
-
-  const saved = window.localStorage.getItem("hamza_visual_background_preset");
-
-  if (saved && saved in visualBackgroundPresets) {
-    return saved as PresetId;
-  }
-
-  return defaultPreset;
-}
-
 export default function VisualBackgroundPresets() {
-  const pathname = usePathname();
+  const pathname = usePathname() || "/";
+  const [activePreset, setActivePreset] =
+    useState<VisualBackgroundPresetId>(
+      DEFAULT_VISUAL_BACKGROUND_PRESET
+    );
+  const [motion, setMotion] = useState("medium");
+  const [glow, setGlow] = useState(true);
 
-  if (pathname !== "/") return null;
+  useEffect(() => {
+    let isCurrent = true;
 
-  const activePreset = getActivePreset();
-  const presetClassName = visualBackgroundPresets[activePreset];
+    async function loadPublicPreset() {
+      if (!isSupabaseConfigured || !supabase) {
+        setActivePreset(DEFAULT_VISUAL_BACKGROUND_PRESET);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("visual_experience_settings")
+        .select("background, motion, glow")
+        .eq("apply_to_public", true)
+        .eq("status", "approved")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!isCurrent) return;
+
+      if (!error && data) {
+        const settings = data as PublicVisualSettings;
+        const preset = normalizeVisualBackgroundPreset(
+          settings.background
+        );
+        setActivePreset(preset);
+        setMotion(
+          settings.motion === "low" || settings.motion === "high"
+            ? settings.motion
+            : "medium"
+        );
+        setGlow(settings.glow !== false);
+        window.localStorage.setItem(PUBLIC_PRESET_CACHE_KEY, preset);
+        return;
+      }
+
+      if (!error && !data) {
+        setActivePreset(DEFAULT_VISUAL_BACKGROUND_PRESET);
+        setMotion("medium");
+        setGlow(true);
+        window.localStorage.removeItem(PUBLIC_PRESET_CACHE_KEY);
+        return;
+      }
+
+      const cached = window.localStorage.getItem(
+        PUBLIC_PRESET_CACHE_KEY
+      );
+      if (cached) {
+        setActivePreset(normalizeVisualBackgroundPreset(cached));
+      }
+    }
+
+    void loadPublicPreset();
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
+  if (!isSupportedPublicPath(pathname)) return null;
+
+  const presetClassName =
+    VISUAL_BACKGROUND_PRESET_CLASSES[activePreset];
 
   return (
     <>
       <div
         aria-hidden="true"
         className={`hamza-visual-background-presets ${presetClassName}`}
+        data-background-preset={activePreset}
+        data-motion={motion}
+        data-glow={glow ? "on" : "off"}
       >
         <div className="hvb-base" />
         <div className="hvb-orb hvb-orb-one" />
@@ -83,6 +132,19 @@ export default function VisualBackgroundPresets() {
         .hamza-visual-background-presets * {
           position: absolute;
           will-change: transform, opacity;
+        }
+
+        .hamza-visual-background-presets[data-motion="low"] * {
+          animation-duration: 30s !important;
+        }
+
+        .hamza-visual-background-presets[data-motion="high"] * {
+          animation-duration: 10s !important;
+        }
+
+        .hamza-visual-background-presets[data-glow="off"] .hvb-orb,
+        .hamza-visual-background-presets[data-glow="off"] .hvb-silk {
+          opacity: 0.15 !important;
         }
 
         .hvb-base {
@@ -463,6 +525,16 @@ export default function VisualBackgroundPresets() {
           .hvb-texture {
             opacity: 0.09;
             background-size: 34px 34px;
+          }
+
+          .hamza-visual-background-presets * {
+            will-change: auto;
+            animation-duration: 32s !important;
+          }
+
+          .hamza-visual-background-presets .hvb-signal,
+          .hamza-visual-background-presets .hvb-texture {
+            animation: none !important;
           }
         }
 

@@ -1,9 +1,9 @@
 {
-  "name": "Hamza Agency | وكالة حمزة",
+  "name": "HAMZA AGENCY",
   "short_name": "Hamza Agency",
-  "description": "وكالة حمزة لإدارة وتوظيف ودعم صناع المحتوى على منصات البث المباشر.",
-  "lang": "ar",
-  "dir": "rtl",
+  "description": "Professional content creator management, program guidance, and digital services.",
+  "lang": "en",
+  "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

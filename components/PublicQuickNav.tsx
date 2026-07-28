@@ -13,6 +13,10 @@ import { getLanguageDirection, type SiteLanguage } from "@/lib/i18n/locale";
 import { getSharedNavigationLabel } from "@/lib/i18n/sharedChrome";
 import { getStaticCopy } from "@/lib/i18n/staticCopy";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
+import {
+  localizePublicHref,
+  stripLocalePrefix,
+} from "@/lib/i18n/publicLocales";
 
 const hiddenPublicQuickNavRoutes = ["/maintenance"];
 const containerClassName =
@@ -143,18 +147,24 @@ function PublicQuickNavLink({
   active,
   onClick,
   label,
+  language,
 }: {
   link: PublicNavigationLink;
   active: boolean;
   onClick: () => void;
   label: string;
+  language: SiteLanguage;
 }) {
   const className = getLinkClassName(active);
   const content = label;
 
   if (isInternalHref(link.href)) {
     return (
-      <Link href={link.href} onClick={onClick} className={className}>
+      <Link
+        href={localizePublicHref(link.href, language)}
+        onClick={onClick}
+        className={className}
+      >
         {content}
       </Link>
     );
@@ -175,6 +185,7 @@ export default function PublicQuickNav() {
     defaultPublicNavigationConfig.quickNavGroups
   );
   const copy = (key: Parameters<typeof getStaticCopy>[1]) => getStaticCopy(language, key);
+  const publicPath = stripLocalePrefix(pathname || "/");
 
   useEffect(() => {
     let isMounted = true;
@@ -233,7 +244,9 @@ export default function PublicQuickNav() {
                   <div className={groupTitleClassName}>{getQuickNavGroupTitle(language, group)}</div>
 
                   {group.links.map((link) => {
-                    const active = isInternalHref(link.href) ? isActiveLink(pathname, link.href) : false;
+                    const active = isInternalHref(link.href)
+                      ? isActiveLink(publicPath, stripLocalePrefix(link.href))
+                      : false;
 
                     return (
                       <PublicQuickNavLink
@@ -241,6 +254,7 @@ export default function PublicQuickNav() {
                         link={link}
                         active={active}
                         label={getSharedNavigationLabel(language, link)}
+                        language={language}
                         onClick={() => setIsOpen(false)}
                       />
                     );

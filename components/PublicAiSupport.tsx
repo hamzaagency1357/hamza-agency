@@ -6,6 +6,7 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { getLanguageDirection } from "@/lib/i18n/locale";
 import { getAiSupportCopy, getAiSupportFallbackAnswers } from "@/lib/i18n/aiSupport";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
+import { localizeDynamicPublicCopy } from "@/lib/i18n/localizeDynamicPublicCopy";
 
 type KnowledgeRow = Record<string, unknown>;
 type ChatMessage = {
@@ -157,7 +158,10 @@ export default function PublicAiSupport() {
     setIsAnswering(true);
     setMessages((current) => [...current, { role: "user", text: userQuestion }]);
 
-    const answerFromKnowledge = getKnowledgeAnswer(userQuestion, knowledgeRows);
+    const answerFromKnowledge = localizeDynamicPublicCopy(
+      getKnowledgeAnswer(userQuestion, knowledgeRows),
+      language
+    );
     const fallbackAnswer = answerFromKnowledge || getFallbackAnswer(userQuestion, fallbackAnswers);
     const assistantReply = fallbackAnswer || copy.widgetUnknownAnswer;
 
@@ -204,6 +208,12 @@ export default function PublicAiSupport() {
             {messages.map((message, index) => (
               <div
                 key={`${message.role}-${index}`}
+                data-user-generated-content={
+                  message.role === "user" ? "true" : undefined
+                }
+                data-no-runtime-translate={
+                  message.role === "user" ? "true" : undefined
+                }
                 className={`rounded-2xl p-3 text-sm leading-7 ${
                   message.role === "assistant"
                     ? "border border-purple-400/20 bg-purple-500/10 text-purple-50"

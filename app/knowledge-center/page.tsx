@@ -2,6 +2,7 @@ import KnowledgeCenterStaticUi from "@/components/KnowledgeCenterStaticUi";
 import KnowledgeListWithTranslations from "@/components/KnowledgeListWithTranslations";
 import PublicBackHomeLink from "@/components/PublicBackHomeLink";
 import PublicLanguageMain from "@/components/PublicLanguageMain";
+import PublicAgencyName from "@/components/PublicAgencyName";
 import {
   CmsPublishedText,
   CmsPublishedTranslationsProvider,
@@ -107,7 +108,7 @@ export default async function KnowledgeCenterPage() {
         <section className="relative z-10 mx-auto max-w-7xl px-5 py-16">
           <PublicBackHomeLink />
           <div className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur md:p-10">
-            <div className="mb-6 inline-flex rounded-full border border-purple-400/30 bg-purple-500/10 px-5 py-2 text-sm font-bold text-purple-100">{agencyName}</div>
+            <div className="mb-6 inline-flex rounded-full border border-purple-400/30 bg-purple-500/10 px-5 py-2 text-sm font-bold text-purple-100"><PublicAgencyName value={agencyName} /></div>
             <h1 className="text-5xl font-black leading-tight md:text-7xl"><CmsPublishedText sourceKey="knowledge-center-page" field="title" fallback={title} /><span className="block bg-gradient-to-r from-purple-300 via-white to-yellow-300 bg-clip-text text-transparent"><CmsPublishedText sourceKey="knowledge-intro" field="summary" fallback={knowledgeIntro.subtitle} /></span></h1>
             <p className="mt-8 max-w-5xl text-xl leading-10 text-white/75">{hasPageContent ? <CmsPublishedText sourceKey="knowledge-center-page" field="content" fallback={page?.content || ""} /> : <CmsPublishedText sourceKey="knowledge-intro" field="content" fallback={knowledgeIntro.content} />}</p>
           </div>

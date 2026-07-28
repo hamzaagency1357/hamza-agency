@@ -7,6 +7,9 @@ import {
   hasCompletePublishedTranslation,
   readPublishedTranslations,
 } from "@/lib/i18n/publishedTranslations";
+import { getLanguageDirection } from "@/lib/i18n/locale";
+import { sanitizeMarketingCopy } from "@/lib/i18n/marketingSafety";
+import { translateSiteRuntimeText } from "@/lib/i18n/siteRuntimeTranslations";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
 export type CmsPublishedTranslationField = "title" | "summary" | "content";
@@ -234,21 +237,27 @@ export function CmsPublishedText({
   const source = context?.sources[sourceKey];
   const translatedValue = context?.completeTranslations[sourceKey]?.[field]?.trim();
   const arabicFallback = source?.fallback[field] || fallback || "";
-  const usesPublishedTranslation = Boolean(translatedValue);
-  const text = normalizeHomeHeroTitle(sourceKey, field, translatedValue || arabicFallback);
+  const language = context?.language || "ar";
+  const localizedFallback = translateSiteRuntimeText(arabicFallback, language);
+  const text = sanitizeMarketingCopy(
+    normalizeHomeHeroTitle(
+      sourceKey,
+      field,
+      translatedValue || localizedFallback
+    ),
+    language
+  );
 
   /* The homepage public H1 already renders home-page.title.
      Render the legacy highlighted brand line visually outside the H1. */
   if (sourceKey === "home-hero" && field === "title") {
-    const language = context?.language || "ar";
-
     return <HomeHeroBrandLine language={language} className={className} />;
   }
 
   return (
     <span
-      dir={usesPublishedTranslation ? "ltr" : "rtl"}
-      lang={usesPublishedTranslation ? context?.language : "ar"}
+      dir={getLanguageDirection(language)}
+      lang={language}
       className={className}
     >
       {text}

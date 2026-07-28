@@ -12,6 +12,8 @@ import {
   usePublishedProgramDetailsTranslation,
 } from "@/lib/i18n/programDetailsReader";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { localizeDynamicPublicCopy } from "@/lib/i18n/localizeDynamicPublicCopy";
+import { localizePublicPath } from "@/lib/i18n/publicLocales";
 
 type Program = {
   id: number;
@@ -75,7 +77,7 @@ const programVisuals: Record<string, ProgramVisual> = {
     variant: "bigo",
     accent: "#38bdf8",
     secondary: "#a855f7",
-    badge: "بث مباشر • لايف • دعم يومي",
+    badge: "بث مباشر • لايف • دعم ومتابعة",
     fallbackDescription:
       "برنامج BIGO LIVE مناسب لصناع المحتوى المهتمين بالبث المباشر، بناء جمهور نشط، وتحسين طريقة الظهور والتفاعل داخل اللايف.",
     fallbackRequirements:
@@ -255,7 +257,7 @@ export default function ProgramDetailsPage() {
     void loadProgramPageData();
   }, [slug]);
 
-  const language = isComplete ? requestedLanguage : "ar";
+  const language = requestedLanguage;
   const copy = programDetailsCopy[language];
   const notFoundCopy = programDetailsCopy[requestedLanguage];
   const visual = useMemo(() => programVisuals[slug] || defaultVisual, [slug]);
@@ -328,24 +330,52 @@ export default function ProgramDetailsPage() {
         <section className="relative z-20 mx-auto max-w-5xl">
           <h1 className="text-4xl font-black">{notFoundCopy.notFoundTitle}</h1>
           <p className="mt-5 max-w-2xl leading-8 text-white/65">{notFoundCopy.notFoundDescription}</p>
-          <Link href="/programs" className="mt-8 inline-block text-purple-300">{notFoundCopy.back}</Link>
+          <Link href={localizePublicPath("/programs", requestedLanguage)} className="mt-8 inline-block text-purple-300">{notFoundCopy.back}</Link>
         </section>
       </main>
     );
   }
 
   const isBrandProgram = ["tiktok", "bigo-live", "yaahlan", "xena", "catchii"].includes(program.slug);
-  const displayName = isComplete && !isBrandProgram ? translations.title || program.name : program.name;
-  const displayDescription = isComplete
-    ? translations.content || translations.summary || program.description || program.short_description || visual.fallbackDescription
-    : program.description || program.short_description || visual.fallbackDescription;
-  const displayRequirements = isComplete ? translations.requirements || visual.fallbackRequirements : program.requirements || visual.fallbackRequirements;
-  const displayBenefits = isComplete ? translations.benefits || visual.fallbackBenefits : program.benefits || visual.fallbackBenefits;
-  const displayUpdates = isComplete ? translations.updates || visual.fallbackUpdates : program.updates || visual.fallbackUpdates;
-  const displayFaq = isComplete ? translations.faq || visual.fallbackFaq : program.faq || visual.fallbackFaq;
+  const localize = (value: string | null | undefined) =>
+    localizeDynamicPublicCopy(value, requestedLanguage);
+  const displayName = isBrandProgram
+    ? program.name
+    : localize(isComplete ? translations.title || program.name : program.name);
+  const displayDescription = localize(
+    isComplete
+      ? translations.content ||
+          translations.summary ||
+          program.description ||
+          program.short_description ||
+          visual.fallbackDescription
+      : program.description ||
+          program.short_description ||
+          visual.fallbackDescription
+  );
+  const displayRequirements = localize(
+    isComplete
+      ? translations.requirements || visual.fallbackRequirements
+      : program.requirements || visual.fallbackRequirements
+  );
+  const displayBenefits = localize(
+    isComplete
+      ? translations.benefits || visual.fallbackBenefits
+      : program.benefits || visual.fallbackBenefits
+  );
+  const displayUpdates = localize(
+    isComplete
+      ? translations.updates || visual.fallbackUpdates
+      : program.updates || visual.fallbackUpdates
+  );
+  const displayFaq = localize(
+    isComplete
+      ? translations.faq || visual.fallbackFaq
+      : program.faq || visual.fallbackFaq
+  );
   const statusLabel = program.status === "limited" ? copy.limited : program.status === "paused" ? copy.paused : copy.available;
   const visualBadge =
-    isComplete && requestedLanguage !== "ar"
+    requestedLanguage !== "ar"
       ? (translatedVisualBadges[slug as keyof typeof translatedVisualBadges] || translatedVisualBadges.default)[requestedLanguage]
       : visual.badge;
 
@@ -359,7 +389,7 @@ export default function ProgramDetailsPage() {
       <ProgramBackground media={backgroundMedia} visual={visual} />
 
       <section className="relative z-20 mx-auto max-w-6xl px-5 py-14">
-        <Link href="/programs" className="mb-8 inline-block text-purple-200">{copy.back}</Link>
+        <Link href={localizePublicPath("/programs", requestedLanguage)} className="mb-8 inline-block text-purple-200">{copy.back}</Link>
 
         <div className="relative overflow-hidden rounded-[2rem] border border-purple-400/20 bg-black/40 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur">
           <div className="absolute inset-0 -z-10 bg-gradient-to-br from-white/[0.04] via-transparent to-purple-500/5" />

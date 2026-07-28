@@ -1,4 +1,6 @@
 import type { SiteLanguage } from "@/lib/i18n/locale";
+import { sanitizeMarketingCopy } from "@/lib/i18n/marketingSafety";
+import { stripLocalePrefix } from "@/lib/i18n/publicLocales";
 
 export type RuntimeTranslationEntry = readonly [source: string, english: string, turkish: string];
 
@@ -54,14 +56,14 @@ const entries: RuntimeTranslationEntry[] = [
   ["وكالة حمزة منصة وكالة متخصصة في تنظيم ودعم صناع المحتوى على برامج ومنصات البث والتواصل.", "HAMZA AGENCY is a specialized platform for organizing and supporting content creators across live-streaming and social platforms.", "HAMZA AGENCY, canlı yayın ve sosyal platformlarda içerik üreticilerini organize eden ve destekleyen uzman bir ajans platformudur."],
 
   // Home page and core brand copy
-  ["وكالة عالمية محترفة لإدارة صناع المحتوى", "A Professional Global Agency for Content Creators", "İçerik Üreticileri İçin Profesyonel Global Ajans"],
+  ["وكالة احترافية لإدارة صناع المحتوى", "A Professional Agency for Content Creators", "İçerik Üreticileri İçin Profesyonel Ajans"],
   ["وكالة حمزة لإدارة وتطوير صناع المحتوى", "HAMZA AGENCY for Managing and Developing Content Creators", "İçerik Üreticilerini Yöneten ve Geliştiren HAMZA AGENCY"],
-  ["نساعد صناع المحتوى على النمو وتحقيق الأرباح على منصات البث المباشر والتواصل الاجتماعي من خلال إدارة احترافية، دعم يومي، وفرص حقيقية للتطور.", "We help content creators grow and earn across live-streaming and social platforms through professional management, daily support, and genuine development opportunities.", "İçerik üreticilerinin profesyonel yönetim, günlük destek ve gerçek gelişim fırsatlarıyla canlı yayın ve sosyal platformlarda büyümesine ve gelir elde etmesine yardımcı oluyoruz."],
+  ["نساعد صناع المحتوى على تطوير حضورهم وتحسين فرص النجاح والنمو على منصات البث المباشر والتواصل الاجتماعي من خلال إدارة احترافية ودعم ومتابعة وفرص متجددة للتطور.", "We help content creators strengthen their presence and improve their opportunities for success and growth across live-streaming and social platforms through professional management, support, follow-up, and renewed development opportunities.", "İçerik üreticilerinin profesyonel yönetim, destek, takip ve yenilenen gelişim fırsatlarıyla canlı yayın ve sosyal platformlarda görünürlüğünü güçlendirmesine, başarı ve büyüme olanaklarını geliştirmesine yardımcı oluyoruz."],
   ["انضم الآن", "Join Now", "Şimdi Katıl"],
   ["صانع محتوى", "Content Creators", "İçerik Üreticisi"],
   ["منصات متاحة", "Available Platforms", "Mevcut Platformlar"],
   ["دعم ومتابعة", "Support and Follow-up", "Destek ve Takip"],
-  ["فرصة نجاح شهرية", "Monthly Success Opportunities", "Aylık Başarı Fırsatı"],
+  ["فرص شهرية متجددة", "Renewed Monthly Opportunities", "Yenilenen Aylık Fırsatlar"],
   ["البرامج المتاحة حالياً", "Programs Currently Available", "Şu Anda Açık Programlar"],
   ["اختر البرنامج المناسب لك لعرض التفاصيل الكاملة، الشروط، نظام العمل، وما تقدمه وكالة حمزة.", "Choose the right program to view full details, requirements, the operating model, and what HAMZA AGENCY provides.", "Tüm detayları, şartları, çalışma modelini ve HAMZA AGENCY'nin sunduklarını görmek için size uygun programı seçin."],
   ["برنامج مناسب لصناع المحتوى الراغبين بالنمو على TikTok.", "A program for content creators who want to grow on TikTok.", "TikTok'ta büyümek isteyen içerik üreticileri için bir program."],
@@ -71,7 +73,7 @@ const entries: RuntimeTranslationEntry[] = [
   ["برنامج متاح لصناع المحتوى ضمن وكالة حمزة.", "A content creator program available through HAMZA AGENCY.", "HAMZA AGENCY kapsamında içerik üreticilerine açık bir program."],
   ["لماذا وكالة حمزة؟", "Why HAMZA AGENCY?", "Neden HAMZA AGENCY?"],
   ["إدارة احترافية لصناع المحتوى", "Professional management for content creators", "İçerik üreticileri için profesyonel yönetim"],
-  ["دعم فني ومتابعة يومية", "Technical support and daily follow-up", "Teknik destek ve günlük takip"],
+  ["دعم فني ومتابعة يومية", "Technical support and follow-up", "Teknik destek ve takip"],
   ["تطوير الحسابات وتحسين الأداء", "Account growth and performance improvement", "Hesap geliştirme ve performans iyileştirme"],
   ["فرص انضمام لبرامج متعددة", "Opportunities across multiple programs", "Birden fazla programa katılım fırsatı"],
   ["تدريب وإرشاد مستمر", "Ongoing training and guidance", "Sürekli eğitim ve rehberlik"],
@@ -171,7 +173,7 @@ const entries: RuntimeTranslationEntry[] = [
 
   // Program detail fallback content and form copy
   ["فيديوهات قصيرة • صناع محتوى • نمو سريع", "Short Videos • Content Creators • Fast Growth", "Kısa Videolar • İçerik Üreticileri • Hızlı Büyüme"],
-  ["بث مباشر • لايف • دعم يومي", "Live Streaming • Live • Daily Support", "Canlı Yayın • Günlük Destek"],
+  ["بث مباشر • لايف • دعم يومي", "Live Streaming • Live • Support and Follow-up", "Canlı Yayın • Destek ve Takip"],
   ["مجتمع • تواصل • بث مباشر", "Community • Interaction • Live Streaming", "Topluluk • Etkileşim • Canlı Yayın"],
   ["Creator Program • مستقبل المحتوى • وكالة", "Creator Program • The Future of Content • Agency", "İçerik Üreticisi Programı • İçeriğin Geleceği • Ajans"],
   ["Social • Entertainment • Creator Growth", "Social • Entertainment • Creator Growth", "Sosyal • Eğlence • İçerik Üreticisi Büyümesi"],
@@ -293,6 +295,10 @@ const entries: RuntimeTranslationEntry[] = [
 
   // Reviews page
   ["تقييمات HAMZA AGENCY", "HAMZA AGENCY Reviews", "HAMZA AGENCY Değerlendirmeleri"],
+  ["تظهر هنا التقييمات المنشورة بعد مراجعتها.", "Published reviews appear here after review.", "Yayınlanmış değerlendirmeler incelendikten sonra burada görünür."],
+  ["تظهر هنا آراء منشورة من صناع المحتوى والعملاء بعد المراجعة.", "Published creator and client feedback appears here after review.", "Yayınlanan içerik üreticisi ve müşteri görüşleri incelendikten sonra burada görünür."],
+  ["تقييم منشور", "Published Review", "Yayınlanmış Değerlendirme"],
+  ["تقييم لتجربة تواصل واضحة ومتابعة طلب بدون تعقيد.", "Feedback about clear communication and uncomplicated request follow-up.", "Net iletişim ve kolay talep takibi hakkında değerlendirme."],
   ["تقييمات وكالة حمزة آراء وتجارب العملاء", "HAMZA AGENCY Reviews — Client Opinions and Experiences", "HAMZA AGENCY Değerlendirmeleri — Müşteri Görüşleri ve Deneyimleri"],
   ["هذه الصفحة مخصصة لعرض آراء صناع المحتوى والعملاء حول تجربة التواصل مع وكالة حمزة، متابعة الطلبات، والخدمات المقدمة.", "This page presents content creators' and clients' feedback about communication with HAMZA AGENCY, request follow-up, and the services provided.", "Bu sayfa içerik üreticilerinin ve müşterilerin HAMZA AGENCY ile iletişim, talep takibi ve sunulan hizmetler hakkındaki görüşlerini gösterir."],
   ["ملاحظة شفافة: التقييمات الظاهرة حالياً نماذج توضيحية لطريقة العرض. عند إضافة تقييمات حقيقية ومنشورة من لوحة الإدارة سيتم عرضها هنا بدلاً من هذه النماذج.", "Transparency note: The reviews currently shown are display samples. Once real reviews are approved and published through the dashboard, they will replace these samples.", "Şeffaflık notu: Şu anda gösterilen değerlendirmeler örnek sunumlardır. Gerçek değerlendirmeler yönetim panelinden onaylanıp yayınlandığında bu örneklerin yerini alacaktır."],
@@ -323,6 +329,7 @@ const entries: RuntimeTranslationEntry[] = [
 
   // Success stories page
   ["مسارات نجاح HAMZA AGENCY", "HAMZA AGENCY Success Journeys", "HAMZA AGENCY Başarı Yolculukları"],
+  ["تظهر القصص المنشورة والمعتمدة هنا عند توفرها.", "Approved published stories appear here as they become available.", "Onaylanmış hikâyeler kullanıma sunuldukça burada yayınlanır."],
   ["قصص ومسارات وكالة حمزة طريقة عمل واضحة ونتائج منظمة", "HAMZA AGENCY Stories and Journeys — A Clear Process and Organized Results", "HAMZA AGENCY Hikâyeleri ve Yolculukları — Net Süreç ve Düzenli Sonuçlar"],
   ["نعرض هنا نماذج من مسارات العمل التي تعتمدها وكالة حمزة لدعم صناع المحتوى والعملاء، من التقديم الأول إلى المتابعة والتنظيم واختيار البرنامج المناسب.", "Here we present examples of HAMZA AGENCY workflows for supporting creators and clients, from the initial application to follow-up, organization, and selecting the right program.", "Burada HAMZA AGENCY'nin içerik üreticilerini ve müşterileri desteklemek için kullandığı; ilk başvurudan takibe, organizasyona ve doğru programı seçmeye uzanan süreç örneklerini sunuyoruz."],
   ["ملاحظة شفافة: المحتوى الظاهر حالياً يشرح مسارات عمل عامة داخل الوكالة. عند اعتماد قصص منشورة من لوحة الإدارة سيتم عرضها هنا بدلاً من هذه النماذج.", "Transparency note: The current content explains general agency workflows. Once approved stories are published through the dashboard, they will replace these examples.", "Şeffaflık notu: Mevcut içerik ajans içindeki genel iş akışlarını açıklar. Yönetim panelinden onaylı hikâyeler yayınlandığında bu örneklerin yerini alacaktır."],
@@ -357,28 +364,28 @@ const entries: RuntimeTranslationEntry[] = [
   ["يمكنك تصفح البرامج المتاحة أو التواصل مع فريق الوكالة عبر واتساب للحصول على توجيه مناسب قبل التقديم.", "Browse the available programs or contact the agency team through WhatsApp for suitable guidance before applying.", "Mevcut programlara göz atabilir veya başvuru öncesi uygun yönlendirme almak için WhatsApp üzerinden ajans ekibiyle iletişime geçebilirsiniz."],
 
   // Partners page
-  ["شركاء HAMZA AGENCY", "HAMZA AGENCY Partners", "HAMZA AGENCY İş Ortakları"],
-  ["شركاؤنا وبرامجنا شبكة تعاون لصناعة المحتوى", "Our Partners and Programs — A Collaboration Network for Content Creation", "İş Ortaklarımız ve Programlarımız — İçerik Üretimi İçin İş Birliği Ağı"],
-  ["تعمل وكالة حمزة ضمن اتفاقات تعاون مع TikTok وBIGO LIVE وYaahlan وXena وCatchii، لتقديم مسارات منظمة تساعد صناع المحتوى على اختيار البرنامج المناسب وفهم خطوات العمل والمتابعة باحتراف.", "HAMZA AGENCY works through collaboration agreements with TikTok, BIGO LIVE, Yaahlan, Xena, and Catchii to provide organized paths that help creators choose the right program and understand professional working and follow-up steps.", "HAMZA AGENCY; içerik üreticilerinin doğru programı seçmesine ve profesyonel çalışma ile takip adımlarını anlamasına yardımcı olan düzenli yollar sunmak için TikTok, BIGO LIVE, Yaahlan, Xena ve Catchii ile iş birliği anlaşmaları kapsamında çalışır."],
+  ["برامج HAMZA AGENCY", "HAMZA AGENCY Programs", "HAMZA AGENCY Programları"],
+  ["البرامج والمنصات مسارات منظمة لصناعة المحتوى", "Programs and Platforms — Structured Paths for Content Creation", "Programlar ve Platformlar — İçerik Üretimi İçin Düzenli Yollar"],
+  ["تعرض وكالة حمزة مسارات متاحة عبر TikTok وBIGO LIVE وYaahlan وXena وCatchii، لمساعدة صناع المحتوى على فهم الخيارات واختيار البرنامج المناسب.", "HAMZA AGENCY presents paths across TikTok, BIGO LIVE, Yaahlan, Xena, and Catchii to help creators understand their options and choose a suitable program.", "HAMZA AGENCY, içerik üreticilerinin seçenekleri anlamasına ve uygun programı seçmesine yardımcı olmak için TikTok, BIGO LIVE, Yaahlan, Xena ve Catchii yollarını sunar."],
   ["برامج تعاون أساسية", "Core Collaboration Programs", "Temel İş Birliği Programları"],
   ["مسارات لصناع المحتوى", "Creator Pathways", "İçerik Üreticisi Yolları"],
   ["البرامج الرئيسية", "Core Programs", "Ana Programlar"],
-  ["اتفاقات تعاون تدعم مسار صناع المحتوى", "Collaboration Agreements that Support Creator Journeys", "İçerik Üreticisi Yolculuklarını Destekleyen İş Birlikleri"],
-  ["تعرض هذه الصفحة البرامج والمنصات التي تعمل معها وكالة حمزة ضمن مسارات تعاون منظمة، مع توجيه يساعد المتقدمين على معرفة البرنامج الأنسب لهم.", "This page presents the programs and platforms HAMZA AGENCY works with through organized collaborations, with guidance to help applicants identify the right program.", "Bu sayfa HAMZA AGENCY'nin düzenli iş birlikleri kapsamında çalıştığı programları ve platformları gösterir; başvuru sahiplerinin kendilerine uygun programı bulmasına yardımcı olur."],
-  ["اتفاق تعاون", "Collaboration Agreement", "İş Birliği Anlaşması"],
+  ["برامج تدعم مسار صناع المحتوى", "Programs Supporting Creator Journeys", "İçerik Üreticisi Yolculuğunu Destekleyen Programlar"],
+  ["تعرض هذه الصفحة البرامج والمنصات المتاحة ضمن مسارات منظمة، مع توجيه يساعد المتقدمين على معرفة البرنامج الأنسب لهم.", "This page presents available programs and platforms through structured paths, with guidance that helps applicants choose a suitable program.", "Bu sayfa, başvuru sahiplerinin kendilerine uygun seçeneği bulmasına yardımcı olan düzenli program ve platform yollarını sunar."],
+  ["مسار برنامج", "Program Path", "Program Yolu"],
   ["صناعة المحتوى والبث المباشر", "Content Creation and Live Streaming", "İçerik Üretimi ve Canlı Yayın"],
-  ["تعمل وكالة حمزة ضمن اتفاق تعاون مع TikTok لتنظيم مسار انضمام صناع المحتوى ومساعدتهم على معرفة البرنامج الأنسب لهم.", "HAMZA AGENCY collaborates with TikTok to organize the creator joining process and help applicants identify the program that suits them best.", "HAMZA AGENCY, içerik üreticilerinin katılım sürecini düzenlemek ve kendilerine en uygun programı bulmalarına yardımcı olmak için TikTok ile iş birliği yapar."],
+  ["يوضح مسار TikTok لصناع المحتوى خطوات فهم المتطلبات والتقديم والمتابعة المناسبة لكل حالة.", "The TikTok path explains the requirements, application steps, and suitable follow-up for content creators.", "TikTok yolu, içerik üreticileri için gereksinimleri, başvuru adımlarını ve uygun takip sürecini açıklar."],
   ["البث المباشر والتواصل الاجتماعي", "Live Streaming and Social Interaction", "Canlı Yayın ve Sosyal Etkileşim"],
-  ["ضمن اتفاقات التعاون الخاصة بالوكالة، يأتي BIGO LIVE كأحد المسارات المهمة لصناع المحتوى المهتمين بالبث المباشر وبناء حضور تفاعلي احترافي.", "Within the agency's collaborations, BIGO LIVE is an important pathway for creators interested in live streaming and building a professional interactive presence.", "Ajansın iş birlikleri kapsamında BIGO LIVE, canlı yayınla ilgilenen ve profesyonel, etkileşimli bir görünürlük oluşturmak isteyen içerik üreticileri için önemli bir yoldur."],
+  ["يمثل BIGO LIVE مساراً متاحاً لصناع المحتوى المهتمين بالبث المباشر وبناء حضور تفاعلي احترافي.", "BIGO LIVE is an available path for creators interested in live streaming and building a professional interactive presence.", "BIGO LIVE, canlı yayınla ilgilenen ve profesyonel, etkileşimli bir görünürlük oluşturmak isteyen içerik üreticileri için mevcut bir yoldur."],
   ["المجتمعات والتواصل المباشر", "Communities and Direct Interaction", "Topluluklar ve Doğrudan Etkileşim"],
-  ["تعمل وكالة حمزة مع Yaahlan ضمن مسار يركز على تنظيم انضمام صناع المحتوى ومساعدتهم على فهم طبيعة البرنامج وخطوات المتابعة المناسبة.", "HAMZA AGENCY works with Yaahlan through a path focused on organizing creator onboarding and helping applicants understand the program and its follow-up steps.", "HAMZA AGENCY, içerik üreticilerinin katılımını düzenlemeye ve başvuru sahiplerinin programın yapısını ve uygun takip adımlarını anlamasına odaklanan bir yol kapsamında Yaahlan ile çalışır."],
+  ["يركز مسار Yaahlan على مساعدة صناع المحتوى في فهم طبيعة البرنامج وخطوات التقديم والمتابعة.", "The Yaahlan path helps creators understand the program and its application and follow-up steps.", "Yaahlan yolu, içerik üreticilerinin programı, başvuru adımlarını ve takip sürecini anlamasına yardımcı olur."],
   ["برامج إضافية", "Additional Programs", "Ek Programlar"],
   ["خيارات أوسع حسب طبيعة المحتوى", "Broader Options Based on Content Type", "İçerik Türüne Göre Daha Geniş Seçenekler"],
   ["تمنح البرامج الإضافية الوكالة مرونة أكبر في توجيه صناع المحتوى وفق خبرتهم، نوع حضورهم، والمنصة الأنسب لطريقة عملهم.", "Additional programs give the agency greater flexibility to guide creators based on experience, presence style, and the platform that best fits their work.", "Ek programlar ajansa içerik üreticilerini deneyimlerine, görünürlük biçimlerine ve çalışma tarzlarına en uygun platforma göre yönlendirme konusunda daha fazla esneklik sağlar."],
   ["صناعة المحتوى والتفاعل", "Content Creation and Engagement", "İçerik Üretimi ve Etkileşim"],
-  ["يأتي Xena ضمن البرامج التي تعمل معها وكالة حمزة لتقديم خيارات متنوعة أمام صناع المحتوى، مع شرح واضح لطبيعة العمل وما يناسب كل متقدم.", "Xena is one of the programs HAMZA AGENCY works with to offer creators diverse options, with a clear explanation of the work and what suits each applicant.", "Xena, HAMZA AGENCY'nin içerik üreticilerine çeşitli seçenekler sunmak için çalıştığı programlardan biridir; çalışma yapısı ve her başvuru sahibine uygun seçenekler açıkça anlatılır."],
+  ["يقدم مسار Xena خياراً إضافياً لصناع المحتوى، مع شرح واضح لطبيعة العمل وما يناسب كل متقدم.", "The Xena path offers creators an additional option with a clear explanation of the work and what suits each applicant.", "Xena yolu, içerik üreticilerine çalışma yapısını ve kendilerine uygun seçeneği açıklayan ek bir yol sunar."],
   ["المحتوى الاجتماعي والبث", "Social Content and Streaming", "Sosyal İçerik ve Yayın"],
-  ["تعمل وكالة حمزة مع Catchii ضمن منظومة برامج لدعم صناع المحتوى، مع خيارات إضافية في مجال التواصل والبث والتفاعل الرقمي.", "HAMZA AGENCY works with Catchii within a creator support program ecosystem, offering additional options in communication, streaming, and digital interaction.", "HAMZA AGENCY, içerik üreticilerini destekleyen program ekosistemi kapsamında Catchii ile çalışır ve iletişim, yayın ve dijital etkileşim alanlarında ek seçenekler sunar."],
+  ["يقدم مسار Catchii خياراً لصناع المحتوى المهتمين بالتواصل والبث والتفاعل الرقمي.", "The Catchii path offers an option for creators interested in communication, streaming, and digital interaction.", "Catchii yolu, iletişim, yayın ve dijital etkileşimle ilgilenen içerik üreticileri için bir seçenek sunar."],
   ["طريقة العمل", "How It Works", "Çalışma Süreci"],
   ["كيف تساعدك وكالة حمزة في اختيار البرنامج المناسب؟", "How Does HAMZA AGENCY Help You Choose the Right Program?", "HAMZA AGENCY Doğru Programı Seçmenize Nasıl Yardımcı Olur?"],
   ["يعتمد اختيار البرنامج على نوع المحتوى والخبرة السابقة وأهداف الانضمام، لذلك نبدأ بفهم بيانات المتقدم ثم نوجهه للمسار الأقرب لاحتياجه.", "Program selection depends on content type, previous experience, and joining goals. We first understand the applicant's details and then guide them to the closest suitable path.", "Program seçimi içerik türüne, önceki deneyime ve katılım hedeflerine bağlıdır. Önce başvuru sahibinin bilgilerini anlar, ardından ihtiyaçlarına en uygun yola yönlendiririz."],
@@ -632,6 +639,8 @@ function normalize(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
+const arabicTextPattern = /[\u0600-\u06ff]/;
+
 const dictionary = new Map(
   entries.map(([source, english, turkish]) => [
     normalize(source),
@@ -640,13 +649,26 @@ const dictionary = new Map(
 );
 
 export function hasSiteRuntimeTranslation(value: string) {
-  return dictionary.has(normalize(value));
+  const safeSource = sanitizeMarketingCopy(value, "ar");
+  return dictionary.has(normalize(safeSource));
 }
 
 export function translateSiteRuntimeText(value: string, language: SiteLanguage) {
-  if (language === "ar") return value;
-  const translation = dictionary.get(normalize(value));
-  return translation?.[language] || value;
+  const safeSource = sanitizeMarketingCopy(value, "ar");
+  if (language === "ar") return safeSource;
+
+  const translation = dictionary.get(normalize(safeSource));
+  if (translation?.[language]) {
+    return sanitizeMarketingCopy(translation[language], language);
+  }
+
+  if (arabicTextPattern.test(safeSource)) {
+    return language === "tr"
+      ? "Yerelleştirilmiş içerik güncelleniyor."
+      : "Localized content is being updated.";
+  }
+
+  return sanitizeMarketingCopy(safeSource, language);
 }
 
 export type RuntimeRouteMetadata = {
@@ -662,12 +684,12 @@ const routeMetadata: Record<
     en: {
       title: "HAMZA AGENCY | Content Creator Management",
       description:
-        "Professional management, daily support, and growth opportunities for content creators across live-streaming and social platforms.",
+        "Professional management, support, follow-up, and growth opportunities for content creators across live-streaming and social platforms.",
     },
     tr: {
       title: "HAMZA AGENCY | İçerik Üreticisi Yönetimi",
       description:
-        "Canlı yayın ve sosyal platformlarda içerik üreticileri için profesyonel yönetim, günlük destek ve büyüme fırsatları.",
+        "Canlı yayın ve sosyal platformlarda içerik üreticileri için profesyonel yönetim, destek, takip ve büyüme fırsatları.",
     },
   },
   "/about": {
@@ -680,6 +702,18 @@ const routeMetadata: Record<
       title: "HAMZA AGENCY Hakkında",
       description:
         "HAMZA AGENCY'nin programları nasıl düzenlediğini, içerik üreticilerini nasıl desteklediğini ve başvuruları ölçeklenebilir ajans platformuyla nasıl yönettiğini öğrenin.",
+    },
+  },
+  "/apply": {
+    en: {
+      title: "Apply to Join | HAMZA AGENCY",
+      description:
+        "Choose the right creator program and start a clear, secure application to join HAMZA AGENCY.",
+    },
+    tr: {
+      title: "Katılım Başvurusu | HAMZA AGENCY",
+      description:
+        "Size uygun içerik üreticisi programını seçin ve HAMZA AGENCY'ye katılmak için açık ve güvenli bir başvuru başlatın.",
     },
   },
   "/programs": {
@@ -782,12 +816,12 @@ const routeMetadata: Record<
   },
   "/partners": {
     en: {
-      title: "Partners and Programs | HAMZA AGENCY",
-      description: "Explore HAMZA AGENCY collaboration programs across TikTok, BIGO LIVE, Yaahlan, Xena, and Catchii.",
+      title: "Programs and Platforms | HAMZA AGENCY",
+      description: "Explore TikTok, BIGO LIVE, Yaahlan, Xena, and Catchii paths and choose a suitable program.",
     },
     tr: {
-      title: "İş Ortakları ve Programlar | HAMZA AGENCY",
-      description: "TikTok, BIGO LIVE, Yaahlan, Xena ve Catchii kapsamındaki HAMZA AGENCY iş birliği programlarını keşfedin.",
+      title: "Programlar ve Platformlar | HAMZA AGENCY",
+      description: "TikTok, BIGO LIVE, Yaahlan, Xena ve Catchii yollarını inceleyin ve uygun bir program seçin.",
     },
   },
   "/gallery": {
@@ -889,11 +923,11 @@ const programMetadata: Record<
   "bigo-live": {
     en: {
       title: "BIGO LIVE Creator Program | HAMZA AGENCY",
-      description: "Join the HAMZA AGENCY BIGO LIVE program for live-stream guidance, audience engagement, and daily support.",
+      description: "Explore the HAMZA AGENCY BIGO LIVE program for live-stream guidance, audience engagement, support, and follow-up.",
     },
     tr: {
       title: "BIGO LIVE İçerik Üreticisi Programı | HAMZA AGENCY",
-      description: "Canlı yayın rehberi, izleyici etkileşimi ve günlük destek için HAMZA AGENCY BIGO LIVE programına katılın.",
+      description: "Canlı yayın rehberi, izleyici etkileşimi, destek ve takip için HAMZA AGENCY BIGO LIVE programını inceleyin.",
     },
   },
   yaahlan: {
@@ -933,7 +967,7 @@ export function getSiteRuntimeMetadata(
   language: SiteLanguage
 ): RuntimeRouteMetadata | null {
   if (language === "ar") return null;
-  const normalizedPath = pathname.replace(/\/$/, "") || "/";
+  const normalizedPath = stripLocalePrefix(pathname);
   const programMatch = normalizedPath.match(/^\/programs\/([^/]+)$/);
   if (programMatch) {
     return programMetadata[programMatch[1]]?.[language] || null;

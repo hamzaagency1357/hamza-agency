@@ -8,6 +8,7 @@ import {
   type PublishedTranslationMap,
 } from "@/lib/i18n/publishedTranslations";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
+import { localizeDynamicPublicCopy } from "@/lib/i18n/localizeDynamicPublicCopy";
 
 const FAQ_TRANSLATION_FIELDS = ["title", "summary", "content"] as const;
 
@@ -71,10 +72,25 @@ export default function FaqListWithTranslations({ faqs }: { faqs: FaqItem[] }) {
 
       return {
         id: faq.id,
-        question: hasPublishedTranslation ? translation?.title || "" : faq.question || "سؤال شائع",
-        answer: hasPublishedTranslation ? translation?.content || "" : faq.answer || "الإجابة غير متوفرة حالياً.",
-        category: hasPublishedTranslation ? translation?.summary || "" : faq.category || "أسئلة عامة",
-        direction: hasPublishedTranslation && language !== "ar" ? "ltr" : "rtl",
+        question: localizeDynamicPublicCopy(
+          hasPublishedTranslation
+            ? translation?.title
+            : faq.question || "سؤال شائع",
+          language
+        ),
+        answer: localizeDynamicPublicCopy(
+          hasPublishedTranslation
+            ? translation?.content
+            : faq.answer || "الإجابة غير متوفرة حالياً.",
+          language
+        ),
+        category: localizeDynamicPublicCopy(
+          hasPublishedTranslation
+            ? translation?.summary
+            : faq.category || "أسئلة عامة",
+          language
+        ),
+        direction: language === "ar" ? "rtl" : "ltr",
       };
     });
 

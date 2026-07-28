@@ -1,16 +1,16 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
-  applySiteLanguage,
   getLanguageDirection,
-  getStoredSiteLanguage,
   setStoredSiteLanguage,
   SITE_LANGUAGES,
   type SiteLanguage,
 } from "@/lib/i18n/locale";
+import { localizePublicPath } from "@/lib/i18n/publicLocales";
 import { getStaticCopy } from "@/lib/i18n/staticCopy";
+import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
 const scopeCopy: Record<SiteLanguage, string> = {
   ar: "تم تفعيل الترجمة الكاملة للصفحات العامة والمحتوى والنماذج إلى العربية والإنجليزية والتركية.",
@@ -18,26 +18,31 @@ const scopeCopy: Record<SiteLanguage, string> = {
   tr: "Genel sayfalar, içerikler ve formlar için Arapça, İngilizce ve Türkçe tam çeviri etkindir.",
 };
 
+const languageNames: Record<
+  SiteLanguage,
+  Record<SiteLanguage, string>
+> = {
+  ar: { ar: "العربية", en: "الإنجليزية", tr: "التركية" },
+  en: { ar: "Arabic", en: "English", tr: "Turkish" },
+  tr: { ar: "Arapça", en: "İngilizce", tr: "Türkçe" },
+};
+
 export default function LanguageSwitcher() {
   const pathname = usePathname();
-  const [language, setLanguage] = useState<SiteLanguage>("ar");
-  const [isReady, setIsReady] = useState(false);
+  const language = useSiteLanguage();
   const [showScope, setShowScope] = useState(false);
   const copy = (key: Parameters<typeof getStaticCopy>[1]) => getStaticCopy(language, key);
 
-  useEffect(() => {
-    const preferredLanguage = getStoredSiteLanguage();
-    setLanguage(preferredLanguage);
-    applySiteLanguage(preferredLanguage);
-    setIsReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isReady) return;
-    setStoredSiteLanguage(language);
-  }, [language, isReady]);
-
   if (pathname.startsWith("/admin") || pathname === "/maintenance") return null;
+
+  function changeLanguage(nextLanguage: SiteLanguage) {
+    if (nextLanguage === language) return;
+
+    setStoredSiteLanguage(nextLanguage);
+    window.location.assign(
+      `${localizePublicPath(pathname, nextLanguage)}${window.location.search}${window.location.hash}`
+    );
+  }
 
   return (
     <div
@@ -66,8 +71,9 @@ export default function LanguageSwitcher() {
               <button
                 key={item.code}
                 type="button"
-                onClick={() => setLanguage(item.code)}
-                aria-label={`${copy("languageSwitcherLabel")}: ${item.label}`}
+                onClick={() => changeLanguage(item.code)}
+                aria-label={`${copy("languageSwitcherLabel")}: ${languageNames[language][item.code]}`}
+                aria-current={active ? "page" : undefined}
                 className={`rounded-full px-3 py-2 text-xs font-black transition ${
                   active
                     ? "bg-gradient-to-r from-purple-600 to-yellow-500 text-white shadow-[0_0_22px_rgba(168,85,247,0.28)]"

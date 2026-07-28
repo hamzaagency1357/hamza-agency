@@ -7,6 +7,7 @@ import {
   type PublishedTranslationMap,
 } from "@/lib/i18n/publishedTranslations";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
+import { localizeDynamicPublicCopy } from "@/lib/i18n/localizeDynamicPublicCopy";
 
 export type JobTranslationRecord = {
   id: number | null;
@@ -58,24 +59,28 @@ function localizeJob<T extends JobTranslationRecord>(
   language: "ar" | "en" | "tr"
 ): T {
   const required = activeFields(job);
-  if (
-    language === "ar" ||
-    job.id === null ||
-    required.length === 0 ||
-    !hasCompletePublishedTranslation(translations, required)
-  ) {
+  if (language === "ar" || required.length === 0) {
     return job;
   }
 
+  const hasTranslation =
+    job.id !== null &&
+    hasCompletePublishedTranslation(translations, required);
+  const value = (field: JobTranslationField) =>
+    localizeDynamicPublicCopy(
+      hasTranslation ? translations?.[field] : fieldValue(job, field),
+      language
+    );
+
   return {
     ...job,
-    title: translations?.title || job.title,
-    department: translations?.department || job.department,
-    location: translations?.location || job.location,
-    job_type: translations?.job_type || job.job_type,
-    short_description: translations?.summary || job.short_description,
-    description: translations?.content || job.description,
-    requirements: translations?.requirements || job.requirements,
+    title: value("title"),
+    department: value("department"),
+    location: value("location"),
+    job_type: value("job_type"),
+    short_description: value("summary"),
+    description: value("content"),
+    requirements: value("requirements"),
   };
 }
 

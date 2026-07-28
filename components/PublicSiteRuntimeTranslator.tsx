@@ -1,8 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 import type { SiteLanguage } from "@/lib/i18n/locale";
+import { stripLocalePrefix } from "@/lib/i18n/publicLocales";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 import {
   getSiteRuntimeMetadata,
@@ -43,7 +44,7 @@ const attributeState = new WeakMap<Element, Map<AttributeName, AttributeState>>(
 const originalMetadataByPath = new Map<string, OriginalMetadata>();
 
 function normalizePathname(pathname: string) {
-  return pathname.replace(/\/$/, "") || "/";
+  return stripLocalePrefix(pathname);
 }
 
 function isPublicRoute(pathname: string) {
@@ -231,12 +232,13 @@ export default function PublicSiteRuntimeTranslator() {
   const pathname = usePathname();
   const language = useSiteLanguage();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isPublicRoute(pathname)) return;
 
     const root = document.body;
     translateSubtree(root, language);
     updateLocalizedMetadata(pathname, language);
+    root.dataset.runtimeTranslationReady = "true";
 
     let scheduled = false;
     const pendingNodes = new Set<Node>();
@@ -274,7 +276,10 @@ export default function PublicSiteRuntimeTranslator() {
       attributeFilter: [...TRANSLATABLE_ATTRIBUTES],
     });
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      delete root.dataset.runtimeTranslationReady;
+    };
   }, [language, pathname]);
 
   return null;

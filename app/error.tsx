@@ -2,6 +2,33 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { getLanguageDirection } from "@/lib/i18n/locale";
+import { localizePublicPath } from "@/lib/i18n/publicLocales";
+import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
+
+const copy = {
+  ar: {
+    title: "حدث خطأ غير متوقع",
+    description:
+      "نعتذر عن هذا الخلل المؤقت. يمكنك إعادة المحاولة أو العودة إلى الصفحة الرئيسية.",
+    retry: "إعادة المحاولة",
+    home: "العودة للرئيسية",
+  },
+  en: {
+    title: "Something unexpected happened",
+    description:
+      "Sorry for the temporary issue. Try again or return to the home page.",
+    retry: "Try again",
+    home: "Back to home",
+  },
+  tr: {
+    title: "Beklenmeyen bir sorun oluştu",
+    description:
+      "Bu geçici sorun için üzgünüz. Tekrar deneyebilir veya ana sayfaya dönebilirsiniz.",
+    retry: "Tekrar dene",
+    home: "Ana sayfaya dön",
+  },
+};
 
 export default function Error({
   error,
@@ -10,13 +37,17 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const language = useSiteLanguage();
+  const text = copy[language];
+
   useEffect(() => {
     console.error("Application error:", error);
   }, [error]);
 
   return (
     <main
-      dir="rtl"
+      dir={getLanguageDirection(language)}
+      lang={language}
       className="flex min-h-screen items-center justify-center bg-[#050008] px-5 py-16 text-white"
     >
       <section className="w-full max-w-2xl rounded-[2rem] border border-purple-400/20 bg-white/[0.04] p-8 text-center shadow-[0_0_80px_rgba(124,58,237,0.18)] backdrop-blur">
@@ -29,11 +60,11 @@ export default function Error({
         </p>
 
         <h1 className="mt-4 text-3xl font-black md:text-5xl">
-          حدث خطأ غير متوقع
+          {text.title}
         </h1>
 
         <p className="mx-auto mt-5 max-w-xl leading-8 text-white/65">
-          نعتذر عن هذا الخلل المؤقت. يمكنك إعادة المحاولة أو العودة إلى الصفحة الرئيسية.
+          {text.description}
         </p>
 
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
@@ -41,14 +72,14 @@ export default function Error({
             onClick={reset}
             className="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-7 py-3 font-black text-white shadow-[0_0_35px_rgba(168,85,247,0.25)]"
           >
-            إعادة المحاولة
+            {text.retry}
           </button>
 
           <Link
-            href="/"
+            href={localizePublicPath("/", language)}
             className="rounded-full border border-white/15 bg-white/[0.04] px-7 py-3 font-black text-white/80 transition hover:border-purple-300/50 hover:text-white"
           >
-            العودة للرئيسية
+            {text.home}
           </Link>
         </div>
       </section>

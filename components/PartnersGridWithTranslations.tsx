@@ -10,6 +10,7 @@ import {
   type PublishedTranslationMap,
 } from "@/lib/i18n/publishedTranslations";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
+import { localizeDynamicPublicCopy } from "@/lib/i18n/localizeDynamicPublicCopy";
 
 export type PartnerTranslationItem = {
   id: string | number;
@@ -25,9 +26,9 @@ export type PartnerTranslationItem = {
 type PartnerFields = "title" | "summary" | "content";
 
 const cardCopy = {
-  ar: { agreement: "اتفاق تعاون" },
-  en: { agreement: "Partnership agreement" },
-  tr: { agreement: "İş birliği anlaşması" },
+  ar: { agreement: "مسار برنامج" },
+  en: { agreement: "Program path" },
+  tr: { agreement: "Program yolu" },
 };
 
 export default function PartnersGridWithTranslations({
@@ -117,14 +118,21 @@ export default function PartnersGridWithTranslations({
     const hasPublishedTranslation =
       language !== "ar" &&
       hasCompletePublishedTranslation(translations, ["title", "summary", "content"]);
-    const name = hasPublishedTranslation ? translations?.title || partner.name : partner.name;
-    const category = hasPublishedTranslation
-      ? translations?.summary || partner.category
-      : partner.category;
-    const description = hasPublishedTranslation
-      ? translations?.content || partner.description
-      : partner.description;
-    const agreement = language === "ar" ? partner.agreementLabel || cardCopy.ar.agreement : cardCopy[language].agreement;
+    const name = localizeDynamicPublicCopy(
+      hasPublishedTranslation ? translations?.title : partner.name,
+      language
+    );
+    const category = localizeDynamicPublicCopy(
+      hasPublishedTranslation ? translations?.summary : partner.category,
+      language
+    );
+    const description = localizeDynamicPublicCopy(
+      hasPublishedTranslation
+        ? translations?.content
+        : partner.description,
+      language
+    );
+    const agreement = cardCopy[language].agreement;
 
     return (
       <article

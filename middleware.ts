@@ -1,4 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  isSiteLanguage,
+  type SiteLanguage,
+} from "@/lib/i18n/locale";
+import {
+  isSupportedPublicPath,
+  localizePublicPath,
+  splitLocalizedPathname,
+} from "@/lib/i18n/publicLocales";
 
 type MaintenanceSetting = {
   setting_key: string | null;
@@ -22,21 +31,78 @@ const publicAssetPattern = /\.(?:css|js|map|png|jpg|jpeg|gif|webp|svg|ico|txt|xm
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const forwardedLanguage = request.headers.get("x-site-locale");
+  const forwardedPath = request.headers.get("x-site-path");
 
-  if (shouldSkipMaintenanceCheck(pathname)) {
-    return NextResponse.next();
+  // A locale rewrite can pass through middleware again at its destination.
+  // Preserve the original request context instead of reclassifying the
+  // rewritten unprefixed path as Arabic.
+  if (
+    isSiteLanguage(forwardedLanguage) &&
+    forwardedPath &&
+    forwardedPath !== pathname
+  ) {
+    return NextResponse.next({
+      request: {
+        headers: new Headers(request.headers),
+      },
+    });
+  }
+
+  const localizedPath = splitLocalizedPathname(pathname);
+  const hasLocalePrefix = localizedPath.language !== "ar";
+  const publicPath = localizedPath.publicPath;
+
+  if (hasLocalePrefix && !isSupportedPublicPath(publicPath)) {
+    const fallbackUrl = request.nextUrl.clone();
+    fallbackUrl.pathname = `/${localizedPath.language}`;
+    fallbackUrl.search = "";
+    return NextResponse.redirect(fallbackUrl);
+  }
+
+  if (!hasLocalePrefix && isSupportedPublicPath(publicPath)) {
+    const savedLanguage = request.cookies.get("hamza-agency-language")?.value;
+
+    if (isSiteLanguage(savedLanguage) && savedLanguage !== "ar") {
+      const localizedUrl = request.nextUrl.clone();
+      localizedUrl.pathname = localizePublicPath(publicPath, savedLanguage);
+      return NextResponse.redirect(localizedUrl);
+    }
+  }
+
+  const language = localizedPath.language;
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-site-locale", language);
+  requestHeaders.set("x-site-path", pathname);
+
+  if (shouldSkipMaintenanceCheck(publicPath)) {
+    return createLocalizedResponse({
+      request,
+      requestHeaders,
+      publicPath,
+      language,
+      shouldRewrite: hasLocalePrefix,
+    });
   }
 
   const maintenance = await getMaintenanceSettings();
 
   if (!maintenance.enabled) {
-    return NextResponse.next();
+    return createLocalizedResponse({
+      request,
+      requestHeaders,
+      publicPath,
+      language,
+      shouldRewrite: hasLocalePrefix,
+    });
   }
 
   return new NextResponse(
     renderMaintenanceHtml({
-      agencyName: maintenance.agencyName,
-      message: maintenance.message,
+      language,
+      agencyName:
+        language === "ar" ? maintenance.agencyName : "HAMZA AGENCY",
+      message: language === "ar" ? maintenance.message : undefined,
       whatsapp: maintenance.whatsapp,
       showWhatsapp: maintenance.showWhatsapp,
     }),
@@ -49,6 +115,38 @@ export async function middleware(request: NextRequest) {
       },
     }
   );
+}
+
+function createLocalizedResponse({
+  request,
+  requestHeaders,
+  publicPath,
+  language,
+  shouldRewrite,
+}: {
+  request: NextRequest;
+  requestHeaders: Headers;
+  publicPath: string;
+  language: SiteLanguage;
+  shouldRewrite: boolean;
+}) {
+  const response = shouldRewrite
+    ? NextResponse.rewrite(
+        new URL(`${publicPath}${request.nextUrl.search}`, request.url),
+        { request: { headers: requestHeaders } }
+      )
+    : NextResponse.next({ request: { headers: requestHeaders } });
+
+  if (isSupportedPublicPath(publicPath)) {
+    response.cookies.set("hamza-agency-language", language, {
+      maxAge: 60 * 60 * 24 * 365,
+      path: "/",
+      sameSite: "lax",
+      secure: request.nextUrl.protocol === "https:",
+    });
+  }
+
+  return response;
 }
 
 function shouldSkipMaintenanceCheck(pathname: string) {
@@ -125,26 +223,60 @@ function isTruthy(value: string) {
 }
 
 function renderMaintenanceHtml({
+  language,
   agencyName,
   message,
   whatsapp,
   showWhatsapp,
 }: {
+  language: SiteLanguage;
   agencyName: string;
-  message: string;
+  message?: string;
   whatsapp: string;
   showWhatsapp: boolean;
 }) {
+  const copy = {
+    ar: {
+      title: "وضع الصيانة",
+      headingBefore: "الموقع قيد",
+      headingHighlight: "الصيانة",
+      message: "نعمل حالياً على تحسين الموقع. يرجى المحاولة مرة أخرى قريباً.",
+      whatsapp: "تواصل واتساب",
+      refresh: "تحديث الصفحة",
+      note: "تتم إدارة وضع الصيانة بأمان من لوحة تحكم وكالة حمزة.",
+    },
+    en: {
+      title: "Maintenance",
+      headingBefore: "The website is under",
+      headingHighlight: "maintenance",
+      message:
+        "We are currently improving the website. Please try again shortly.",
+      whatsapp: "Contact on WhatsApp",
+      refresh: "Refresh page",
+      note: "Maintenance mode is managed securely through HAMZA AGENCY.",
+    },
+    tr: {
+      title: "Bakım",
+      headingBefore: "Web sitesi şu anda",
+      headingHighlight: "bakımda",
+      message:
+        "Web sitesini geliştiriyoruz. Lütfen kısa süre sonra tekrar deneyin.",
+      whatsapp: "WhatsApp ile İletişim",
+      refresh: "Sayfayı yenile",
+      note: "Bakım modu HAMZA AGENCY tarafından güvenli biçimde yönetilir.",
+    },
+  }[language];
+  const direction = language === "ar" ? "rtl" : "ltr";
   const cleanWhatsapp = whatsapp.replace(/[^\d]/g, "");
   const whatsappHref = `https://wa.me/${cleanWhatsapp}`;
 
   return `<!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="${language}" dir="${direction}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex, nofollow" />
-  <title>${escapeHtml(agencyName)} | وضع الصيانة</title>
+  <title>${escapeHtml(agencyName)} | ${escapeHtml(copy.title)}</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -230,13 +362,13 @@ function renderMaintenanceHtml({
 <body>
   <main class="card">
     <div class="badge">${escapeHtml(agencyName)}</div>
-    <h1>الموقع قيد <span class="highlight">الصيانة</span></h1>
-    <p>${escapeHtml(message)}</p>
+    <h1>${escapeHtml(copy.headingBefore)} <span class="highlight">${escapeHtml(copy.headingHighlight)}</span></h1>
+    <p>${escapeHtml(message || copy.message)}</p>
     <div class="actions">
-      ${showWhatsapp ? `<a href="${whatsappHref}" target="_blank" rel="noreferrer">تواصل واتساب</a>` : ""}
-      <button type="button" onclick="window.location.reload()">تحديث الصفحة</button>
+      ${showWhatsapp ? `<a href="${whatsappHref}" target="_blank" rel="noreferrer">${escapeHtml(copy.whatsapp)}</a>` : ""}
+      <button type="button" onclick="window.location.reload()">${escapeHtml(copy.refresh)}</button>
     </div>
-    <div class="note">تستطيع إدارة وضع الصيانة من لوحة تحكم وكالة حمزة.</div>
+    <div class="note">${escapeHtml(copy.note)}</div>
   </main>
 </body>
 </html>`;

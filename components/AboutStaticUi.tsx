@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import PublicAgencyName from "@/components/PublicAgencyName";
 import { getLanguageDirection } from "@/lib/i18n/locale";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
@@ -13,13 +14,13 @@ const copy = {
     values: [
       ["إدارة احترافية", "نساعد صناع المحتوى على فهم طريقة العمل داخل البرامج، تنظيم خطواتهم، ومتابعة تقدمهم بوضوح."],
       ["دعم ومتابعة", "نوفر متابعة للطلبات والمشاكل الفنية والتواصل مع المتقدمين عبر واتساب عند الحاجة."],
-      ["برامج متعددة", "ندعم عدة برامج مثل TikTok وBIGO LIVE وYaahlan وXena وCatchii، مع قابلية توسعة البرامج من منظومة الإدارة."],
-      ["نظام قابل للتوسع", "المشروع مبني ليكون منصة وكالة كاملة، مع إدارة منظمة للمحتوى والطلبات والبرامج."],
+      ["برامج متعددة", "نقدم مسارات عبر TikTok وBIGO LIVE وYaahlan وXena وCatchii، مع خيارات تناسب مجالات محتوى مختلفة."],
+      ["تجربة منظمة", "نجمع معلومات البرامج والطلبات والخدمات في تجربة واضحة وسهلة للزائر."],
     ],
     missionTitle: "رسالتنا",
-    missionText: "تقديم تجربة واضحة وسهلة للمتقدمين، وتمكين الإدارة من متابعة الطلبات والبرامج والمحتوى من مكان واحد بدون تعقيد.",
-    systemTitle: "نظام وكالة منظم",
-    milestones: ["استقبال طلبات الانضمام من الموقع", "مراجعة الطلبات من لوحة التحكم", "إدارة البرامج من قاعدة البيانات", "تنظيم المحتوى والصفحات من نظام إدارة مركزي"],
+    missionText: "تقديم تجربة واضحة وسهلة للمتقدمين، مع متابعة منظمة للطلبات والبرامج والمحتوى بدون تعقيد.",
+    systemTitle: "رحلة واضحة مع الوكالة",
+    milestones: ["تصفح البرامج المتاحة", "إرسال الطلب ببيانات واضحة", "مراجعة الطلب حسب البرنامج", "المتابعة عبر القنوات الرسمية"],
     ctaTitle: "هل تريد الانضمام للوكالة؟",
     ctaText: "يمكنك تصفح البرامج المتاحة وإرسال طلب الانضمام، أو التواصل معنا مباشرة عبر واتساب.",
     programs: "عرض البرامج",
@@ -32,13 +33,13 @@ const copy = {
     values: [
       ["Professional management", "We help content creators understand how programs work, organize their steps, and follow their progress clearly."],
       ["Support and follow-up", "We provide follow-up for applications and technical issues, with WhatsApp communication when needed."],
-      ["Multiple programs", "We support programs including TikTok, BIGO LIVE, Yaahlan, Xena, and Catchii, with room to expand through the administration system."],
-      ["A scalable system", "The project is built as a complete agency platform with organized management for content, applications, and programs."],
+      ["Multiple programs", "We offer paths across TikTok, BIGO LIVE, Yaahlan, Xena, and Catchii, with options for different types of content."],
+      ["An organized experience", "Program, application, and service information comes together in one clear visitor experience."],
     ],
     missionTitle: "Our mission",
-    missionText: "To provide a clear, easy experience for applicants and enable the administration to manage applications, programs, and content from one place without complexity.",
-    systemTitle: "An organized agency system",
-    milestones: ["Receive applications through the website", "Review applications from the admin dashboard", "Manage programs from the database", "Organize content and pages through a central management system"],
+    missionText: "To provide applicants with a clear, easy experience and organized follow-up for applications, programs, and content.",
+    systemTitle: "A clear agency journey",
+    milestones: ["Explore available programs", "Submit clear application details", "Have the application reviewed for the selected program", "Follow up through official channels"],
     ctaTitle: "Would you like to join the agency?",
     ctaText: "You can browse the available programs and submit an application, or contact us directly on WhatsApp.",
     programs: "View programs",
@@ -51,13 +52,13 @@ const copy = {
     values: [
       ["Profesyonel yönetim", "İçerik üreticilerinin programların nasıl çalıştığını anlamasına, adımlarını düzenlemesine ve ilerlemelerini açıkça takip etmesine yardımcı oluyoruz."],
       ["Destek ve takip", "Başvurular ve teknik sorunlar için takip sağlıyor, gerektiğinde WhatsApp üzerinden iletişim kuruyoruz."],
-      ["Birden fazla program", "TikTok, BIGO LIVE, Yaahlan, Xena ve Catchii dahil programları destekliyor; yönetim sistemi üzerinden genişleme olanağı sunuyoruz."],
-      ["Ölçeklenebilir sistem", "Proje; içerik, başvuru ve programların düzenli yönetimi için eksiksiz bir ajans platformu olarak oluşturuldu."],
+      ["Birden fazla program", "TikTok, BIGO LIVE, Yaahlan, Xena ve Catchii üzerinden farklı içerik alanlarına uygun yollar sunuyoruz."],
+      ["Düzenli deneyim", "Program, başvuru ve hizmet bilgilerini ziyaretçiler için açık ve kolay bir deneyimde bir araya getiriyoruz."],
     ],
     missionTitle: "Misyonumuz",
-    missionText: "Başvuranlar için açık ve kolay bir deneyim sunmak, yönetimin başvuruları, programları ve içeriği tek bir yerden karmaşıklık olmadan yönetmesini sağlamak.",
-    systemTitle: "Düzenli bir ajans sistemi",
-    milestones: ["Web sitesi üzerinden başvuruları almak", "Başvuruları yönetim panelinden incelemek", "Programları veritabanından yönetmek", "İçeriği ve sayfaları merkezi bir yönetim sistemi üzerinden düzenlemek"],
+    missionText: "Başvuranlar için açık ve kolay bir deneyim, başvurular ve programlar için düzenli takip sunmak.",
+    systemTitle: "Açık bir ajans yolculuğu",
+    milestones: ["Mevcut programları inceleyin", "Başvuru bilgilerini açık şekilde gönderin", "Başvurunuz seçilen programa göre incelensin", "Resmî kanallardan takip alın"],
     ctaTitle: "Ajansa katılmak ister misiniz?",
     ctaText: "Mevcut programları inceleyip başvuru gönderebilir veya doğrudan WhatsApp üzerinden bizimle iletişime geçebilirsiniz.",
     programs: "Programları görüntüle",
@@ -82,7 +83,7 @@ export function AboutBackLink() {
 
 export function AboutManagementPanel({ agencyName }: { agencyName: string }) {
   const { text } = useAboutCopy();
-  return <div className="mt-8 rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-6"><h2 className="text-2xl font-black text-yellow-100">{text.managementTitle}</h2><p className="mt-4 text-xl leading-9 text-white/80">{agencyName} — {text.managedBy}</p></div>;
+  return <div className="mt-8 rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-6"><h2 className="text-2xl font-black text-yellow-100">{text.managementTitle}</h2><p className="mt-4 text-xl leading-9 text-white/80"><PublicAgencyName value={agencyName} /> — {text.managedBy}</p></div>;
 }
 
 export function AboutValues() {
