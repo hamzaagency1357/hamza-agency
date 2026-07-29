@@ -26,6 +26,51 @@ type LookupResponse = {
   record?: ApplicationRecord | null;
 };
 
+const trackingCopy = {
+  ar: {
+    description: "أدخل رقم التتبع الذي ظهر بعد إرسال طلب الانضمام لمعرفة آخر حالة مسجلة لطلبك لدى وكالة حمزة.",
+    trackingCodeLabel: "رقم تتبع طلب الانضمام",
+    trackingCode: "رقم التتبع",
+    emptyResult: "أدخل رقم التتبع واضغط على زر عرض الحالة لمعرفة آخر تحديث مرتبط بطلب الانضمام.",
+    invalidTrackingCode: "يرجى إدخال رقم تتبع صحيح مثل APP-2026-ABCDEF1234.",
+    notFound: "لم يتم العثور على طلب بهذا الرقم. تأكد من إدخال رقم التتبع كما ظهر بعد إرسال الطلب.",
+    privacyNotes: [
+      "استخدم رقم التتبع كما ظهر بعد الإرسال بدون مسافات إضافية.",
+      "لا تحتاج إلى إدخال رقم واتساب أو اسم البرنامج للبحث عن الطلب.",
+      "تعرض الصفحة حالة الطلب العامة فقط ولا تعرض الاسم أو رقم واتساب أو الملاحظات أو الخبرات السابقة.",
+      "احتفظ برقم التتبع لأن الوكالة قد تطلبه عند المتابعة عبر القنوات الرسمية.",
+    ],
+  },
+  en: {
+    description: "Enter the tracking code shown after submitting your agency application to view its latest recorded status.",
+    trackingCodeLabel: "Application tracking code",
+    trackingCode: "Tracking code",
+    emptyResult: "Enter the tracking code and view the latest update linked to your agency application.",
+    invalidTrackingCode: "Enter a valid tracking code, such as APP-2026-ABCDEF1234.",
+    notFound: "No application was found with this code. Enter the code exactly as it appeared after submission.",
+    privacyNotes: [
+      "Use the tracking code exactly as it appeared after submission, with no extra spaces.",
+      "You do not need to enter a WhatsApp number or program name to find the application.",
+      "The page shows only the general status and does not display your name, WhatsApp number, notes, or previous experience.",
+      "Keep the tracking code because the agency may request it during official follow-up.",
+    ],
+  },
+  tr: {
+    description: "Ajans başvurusunu gönderdikten sonra gösterilen takip kodunu girerek en son kaydedilen durumu görüntüleyin.",
+    trackingCodeLabel: "Başvuru takip kodu",
+    trackingCode: "Takip kodu",
+    emptyResult: "Takip kodunu girerek ajans başvurunuza bağlı en son güncellemeyi görüntüleyin.",
+    invalidTrackingCode: "APP-2026-ABCDEF1234 gibi geçerli bir takip kodu girin.",
+    notFound: "Bu kodla bir başvuru bulunamadı. Kodu gönderimden sonra göründüğü şekilde tam olarak girin.",
+    privacyNotes: [
+      "Takip kodunu gönderimden sonra göründüğü şekilde, fazladan boşluk olmadan kullanın.",
+      "Başvuruyu bulmak için WhatsApp numarası veya program adı girmeniz gerekmez.",
+      "Sayfa yalnızca genel durumu gösterir; adınızı, WhatsApp numaranızı, notlarınızı veya önceki deneyiminizi göstermez.",
+      "Ajans resmî takip sırasında isteyebileceği için takip kodunu saklayın.",
+    ],
+  },
+} as const;
+
 function normalizeTrackingCode(value: string) {
   return value.trim().toUpperCase().replace(/\s+/g, "");
 }
@@ -33,6 +78,7 @@ function normalizeTrackingCode(value: string) {
 export default function ApplicationStatusPage() {
   const language = useSiteLanguage();
   const forms = getPublicFormsCopy(language).application;
+  const tracking = trackingCopy[language];
   const [trackingCode, setTrackingCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -45,7 +91,7 @@ export default function ApplicationStatusPage() {
 
     const code = normalizeTrackingCode(trackingCode);
     if (!/^APP-[0-9]{4}-[A-F0-9]{10}$/.test(code)) {
-      setMessage(forms.invalidTrackingCode);
+      setMessage(tracking.invalidTrackingCode);
       return;
     }
 
@@ -65,7 +111,7 @@ export default function ApplicationStatusPage() {
       return;
     }
     if (!result.record) {
-      setMessage(forms.notFound);
+      setMessage(tracking.notFound);
       return;
     }
     setApplication(result.record);
@@ -91,27 +137,27 @@ export default function ApplicationStatusPage() {
         <header className="mb-8 rounded-[2rem] border border-purple-400/20 bg-white/[0.04] p-7 text-center shadow-[0_0_60px_rgba(124,58,237,0.14)] backdrop-blur md:p-10">
           <div className="mx-auto mb-5 inline-flex rounded-full border border-purple-400/25 bg-purple-500/10 px-5 py-2 text-sm font-bold text-purple-100">{forms.eyebrow}</div>
           <h1 className="text-4xl font-black leading-tight md:text-6xl">{forms.title}</h1>
-          <p className="mx-auto mt-5 max-w-3xl text-lg leading-9 text-white/70">{forms.description}</p>
+          <p className="mx-auto mt-5 max-w-3xl text-lg leading-9 text-white/70">{tracking.description}</p>
         </header>
 
         <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
           <form onSubmit={handleSubmit} className="rounded-[2rem] border border-white/10 bg-black/30 p-6 backdrop-blur">
-            <label className="block text-sm font-black text-white/80">{forms.trackingCodeLabel}</label>
+            <label className="block text-sm font-black text-white/80">{tracking.trackingCodeLabel}</label>
             <input value={trackingCode} onChange={(event) => setTrackingCode(event.target.value)} placeholder="APP-2026-ABCDEF1234" inputMode="text" autoComplete="off" dir="ltr" className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-left font-mono uppercase tracking-wider text-white outline-none transition placeholder:text-white/35 focus:border-purple-400/60" />
 
             <button type="submit" disabled={isLoading} className="mt-5 w-full rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-6 py-4 font-black text-white shadow-[0_0_35px_rgba(168,85,247,0.25)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60">{isLoading ? forms.searching : forms.search}</button>
             {message && <div className="mt-5 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-7 text-yellow-100">{message}</div>}
-            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4"><h2 className="text-sm font-black text-white/80">{forms.privacyTitle}</h2><div className="mt-3 grid gap-2 text-sm leading-7 text-white/48">{forms.privacyNotes.map((note) => <p key={note}>{note}</p>)}</div></div>
+            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4"><h2 className="text-sm font-black text-white/80">{forms.privacyTitle}</h2><div className="mt-3 grid gap-2 text-sm leading-7 text-white/48">{tracking.privacyNotes.map((note) => <p key={note}>{note}</p>)}</div></div>
           </form>
 
           <aside className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur">
             <h2 className="text-2xl font-black">{forms.resultTitle}</h2>
-            {!application && <div className="mt-6 rounded-2xl border border-white/10 bg-black/25 p-5 text-white/60">{forms.emptyResult}</div>}
+            {!application && <div className="mt-6 rounded-2xl border border-white/10 bg-black/25 p-5 text-white/60">{tracking.emptyResult}</div>}
             {application && statusInfo && (
               <div className="mt-6 space-y-4">
                 <div className={`rounded-2xl border p-5 ${statusInfo.className}`}><div className="text-sm font-bold opacity-80">{forms.currentStatus}</div><div className="mt-2 text-3xl font-black">{statusInfo.label}</div><p className="mt-3 leading-8 opacity-90">{statusInfo.description}</p></div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <InfoBox label={forms.trackingCode} value={application.tracking_code || forms.unavailable} dir="ltr" />
+                  <InfoBox label={tracking.trackingCode} value={application.tracking_code || forms.unavailable} dir="ltr" />
                   <InfoBox label={forms.platform} value={application.platform || forms.unavailable} />
                   <InfoBox label={forms.applicationDate} value={formatPublicFormDate(application.created_at, language)} />
                   <InfoBox label={forms.followUpMethod} value={forms.officialWhatsApp} />
