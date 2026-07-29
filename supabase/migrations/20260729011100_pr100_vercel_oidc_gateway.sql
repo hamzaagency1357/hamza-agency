@@ -49,7 +49,7 @@ declare
   v_now bigint := extract(epoch from clock_timestamp())::bigint;
   v_expected_subject text;
 begin
-  if coalesce(current_setting('request.jwt.claim.role', true), '') <> 'service_role' then
+  if auth.role() <> 'service_role' then
     return jsonb_build_object('allowed', false, 'code', 'unauthorized_gateway');
   end if;
 
