@@ -1,40 +1,63 @@
 import "server-only";
 
-import { createHash, createHmac, randomBytes } from "node:crypto";
-import { createClient } from "@supabase/supabase-js";
+import { createHash, randomBytes } from "node:crypto";
 
 type JsonObject = Record<string, unknown>;
 
-export const signedGatewayEnabled = () => Boolean(process.env.PR100_RPC_SIGNING_SECRET);
+const EDGE_FUNCTION_NAME = "pr100-vercel-oidc-gateway";
+const ALLOWED_ACTIONS = new Set([
+  "application_lookup",
+  "service_lookup",
+  "ai_guard",
+  "password_reset_guard",
+  "application_submit",
+  "service_request_submit",
+  "job_application_submit",
+  "contact_submit",
+  "ai_support_submit",
+]);
 
-export async function callSignedGateway<T = JsonObject>(action: string, body: JsonObject): Promise<T> {
-  const secret = process.env.PR100_RPC_SIGNING_SECRET;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+function getRuntimeOidcToken(request: Request) {
+  return request.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
+}
 
-  if (!secret || secret.length < 32 || !url || !key) {
-    throw new Error("signed_gateway_unavailable");
-  }
+export async function callOidcGateway<T = JsonObject>(
+  request: Request,
+  action: string,
+  body: JsonObject,
+): Promise<T> {
+  if (!ALLOWED_ACTIONS.has(action)) throw new Error("oidc_gateway_invalid_action");
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
+  const oidcToken = getRuntimeOidcToken(request);
+  if (!supabaseUrl || !oidcToken) throw new Error("oidc_gateway_unavailable");
 
   const timestamp = Math.floor(Date.now() / 1000);
   const nonce = randomBytes(24).toString("base64url");
   const bodyText = JSON.stringify(body);
   const bodyDigest = createHash("sha256").update(bodyText, "utf8").digest("hex");
-  const canonical = `${action}\n${timestamp}\n${nonce}\n${bodyDigest}`;
-  const signature = createHmac("sha256", secret).update(canonical, "utf8").digest("hex");
 
-  const client = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
-  const { data, error } = await client.rpc("pr100_server_gateway", {
-    p_action: action,
-    p_timestamp: timestamp,
-    p_nonce: nonce,
-    p_body: bodyText,
-    p_body_digest: bodyDigest,
-    p_signature: signature,
+  const response = await fetch(`${supabaseUrl}/functions/v1/${EDGE_FUNCTION_NAME}`, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${oidcToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action,
+      timestamp,
+      nonce,
+      body: bodyText,
+      bodyDigest,
+    }),
+    signal: AbortSignal.timeout(10_000),
   });
 
-  if (error) throw new Error("signed_gateway_rejected");
+  if (!response.ok) throw new Error("oidc_gateway_rejected");
+  const data = (await response.json()) as unknown;
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("oidc_gateway_invalid_response");
+  }
   return data as T;
 }
