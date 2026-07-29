@@ -3,7 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { callSignedGateway } from "@/lib/server/pr100SignedGateway";
+import { callOidcGateway } from "@/lib/server/pr100SignedGateway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
   if (question.length < 3 || question.length > MAX_QUESTION_LENGTH) return failure(400, "اكتب سؤالاً واضحاً ضمن الحد المسموح قبل الإرسال.");
 
   try {
-    const guard = await callSignedGateway<GuardResult>("ai_guard", {
+    const guard = await callOidcGateway<GuardResult>(request, "ai_guard", {
       identity: fingerprint(request),
       payload: { question },
     });
