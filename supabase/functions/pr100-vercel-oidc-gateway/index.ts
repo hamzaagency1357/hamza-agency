@@ -1,4 +1,3 @@
-// @ts-nocheck -- Supabase Edge Function is typechecked by the Deno runtime, not the Next.js compiler.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "npm:jose@6.1.0";
 
