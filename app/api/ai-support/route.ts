@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { callSignedGateway } from "@/lib/server/pr100SignedGateway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ const KNOWLEDGE_CACHE_MS = 60_000;
 
 type KnowledgeRow = { id?: string | number | null; title?: string | null; summary?: string | null; content?: string | null; category?: string | null };
 type CachedKnowledge = { expiresAt: number; rows: KnowledgeRow[] };
+type GuardResult = { allowed?: boolean; code?: string };
 
 const BUILT_IN_KNOWLEDGE: KnowledgeRow[] = [
   { id: "programs", title: "البرامج المتاحة", summary: "وكالة حمزة تدير برامج ومنصات متعددة لصناع المحتوى.", content: "يمكنك الاطلاع على البرامج من صفحة البرامج. المنصات الحالية تشمل TikTok وBIGO LIVE وYaahlan وXena وCatchii.", category: "برامج" },
@@ -64,15 +66,16 @@ export async function POST(request: NextRequest) {
   const question = clean(body.question);
   if (question.length < 3 || question.length > MAX_QUESTION_LENGTH) return failure(400, "اكتب سؤالاً واضحاً ضمن الحد المسموح قبل الإرسال.");
 
+  try {
+    const guard = await callSignedGateway<GuardResult>("ai_guard", {
+      identity: fingerprint(request),
+      payload: { question },
+    });
+    if (!guard?.allowed) return failure(guard?.code === "rate_limited" ? 429 : 400);
+  } catch { return failure(503); }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (url && key) {
-    const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
-    const guard = await client.rpc("pr100_guard_ai_answer", { p_identity: fingerprint(request), p_payload: { question } });
-    if (guard.error) return failure(503);
-    if (!guard.data || guard.data.allowed !== true) return failure(429);
-  }
-
   const knowledge = pick(question, await loadKnowledge(url, key));
   if (!knowledge) return NextResponse.json({ ok: true, answer: "لم أجد إجابة مؤكدة داخل قاعدة المعرفة الحالية. للحالات المستعجلة تواصل عبر واتساب الرسمي.", status: "unanswered", source: "unanswered", escalated: true }, { headers: { "Cache-Control": "no-store" } });
 
