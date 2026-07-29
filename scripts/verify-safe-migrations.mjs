@@ -6,6 +6,7 @@ const forbidden = [/\bdrop\s+table\b/i, /\btruncate\b/i, /\bdrop\s+column\b/i, /
 const secrets = [/service[_-]?role/i, /eyJ[a-zA-Z0-9_-]{20,}/, /postgres(?:ql)?:\/\/[^\s]+:[^\s]+@/i];
 const legacyPublicRpcNames = [
   "lookup_public_agency_application",
+  "pr100_lookup_public_agency_application",
   "lookup_public_service_request",
   "pr99_guard_submission",
 ];
