@@ -7,7 +7,6 @@ import { getLanguageDirection } from "@/lib/i18n/locale";
 import {
   formatPublicFormDate,
   getApplicationStatusInfo,
-  getPlatformLabel,
   getPublicFormsCopy,
 } from "@/lib/i18n/publicForms";
 import { localizePublicHref } from "@/lib/i18n/publicLocales";
@@ -15,7 +14,7 @@ import { getStaticCopy } from "@/lib/i18n/staticCopy";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
 type ApplicationRecord = {
-  id: number;
+  tracking_code: string | null;
   platform: string | null;
   status: string | null;
   created_at: string | null;
@@ -27,17 +26,14 @@ type LookupResponse = {
   record?: ApplicationRecord | null;
 };
 
-const platformOptions = ["TikTok", "BIGO LIVE", "Yaahlan", "Xena", "Catchii", "other"];
-
-function normalizeDigits(value: string) {
-  return value.replace(/[^0-9]/g, "");
+function normalizeTrackingCode(value: string) {
+  return value.trim().toUpperCase().replace(/\s+/g, "");
 }
 
 export default function ApplicationStatusPage() {
   const language = useSiteLanguage();
   const forms = getPublicFormsCopy(language).application;
-  const [whatsapp, setWhatsapp] = useState("");
-  const [platform, setPlatform] = useState(platformOptions[0]);
+  const [trackingCode, setTrackingCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [application, setApplication] = useState<ApplicationRecord | null>(null);
@@ -47,15 +43,9 @@ export default function ApplicationStatusPage() {
     setMessage("");
     setApplication(null);
 
-    const cleanedWhatsapp = normalizeDigits(whatsapp);
-    const selectedPlatform = platform.trim() === "other" ? "منصة أخرى" : platform.trim();
-
-    if (!cleanedWhatsapp || cleanedWhatsapp.length < 8) {
-      setMessage(forms.invalidWhatsapp);
-      return;
-    }
-    if (!selectedPlatform) {
-      setMessage(forms.selectPlatform);
+    const code = normalizeTrackingCode(trackingCode);
+    if (!/^APP-[0-9]{4}-[A-F0-9]{10}$/.test(code)) {
+      setMessage(forms.invalidTrackingCode);
       return;
     }
 
@@ -63,7 +53,7 @@ export default function ApplicationStatusPage() {
     const response = await fetch("/api/application-status", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ whatsapp: cleanedWhatsapp, platform: selectedPlatform }),
+      body: JSON.stringify({ trackingCode: code }),
     }).catch(() => null);
     const result = response
       ? await response.json().catch(() => ({} as LookupResponse)) as LookupResponse
@@ -106,13 +96,8 @@ export default function ApplicationStatusPage() {
 
         <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
           <form onSubmit={handleSubmit} className="rounded-[2rem] border border-white/10 bg-black/30 p-6 backdrop-blur">
-            <label className="block text-sm font-black text-white/80">{forms.whatsappLabel}</label>
-            <input value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} placeholder="+905011730377" inputMode="tel" autoComplete="tel" dir="ltr" className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-left text-white outline-none transition placeholder:text-white/35 focus:border-purple-400/60" />
-
-            <label className="mt-5 block text-sm font-black text-white/80">{forms.platformLabel}</label>
-            <select value={platform} onChange={(event) => setPlatform(event.target.value)} className="mt-3 w-full rounded-2xl border border-white/10 bg-[#12051f] px-4 py-4 text-white outline-none transition focus:border-purple-400/60">
-              {platformOptions.map((item) => <option key={item} value={item}>{getPlatformLabel(language, item)}</option>)}
-            </select>
+            <label className="block text-sm font-black text-white/80">{forms.trackingCodeLabel}</label>
+            <input value={trackingCode} onChange={(event) => setTrackingCode(event.target.value)} placeholder="APP-2026-ABCDEF1234" inputMode="text" autoComplete="off" dir="ltr" className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-left font-mono uppercase tracking-wider text-white outline-none transition placeholder:text-white/35 focus:border-purple-400/60" />
 
             <button type="submit" disabled={isLoading} className="mt-5 w-full rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-6 py-4 font-black text-white shadow-[0_0_35px_rgba(168,85,247,0.25)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60">{isLoading ? forms.searching : forms.search}</button>
             {message && <div className="mt-5 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm leading-7 text-yellow-100">{message}</div>}
@@ -126,6 +111,7 @@ export default function ApplicationStatusPage() {
               <div className="mt-6 space-y-4">
                 <div className={`rounded-2xl border p-5 ${statusInfo.className}`}><div className="text-sm font-bold opacity-80">{forms.currentStatus}</div><div className="mt-2 text-3xl font-black">{statusInfo.label}</div><p className="mt-3 leading-8 opacity-90">{statusInfo.description}</p></div>
                 <div className="grid gap-3 sm:grid-cols-2">
+                  <InfoBox label={forms.trackingCode} value={application.tracking_code || forms.unavailable} dir="ltr" />
                   <InfoBox label={forms.platform} value={application.platform || forms.unavailable} />
                   <InfoBox label={forms.applicationDate} value={formatPublicFormDate(application.created_at, language)} />
                   <InfoBox label={forms.followUpMethod} value={forms.officialWhatsApp} />
