@@ -101,7 +101,7 @@ function localizePrograms(programs: Program[], language: "ar" | "en" | "tr", tra
 export default function HomePage() {
   const language = useSiteLanguage();
   const t = copy[language];
-  const [programs, setPrograms] = useState<Program[]>(fallbackPrograms);
+  const [programs, setPrograms] = useState<Program[]>(() => localizePrograms(fallbackPrograms, language, []));
   const [settings, setSettings] = useState<Setting[]>([]);
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [showForm, setShowForm] = useState(false);
