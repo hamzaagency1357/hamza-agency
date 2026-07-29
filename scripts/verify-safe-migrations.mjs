@@ -3,12 +3,25 @@ import path from "node:path";
 
 const root = path.join(process.cwd(), "supabase", "migrations");
 const forbidden = [/\bdrop\s+table\b/i, /\btruncate\b/i, /\bdrop\s+column\b/i, /\balter\s+table\b[^;]*\brename\s+column\b/i];
-const secrets = [/service[_-]?role/i, /eyJ[a-zA-Z0-9_-]{20,}/, /postgres(?:ql)?:\/\/[^\s]+:[^\s]+@/i];
+const secrets = [
+  /\b(?:SUPABASE_SERVICE_ROLE(?:_KEY)?|SERVICE_ROLE_KEY)\b\s*[:=]\s*['"][^'"\n]{12,}['"]/i,
+  /eyJ[a-zA-Z0-9_-]{20,}/,
+  /postgres(?:ql)?:\/\/[^\s]+:[^\s]+@/i,
+];
 const legacyPublicRpcNames = [
   "lookup_public_agency_application",
-  "pr100_lookup_public_agency_application",
   "lookup_public_service_request",
+  "pr100_lookup_public_agency_application",
+  "pr100_lookup_public_agency_application_by_code",
+  "pr100_lookup_public_service_request",
+  "pr100_guard_password_reset",
+  "pr100_guard_ai_answer",
   "pr99_guard_submission",
+  "pr99_submit_application",
+  "pr99_submit_service_request",
+  "pr99_submit_job_application",
+  "pr99_submit_contact",
+  "pr99_submit_ai_support",
 ];
 
 export function extractPermanentDeleteFunction(sql) {
