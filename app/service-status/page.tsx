@@ -10,9 +10,9 @@ import {
   getServiceStatusInfo,
   getServiceTypeLabel,
 } from "@/lib/i18n/publicForms";
+import { localizePublicHref } from "@/lib/i18n/publicLocales";
 import { getStaticCopy } from "@/lib/i18n/staticCopy";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type ServiceRequestRecord = {
   id: number;
@@ -22,6 +22,12 @@ type ServiceRequestRecord = {
   status: string | null;
   created_at: string | null;
   updated_at: string | null;
+};
+
+type LookupResponse = {
+  ok?: boolean;
+  code?: string;
+  record?: ServiceRequestRecord | null;
 };
 
 function normalizeRequestCode(value: string) {
@@ -46,29 +52,27 @@ export default function ServiceStatusPage() {
       setMessage(forms.invalidCode);
       return;
     }
-    if (!isSupabaseConfigured || !supabase) {
-      setMessage(forms.trackingUnavailable);
-      return;
-    }
 
     setIsLoading(true);
-    const { data, error } = await supabase.rpc("lookup_public_service_request", {
-      p_request_code: code,
-    });
+    const response = await fetch("/api/service-status", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ requestCode: code }),
+    }).catch(() => null);
+    const result = response
+      ? await response.json().catch(() => ({} as LookupResponse)) as LookupResponse
+      : null;
     setIsLoading(false);
 
-    if (error) {
-      console.error("Service request status lookup error:", error);
-      setMessage(forms.lookupError);
+    if (!response || !response.ok || !result?.ok) {
+      setMessage(result?.code === "rate_limited" ? forms.lookupError : forms.trackingUnavailable);
       return;
     }
-
-    const record = Array.isArray(data) ? data[0] : data;
-    if (!record) {
+    if (!result.record) {
       setMessage(forms.notFound);
       return;
     }
-    setServiceRequest(record as ServiceRequestRecord);
+    setServiceRequest(result.record);
   }
 
   const statusInfo = serviceRequest ? getServiceStatusInfo(language, serviceRequest.status) : null;
@@ -84,8 +88,8 @@ export default function ServiceStatusPage() {
 
       <section className="relative z-10 mx-auto max-w-5xl">
         <nav className="mb-8 flex items-center justify-between gap-4">
-          <Link href="/" className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:text-white">{getStaticCopy(language, "backHome")}</Link>
-          <Link href="/service-request" className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-5 py-3 text-sm font-bold text-yellow-100 backdrop-blur transition hover:bg-yellow-400/15">{getStaticCopy(language, "serviceRequest")}</Link>
+          <Link href={localizePublicHref("/", language)} className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:text-white">{getStaticCopy(language, "backHome")}</Link>
+          <Link href={localizePublicHref("/service-request", language)} className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-5 py-3 text-sm font-bold text-yellow-100 backdrop-blur transition hover:bg-yellow-400/15">{getStaticCopy(language, "serviceRequest")}</Link>
         </nav>
 
         <header className="mb-8 rounded-[2rem] border border-purple-400/20 bg-white/[0.04] p-7 text-center shadow-[0_0_60px_rgba(124,58,237,0.14)] backdrop-blur md:p-10">
