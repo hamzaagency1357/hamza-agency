@@ -1,8 +1,8 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+import { callSignedGateway } from "@/lib/server/pr100SignedGateway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,23 +62,18 @@ export async function POST(request: NextRequest) {
   const trackingCode = normalizeTrackingCode(body.trackingCode);
   if (!TRACKING_CODE_PATTERN.test(trackingCode)) return failure(400);
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return failure(503);
+  try {
+    const result = await callSignedGateway<LookupResult>("application_lookup", {
+      trackingCode,
+      requestFingerprint: fingerprint(request),
+    });
+    if (!result?.allowed) return failure(result?.code === "rate_limited" ? 429 : 400);
 
-  const client = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
-  const { data, error } = await client.rpc("pr100_lookup_public_agency_application_by_code", {
-    p_tracking_code: trackingCode,
-    p_request_fingerprint: fingerprint(request),
-  });
-  const result = data as LookupResult | null;
-  if (error) return failure(503);
-  if (!result?.allowed) return failure(result?.code === "rate_limited" ? 429 : 400);
-
-  return NextResponse.json(
-    { ok: true, record: result.found ? result.record || null : null },
-    { headers: { "Cache-Control": "no-store" } },
-  );
+    return NextResponse.json(
+      { ok: true, record: result.found ? result.record || null : null },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch {
+    return failure(503);
+  }
 }
