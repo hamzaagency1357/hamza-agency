@@ -1,9 +1,12 @@
 import "server-only";
 
 import { NextResponse, type NextRequest } from "next/server";
+import { callOidcGateway } from "@/lib/server/pr100SignedGateway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+type GatewayResult = { allowed?: boolean; code?: string; found?: boolean };
 
 function noStore(body: Record<string, unknown>, status = 200) {
   return NextResponse.json(body, {
@@ -15,54 +18,38 @@ function noStore(body: Record<string, unknown>, status = 200) {
 export async function GET(request: NextRequest) {
   if (process.env.VERCEL_ENV !== "preview") return noStore({ ok: false }, 404);
 
-  const oidcToken = request.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
-  if (!oidcToken) return noStore({ ok: false, code: "missing_runtime_oidc" }, 503);
-
-  const origin = request.nextUrl.origin;
-  const headers = {
-    "Content-Type": "application/json",
-    "x-vercel-oidc-token": oidcToken,
-  };
   const startedAt = new Date(Date.now() - 5_000).toISOString();
-
+  const identity = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
   const calls = [
-    ["application_status", "/api/application-status", { trackingCode: "APP-2026-FFFFFFFFFF" }],
-    ["service_status", "/api/service-status", { requestCode: "SR-2026-FFFFFFFFFF" }],
-    ["ai_support", "/api/ai-support", { question: "كيف أتابع طلبي؟" }],
-    ["password_reset_guard", "/api/public-submit", { type: "password_reset", payload: { email: "runtime-check@example.invalid" }, startedAt, honeypot: "blocked-runtime-check" }],
-    ["application_form_guard", "/api/public-submit", { type: "application", payload: {}, startedAt, honeypot: "blocked-runtime-check" }],
-    ["service_form_guard", "/api/public-submit", { type: "service_request", payload: {}, startedAt, honeypot: "blocked-runtime-check" }],
-    ["job_form_guard", "/api/public-submit", { type: "job_application", payload: {}, startedAt, honeypot: "blocked-runtime-check" }],
-    ["contact_form_guard", "/api/public-submit", { type: "contact", payload: {}, startedAt, honeypot: "blocked-runtime-check" }],
-    ["ai_form_guard", "/api/public-submit", { type: "ai_support", payload: {}, startedAt, honeypot: "blocked-runtime-check" }],
+    ["application_status", "application_lookup", { trackingCode: "APP-2026-FFFFFFFFFF", requestFingerprint: identity }, true],
+    ["service_status", "service_lookup", { requestCode: "SR-2026-FFFFFFFFFF", requestFingerprint: identity }, true],
+    ["ai_support", "ai_guard", { identity, payload: { question: "كيف أتابع طلبي؟" } }, true],
+    ["password_reset_guard", "password_reset_guard", { identity, payload: { email: "runtime-check@example.invalid" }, startedAt, honeypot: "blocked-runtime-check" }, false],
+    ["application_form_guard", "application_submit", { identity, payload: {}, startedAt, honeypot: "blocked-runtime-check" }, false],
+    ["service_form_guard", "service_request_submit", { identity, payload: {}, startedAt, honeypot: "blocked-runtime-check" }, false],
+    ["job_form_guard", "job_application_submit", { identity, payload: {}, startedAt, honeypot: "blocked-runtime-check" }, false],
+    ["contact_form_guard", "contact_submit", { identity, payload: {}, startedAt, honeypot: "blocked-runtime-check" }, false],
+    ["ai_form_guard", "ai_support_submit", { identity, payload: {}, startedAt, honeypot: "blocked-runtime-check" }, false],
   ] as const;
 
-  const results: Record<string, number> = {};
-  for (const [name, path, body] of calls) {
-    const response = await fetch(`${origin}${path}`, {
-      method: "POST",
-      cache: "no-store",
-      headers,
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(12_000),
-    });
-    results[name] = response.status;
+  const results: Record<string, { allowed: boolean; code: string; found?: boolean }> = {};
+  let ok = true;
+
+  for (const [name, action, body, expectedAllowed] of calls) {
+    try {
+      const result = await callOidcGateway<GatewayResult>(request, action, body);
+      const allowed = result?.allowed === true;
+      results[name] = {
+        allowed,
+        code: typeof result?.code === "string" ? result.code : "unknown",
+        ...(typeof result?.found === "boolean" ? { found: result.found } : {}),
+      };
+      if (allowed !== expectedAllowed) ok = false;
+    } catch {
+      results[name] = { allowed: false, code: "gateway_error" };
+      ok = false;
+    }
   }
 
-  const successfulLookups = results.application_status === 200 && results.service_status === 200;
-  const successfulAi = results.ai_support === 200;
-  const guardsRejectedFixtures = [
-    results.password_reset_guard,
-    results.application_form_guard,
-    results.service_form_guard,
-    results.job_form_guard,
-    results.contact_form_guard,
-    results.ai_form_guard,
-  ].every((status) => status === 400 || status === 429);
-
-  return noStore({
-    ok: successfulLookups && successfulAi && guardsRejectedFixtures,
-    environment: "preview",
-    results,
-  }, successfulLookups && successfulAi && guardsRejectedFixtures ? 200 : 503);
+  return noStore({ ok, environment: "preview", results }, ok ? 200 : 503);
 }
