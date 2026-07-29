@@ -49,7 +49,7 @@ declare
   v_now bigint := extract(epoch from clock_timestamp())::bigint;
   v_expected_subject text;
 begin
-  if auth.role() <> 'service_role' then
+  if coalesce(current_setting('request.jwt.claim.role', true), '') <> 'service_role' then
     return jsonb_build_object('allowed', false, 'code', 'unauthorized_gateway');
   end if;
 
@@ -114,20 +114,13 @@ begin
 
   case p_action
     when 'application_lookup' then
-      return public.pr100_lookup_public_agency_application_by_code(
-        v_body->>'trackingCode', v_body->>'requestFingerprint'
-      );
+      return public.pr100_lookup_public_agency_application_by_code(v_body->>'trackingCode', v_body->>'requestFingerprint');
     when 'service_lookup' then
-      return public.pr100_lookup_public_service_request(
-        v_body->>'requestCode', v_body->>'requestFingerprint'
-      );
+      return public.pr100_lookup_public_service_request(v_body->>'requestCode', v_body->>'requestFingerprint');
     when 'ai_guard' then
       return public.pr100_guard_ai_answer(v_body->>'identity', v_body->'payload');
     when 'password_reset_guard' then
-      return public.pr100_guard_password_reset(
-        v_body->>'identity', v_body->'payload', (v_body->>'startedAt')::timestamptz,
-        coalesce(v_body->>'honeypot','')
-      );
+      return public.pr100_guard_password_reset(v_body->>'identity', v_body->'payload', (v_body->>'startedAt')::timestamptz, coalesce(v_body->>'honeypot',''));
     when 'application_submit' then
       return public.pr99_submit_application(v_body->'payload', v_body->>'identity', (v_body->>'startedAt')::timestamptz, coalesce(v_body->>'honeypot',''));
     when 'service_request_submit' then
