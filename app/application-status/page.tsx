@@ -10,28 +10,27 @@ import {
   getPlatformLabel,
   getPublicFormsCopy,
 } from "@/lib/i18n/publicForms";
+import { localizePublicHref } from "@/lib/i18n/publicLocales";
 import { getStaticCopy } from "@/lib/i18n/staticCopy";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type ApplicationRecord = {
   id: number;
-  whatsapp: string | null;
   platform: string | null;
   status: string | null;
   created_at: string | null;
+};
+
+type LookupResponse = {
+  ok?: boolean;
+  code?: string;
+  record?: ApplicationRecord | null;
 };
 
 const platformOptions = ["TikTok", "BIGO LIVE", "Yaahlan", "Xena", "Catchii", "other"];
 
 function normalizeDigits(value: string) {
   return value.replace(/[^0-9]/g, "");
-}
-
-function maskWhatsapp(value: string | null, notShown: string) {
-  const digits = normalizeDigits(value || "");
-  if (digits.length < 4) return notShown;
-  return `•••• ${digits.slice(-4)}`;
 }
 
 export default function ApplicationStatusPage() {
@@ -49,8 +48,7 @@ export default function ApplicationStatusPage() {
     setApplication(null);
 
     const cleanedWhatsapp = normalizeDigits(whatsapp);
-    const selectedPlatform =
-      platform.trim() === "other" ? "منصة أخرى" : platform.trim();
+    const selectedPlatform = platform.trim() === "other" ? "منصة أخرى" : platform.trim();
 
     if (!cleanedWhatsapp || cleanedWhatsapp.length < 8) {
       setMessage(forms.invalidWhatsapp);
@@ -60,30 +58,27 @@ export default function ApplicationStatusPage() {
       setMessage(forms.selectPlatform);
       return;
     }
-    if (!isSupabaseConfigured || !supabase) {
-      setMessage(forms.trackingUnavailable);
-      return;
-    }
 
     setIsLoading(true);
-    const { data, error } = await supabase.rpc("lookup_public_agency_application", {
-      p_whatsapp: cleanedWhatsapp,
-      p_platform: selectedPlatform,
-    });
+    const response = await fetch("/api/application-status", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ whatsapp: cleanedWhatsapp, platform: selectedPlatform }),
+    }).catch(() => null);
+    const result = response
+      ? await response.json().catch(() => ({} as LookupResponse)) as LookupResponse
+      : null;
     setIsLoading(false);
 
-    if (error) {
-      console.error("Application status lookup error:", error);
-      setMessage(forms.lookupError);
+    if (!response || !response.ok || !result?.ok) {
+      setMessage(result?.code === "rate_limited" ? forms.lookupError : forms.trackingUnavailable);
       return;
     }
-
-    const record = Array.isArray(data) ? data[0] : data;
-    if (!record) {
+    if (!result.record) {
       setMessage(forms.notFound);
       return;
     }
-    setApplication(record as ApplicationRecord);
+    setApplication(result.record);
   }
 
   const statusInfo = application ? getApplicationStatusInfo(language, application.status) : null;
@@ -99,8 +94,8 @@ export default function ApplicationStatusPage() {
 
       <section className="relative z-10 mx-auto max-w-5xl">
         <nav className="mb-8 flex items-center justify-between gap-4">
-          <Link href="/" className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:text-white">{getStaticCopy(language, "backHome")}</Link>
-          <Link href="/programs" className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-5 py-3 text-sm font-bold text-yellow-100 backdrop-blur transition hover:bg-yellow-400/15">{getStaticCopy(language, "programs")}</Link>
+          <Link href={localizePublicHref("/", language)} className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-bold text-white/75 backdrop-blur transition hover:border-purple-400/50 hover:text-white">{getStaticCopy(language, "backHome")}</Link>
+          <Link href={localizePublicHref("/programs", language)} className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-5 py-3 text-sm font-bold text-yellow-100 backdrop-blur transition hover:bg-yellow-400/15">{getStaticCopy(language, "programs")}</Link>
         </nav>
 
         <header className="mb-8 rounded-[2rem] border border-purple-400/20 bg-white/[0.04] p-7 text-center shadow-[0_0_60px_rgba(124,58,237,0.14)] backdrop-blur md:p-10">
@@ -133,7 +128,6 @@ export default function ApplicationStatusPage() {
                 <div className="grid gap-3 sm:grid-cols-2">
                   <InfoBox label={forms.platform} value={application.platform || forms.unavailable} />
                   <InfoBox label={forms.applicationDate} value={formatPublicFormDate(application.created_at, language)} />
-                  <InfoBox label={forms.searchNumber} value={maskWhatsapp(application.whatsapp, forms.notShown)} dir="ltr" />
                   <InfoBox label={forms.followUpMethod} value={forms.officialWhatsApp} />
                 </div>
                 <a href="https://wa.me/905011730377" target="_blank" rel="noreferrer" className="block rounded-2xl bg-green-500 px-5 py-4 text-center font-black text-white shadow-2xl transition hover:bg-green-400">{forms.contactWhatsApp}</a>
