@@ -3,7 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
-import { callSignedGateway } from "@/lib/server/pr100SignedGateway";
+import { callOidcGateway } from "@/lib/server/pr100SignedGateway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
   let result: GatewayResult;
   try {
-    result = await callSignedGateway<GatewayResult>(action, {
+    result = await callOidcGateway<GatewayResult>(request, action, {
       payload,
       identity: pIdentity,
       startedAt,
