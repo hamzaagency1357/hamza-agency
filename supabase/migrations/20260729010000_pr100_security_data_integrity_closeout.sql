@@ -117,8 +117,14 @@ begin
     return jsonb_build_object('allowed', false, 'code', 'invalid_request');
   end if;
 
-  v_identity_hash := encode(digest(convert_to(p_lookup_type || ':' || v_identity, 'UTF8'), 'sha256'), 'hex');
-  v_fingerprint_hash := encode(digest(convert_to(v_fingerprint, 'UTF8'), 'sha256'), 'hex');
+  v_identity_hash := encode(
+    digest(convert_to(p_lookup_type || ':' || v_identity, 'UTF8'), 'sha256'),
+    'hex'
+  );
+  v_fingerprint_hash := encode(
+    digest(convert_to(v_fingerprint, 'UTF8'), 'sha256'),
+    'hex'
+  );
 
   select count(*) into v_identity_attempts
   from public.public_lookup_guards
@@ -353,9 +359,9 @@ begin
 end;
 $$;
 
-revoke all on function public.lookup_public_agency_application(text, text) from public, anon, authenticated;
-revoke all on function public.lookup_public_service_request(text) from public, anon, authenticated;
-revoke all on function public.pr99_guard_submission(text, text, jsonb, timestamptz, text) from public, anon, authenticated;
+-- The legacy public RPC grants intentionally remain unchanged here. The currently
+-- deployed application still uses them. They are revoked only through the guarded
+-- manual post-deploy SQL after the new server routes are live and verified.
 revoke all on function public.pr100_guard_public_lookup(text, text, text) from public, anon, authenticated;
 
 revoke all on function public.pr100_lookup_public_agency_application(text, text, text) from public;
