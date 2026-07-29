@@ -38,26 +38,22 @@ export function validateDeploymentOrdering(file, sql) {
   const errors = [];
   if (!/pr100/i.test(file)) return errors;
 
-  if (/post[-_]?deploy/i.test(file)) {
-    errors.push(`${file}: post-deploy SQL must not live in supabase/migrations`);
-  }
+  if (/post[-_]?deploy/i.test(file)) errors.push(`${file}: post-deploy SQL must not live in supabase/migrations`);
 
   for (const functionName of legacyPublicRpcNames) {
     const prematureRevoke = new RegExp(
       `revoke\\s+all\\s+on\\s+function\\s+public\\.${functionName}\\b[\\s\\S]*?from\\s+public\\s*,\\s*anon\\s*,\\s*authenticated`,
       "i",
     );
-    if (prematureRevoke.test(sql)) {
-      errors.push(`${file}: legacy public RPC ${functionName} may be revoked only by the guarded manual post-deploy runbook`);
-    }
+    if (prematureRevoke.test(sql)) errors.push(`${file}: legacy public RPC ${functionName} may be revoked only by the guarded manual post-deploy runbook`);
   }
-
   return errors;
 }
 
 export function validateMigrationText(file, sql) {
   const errors = [];
-  for (const pattern of forbidden) if (pattern.test(sql)) errors.push(`${file}: forbidden destructive SQL ${pattern}`);
+  const scanText = sql.replace(/revoke\s+truncate(?:\s*,\s*(?:trigger|references))*\s+on\s+all\s+tables\s+in\s+schema\s+public\s+from\s+anon\s*,\s*authenticated\s*;/gi, "");
+  for (const pattern of forbidden) if (pattern.test(scanText)) errors.push(`${file}: forbidden destructive SQL ${pattern}`);
   for (const pattern of secrets) if (pattern.test(sql)) errors.push(`${file}: possible secret ${pattern}`);
   if (!/\bbegin\s*;/i.test(sql) || !/\bcommit\s*;/i.test(sql)) errors.push(`${file}: migration should be transactional`);
 
@@ -68,7 +64,6 @@ export function validateMigrationText(file, sql) {
   const deleteMatches = withoutPermanentFn.match(/\bdelete\s+from\b/gi) || [];
   const retentionDeletes = withoutPermanentFn.match(/delete\s+from\s+public\.version_history[\s\S]*?offset\s+30/gi) || [];
   if (deleteMatches.length > retentionDeletes.length) errors.push(`${file}: hard delete outside documented version retention or protected trash function`);
-
   if (/\bdelete\s+from\b/i.test(permanentFn)) {
     for (const error of validateProtectedPermanentDelete(sql)) errors.push(`${file}: ${error}`);
   }
