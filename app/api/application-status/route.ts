@@ -8,17 +8,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_BODY_BYTES = 4_096;
-const allowedPlatforms = new Set([
-  "TikTok",
-  "BIGO LIVE",
-  "Yaahlan",
-  "Xena",
-  "Catchii",
-  "منصة أخرى",
-]);
+const TRACKING_CODE_PATTERN = /^APP-[0-9]{4}-[A-F0-9]{10}$/;
 
 type ApplicationRecord = {
-  id: number;
+  tracking_code: string | null;
   platform: string | null;
   status: string | null;
   created_at: string | null;
@@ -38,12 +31,10 @@ function failure(status: number) {
   );
 }
 
-function normalizeDigits(value: unknown) {
-  return typeof value === "string" ? value.replace(/[^0-9]/g, "").slice(0, 20) : "";
-}
-
-function normalizePlatform(value: unknown) {
-  return typeof value === "string" ? value.trim().slice(0, 80) : "";
+function normalizeTrackingCode(value: unknown) {
+  return typeof value === "string"
+    ? value.trim().toUpperCase().replace(/\s+/g, "").slice(0, 32)
+    : "";
 }
 
 function fingerprint(request: NextRequest) {
@@ -68,9 +59,8 @@ export async function POST(request: NextRequest) {
     return failure(400);
   }
 
-  const whatsapp = normalizeDigits(body.whatsapp);
-  const platform = normalizePlatform(body.platform);
-  if (whatsapp.length < 8 || !allowedPlatforms.has(platform)) return failure(400);
+  const trackingCode = normalizeTrackingCode(body.trackingCode);
+  if (!TRACKING_CODE_PATTERN.test(trackingCode)) return failure(400);
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -79,9 +69,8 @@ export async function POST(request: NextRequest) {
   const client = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
-  const { data, error } = await client.rpc("pr100_lookup_public_agency_application", {
-    p_whatsapp: whatsapp,
-    p_platform: platform,
+  const { data, error } = await client.rpc("pr100_lookup_public_agency_application_by_code", {
+    p_tracking_code: trackingCode,
     p_request_fingerprint: fingerprint(request),
   });
   const result = data as LookupResult | null;
