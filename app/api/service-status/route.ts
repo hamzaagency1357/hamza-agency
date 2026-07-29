@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import { callSignedGateway } from "@/lib/server/pr100SignedGateway";
+import { callOidcGateway } from "@/lib/server/pr100SignedGateway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
   if (requestCode.length < 8) return failure(400);
 
   try {
-    const result = await callSignedGateway<LookupResult>("service_lookup", {
+    const result = await callOidcGateway<LookupResult>(request, "service_lookup", {
       requestCode,
       requestFingerprint: fingerprint(request),
     });
