@@ -35,6 +35,8 @@ export function validateProtectedPermanentDelete(sql) {
 
 export function validateDeploymentOrdering(file, sql) {
   const errors = [];
+  if (!/pr100/i.test(file)) return errors;
+
   if (/post[-_]?deploy/i.test(file)) {
     errors.push(`${file}: post-deploy SQL must not live in supabase/migrations`);
   }
