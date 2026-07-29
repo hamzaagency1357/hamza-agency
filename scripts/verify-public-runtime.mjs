@@ -21,6 +21,25 @@ const localeCopy = {
   ],
 };
 
+const arabicProgramSummaries = [
+  "برنامج لصناع المحتوى الراغبين بالنمو على TikTok.",
+  "فرص بث مباشر ودعم لصناع المحتوى.",
+  "برنامج اجتماعي وبث مباشر.",
+];
+
+const localizedProgramSummaries = {
+  en: [
+    "Join the TikTok program",
+    "Join the BIGO LIVE program",
+    "Join the Yaahlan audio program",
+  ],
+  tr: [
+    "TikTok programına katılın",
+    "BIGO LIVE programına katılın",
+    "Yaahlan sesli yayın programına katılın",
+  ],
+};
+
 async function readPage(path, cookie) {
   const response = await fetch(`${baseUrl}${path}`, {
     redirect: "manual",
@@ -48,9 +67,20 @@ function assertNoMixedLanguage(path, html, language) {
   for (const copy of foreign) assert(!html.includes(copy), `${path} mixed ${language} with foreign homepage copy: ${copy}`);
 }
 
+function assertLocalizedProgramCards(path, html, language) {
+  if (language === "ar") return;
+  for (const arabic of arabicProgramSummaries) {
+    assert(!html.includes(arabic), `${path} rendered an Arabic program summary in ${language}: ${arabic}`);
+  }
+  for (const summary of localizedProgramSummaries[language]) {
+    assert(html.includes(summary), `${path} is missing localized ${language} program summary: ${summary}`);
+  }
+}
+
 const tr = await readPage("/tr");
 assertLocalePage({ path: "/tr", expectedLanguage: "tr", ...tr });
 assertNoMixedLanguage("/tr", tr.html, "tr");
+assertLocalizedProgramCards("/tr", tr.html, "tr");
 
 const arAfterTr = await readPage("/", "hamza-agency-language=tr");
 assertLocalePage({ path: "/ with TR cookie", expectedLanguage: "ar", ...arAfterTr });
@@ -59,6 +89,7 @@ assertNoMixedLanguage("/ with TR cookie", arAfterTr.html, "ar");
 const en = await readPage("/en", "hamza-agency-language=tr");
 assertLocalePage({ path: "/en with TR cookie", expectedLanguage: "en", ...en });
 assertNoMixedLanguage("/en with TR cookie", en.html, "en");
+assertLocalizedProgramCards("/en with TR cookie", en.html, "en");
 
 const arAfterEn = await readPage("/", "hamza-agency-language=en");
 assertLocalePage({ path: "/ with EN cookie", expectedLanguage: "ar", ...arAfterEn });
@@ -83,4 +114,4 @@ for (const [path, page, language] of [["/", arAfterTr, "ar"], ["/en", en, "en"],
   assert(groupCount === 2, `${path} ticker rendered ${groupCount} marquee groups instead of 2.`);
 }
 
-console.log("Runtime locale verification passed: URL-owned AR/EN/TR, stable current homepage copy, cookie isolation, clean language boundaries, locale links, no placeholders, and deterministic ticker mechanics.");
+console.log("Runtime locale verification passed: URL-owned AR/EN/TR, localized program cards, cookie isolation, clean language boundaries, locale links, no placeholders, and deterministic ticker mechanics.");
