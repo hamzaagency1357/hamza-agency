@@ -1,8 +1,8 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+import { callSignedGateway } from "@/lib/server/pr100SignedGateway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,12 +19,7 @@ type ServiceRequestRecord = {
   updated_at: string | null;
 };
 
-type LookupResult = {
-  allowed?: boolean;
-  code?: string;
-  found?: boolean;
-  record?: ServiceRequestRecord | null;
-};
+type LookupResult = { allowed?: boolean; code?: string; found?: boolean; record?: ServiceRequestRecord | null };
 
 function failure(status: number) {
   return NextResponse.json(
@@ -34,9 +29,7 @@ function failure(status: number) {
 }
 
 function normalizeRequestCode(value: unknown) {
-  return typeof value === "string"
-    ? value.trim().toUpperCase().replace(/\s+/g, "").slice(0, 32)
-    : "";
+  return typeof value === "string" ? value.trim().toUpperCase().replace(/\s+/g, "").slice(0, 32) : "";
 }
 
 function fingerprint(request: NextRequest) {
@@ -48,7 +41,6 @@ function fingerprint(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const contentLength = Number(request.headers.get("content-length") || "0");
   if (contentLength > MAX_BODY_BYTES) return failure(413);
-
   const raw = await request.text();
   if (!raw || Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES) return failure(413);
 
@@ -57,30 +49,20 @@ export async function POST(request: NextRequest) {
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return failure(400);
     body = parsed as Record<string, unknown>;
-  } catch {
-    return failure(400);
-  }
+  } catch { return failure(400); }
 
   const requestCode = normalizeRequestCode(body.requestCode);
   if (requestCode.length < 8) return failure(400);
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return failure(503);
-
-  const client = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
-  const { data, error } = await client.rpc("pr100_lookup_public_service_request", {
-    p_request_code: requestCode,
-    p_request_fingerprint: fingerprint(request),
-  });
-  const result = data as LookupResult | null;
-  if (error) return failure(503);
-  if (!result?.allowed) return failure(result?.code === "rate_limited" ? 429 : 400);
-
-  return NextResponse.json(
-    { ok: true, record: result.found ? result.record || null : null },
-    { headers: { "Cache-Control": "no-store" } },
-  );
+  try {
+    const result = await callSignedGateway<LookupResult>("service_lookup", {
+      requestCode,
+      requestFingerprint: fingerprint(request),
+    });
+    if (!result?.allowed) return failure(result?.code === "rate_limited" ? 429 : 400);
+    return NextResponse.json(
+      { ok: true, record: result.found ? result.record || null : null },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch { return failure(503); }
 }
