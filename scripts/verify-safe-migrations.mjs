@@ -47,7 +47,7 @@ export function validateMigrationText(file, sql) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const files = (await readdir(root)).filter((name) => name.includes("pr99") && name.endsWith(".sql"));
+  const files = (await readdir(root)).filter((name) => /pr(?:99|100)/i.test(name) && name.endsWith(".sql"));
   const errors = [];
   for (const file of files) {
     const sql = await readFile(path.join(root, file), "utf8");
@@ -57,5 +57,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.error(errors.join("\n"));
     process.exit(1);
   }
-  console.log(`Verified ${files.length} PR99 migrations: transactional, protected, non-destructive, and secret-free.`);
+  console.log(`Verified ${files.length} PR99/PR100 migrations: transactional, protected, non-destructive, and secret-free.`);
 }
