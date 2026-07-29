@@ -38,9 +38,10 @@ function fingerprint(request: NextRequest) {
   const userAgent = request.headers.get("user-agent")?.slice(0, 320) || "unknown";
   return createHash("sha256").update(`${forwarded}|${userAgent}`).digest("hex");
 }
-async function loadKnowledge(client: ReturnType<typeof createClient> | null) {
+async function loadKnowledge(url: string | undefined, key: string | undefined) {
   if (knowledgeCache && knowledgeCache.expiresAt > Date.now()) return knowledgeCache.rows;
-  if (!client) return BUILT_IN_KNOWLEDGE;
+  if (!url || !key) return BUILT_IN_KNOWLEDGE;
+  const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
   const { data, error } = await client.from("knowledge_base").select("id,title,summary,content,category").eq("is_published", true).limit(120);
   const rows = error || !data?.length ? BUILT_IN_KNOWLEDGE : [...(data as KnowledgeRow[]), ...BUILT_IN_KNOWLEDGE];
   knowledgeCache = { expiresAt: Date.now() + KNOWLEDGE_CACHE_MS, rows };
@@ -65,15 +66,14 @@ export async function POST(request: NextRequest) {
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const client = url && key ? createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }) : null;
-
-  if (client) {
+  if (url && key) {
+    const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
     const guard = await client.rpc("pr100_guard_ai_answer", { p_identity: fingerprint(request), p_payload: { question } });
     if (guard.error) return failure(503);
     if (!guard.data || guard.data.allowed !== true) return failure(429);
   }
 
-  const knowledge = pick(question, await loadKnowledge(client));
+  const knowledge = pick(question, await loadKnowledge(url, key));
   if (!knowledge) return NextResponse.json({ ok: true, answer: "لم أجد إجابة مؤكدة داخل قاعدة المعرفة الحالية. للحالات المستعجلة تواصل عبر واتساب الرسمي.", status: "unanswered", source: "unanswered", escalated: true }, { headers: { "Cache-Control": "no-store" } });
 
   const content = clean(knowledge.content) || clean(knowledge.summary) || clean(knowledge.title);
