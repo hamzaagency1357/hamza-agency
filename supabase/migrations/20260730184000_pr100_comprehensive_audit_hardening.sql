@@ -43,8 +43,8 @@ using (
         or (
           admin_user.role = 'program_admin'
           and admin_user.assigned_program is not null
-          and lower(regexp_replace(coalesce(agency_applications.platform, ''), '[^a-z0-9]', '', 'g'))
-            = lower(regexp_replace(admin_user.assigned_program, '[^a-z0-9]', '', 'g'))
+          and regexp_replace(lower(coalesce(agency_applications.platform, '')), '[^a-z0-9]', '', 'g')
+            = regexp_replace(lower(admin_user.assigned_program), '[^a-z0-9]', '', 'g')
         )
       )
   )
@@ -74,8 +74,8 @@ using (
         or (
           admin_user.role = 'program_admin'
           and admin_user.assigned_program is not null
-          and lower(regexp_replace(coalesce(agency_applications.platform, ''), '[^a-z0-9]', '', 'g'))
-            = lower(regexp_replace(admin_user.assigned_program, '[^a-z0-9]', '', 'g'))
+          and regexp_replace(lower(coalesce(agency_applications.platform, '')), '[^a-z0-9]', '', 'g')
+            = regexp_replace(lower(admin_user.assigned_program), '[^a-z0-9]', '', 'g')
         )
       )
   )
@@ -100,8 +100,8 @@ with check (
         or (
           admin_user.role = 'program_admin'
           and admin_user.assigned_program is not null
-          and lower(regexp_replace(coalesce(agency_applications.platform, ''), '[^a-z0-9]', '', 'g'))
-            = lower(regexp_replace(admin_user.assigned_program, '[^a-z0-9]', '', 'g'))
+          and regexp_replace(lower(coalesce(agency_applications.platform, '')), '[^a-z0-9]', '', 'g')
+            = regexp_replace(lower(admin_user.assigned_program), '[^a-z0-9]', '', 'g')
         )
       )
   )
