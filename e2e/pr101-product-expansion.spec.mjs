@@ -42,7 +42,7 @@ test.describe("PR101 portal isolation", () => {
   test("signed-out creator profile redirects to shared login", async ({ page }) => {
     await page.goto("/portal/creator/profile");
     await page.waitForURL(/\/portal\/login/);
-    expect(page.url()).toContain("next=%2Fportal%2Fcreator%2Fprofile");
+    expect(new URL(page.url()).searchParams.get("next")).toBe("/portal/creator/profile");
   });
 
   test("signed-out portals do not expose module rows", async ({ page }) => {
