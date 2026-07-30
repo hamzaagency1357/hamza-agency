@@ -1,6 +1,6 @@
-import PortalModule from "@/components/portals/PortalModule";
+import PortalModuleRouter from "@/components/portals/PortalModuleRouter";
 
 export default async function EmployeeModulePage({ params }: { params: Promise<{ module: string }> }) {
   const { module } = await params;
-  return <PortalModule role="employee" moduleKey={module} />;
+  return <PortalModuleRouter role="employee" moduleKey={module} />;
 }
