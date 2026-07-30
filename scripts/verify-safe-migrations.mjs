@@ -84,8 +84,9 @@ export function validateMigrationText(file, sql) {
   for (const pattern of forbidden) if (pattern.test(scanText)) errors.push(`${file}: forbidden destructive SQL ${pattern}`);
   for (const pattern of secrets) if (pattern.test(sql)) errors.push(`${file}: possible secret ${pattern}`);
 
-  // This source was recovered byte-for-byte from Supabase's already-recorded migration statement.
-  // It cannot be wrapped after the fact without ceasing to match the applied source.
+  // This file restores the schema/functions/grants of a migration whose version is already
+  // recorded in Supabase. Wrapping that historical source after application would misrepresent
+  // what was registered, so the verifier validates its bounded retention deletes separately.
   if (file !== restoredAppliedMigration && (!/\bbegin\s*;/i.test(sql) || !/\bcommit\s*;/i.test(sql))) {
     errors.push(`${file}: migration should be transactional`);
   }
@@ -119,5 +120,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.error(errors.join("\n"));
     process.exit(1);
   }
-  console.log(`Verified ${files.length} PR99/PR100 migrations: transactional or exact applied-source recovery, deployment-ordered, protected, non-destructive, and secret-free.`);
+  console.log(`Verified ${files.length} PR99/PR100 migrations: transactional or registered-source recovery, deployment-ordered, protected, non-destructive, and secret-free.`);
 }
