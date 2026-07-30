@@ -1,7 +1,7 @@
 import { isSiteLanguage, type SiteLanguage } from "@/lib/i18n/locale";
 
 export const SITE_URL = "https://hamza-agency.com";
-export const PUBLIC_ROUTE_PATHS = ["/","/about","/ai-policy","/ai-support","/apply","/application-status","/contact","/digital-services","/faq","/gallery","/jobs","/knowledge-center","/partners","/privacy-policy","/programs","/reviews","/service-request","/service-status","/services","/success-stories","/terms-and-conditions"] as const;
+export const PUBLIC_ROUTE_PATHS = ["/","/about","/ai-policy","/ai-support","/apply","/application-status","/contact","/digital-services","/faq","/gallery","/jobs","/knowledge-center","/partners","/privacy-policy","/programs","/reviews","/service-request","/service-status","/services","/success-stories","/terms-and-conditions","/track"] as const;
 export const PROGRAM_SLUGS = ["tiktok","bigo-live","yaahlan","xena","catchii"] as const;
 export type PublicRoutePath = (typeof PUBLIC_ROUTE_PATHS)[number];
 const publicRouteSet = new Set<string>(PUBLIC_ROUTE_PATHS);
@@ -14,8 +14,8 @@ export function normalizePublicPathname(pathname:string){const withoutQuery=path
 export function splitLocalizedPathname(pathname:string):{language:SiteLanguage;publicPath:string}{const normalized=normalizePublicPathname(pathname);const match=normalized.match(localizedPrefixPattern);if(!match||!isSiteLanguage(match[1]))return{language:"ar",publicPath:normalized};const publicPath=normalized.slice(match[0].length)||"/";return{language:match[1],publicPath:normalizePublicPathname(publicPath)}}
 export function stripLocalePrefix(pathname:string){return splitLocalizedPathname(pathname).publicPath}
 export function getPathLanguage(pathname:string):SiteLanguage{return splitLocalizedPathname(pathname).language}
-export function localizePublicPath(pathname:string,language:SiteLanguage){const publicPath=stripLocalePrefix(pathname);if(language==="ar")return publicPath;return publicPath==="/"?`/${language}`:`/${language}${publicPath}`}
-export function localizePublicHref(href:string,language:SiteLanguage){if(!href.startsWith("/")||href.startsWith("//")||href.startsWith("/api/")||href.startsWith("/admin"))return href;const url=new URL(href,SITE_URL);return `${localizePublicPath(url.pathname,language)}${url.search}${url.hash}`}
+export function localizePublicPath(pathname:string,language:SiteLanguage){const url=new URL(pathname,SITE_URL);const publicPath=stripLocalePrefix(url.pathname);const localized=language==="ar"?publicPath:publicPath==="/"?`/${language}`:`/${language}${publicPath}`;return `${localized}${url.search}${url.hash}`}
+export function localizePublicHref(href:string,language:SiteLanguage){if(!href.startsWith("/")||href.startsWith("//")||href.startsWith("/api/")||href.startsWith("/admin"))return href;return localizePublicPath(href,language)}
 export function getLocalizedAbsoluteUrl(pathname:string,language:SiteLanguage){return `${SITE_URL}${localizePublicPath(pathname,language)}`}
 export function getLanguageAlternates(pathname:string){const publicPath=stripLocalePrefix(pathname);return{ar:getLocalizedAbsoluteUrl(publicPath,"ar"),en:getLocalizedAbsoluteUrl(publicPath,"en"),tr:getLocalizedAbsoluteUrl(publicPath,"tr"),"x-default":getLocalizedAbsoluteUrl(publicPath,"ar")}}
 export function isDynamicCmsPublicPath(pathname:string){const publicPath=stripLocalePrefix(pathname);const segment=publicPath.slice(1);return dynamicCmsPathPattern.test(publicPath)&&!publicRouteSet.has(publicPath)&&!reservedCmsSegments.has(segment)}
