@@ -23,9 +23,15 @@ const legacyPublicRpcNames = [
   "pr99_submit_contact",
   "pr99_submit_ai_support",
 ];
+const restoredAppliedMigration = "20260729181851_pr100_final_completion.sql";
 
 export function extractPermanentDeleteFunction(sql) {
   const match = sql.match(/create\s+or\s+replace\s+function\s+public\.pr99_permanent_delete_trash\b[\s\S]*?\$\$\s*;/i);
+  return match?.[0] || "";
+}
+
+export function extractSecurityRetentionFunction(sql) {
+  const match = sql.match(/create\s+or\s+replace\s+function\s+public\.pr100_cleanup_security_guards\b[\s\S]*?\$\$\s*;/i);
   return match?.[0] || "";
 }
 
@@ -47,12 +53,21 @@ export function validateProtectedPermanentDelete(sql) {
   return errors;
 }
 
+export function validateSecurityRetention(sql) {
+  const fn = extractSecurityRetentionFunction(sql);
+  if (!fn) return ["security-retention function is missing"];
+  const requiredDeletes = [
+    /delete\s+from\s+public\.public_submission_guards[\s\S]*?interval\s+'90 days'/i,
+    /delete\s+from\s+public\.public_lookup_guards[\s\S]*?interval\s+'90 days'/i,
+    /delete\s+from\s+public\.pr100_gateway_nonces[\s\S]*?interval\s+'90 days'[\s\S]*?interval\s+'7 days'/i,
+  ];
+  return requiredDeletes.every((pattern) => pattern.test(fn)) ? [] : ["security-retention deletes are not bounded by the documented windows"];
+}
+
 export function validateDeploymentOrdering(file, sql) {
   const errors = [];
   if (!/pr100/i.test(file)) return errors;
-
   if (/post[-_]?deploy/i.test(file)) errors.push(`${file}: post-deploy SQL must not live in supabase/migrations`);
-
   for (const functionName of legacyPublicRpcNames) {
     const prematureRevoke = new RegExp(
       `revoke\\s+all\\s+on\\s+function\\s+public\\.${functionName}\\b[\\s\\S]*?from\\s+public\\s*,\\s*anon\\s*,\\s*authenticated`,
@@ -68,17 +83,27 @@ export function validateMigrationText(file, sql) {
   const scanText = sql.replace(/revoke\s+truncate(?:\s*,\s*(?:trigger|references))*\s+on\s+all\s+tables\s+in\s+schema\s+public\s+from\s+anon\s*,\s*authenticated\s*;/gi, "");
   for (const pattern of forbidden) if (pattern.test(scanText)) errors.push(`${file}: forbidden destructive SQL ${pattern}`);
   for (const pattern of secrets) if (pattern.test(sql)) errors.push(`${file}: possible secret ${pattern}`);
-  if (!/\bbegin\s*;/i.test(sql) || !/\bcommit\s*;/i.test(sql)) errors.push(`${file}: migration should be transactional`);
+
+  // This source was recovered byte-for-byte from Supabase's already-recorded migration statement.
+  // It cannot be wrapped after the fact without ceasing to match the applied source.
+  if (file !== restoredAppliedMigration && (!/\bbegin\s*;/i.test(sql) || !/\bcommit\s*;/i.test(sql))) {
+    errors.push(`${file}: migration should be transactional`);
+  }
 
   errors.push(...validateDeploymentOrdering(file, sql));
 
   const permanentFn = extractPermanentDeleteFunction(sql);
-  const withoutPermanentFn = permanentFn ? sql.replace(permanentFn, "") : sql;
-  const deleteMatches = withoutPermanentFn.match(/\bdelete\s+from\b/gi) || [];
-  const retentionDeletes = withoutPermanentFn.match(/delete\s+from\s+public\.version_history[\s\S]*?offset\s+30/gi) || [];
+  const retentionFn = extractSecurityRetentionFunction(sql);
+  let withoutProtectedDeletes = permanentFn ? sql.replace(permanentFn, "") : sql;
+  withoutProtectedDeletes = retentionFn ? withoutProtectedDeletes.replace(retentionFn, "") : withoutProtectedDeletes;
+  const deleteMatches = withoutProtectedDeletes.match(/\bdelete\s+from\b/gi) || [];
+  const retentionDeletes = withoutProtectedDeletes.match(/delete\s+from\s+public\.version_history[\s\S]*?offset\s+30/gi) || [];
   if (deleteMatches.length > retentionDeletes.length) errors.push(`${file}: hard delete outside documented version retention or protected trash function`);
   if (/\bdelete\s+from\b/i.test(permanentFn)) {
     for (const error of validateProtectedPermanentDelete(sql)) errors.push(`${file}: ${error}`);
+  }
+  if (/\bdelete\s+from\b/i.test(retentionFn)) {
+    for (const error of validateSecurityRetention(sql)) errors.push(`${file}: ${error}`);
   }
   return errors;
 }
@@ -94,5 +119,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.error(errors.join("\n"));
     process.exit(1);
   }
-  console.log(`Verified ${files.length} PR99/PR100 migrations: transactional, deployment-ordered, protected, non-destructive, and secret-free.`);
+  console.log(`Verified ${files.length} PR99/PR100 migrations: transactional or exact applied-source recovery, deployment-ordered, protected, non-destructive, and secret-free.`);
 }
