@@ -13,10 +13,9 @@ alter table public.admin_users
 create index if not exists content_translation_revisions_source_revision_fk_idx
   on public.content_translation_revisions(source_revision_id, source_type, source_id);
 
--- Agency applications contain applicant PII. Enforce program scoping in RLS,
--- not only in the client, so a program administrator never receives rows for
--- another program over PostgREST. Program names and stored slugs are compared
--- after removing punctuation and spaces (for example BIGO LIVE / bigo-live).
+-- Agency applications contain applicant PII. Enforce module permissions and
+-- program scoping in RLS, not only in the client, so a program administrator
+-- never receives or modifies rows for another program over PostgREST.
 drop policy if exists allow_admins_application_select on public.agency_applications;
 drop policy if exists allow_admins_application_update on public.agency_applications;
 
@@ -25,7 +24,8 @@ on public.agency_applications
 for select
 to authenticated
 using (
-  exists (
+  public.current_admin_has_module_permission('applications', 'can_view')
+  and exists (
     select 1
     from public.admin_users as admin_user
     where admin_user.is_active is true
@@ -55,7 +55,8 @@ on public.agency_applications
 for update
 to authenticated
 using (
-  exists (
+  public.current_admin_has_module_permission('applications', 'can_edit')
+  and exists (
     select 1
     from public.admin_users as admin_user
     where admin_user.is_active is true
@@ -80,7 +81,8 @@ using (
   )
 )
 with check (
-  exists (
+  public.current_admin_has_module_permission('applications', 'can_edit')
+  and exists (
     select 1
     from public.admin_users as admin_user
     where admin_user.is_active is true
