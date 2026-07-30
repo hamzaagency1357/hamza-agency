@@ -1,165 +1,106 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { supabaseRestAsUser, verifySupabaseBearer } from "@/lib/server/supabaseUser";
+import { resolveTenantForRequest } from "@/lib/server/tenantRuntime";
+import { supabaseRestAsUser, verifySupabaseBearer, type VerifiedSupabaseUser } from "@/lib/server/supabaseUser";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Json = Record<string, unknown>;
+type Role = "creator" | "client" | "employee" | "partner" | "tenant_admin";
+
+const permissionsByRole: Record<Role, ReadonlySet<string>> = {
+  creator: new Set(["profile.edit", "files.upload", "support.create", "applications.view", "tasks.view"]),
+  client: new Set(["profile.edit", "files.upload", "support.create", "services.view", "orders.view"]),
+  employee: new Set(["tasks.view", "tasks.comment", "tasks.status", "files.upload"]),
+  partner: new Set(["profile.edit", "files.upload", "listings.manage", "orders.view", "referrals.view"]),
+  tenant_admin: new Set(["tenant.manage", "members.manage", "tasks.manage", "marketplace.manage", "reports.view"]),
+};
 
 function json(status: number, body: Json) {
-  return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
 }
-
-function cleanEmail(value: unknown) {
-  const email = typeof value === "string" ? value.trim().toLowerCase() : "";
-  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) && email.length <= 254 ? email : null;
-}
-
-function cleanRole(value: unknown) {
-  return ["creator", "client", "employee", "partner", "tenant_admin"].includes(String(value)) ? String(value) : null;
-}
-
-function cleanUuid(value: unknown) {
-  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null;
-}
-
-function cleanProgram(value: unknown) {
-  if (value === null || value === undefined || value === "") return null;
-  const number = Number(value);
-  return Number.isSafeInteger(number) && number > 0 ? number : undefined;
-}
-
-function cleanPermissions(value: unknown) {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Json : {};
-}
-
-function tokenPair() {
-  const raw = randomBytes(32).toString("base64url");
-  return { raw, hash: createHash("sha256").update(raw, "utf8").digest("hex") };
-}
-
-function siteUrl(request: Request) {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "");
-  if (configured) return configured;
-  const origin = request.headers.get("origin");
-  return origin && /^https?:\/\//i.test(origin) ? origin.replace(/\/+$/, "") : "https://hamza-agency.com";
-}
-
-function rpcPath(name: string) {
-  return `/rpc/${name}`;
-}
-
-async function bodyOf(request: Request): Promise<Json | null> {
-  try {
-    const value = await request.json();
-    return value && typeof value === "object" && !Array.isArray(value) ? value as Json : null;
-  } catch {
-    return null;
+function cleanEmail(value: unknown) { const email = typeof value === "string" ? value.trim().toLowerCase() : ""; return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) && email.length <= 254 ? email : null; }
+function cleanRole(value: unknown): Role | null { const role = String(value) as Role; return role in permissionsByRole ? role : null; }
+function cleanUuid(value: unknown) { return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null; }
+function cleanProgram(value: unknown) { if (value === null || value === undefined || value === "") return null; const number = Number(value); return Number.isSafeInteger(number) && number > 0 ? number : undefined; }
+function cleanPermissions(role: Role, value: unknown): Json | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const output: Json = {};
+  for (const [key, item] of Object.entries(value as Json)) {
+    if (!permissionsByRole[role].has(key) || typeof item !== "boolean") return null;
+    output[key] = item;
   }
+  return output;
+}
+function tokenPair() { const raw = randomBytes(32).toString("base64url"); return { raw, hash: createHash("sha256").update(raw).digest("hex") }; }
+function subjectHash(parts: string[]) { return createHash("sha256").update(parts.join("|")).digest("hex"); }
+function siteUrl(request: Request) { return process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") || new URL(request.url).origin.replace(/\/+$/, ""); }
+async function bodyOf(request: Request): Promise<Json | null> { try { const value = await request.json(); return value && typeof value === "object" && !Array.isArray(value) ? value as Json : null; } catch { return null; } }
+function internalFailure(correlationId: string, operation: string, detail: unknown) { console.error(JSON.stringify({ level: "error", event: "tenant_invitation_failure", correlation_id: correlationId, operation, detail })); }
+
+async function authorize(request: Request) {
+  const user = await verifySupabaseBearer(request);
+  if (!user) return { error: json(401, { ok: false, code: "unauthenticated" }) } as const;
+  const tenant = await resolveTenantForRequest(request, user);
+  if (!tenant.ok || !tenant.tenantId) return { error: json(403, { ok: false, code: "request_rejected" }) } as const;
+  const membership = await supabaseRestAsUser<Array<{ role: string }>>(`/tenant_memberships?select=role&tenant_id=eq.${encodeURIComponent(tenant.tenantId)}&user_id=eq.${encodeURIComponent(user.id)}&status=eq.active&role=in.(super_admin,tenant_admin)&limit=1`, user);
+  if (!membership.ok || !membership.data?.[0]) return { error: json(403, { ok: false, code: "request_rejected" }) } as const;
+  return { user, tenantId: tenant.tenantId } as const;
+}
+
+async function rateLimit(user: VerifiedSupabaseUser, tenantId: string, action: "create" | "resend", discriminator = "") {
+  const result = await supabaseRestAsUser<boolean>("/rpc/consume_invitation_rate_limit", user, { method: "POST", body: JSON.stringify({ p_tenant_id: tenantId, p_action: action, p_subject_hash: subjectHash([user.id, tenantId, action, discriminator]), p_limit: action === "create" ? 20 : 10, p_window_seconds: 3600 }) });
+  return result.ok && result.data === true;
 }
 
 export async function GET(request: Request) {
-  const user = await verifySupabaseBearer(request);
-  if (!user) return json(401, { ok: false, code: "unauthenticated" });
-  const membership = await supabaseRestAsUser<Array<{ tenant_id: string }>>(
-    "/tenant_memberships?select=tenant_id&user_id=eq." + encodeURIComponent(user.id) + "&status=eq.active&role=in.(super_admin,tenant_admin)&limit=1",
-    user
-  );
-  const tenantId = membership.data?.[0]?.tenant_id;
-  if (!membership.ok || !tenantId) return json(403, { ok: false, code: "forbidden" });
-  const invitations = await supabaseRestAsUser<Json[]>(
-    "/tenant_invitations?select=id,email,role,program_id,status,expires_at,last_sent_at,send_count,created_at&tenant_id=eq." + encodeURIComponent(tenantId) + "&order=created_at.desc&limit=100",
-    user
-  );
-  if (!invitations.ok) return json(invitations.status, { ok: false, code: "invitations_read_failed" });
-  return json(200, { ok: true, invitations: invitations.data ?? [] });
+  const access = await authorize(request); if ("error" in access) return access.error;
+  const result = await supabaseRestAsUser<Json[]>(`/tenant_invitations?select=id,email,role,program_id,status,expires_at,last_sent_at,send_count,created_at&tenant_id=eq.${encodeURIComponent(access.tenantId)}&order=created_at.desc&limit=100`, access.user);
+  return result.ok ? json(200, { ok: true, invitations: result.data ?? [] }) : json(503, { ok: false, code: "request_unavailable" });
 }
 
 export async function POST(request: Request) {
-  const user = await verifySupabaseBearer(request);
-  if (!user) return json(401, { ok: false, code: "unauthenticated" });
-  const input = await bodyOf(request);
-  if (!input) return json(400, { ok: false, code: "invalid_json" });
+  const correlationId = randomUUID();
+  const access = await authorize(request); if ("error" in access) return access.error;
+  const input = await bodyOf(request); if (!input) return json(400, { ok: false, code: "request_rejected", correlation_id: correlationId });
   const action = typeof input.action === "string" ? input.action : "create";
 
   if (action === "create") {
-    const email = cleanEmail(input.email);
-    const role = cleanRole(input.role);
-    const programId = cleanProgram(input.program_id);
-    const days = Math.max(1, Math.min(Number(input.expires_in_days) || 7, 30));
-    if (!email || !role || programId === undefined) return json(400, { ok: false, code: "invalid_invitation" });
-    const token = tokenPair();
-    const expiresAt = new Date(Date.now() + days * 86_400_000).toISOString();
-    const result = await supabaseRestAsUser<Json[]>(rpcPath("create_tenant_invitation"), user, {
-      method: "POST",
-      body: JSON.stringify({
-        p_email: email,
-        p_role: role,
-        p_program_id: programId,
-        p_permissions: cleanPermissions(input.permissions),
-        p_token_hash: token.hash,
-        p_expires_at: expiresAt,
-      }),
-    });
-    if (!result.ok) return json(result.status, { ok: false, code: "invitation_create_failed", detail: result.data });
-    return json(201, {
-      ok: true,
-      invitation: result.data?.[0] ?? null,
-      invite_url: `${siteUrl(request)}/portal/accept-invitation?token=${encodeURIComponent(token.raw)}`,
-      delivery: "manual_copy_provider_disabled",
-    });
+    const email = cleanEmail(input.email); const role = cleanRole(input.role); const programId = cleanProgram(input.program_id);
+    if (!email || !role || programId === undefined) return json(400, { ok: false, code: "request_rejected", correlation_id: correlationId });
+    const permissions = cleanPermissions(role, input.permissions); if (!permissions) return json(400, { ok: false, code: "permission_not_allowed", correlation_id: correlationId });
+    if (!(await rateLimit(access.user, access.tenantId, "create"))) return json(429, { ok: false, code: "request_rate_limited", correlation_id: correlationId });
+    const token = tokenPair(); const expiresAt = new Date(Date.now() + Math.max(1, Math.min(Number(input.expires_in_days) || 7, 30)) * 86_400_000).toISOString();
+    const result = await supabaseRestAsUser<Json[]>("/rpc/create_tenant_invitation", access.user, { method: "POST", body: JSON.stringify({ p_tenant_id: access.tenantId, p_email: email, p_role: role, p_program_id: programId, p_permissions: permissions, p_token_hash: token.hash, p_expires_at: expiresAt }) });
+    if (!result.ok) { internalFailure(correlationId, action, result.data); return json(result.status === 403 ? 403 : 400, { ok: false, code: "request_rejected", correlation_id: correlationId }); }
+    return json(201, { ok: true, invitation: result.data?.[0] ?? null, invite_url: `${siteUrl(request)}/portal/accept-invitation?token=${encodeURIComponent(token.raw)}`, delivery: "manual_copy_provider_disabled" });
   }
 
   if (action === "resend") {
-    const invitationId = cleanUuid(input.invitation_id);
-    const days = Math.max(1, Math.min(Number(input.expires_in_days) || 7, 30));
-    if (!invitationId) return json(400, { ok: false, code: "invalid_invitation_id" });
-    const token = tokenPair();
-    const expiresAt = new Date(Date.now() + days * 86_400_000).toISOString();
-    const result = await supabaseRestAsUser<Json[]>(rpcPath("resend_tenant_invitation"), user, {
-      method: "POST",
-      body: JSON.stringify({ p_invitation_id: invitationId, p_token_hash: token.hash, p_expires_at: expiresAt }),
-    });
-    if (!result.ok) return json(result.status, { ok: false, code: "invitation_resend_failed", detail: result.data });
-    return json(200, {
-      ok: true,
-      invitation: result.data?.[0] ?? null,
-      invite_url: `${siteUrl(request)}/portal/accept-invitation?token=${encodeURIComponent(token.raw)}`,
-      delivery: "manual_copy_provider_disabled",
-    });
+    const invitationId = cleanUuid(input.invitation_id); if (!invitationId) return json(400, { ok: false, code: "request_rejected", correlation_id: correlationId });
+    if (!(await rateLimit(access.user, access.tenantId, "resend", invitationId))) return json(429, { ok: false, code: "request_rate_limited", correlation_id: correlationId });
+    const token = tokenPair(); const expiresAt = new Date(Date.now() + Math.max(1, Math.min(Number(input.expires_in_days) || 7, 30)) * 86_400_000).toISOString();
+    const result = await supabaseRestAsUser<Json[]>("/rpc/resend_tenant_invitation", access.user, { method: "POST", body: JSON.stringify({ p_tenant_id: access.tenantId, p_invitation_id: invitationId, p_token_hash: token.hash, p_expires_at: expiresAt }) });
+    if (!result.ok) { internalFailure(correlationId, action, result.data); return json(result.status === 403 ? 403 : 400, { ok: false, code: "request_rejected", correlation_id: correlationId }); }
+    return json(200, { ok: true, invitation: result.data?.[0] ?? null, invite_url: `${siteUrl(request)}/portal/accept-invitation?token=${encodeURIComponent(token.raw)}`, delivery: "manual_copy_provider_disabled" });
   }
 
   if (action === "revoke") {
-    const invitationId = cleanUuid(input.invitation_id);
-    if (!invitationId) return json(400, { ok: false, code: "invalid_invitation_id" });
-    const result = await supabaseRestAsUser<boolean>(rpcPath("revoke_tenant_invitation"), user, {
-      method: "POST",
-      body: JSON.stringify({ p_invitation_id: invitationId }),
-    });
-    if (!result.ok) return json(result.status, { ok: false, code: "invitation_revoke_failed", detail: result.data });
+    const invitationId = cleanUuid(input.invitation_id); if (!invitationId) return json(400, { ok: false, code: "request_rejected", correlation_id: correlationId });
+    const result = await supabaseRestAsUser<boolean>("/rpc/revoke_tenant_invitation", access.user, { method: "POST", body: JSON.stringify({ p_tenant_id: access.tenantId, p_invitation_id: invitationId }) });
+    if (!result.ok) { internalFailure(correlationId, action, result.data); return json(result.status === 403 ? 403 : 400, { ok: false, code: "request_rejected", correlation_id: correlationId }); }
     return json(200, { ok: true, revoked: result.data === true });
   }
 
   if (action === "manage_membership") {
-    const membershipId = cleanUuid(input.membership_id);
-    const role = cleanRole(input.role);
-    const status = ["active", "suspended", "revoked"].includes(String(input.status)) ? String(input.status) : null;
-    const programId = cleanProgram(input.program_id);
-    if (!membershipId || !role || !status || programId === undefined) return json(400, { ok: false, code: "invalid_membership_update" });
-    const result = await supabaseRestAsUser<Json>(rpcPath("manage_tenant_membership"), user, {
-      method: "POST",
-      body: JSON.stringify({
-        p_membership_id: membershipId,
-        p_status: status,
-        p_role: role,
-        p_program_id: programId,
-        p_permissions: cleanPermissions(input.permissions),
-      }),
-    });
-    if (!result.ok) return json(result.status, { ok: false, code: "membership_update_failed", detail: result.data });
+    const membershipId = cleanUuid(input.membership_id); const role = cleanRole(input.role); const status = ["active", "suspended", "revoked"].includes(String(input.status)) ? String(input.status) : null; const programId = cleanProgram(input.program_id);
+    if (!membershipId || !role || !status || programId === undefined) return json(400, { ok: false, code: "request_rejected", correlation_id: correlationId });
+    const permissions = cleanPermissions(role, input.permissions); if (!permissions) return json(400, { ok: false, code: "permission_not_allowed", correlation_id: correlationId });
+    const result = await supabaseRestAsUser<Json>("/rpc/manage_tenant_membership", access.user, { method: "POST", body: JSON.stringify({ p_tenant_id: access.tenantId, p_membership_id: membershipId, p_status: status, p_role: role, p_program_id: programId, p_permissions: permissions }) });
+    if (!result.ok) { internalFailure(correlationId, action, result.data); return json(result.status === 403 ? 403 : 400, { ok: false, code: "request_rejected", correlation_id: correlationId }); }
     return json(200, { ok: true, membership: result.data });
   }
 
-  return json(400, { ok: false, code: "unsupported_action" });
+  return json(400, { ok: false, code: "request_rejected", correlation_id: correlationId });
 }
