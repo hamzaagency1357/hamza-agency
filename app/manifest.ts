@@ -2,19 +2,20 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    id: "/",
     name: "HAMZA AGENCY",
-    short_name: "HAMZA AGENCY",
+    short_name: "HAMZA",
     description:
-      "Professional content creator management, program guidance, and digital services.",
-    start_url: "/",
+      "منصة وكالة حمزة لإدارة صناع المحتوى والعملاء والموظفين والشركاء والخدمات.",
+    start_url: "/?source=pwa",
     scope: "/",
     display: "standalone",
-    orientation: "portrait",
-    background_color: "#180826",
+    orientation: "portrait-primary",
+    background_color: "#09050f",
     theme_color: "#7C3AED",
     categories: ["business", "productivity", "social"],
-    lang: "en",
-    dir: "ltr",
+    lang: "ar",
+    dir: "rtl",
     icons: [
       {
         src: "/Logo%20hamza%20agency.jpg",
@@ -26,8 +27,13 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/Logo%20hamza%20agency.jpg",
         sizes: "512x512",
         type: "image/jpeg",
-        purpose: "any",
+        purpose: "any maskable",
       },
+    ],
+    shortcuts: [
+      { name: "تتبع الطلب", short_name: "التتبع", url: "/application-status", icons: [{ src: "/Logo%20hamza%20agency.jpg", sizes: "192x192", type: "image/jpeg" }] },
+      { name: "طلب خدمة", short_name: "خدمة", url: "/service-request", icons: [{ src: "/Logo%20hamza%20agency.jpg", sizes: "192x192", type: "image/jpeg" }] },
+      { name: "بوابة المستخدم", short_name: "البوابة", url: "/portal/login", icons: [{ src: "/Logo%20hamza%20agency.jpg", sizes: "192x192", type: "image/jpeg" }] },
     ],
   };
 }
