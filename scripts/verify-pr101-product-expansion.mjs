@@ -13,6 +13,7 @@ const requiredFiles = [
   "supabase/migrations/20260731002000_pr101_kpi_notifications_workflow_runtime.sql",
   "supabase/migrations/20260731003000_pr101_security_tenant_finalization.sql",
   "supabase/migrations/20260731004000_pr101_data_api_grants_and_isolation.sql",
+  "supabase/migrations/20260731005000_pr101_advisor_hardening.sql",
   "lib/productExpansion/providerAdapters.ts",
   "lib/productExpansion/serverTenantRuntime.ts",
   "lib/server/pr101OidcGateway.ts",
