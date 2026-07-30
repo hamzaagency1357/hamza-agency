@@ -7,18 +7,16 @@ export default function PwaRuntime() {
 
   useEffect(() => {
     if (!("serviceWorker" in navigator) || process.env.NODE_ENV !== "production") return;
-    let registration: ServiceWorkerRegistration | undefined;
     const register = async () => {
-      registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
       registration.addEventListener("updatefound", () => {
-        const worker = registration?.installing;
+        const worker = registration.installing;
         worker?.addEventListener("statechange", () => {
           if (worker.state === "installed" && navigator.serviceWorker.controller) setUpdateReady(true);
         });
       });
     };
     void register().catch(() => undefined);
-    return () => registration?.unregister;
   }, []);
 
   if (!updateReady) return null;
