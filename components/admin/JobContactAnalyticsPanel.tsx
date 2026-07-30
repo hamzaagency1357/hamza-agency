@@ -1,0 +1,16 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { supabase } from "@/lib/supabase";
+
+type Row={id:number;tracking_code:string|null;status:string|null;created_at:string};
+export default function JobContactAnalyticsPanel(){
+ const[allowed,setAllowed]=useState(false);const[jobs,setJobs]=useState<Row[]>([]);const[contacts,setContacts]=useState<Row[]>([]);const[error,setError]=useState("");
+ const load=useCallback(async()=>{if(!supabase||!allowed)return;const since=new Date(Date.now()-30*86400000).toISOString();const[jobResult,contactResult]=await Promise.all([supabase.from("job_applications").select("id,tracking_code,status,created_at").gte("created_at",since).order("created_at",{ascending:false}),supabase.from("contact_messages").select("id,tracking_code,status,created_at").gte("created_at",since).order("created_at",{ascending:false})]);if(jobResult.error||contactResult.error){setError("تعذر تحميل تحليلات JOB/CNT.");return}setJobs((jobResult.data||[])as Row[]);setContacts((contactResult.data||[])as Row[])},[allowed]);
+ useEffect(()=>{void(async()=>{const access=await requireAdminModuleAccess("analytics");setAllowed(access.isAuthorized)})()},[]);useEffect(()=>{void load()},[load]);
+ const summary=useMemo(()=>({jobs:jobs.length,contacts:contacts.length,jobOpen:jobs.filter((row)=>!["completed","accepted","rejected","closed","archived"].includes(row.status||"new")).length,contactOpen:contacts.filter((row)=>!["completed","closed","archived"].includes(row.status||"new")).length}),[jobs,contacts]);
+ if(!allowed)return null;return <section dir="rtl" className="mx-auto mb-6 max-w-7xl rounded-[2rem] border border-cyan-400/20 bg-cyan-500/[0.06] p-6 text-white"><p className="text-xs font-black uppercase tracking-wider text-cyan-200">30-day operational analytics</p><h2 className="mt-2 text-3xl font-black">تحليلات طلبات الوظائف ورسائل التواصل</h2>{error&&<p className="mt-3 text-red-200">{error}</p>}<div className="mt-5 grid gap-4 sm:grid-cols-4"><Card label="JOB خلال 30 يوماً" value={summary.jobs}/><Card label="JOB قيد المتابعة" value={summary.jobOpen}/><Card label="CNT خلال 30 يوماً" value={summary.contacts}/><Card label="CNT قيد المتابعة" value={summary.contactOpen}/></div><div className="mt-5 grid gap-4 lg:grid-cols-2"><Recent title="أحدث JOB" rows={jobs.slice(0,5)}/><Recent title="أحدث CNT" rows={contacts.slice(0,5)}/></div></section>
+}
+function Card({label,value}:{label:string;value:number}){return <div className="rounded-2xl border border-white/10 bg-black/25 p-4"><p className="text-sm text-white/55">{label}</p><p className="mt-2 text-3xl font-black text-cyan-100">{value}</p></div>}
+function Recent({title,rows}:{title:string;rows:Row[]}){return <div className="rounded-2xl border border-white/10 bg-black/25 p-4"><h3 className="font-black">{title}</h3><div className="mt-3 space-y-2">{rows.map((row)=><div key={row.id} className="flex justify-between gap-3 rounded-xl bg-white/[0.04] p-3"><span dir="ltr" className="font-mono text-yellow-200">{row.tracking_code||`#${row.id}`}</span><span>{row.status||"new"}</span></div>)}{rows.length===0&&<p className="text-white/45">لا توجد سجلات حديثة.</p>}</div></div>}

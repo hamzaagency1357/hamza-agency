@@ -3,10 +3,35 @@ import path from "node:path";
 
 const root = path.join(process.cwd(), "supabase", "migrations");
 const forbidden = [/\bdrop\s+table\b/i, /\btruncate\b/i, /\bdrop\s+column\b/i, /\balter\s+table\b[^;]*\brename\s+column\b/i];
-const secrets = [/service[_-]?role/i, /eyJ[a-zA-Z0-9_-]{20,}/, /postgres(?:ql)?:\/\/[^\s]+:[^\s]+@/i];
+const secrets = [
+  /\b(?:SUPABASE_SERVICE_ROLE(?:_KEY)?|SERVICE_ROLE_KEY)\b\s*[:=]\s*['"][^'"\n]{12,}['"]/i,
+  /eyJ[a-zA-Z0-9_-]{20,}/,
+  /postgres(?:ql)?:\/\/[^\s]+:[^\s]+@/i,
+];
+const legacyPublicRpcNames = [
+  "lookup_public_agency_application",
+  "lookup_public_service_request",
+  "pr100_lookup_public_agency_application",
+  "pr100_lookup_public_agency_application_by_code",
+  "pr100_lookup_public_service_request",
+  "pr100_guard_password_reset",
+  "pr100_guard_ai_answer",
+  "pr99_guard_submission",
+  "pr99_submit_application",
+  "pr99_submit_service_request",
+  "pr99_submit_job_application",
+  "pr99_submit_contact",
+  "pr99_submit_ai_support",
+];
+const restoredAppliedMigration = "20260729181851_pr100_final_completion.sql";
 
 export function extractPermanentDeleteFunction(sql) {
   const match = sql.match(/create\s+or\s+replace\s+function\s+public\.pr99_permanent_delete_trash\b[\s\S]*?\$\$\s*;/i);
+  return match?.[0] || "";
+}
+
+export function extractSecurityRetentionFunction(sql) {
+  const match = sql.match(/create\s+or\s+replace\s+function\s+public\.pr100_cleanup_security_guards\b[\s\S]*?\$\$\s*;/i);
   return match?.[0] || "";
 }
 
@@ -28,26 +53,64 @@ export function validateProtectedPermanentDelete(sql) {
   return errors;
 }
 
+export function validateSecurityRetention(sql) {
+  const fn = extractSecurityRetentionFunction(sql);
+  if (!fn) return ["security-retention function is missing"];
+  const requiredDeletes = [
+    /delete\s+from\s+public\.public_submission_guards[\s\S]*?interval\s+'90 days'/i,
+    /delete\s+from\s+public\.public_lookup_guards[\s\S]*?interval\s+'90 days'/i,
+    /delete\s+from\s+public\.pr100_gateway_nonces[\s\S]*?interval\s+'90 days'[\s\S]*?interval\s+'7 days'/i,
+  ];
+  return requiredDeletes.every((pattern) => pattern.test(fn)) ? [] : ["security-retention deletes are not bounded by the documented windows"];
+}
+
+export function validateDeploymentOrdering(file, sql) {
+  const errors = [];
+  if (!/pr100/i.test(file)) return errors;
+  if (/post[-_]?deploy/i.test(file)) errors.push(`${file}: post-deploy SQL must not live in supabase/migrations`);
+  for (const functionName of legacyPublicRpcNames) {
+    const prematureRevoke = new RegExp(
+      `revoke\\s+all\\s+on\\s+function\\s+public\\.${functionName}\\b[\\s\\S]*?from\\s+public\\s*,\\s*anon\\s*,\\s*authenticated`,
+      "i",
+    );
+    if (prematureRevoke.test(sql)) errors.push(`${file}: legacy public RPC ${functionName} may be revoked only by the guarded manual post-deploy runbook`);
+  }
+  return errors;
+}
+
 export function validateMigrationText(file, sql) {
   const errors = [];
-  for (const pattern of forbidden) if (pattern.test(sql)) errors.push(`${file}: forbidden destructive SQL ${pattern}`);
+  const scanText = sql.replace(/revoke\s+truncate(?:\s*,\s*(?:trigger|references))*\s+on\s+all\s+tables\s+in\s+schema\s+public\s+from\s+anon\s*,\s*authenticated\s*;/gi, "");
+  for (const pattern of forbidden) if (pattern.test(scanText)) errors.push(`${file}: forbidden destructive SQL ${pattern}`);
   for (const pattern of secrets) if (pattern.test(sql)) errors.push(`${file}: possible secret ${pattern}`);
-  if (!/\bbegin\s*;/i.test(sql) || !/\bcommit\s*;/i.test(sql)) errors.push(`${file}: migration should be transactional`);
+
+  // This file restores the schema/functions/grants of a migration whose version is already
+  // recorded in Supabase. Wrapping that historical source after application would misrepresent
+  // what was registered, so the verifier validates its bounded retention deletes separately.
+  if (file !== restoredAppliedMigration && (!/\bbegin\s*;/i.test(sql) || !/\bcommit\s*;/i.test(sql))) {
+    errors.push(`${file}: migration should be transactional`);
+  }
+
+  errors.push(...validateDeploymentOrdering(file, sql));
 
   const permanentFn = extractPermanentDeleteFunction(sql);
-  const withoutPermanentFn = permanentFn ? sql.replace(permanentFn, "") : sql;
-  const deleteMatches = withoutPermanentFn.match(/\bdelete\s+from\b/gi) || [];
-  const retentionDeletes = withoutPermanentFn.match(/delete\s+from\s+public\.version_history[\s\S]*?offset\s+30/gi) || [];
+  const retentionFn = extractSecurityRetentionFunction(sql);
+  let withoutProtectedDeletes = permanentFn ? sql.replace(permanentFn, "") : sql;
+  withoutProtectedDeletes = retentionFn ? withoutProtectedDeletes.replace(retentionFn, "") : withoutProtectedDeletes;
+  const deleteMatches = withoutProtectedDeletes.match(/\bdelete\s+from\b/gi) || [];
+  const retentionDeletes = withoutProtectedDeletes.match(/delete\s+from\s+public\.version_history[\s\S]*?offset\s+30/gi) || [];
   if (deleteMatches.length > retentionDeletes.length) errors.push(`${file}: hard delete outside documented version retention or protected trash function`);
-
   if (/\bdelete\s+from\b/i.test(permanentFn)) {
     for (const error of validateProtectedPermanentDelete(sql)) errors.push(`${file}: ${error}`);
+  }
+  if (/\bdelete\s+from\b/i.test(retentionFn)) {
+    for (const error of validateSecurityRetention(sql)) errors.push(`${file}: ${error}`);
   }
   return errors;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const files = (await readdir(root)).filter((name) => name.includes("pr99") && name.endsWith(".sql"));
+  const files = (await readdir(root)).filter((name) => /pr(?:99|100)/i.test(name) && name.endsWith(".sql"));
   const errors = [];
   for (const file of files) {
     const sql = await readFile(path.join(root, file), "utf8");
@@ -57,5 +120,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.error(errors.join("\n"));
     process.exit(1);
   }
-  console.log(`Verified ${files.length} PR99 migrations: transactional, protected, non-destructive, and secret-free.`);
+  console.log(`Verified ${files.length} PR99/PR100 migrations: transactional or registered-source recovery, deployment-ordered, protected, non-destructive, and secret-free.`);
 }

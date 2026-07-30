@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
+import TrackingReceipt from "@/components/TrackingReceipt";
 import { getLanguageDirection } from "@/lib/i18n/locale";
 import { getPlatformLabel, getPublicFormsCopy, getServiceTypeHint, getServiceTypeLabel, type ServiceType } from "@/lib/i18n/publicForms";
+import { localizePublicPath } from "@/lib/i18n/publicLocales";
 import { getStaticCopy } from "@/lib/i18n/staticCopy";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
+import { submitPublicForm } from "@/lib/publicSubmission";
 
 const serviceTypes: ServiceType[] = ["platform_topup", "withdrawal", "digital_service", "technical_support", "other"];
 const platforms = ["TikTok", "BIGO LIVE", "Yaahlan", "Xena", "Catchii", "other"];
@@ -32,25 +35,13 @@ export default function ServiceRequestPage() {
     if (!form.fullName.trim()) return setMessage(forms.fullNameRequired);
     if (!cleanedWhatsapp || cleanedWhatsapp.length < 8) return setMessage(forms.invalidWhatsapp);
     if (!form.serviceType.trim()) return setMessage(forms.selectService);
-
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/public-submit", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          type: "service_request",
-          startedAt: startedAt.current,
-          honeypot: form.website,
-          payload: {
-            full_name: form.fullName.trim(), country: form.country.trim(), whatsapp: form.whatsapp.trim(), service_type: form.serviceType,
-            platform: form.platform === "other" ? "منصة أخرى" : form.platform.trim(), account_identifier: form.accountIdentifier.trim(),
-            requested_amount: form.requestedAmount.trim(), notes: form.notes.trim(),
-          },
-        }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.ok) throw new Error("submission_failed");
+      const result = await submitPublicForm("service_request", {
+        full_name: form.fullName.trim(), country: form.country.trim(), whatsapp: form.whatsapp.trim(), service_type: form.serviceType,
+        platform: form.platform === "other" ? "other" : form.platform.trim(), account_identifier: form.accountIdentifier.trim(),
+        requested_amount: form.requestedAmount.trim(), notes: form.notes.trim(),
+      }, startedAt.current, form.website);
       setSuccessCode(result.trackingCode || ""); setMessage(forms.success); setForm(initialFormState); startedAt.current = new Date().toISOString();
     } catch { setMessage(forms.error); }
     finally { setIsSubmitting(false); }
@@ -59,7 +50,7 @@ export default function ServiceRequestPage() {
   return <main dir={getLanguageDirection(language)} className="min-h-screen bg-[#070009] px-5 py-8 text-white">
     <div className="pointer-events-none fixed inset-0 overflow-hidden"><div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.32),transparent_45%)]"/><div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(40,10,70,0.35),rgba(7,0,9,0.95))]"/></div>
     <section className="relative z-10 mx-auto max-w-5xl">
-      <nav className="mb-8 flex items-center justify-between gap-4"><Link href="/" className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-bold text-white/75">{getStaticCopy(language,"backHome")}</Link><Link href="/digital-services" className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-5 py-3 text-sm font-bold text-yellow-100">{getStaticCopy(language,"digitalServices")}</Link></nav>
+      <nav className="mb-8 flex items-center justify-between gap-4 print:hidden"><Link href={localizePublicPath("/",language)} className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-bold text-white/75">{getStaticCopy(language,"backHome")}</Link><Link href={localizePublicPath("/digital-services",language)} className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-5 py-3 text-sm font-bold text-yellow-100">{getStaticCopy(language,"digitalServices")}</Link></nav>
       <div className="mb-8 rounded-[2rem] border border-purple-400/20 bg-white/[0.04] p-7 text-center"><div className="mx-auto mb-5 inline-flex rounded-full border border-purple-400/25 bg-purple-500/10 px-5 py-2 text-sm font-bold text-purple-100">{forms.eyebrow}</div><h1 className="text-4xl font-black md:text-6xl">{forms.title}</h1><p className="mx-auto mt-5 max-w-3xl text-lg leading-9 text-white/70">{forms.description}</p></div>
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <form onSubmit={handleSubmit} className="rounded-[2rem] border border-white/10 bg-black/30 p-6">
@@ -75,7 +66,8 @@ export default function ServiceRequestPage() {
           </div>
           <div className="mt-5"><Field label={forms.notes}><textarea value={form.notes} onChange={(e)=>updateField("notes",e.target.value)} placeholder={forms.notesPlaceholder} className={`${inputClassName} min-h-36 resize-none`}/></Field></div>
           {selectedService&&<div className="mt-5 rounded-3xl border border-purple-400/20 bg-purple-500/10 p-5 text-sm leading-7 text-purple-100"><span className="font-black">{forms.note}</span> {getServiceTypeHint(language,selectedService)}</div>}
-          {message&&<div className={`mt-5 rounded-3xl border p-5 text-center font-bold ${successCode?"border-green-400/30 bg-green-500/10 text-green-100":"border-yellow-400/30 bg-yellow-500/10 text-yellow-100"}`}><p>{message}</p>{successCode&&<div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4">{forms.trackingCode}<span className="mx-2 font-black text-yellow-200" dir="ltr">{successCode}</span><Link href="/service-status" className="mt-3 block text-sm font-black text-purple-100 underline">{forms.openTracking}</Link></div>}</div>}
+          {message&&<div className={`mt-5 rounded-3xl border p-5 text-center font-bold ${successCode?"border-green-400/30 bg-green-500/10 text-green-100":"border-yellow-400/30 bg-yellow-500/10 text-yellow-100"}`}>{message}</div>}
+          {successCode&&<TrackingReceipt trackingCode={successCode} className="mt-5"/>}
           <button type="submit" disabled={isSubmitting} className="mt-6 w-full rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-5 text-xl font-black disabled:opacity-60">{isSubmitting?forms.submitting:forms.submit}</button>
         </form>
         <aside className="space-y-5"><div className="rounded-[2rem] border border-yellow-400/20 bg-yellow-400/10 p-6"><h2 className="text-2xl font-black text-yellow-100">{forms.beforeSend}</h2><p className="mt-4 leading-8 text-yellow-50/75">{forms.beforeSendDescription}</p></div><div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6"><h2 className="text-2xl font-black">{forms.nextTitle}</h2><div className="mt-5 space-y-4 text-white/65">{forms.steps.map((text,index)=><Step key={text} number={String(index+1)} text={text}/>)}</div></div></aside>

@@ -1,187 +1,103 @@
-# HAMZA AGENCY — Stable v1
+# HAMZA AGENCY
 
-HAMZA AGENCY is a premium Next.js + Supabase platform for managing a live-streaming and creator agency. The project includes a public website, admin dashboard, creator/service requests, SEO foundation, AI-support foundation, backups, permissions, and final delivery documentation.
+HAMZA AGENCY is a production-oriented multilingual platform for operating a creator and live-streaming agency. It combines a public Arabic/English/Turkish website, a permissioned administration dashboard, unified request tracking, content management, translation workflows, operational analytics, backups, audit logs, and server-side security controls.
 
-> Status: **Stable v1 — ready for Vercel build verification and production approval**
+> Status: PR #100 closeout branch verified automatically. Manual owner checks are intentionally deferred to the final pre-launch gate.
 
----
-
-## Tech Stack
+## Platform
 
 | Layer | Technology |
-|-------|------------|
+|---|---|
 | Framework | Next.js 15 App Router |
 | Language | TypeScript |
-| UI | React 19 |
-| Styling | Tailwind CSS v3 |
+| UI | React 19 + Tailwind CSS |
 | Database/Auth | Supabase |
 | Hosting | Vercel |
-| SEO | Metadata, sitemap, robots, OpenGraph, JSON-LD |
-| Languages | Arabic / English / Turkish foundation |
-| AI Support | Safe public support widget based on knowledge base and fallback answers |
+| Languages | Arabic, English, Turkish |
+| Security gateway | Server-only Vercel OIDC to Supabase |
 
----
+## Completed capabilities
 
-## Current Stable Features
+### Public experience
 
-### Public Website
+- Arabic, English, and Turkish URL-owned locales.
+- Programs, services, jobs, reviews, success stories, partners, gallery, knowledge, contact, FAQ, and legal pages.
+- Responsive language switcher and mobile navigation.
+- Public AI-support experience with safe escalation behavior.
+- SEO metadata, sitemap, robots, OpenGraph, JSON-LD, canonicals, and locale alternates.
+- Tracking pages remain accessible but are excluded from indexing.
 
-- Premium Arabic-first public website.
-- Programs pages for TikTok, BIGO LIVE, Yaahlan, Xena, and Catchii.
-- Public pages for services, digital services, jobs, reviews, success stories, partners, gallery, FAQ, knowledge center, contact, privacy policy, terms, and AI policy.
-- Public quick navigation.
-- Language switcher foundation for Arabic, English, and Turkish.
-- Public AI support widget without secret keys.
-- WhatsApp contact integration.
-- SEO-ready metadata, sitemap, robots, OpenGraph, and JSON-LD.
-- Final luxury visual polish: black, royal purple, and gold identity.
+### Unified submissions and tracking
 
-### Requests
+- Creator applications: `APP-YYYY-XXXXXXXXXX`.
+- Service requests: `SR-YYYY-XXXXXXXXXX`.
+- Job applications: `JOB-YYYY-XXXXXXXXXX`.
+- Contact requests: `CNT-YYYY-XXXXXXXXXX`.
+- Tracking uses the issued tracking code only.
+- Localized receipt supports copy, opening the localized tracking page, and printing.
+- Public lookup responses expose only an approved status envelope and no private applicant data.
 
-- Creator agency application flow.
-- Service request flow.
-- Application status tracking.
-- Service request status tracking.
-- Admin-side request management.
+### Administration
 
-### Admin Dashboard
+- Programs, pages, sections, settings, announcements, jobs, reviews, success stories, partners, gallery, and media.
+- Applications, service requests, jobs, contact messages, and a unified request index.
+- Search, filters, pagination, status management, notes, and permission-controlled exports.
+- Page Builder draft/publish/unpublish/version/restore workflows.
+- Translation workbench and revision history.
+- Notifications, analytics, activity logs, trash, backups, permissions, and system health.
 
-- Admin home dashboard.
-- Settings dashboard.
-- Programs, pages, sections, media, announcements.
-- Applications and service requests.
-- Jobs, reviews, success stories, partners, gallery.
-- Notifications, analytics, activity logs, trash.
-- Permissions, backups, launch checklist.
-- Knowledge base, AI support, AI settings.
-- Export/version/audit support pages where available.
+### Security and operations
 
-### Security & Operations
+- Stable `user_id`-first administrator identity.
+- Unknown administrator roles fail closed.
+- Program administrators are restricted by database RLS to their assigned program.
+- Application reads, edits, and exports require action-level permissions.
+- Server-only OIDC validation with issuer, audience, subject, project, environment, time, digest, and nonce checks.
+- No Service Role key or OIDC token is exposed to the browser.
+- Media Library accepts JPEG, PNG, WebP, and AVIF only, up to 5 MB, with MIME and magic-byte validation.
+- Migration safety, secret scanning, automated tests, production build, runtime smoke, authenticated isolated E2E, locale runtime checks, and runtime-error rejection are enforced in CI.
 
-- Environment variables are documented in `.env.example`.
-- Real `.env` files are ignored by Git.
-- No AI provider secret is stored in the frontend.
-- Service-role and provider secrets must remain server-side only.
-- Manual JSON backup from the admin backups page.
-- Final delivery document: `docs/HAMZA_AGENCY_FINAL_DELIVERY.md`.
+## Environment variables
 
----
-
-## Environment Variables
-
-Create `.env.local` locally or configure these in Vercel:
+Copy `.env.example` to `.env.local` for local development. Never commit real values.
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 NEXT_PUBLIC_SITE_URL=https://hamza-agency.com
-NEXT_PUBLIC_WHATSAPP_NUMBER=905011730377
+NEXT_PUBLIC_WHATSAPP_NUMBER=YOUR_PUBLIC_WHATSAPP_NUMBER
 NEXT_PUBLIC_DEFAULT_LANGUAGE=ar
 NEXT_PUBLIC_SUPPORTED_LANGUAGES=ar,en,tr
 NEXT_PUBLIC_AI_SUPPORT_ENABLED=true
 ```
 
-Important:
+Vercel OIDC identity is obtained server-side from the deployment environment. Do not create or copy a shared RPC secret.
 
-- Never commit `.env` or `.env.local`.
-- Never expose Supabase service-role keys in `NEXT_PUBLIC_*` variables.
-- Real AI provider keys must be server-side only.
-
----
-
-## Local Setup
+## Local verification
 
 ```bash
-git clone https://github.com/hamzaagency1357/hamza-agency.git
-cd hamza-agency
-npm install
-cp .env.example .env.local
-npm run dev
-```
-
-Open:
-
-```text
-http://localhost:3000
-```
-
----
-
-## Production Build Check
-
-Before approving any production deployment, run:
-
-```bash
-npm install
+npm ci
+npm run lint
+npm run typecheck
+npm run verify:translations
+npm run verify:migrations
+npm run verify:secrets
+npm test
 npm run build
 ```
 
-The build must finish without TypeScript or Next.js errors.
+The protected CI workflows additionally run runtime route smoke tests, authenticated isolated browser E2E, locale ownership verification, and runtime-error rejection.
 
----
+## Important documentation
 
-## Production Verification Checklist
+- `docs/HAMZA_AGENCY_FINAL_DELIVERY.md` — full delivery and operating record.
+- `docs/PR100_FINAL_CLOSEOUT.md` — exact PR #100 scope, evidence, migrations, and safety decisions.
+- `docs/PRELAUNCH_MANUAL_CHECKLIST.md` — owner-only checks required immediately before public launch.
+- `.env.example` — public environment variable template.
 
-### Public Pages
+## Release rule
 
-- `/`
-- `/programs`
-- `/service-request`
-- `/service-status`
-- `/application-status`
-- `/contact`
-- `/faq`
-- `/privacy-policy`
-- `/terms-and-conditions`
-- `/ai-policy`
-
-### Admin Pages
-
-- `/admin/login`
-- `/admin`
-- `/admin/settings`
-- `/admin/applications`
-- `/admin/service-requests`
-- `/admin/backups`
-- `/admin/permissions`
-- `/admin/knowledge-base`
-- `/admin/ai-support`
-- `/admin/ai-settings`
-
-### Functional Tests
-
-- Submit a creator application.
-- Track a creator application by WhatsApp number.
-- Submit a service request.
-- Track a service request by request code.
-- Change service request status from admin.
-- Generate a JSON backup.
-- Test public AI support with known and unknown questions.
-- Test language switcher AR / EN / TR.
-- Test WhatsApp links.
-
----
-
-## Project Documentation
-
-- Final stable delivery: `docs/HAMZA_AGENCY_FINAL_DELIVERY.md`
-- Environment template: `.env.example`
-- Deployment/checking should always follow the production verification checklist above.
-
----
-
-## Roadmap After v1 Approval
-
-These are post-v1 improvements, not blockers for the stable v1 release:
-
-- Full dynamic CMS translations for Arabic, English, and Turkish.
-- Server-side AI provider integration.
-- Automated off-site backups.
-- Deeper Supabase RLS audit.
-- Automated tests.
-- More advanced analytics and error monitoring.
-
----
+Merging code and launching publicly are separate gates. PR #100 may be merged after automated verification and repository documentation are complete. Public launch still requires the owner-only checklist, Production verification, and the guarded post-deploy RPC revocation procedure documented in the closeout files.
 
 ## License
 

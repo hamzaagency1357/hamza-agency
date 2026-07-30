@@ -12,6 +12,7 @@ const excludedPaths = new Set([
   "/apply",
   "/application-status",
   "/service-status",
+  "/track",
 ]);
 
 function getRouteConfig(path: string) {
