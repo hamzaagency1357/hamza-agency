@@ -1,37 +1,50 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+
+const SESSION_KEY = "hamza_tenant_invitation_token";
+
+function readAndCleanToken() {
+  const url = new URL(window.location.href);
+  const queryToken = url.searchParams.get("token")?.trim() ?? "";
+  const storedToken = window.sessionStorage.getItem(SESSION_KEY)?.trim() ?? "";
+  const token = queryToken || storedToken;
+  if (queryToken) window.sessionStorage.setItem(SESSION_KEY, queryToken);
+  if (url.search) window.history.replaceState(null, "", url.pathname + url.hash);
+  return token;
+}
 
 export default function AcceptTenantInvitation() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const token = useMemo(() => searchParams.get("token")?.trim() ?? "", [searchParams]);
+  const [token, setToken] = useState("");
   const [state, setState] = useState<"checking" | "ready" | "submitting" | "success" | "error">("checking");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+    const currentToken = readAndCleanToken();
+    setToken(currentToken);
     void (async () => {
       if (!supabase) {
         setState("error");
         setMessage("الخدمة غير مهيأة حالياً.");
         return;
       }
-      if (!/^[A-Za-z0-9_-]{40,100}$/.test(token)) {
+      if (!/^[A-Za-z0-9_-]{40,100}$/.test(currentToken)) {
+        window.sessionStorage.removeItem(SESSION_KEY);
         setState("error");
-        setMessage("رابط الدعوة غير صالح.");
+        setMessage("تعذر استخدام رابط الدعوة.");
         return;
       }
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
-        const next = `/portal/accept-invitation?token=${encodeURIComponent(token)}`;
-        router.replace(`/portal/login?next=${encodeURIComponent(next)}`);
+        router.replace(`/portal/login?next=${encodeURIComponent("/portal/accept-invitation")}`);
         return;
       }
       setState("ready");
     })();
-  }, [router, token]);
+  }, [router]);
 
   async function accept() {
     if (!supabase || state === "submitting") return;
@@ -52,22 +65,20 @@ export default function AcceptTenantInvitation() {
         body: JSON.stringify({ token }),
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(typeof body.code === "string" ? body.code : "invitation_accept_failed");
+      if (!response.ok) throw new Error("invitation_accept_failed");
       const membership = body.membership && typeof body.membership === "object" ? body.membership as Record<string, unknown> : {};
       const role = typeof membership.role === "string" ? membership.role : "";
+      window.sessionStorage.removeItem(SESSION_KEY);
+      setToken("");
       setState("success");
       setMessage("تم قبول الدعوة وربط الحساب بمساحة العمل بنجاح.");
       const target = ["creator", "client", "employee", "partner"].includes(role) ? `/portal/${role}` : "/admin/product-expansion";
       window.setTimeout(() => router.replace(target), 900);
-    } catch (error) {
+    } catch {
+      window.sessionStorage.removeItem(SESSION_KEY);
+      setToken("");
       setState("error");
-      const code = error instanceof Error ? error.message : "invitation_accept_failed";
-      const messages: Record<string, string> = {
-        invitation_accept_failed: "تعذر قبول الدعوة. قد تكون منتهية أو مستخدمة أو مرتبطة ببريد مختلف.",
-        unauthenticated: "يجب تسجيل الدخول أولاً.",
-        invalid_token: "رمز الدعوة غير صالح.",
-      };
-      setMessage(messages[code] ?? "تعذر قبول الدعوة. تحقق من الحساب والرابط ثم أعد المحاولة.");
+      setMessage("تعذر قبول الدعوة. تحقق من الحساب والرابط ثم أعد المحاولة.");
     }
   }
 
