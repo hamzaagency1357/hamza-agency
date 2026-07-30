@@ -12,6 +12,7 @@ const requiredFiles = [
   "supabase/migrations/20260731001000_pr101_portal_provider_session_policies.sql",
   "supabase/migrations/20260731002000_pr101_kpi_notifications_workflow_runtime.sql",
   "supabase/migrations/20260731003000_pr101_security_tenant_finalization.sql",
+  "supabase/migrations/20260731004000_pr101_data_api_grants_and_isolation.sql",
   "lib/productExpansion/providerAdapters.ts",
   "lib/productExpansion/serverTenantRuntime.ts",
   "lib/server/pr101OidcGateway.ts",
@@ -98,6 +99,8 @@ const requiredSqlEvidence = [
   /get_public_incident_status/i,
   /tenant_backfill_incomplete/i,
   /pr101_oidc_gateway/i,
+  /grant\s+select[^;]+marketplace_categories[^;]+to\s+anon/i,
+  /grant\s+select,insert,update,delete[^;]+tasks[^;]+to\s+authenticated/i,
   /revoke\s+all\s+on\s+function\s+public\.pr101_oidc_gateway[\s\S]+from\s+public\s*,\s*anon\s*,\s*authenticated/i,
 ];
 for (const pattern of requiredSqlEvidence) if (!pattern.test(allSql)) errors.push(`missing migration evidence: ${pattern}`);
