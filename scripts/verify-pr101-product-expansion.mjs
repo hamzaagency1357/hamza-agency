@@ -5,9 +5,13 @@ const root = process.cwd();
 const requiredFiles = [
   "supabase/migrations/20260730232500_pr101_product_expansion_foundation.sql",
   "supabase/migrations/20260730233500_pr101_product_expansion_operations.sql",
+  "supabase/migrations/20260730234000_pr101_kpi_schema_guard.sql",
   "supabase/migrations/20260730234500_pr101_product_expansion_hardening.sql",
   "supabase/migrations/20260730235500_pr101_product_expansion_runtime_fixes.sql",
   "supabase/migrations/20260730235900_pr101_tenant_admin_permissions.sql",
+  "supabase/migrations/20260731001000_pr101_portal_provider_session_policies.sql",
+  "supabase/migrations/20260731002000_pr101_kpi_notifications_workflow_runtime.sql",
+  "supabase/migrations/20260731003000_pr101_security_tenant_finalization.sql",
   "lib/productExpansion/providerAdapters.ts",
   "lib/productExpansion/serverTenantRuntime.ts",
   "lib/server/pr101OidcGateway.ts",
@@ -15,9 +19,12 @@ const requiredFiles = [
   "supabase/functions/pr101-vercel-oidc-gateway/index.ts",
   "components/admin/TenantGovernanceConsole.tsx",
   "components/admin/ProductOperationsConsole.tsx",
+  "components/admin/ProductAnalyticsConsole.tsx",
   "components/portals/PortalDashboard.tsx",
   "components/portals/PortalModule.tsx",
   "components/portals/PortalAccountModule.tsx",
+  "components/portals/PortalNotificationCenter.tsx",
+  "components/portals/PortalSessionCenter.tsx",
   "components/marketplace/MarketplaceClient.tsx",
   "components/ai/ProductAiAssistant.tsx",
   "components/CookieConsent.tsx",
@@ -26,6 +33,7 @@ const requiredFiles = [
   "app/api/product-expansion/providers/queue/route.ts",
   "app/api/product-expansion/payments/[provider]/webhook/route.ts",
   "app/api/product-expansion/health/route.ts",
+  "app/api/product-expansion/sessions/register/route.ts",
   "app/marketplace/page.tsx",
   "app/offline/page.tsx",
   "app/status/page.tsx",
@@ -57,7 +65,7 @@ for (const [file, sql] of migrations) {
   const createdTables = [...sql.matchAll(/create\s+table\s+if\s+not\s+exists\s+public\.([a-z0-9_]+)/gi)].map((match) => match[1]);
   for (const table of createdTables) {
     const direct = new RegExp(`alter\\s+table\\s+public\\.${table}\\s+enable\\s+row\\s+level\\s+security`, "i");
-    const arrayLoop = new RegExp(`array\\[[\\s\\S]*?['\"]${table}['\"][\\s\\S]*?enable row level security`, "i");
+    const arrayLoop = new RegExp(`array\\[[\\s\\S]*?['"]${table}['"][\\s\\S]*?enable row level security`, "i");
     if (!direct.test(allSql) && !arrayLoop.test(allSql)) errors.push(`${file}: ${table} is created without an RLS enablement record`);
   }
 }
@@ -79,11 +87,16 @@ const requiredSqlEvidence = [
   /create\s+table[^;]+public\.consent_records/i,
   /create\s+table[^;]+public\.user_sessions/i,
   /create\s+table[^;]+public\.incidents/i,
+  /create\s+table[^;]+public\.product_kpi_daily/i,
   /private\.has_tenant_role/i,
   /private\.can_manage_tenant_member/i,
   /resolve_public_tenant_runtime/i,
   /create_marketplace_order/i,
   /revoke_own_platform_session/i,
+  /refresh_product_kpis/i,
+  /start_workflow_run/i,
+  /get_public_incident_status/i,
+  /tenant_backfill_incomplete/i,
   /pr101_oidc_gateway/i,
   /revoke\s+all\s+on\s+function\s+public\.pr101_oidc_gateway[\s\S]+from\s+public\s*,\s*anon\s*,\s*authenticated/i,
 ];
@@ -93,6 +106,7 @@ if (/custom\s+(?:css|javascript|js)\b/i.test(allSql)) errors.push("untrusted cus
 if (/mode\s+text[^;]+default\s+'live'/i.test(allSql)) errors.push("provider modes must not default to live");
 if (/\b(?:usdt|bitcoin|ethereum)\b/i.test(allSql)) errors.push("crypto payment activation is outside the approved scope");
 if (/card_number|\bcvv\b|\bcvc\b/i.test(allSql)) errors.push("payment schema must not store card data");
+if (/create\s+policy\s+"public reads active incidents"/i.test(allSql) && !/drop\s+policy\s+if\s+exists\s+"public reads active incidents"/i.test(allSql)) errors.push("incident internals must not be directly exposed to anon");
 
 const gateway = await readFile(path.join(root, "supabase/functions/pr101-vercel-oidc-gateway/index.ts"), "utf8");
 for (const pattern of [/jwtVerify\(/, /issuer:\s*ISSUER/, /audience:\s*AUDIENCE/, /owner_id/, /project_id/, /bodyDigest/, /invalid_oidc_claims/]) {
