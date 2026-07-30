@@ -46,7 +46,7 @@ function siteUrl(request: Request) {
   return origin && /^https?:\/\//i.test(origin) ? origin.replace(/\/+$/, "") : "https://hamza-agency.com";
 }
 
-function rpcPath(name: string, params: Json) {
+function rpcPath(name: string) {
   return `/rpc/${name}`;
 }
 
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     if (!email || !role || programId === undefined) return json(400, { ok: false, code: "invalid_invitation" });
     const token = tokenPair();
     const expiresAt = new Date(Date.now() + days * 86_400_000).toISOString();
-    const result = await supabaseRestAsUser<Json[]>(rpcPath("create_tenant_invitation", {}), user, {
+    const result = await supabaseRestAsUser<Json[]>(rpcPath("create_tenant_invitation"), user, {
       method: "POST",
       body: JSON.stringify({
         p_email: email,
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
     if (!invitationId) return json(400, { ok: false, code: "invalid_invitation_id" });
     const token = tokenPair();
     const expiresAt = new Date(Date.now() + days * 86_400_000).toISOString();
-    const result = await supabaseRestAsUser<Json[]>(rpcPath("resend_tenant_invitation", {}), user, {
+    const result = await supabaseRestAsUser<Json[]>(rpcPath("resend_tenant_invitation"), user, {
       method: "POST",
       body: JSON.stringify({ p_invitation_id: invitationId, p_token_hash: token.hash, p_expires_at: expiresAt }),
     });
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
   if (action === "revoke") {
     const invitationId = cleanUuid(input.invitation_id);
     if (!invitationId) return json(400, { ok: false, code: "invalid_invitation_id" });
-    const result = await supabaseRestAsUser<boolean>(rpcPath("revoke_tenant_invitation", {}), user, {
+    const result = await supabaseRestAsUser<boolean>(rpcPath("revoke_tenant_invitation"), user, {
       method: "POST",
       body: JSON.stringify({ p_invitation_id: invitationId }),
     });
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
     const status = ["active", "suspended", "revoked"].includes(String(input.status)) ? String(input.status) : null;
     const programId = cleanProgram(input.program_id);
     if (!membershipId || !role || !status || programId === undefined) return json(400, { ok: false, code: "invalid_membership_update" });
-    const result = await supabaseRestAsUser<Json>(rpcPath("manage_tenant_membership", {}), user, {
+    const result = await supabaseRestAsUser<Json>(rpcPath("manage_tenant_membership"), user, {
       method: "POST",
       body: JSON.stringify({
         p_membership_id: membershipId,
