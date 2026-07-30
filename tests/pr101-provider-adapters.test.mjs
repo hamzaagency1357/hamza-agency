@@ -53,5 +53,5 @@ test("Capacitor wrapper is HTTPS-only and contains no server secrets", async () 
   assert.deepEqual(config.server.allowNavigation, ["hamza-agency.com", "*.hamza-agency.com"]);
   const combined = `${JSON.stringify(config)}\n${await read("mobile/configure-native.mjs")}`;
   assert.doesNotMatch(combined, /SUPABASE_SERVICE_ROLE|VERCEL_OIDC_TOKEN|PAYMENT_WEBHOOK_SECRET/);
-  assert.match(combined, /usesCleartextTraffic=\\"false\\"/);
+  assert.match(combined, /usesCleartextTraffic=["']false["']/);
 });
