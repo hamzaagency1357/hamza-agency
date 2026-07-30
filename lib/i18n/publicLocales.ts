@@ -11,7 +11,7 @@ const dynamicCmsPathPattern = /^\/[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const reservedCmsSegments = new Set(["admin","api","_next","en","tr","login","reset-password","robots.txt","sitemap.xml","manifest.webmanifest","opengraph-image"]);
 const nonIndexablePublicPaths = new Set(["/application-status", "/service-status", "/track"]);
 
-export function normalizePublicPathname(pathname:string){const withoutQuery=pathname.split(/[?#]/,1)[0]||"/";const withLeadingSlash=withoutQuery.startsWith("/")?withoutQuery:`/${withoutQuery}`;return withLeadingSlash.replace(/\/+$/,"/")||"/"}
+export function normalizePublicPathname(pathname:string){const withoutQuery=pathname.split(/[?#]/,1)[0]||"/";const withLeadingSlash=withoutQuery.startsWith("/")?withoutQuery:`/${withoutQuery}`;return withLeadingSlash.replace(/\/+$/g,"")||"/"}
 export function splitLocalizedPathname(pathname:string):{language:SiteLanguage;publicPath:string}{const normalized=normalizePublicPathname(pathname);const match=normalized.match(localizedPrefixPattern);if(!match||!isSiteLanguage(match[1]))return{language:"ar",publicPath:normalized};const publicPath=normalized.slice(match[0].length)||"/";return{language:match[1],publicPath:normalizePublicPathname(publicPath)}}
 export function stripLocalePrefix(pathname:string){return splitLocalizedPathname(pathname).publicPath}
 export function getPathLanguage(pathname:string):SiteLanguage{return splitLocalizedPathname(pathname).language}
