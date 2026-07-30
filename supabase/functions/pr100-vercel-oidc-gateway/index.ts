@@ -10,6 +10,8 @@ const ALLOWED_ENVIRONMENTS = new Set(["preview", "production"]);
 const ALLOWED_ACTIONS = new Set([
   "application_lookup",
   "service_lookup",
+  "job_lookup",
+  "contact_lookup",
   "ai_guard",
   "password_reset_guard",
   "application_submit",
@@ -24,10 +26,7 @@ const encoder = new TextEncoder();
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store",
-    },
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 }
 
