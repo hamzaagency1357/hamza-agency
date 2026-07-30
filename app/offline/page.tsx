@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export const metadata = {
   title: "Offline | HAMZA AGENCY",
   robots: { index: false, follow: false },
@@ -12,7 +14,7 @@ export default function OfflinePage() {
         <p className="mt-3 leading-7 text-white/70">يمكنك متابعة الصفحات العامة المحفوظة مسبقاً. بيانات الحسابات والطلبات والبوابات لا تُخزّن للعمل دون اتصال حفاظاً على الخصوصية.</p>
         <p className="mt-5 text-sm text-white/50" dir="ltr">You are offline. Authenticated and private data is never cached.</p>
         <p className="mt-2 text-sm text-white/50" dir="ltr">Çevrimdışısınız. Kimlik doğrulamalı ve özel veriler önbelleğe alınmaz.</p>
-        <button type="button" onClick={undefined} className="mt-6 min-h-12 rounded-xl bg-violet-600 px-6 font-bold" formAction="/">إعادة المحاولة من الصفحة الرئيسية</button>
+        <Link href="/" className="mt-6 inline-flex min-h-12 items-center rounded-xl bg-violet-600 px-6 font-bold">إعادة المحاولة من الصفحة الرئيسية</Link>
       </section>
     </main>
   );
