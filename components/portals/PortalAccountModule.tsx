@@ -31,9 +31,16 @@ export default function PortalAccountModule({ role, moduleKey }: { role: PortalR
   const [message, setMessage] = useState("");
 
   const load = useCallback(async () => {
-    if (!supabase) return setState("denied");
+    const next = `/portal/${role}/${moduleKey}`;
+    if (!supabase) {
+      router.replace(`/portal/login?next=${encodeURIComponent(next)}`);
+      return;
+    }
     const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user) return router.replace(`/portal/login?next=/portal/${role}/${moduleKey}`);
+    if (!auth.user) {
+      router.replace(`/portal/login?next=${encodeURIComponent(next)}`);
+      return;
+    }
     setUserId(auth.user.id);
     const membershipResult = await supabase.from("tenant_memberships").select("tenant_id,role,status").eq("user_id", auth.user.id).eq("role", role).eq("status", "active").limit(1).maybeSingle();
     const row = isObject(membershipResult.data) ? membershipResult.data as unknown as Membership : null;
