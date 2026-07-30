@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: pr100-autonomous-recovery
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   recover:
