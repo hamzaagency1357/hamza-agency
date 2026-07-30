@@ -103,10 +103,11 @@ const platformModules: AdminModule[] = [
 
 const programAdminModules: AdminModule[] = ["dashboard", "applications", "programs"];
 
-export function normalizeAdminRole(role: string | null | undefined): AdminRole {
+export function normalizeAdminRole(role: string | null | undefined): AdminRole | null {
+  if (role === "super_admin") return "super_admin";
   if (role === "deputy_super_admin") return "deputy_super_admin";
   if (role === "program_admin") return "program_admin";
-  return "super_admin";
+  return null;
 }
 
 export function getAllowedModulesForRole(role: AdminRole): AdminModule[] {
@@ -174,11 +175,14 @@ export async function canUseAdminModulePermission(
   action: AdminPermissionAction = "can_view"
 ): Promise<boolean> {
   if (profile.role === "super_admin") return true;
-  if (profile.role === "program_admin") return canAccessAdminModule(profile.role, module);
   if (!canAccessAdminModule(profile.role, module)) return false;
 
   const permission = await getAdminModulePermission(profile, module);
-  if (!permission) return true;
+
+  // Deputy administrators retain platform access unless a module-specific row
+  // is present. Program administrators require an explicit permission row,
+  // matching current_admin_has_module_permission() in PostgreSQL.
+  if (!permission) return profile.role === "deputy_super_admin";
   if (permission.can_manage) return true;
   return permission[action] === true;
 }
@@ -223,11 +227,16 @@ export async function getCurrentAdminProfile(): Promise<AdminAccessResult> {
     return { isAuthorized: false, reason: "not_admin", user: session.user, profile: null };
   }
 
+  const normalizedRole = normalizeAdminRole(data.role);
+  if (!normalizedRole) {
+    return { isAuthorized: false, reason: "not_admin", user: session.user, profile: null };
+  }
+
   const profile: AdminProfile = {
     id: Number(data.id),
     user_id: data.user_id || null,
     email: data.email || email,
-    role: normalizeAdminRole(data.role),
+    role: normalizedRole,
     assigned_program: data.assigned_program || null,
     is_active: data.is_active !== false,
   };
