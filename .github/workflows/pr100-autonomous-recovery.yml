@@ -27,7 +27,9 @@ jobs:
           node-version: 24
           cache: npm
       - name: Apply recovery patch
-        run: node scripts/pr100-autonomous-recovery.mjs
+        run: node scripts/run-pr100-autonomous-recovery.mjs
+      - name: Remove one-time recovery sources before verification
+        run: rm -f scripts/pr100-autonomous-recovery.mjs scripts/run-pr100-autonomous-recovery.mjs .github/workflows/pr100-autonomous-recovery.yml
       - name: Install exact dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Verify checkpoint
@@ -41,7 +43,6 @@ jobs:
           npm run build
       - name: Commit checkpoint
         run: |
-          rm -f scripts/pr100-autonomous-recovery.mjs .github/workflows/pr100-autonomous-recovery.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
