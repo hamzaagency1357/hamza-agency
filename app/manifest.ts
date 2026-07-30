@@ -27,7 +27,13 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/Logo%20hamza%20agency.jpg",
         sizes: "512x512",
         type: "image/jpeg",
-        purpose: "any maskable",
+        purpose: "any",
+      },
+      {
+        src: "/Logo%20hamza%20agency.jpg",
+        sizes: "512x512",
+        type: "image/jpeg",
+        purpose: "maskable",
       },
     ],
     shortcuts: [
