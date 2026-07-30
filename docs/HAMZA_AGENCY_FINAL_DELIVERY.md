@@ -1,169 +1,218 @@
-# HAMZA AGENCY — Final Project Delivery Record
+# HAMZA AGENCY — Final Delivery and Operating Record
 
-Updated: 2026-07-30
+## Current release state
 
-Repository: `hamzaagency1357/hamza-agency`
+HAMZA AGENCY is a multilingual, tenant-aware operations platform for a creator and digital-services agency.
 
-Production domain: `https://hamza-agency.com`
+- Internal batch: **PR101 Product Expansion**
+- Actual feature pull request: **PR #105**
+- Branch: `feat/pr101-complete-product-expansion`
+- Starting main: `a9951bd459bfbf684d03cfdcb2f645f47d9969a1`
+- PR state: Draft until all final exact-head gates pass
+- Merge: not performed
+- Production launch: not declared
+- Guarded PR #100 post-deploy revocation: not performed
+
+GitHub PR numbers #101–#104 belong to Dependabot and are not part of this feature delivery.
+
+## Platform delivered
+
+### Public experience
+
+- Arabic, English, and Turkish URL-owned locales.
+- Programs, services, jobs, reviews, success stories, partners, gallery, knowledge, contact, FAQ, legal pages, marketplace, public status, and offline experience.
+- Responsive language switcher, mobile navigation, SEO metadata, sitemap, robots, OpenGraph, JSON-LD, canonicals, and locale alternates.
+- Privacy-safe AI support and human escalation.
+- Installable PWA with safe update handling and no authenticated-data caching.
+
+### Unified submissions and tracking
+
+- Creator applications: `APP-YYYY-XXXXXXXXXX`.
+- Service requests: `SR-YYYY-XXXXXXXXXX`.
+- Job applications: `JOB-YYYY-XXXXXXXXXX`.
+- Contact requests: `CNT-YYYY-XXXXXXXXXX`.
+- Public lookup uses the tracking code only and returns an approved status envelope without private applicant data.
+
+### Tenant and white-label operations
+
+- Primary HAMZA AGENCY tenant, trusted domains, branding, locale settings, contact metadata, social links, legal overrides, feature flags, and tenant memberships.
+- Super Admin tenant switcher and governance console.
+- Tenant-scoped permissions, audit, backups, analytics, provider configuration, portals, tasks, commerce, privacy, and incidents.
+- Domain resolution is server-side and fails safely.
+- Cross-tenant access is denied by RLS.
+- Arbitrary custom CSS/JavaScript is not supported.
+
+### Portals
+
+- Creator Portal: profile, program/application status, tracking history, tasks, announcements, knowledge, support, privacy, sessions, files, and notifications.
+- Client Portal: service requests, tracking, secure files, execution status, marketplace orders, payment state, support, privacy, sessions, and notifications.
+- Employee Portal: assigned tasks, queue, SLA timers, internal notes, escalations, notifications, and performance summary.
+- Partner Portal: profile, listings/offers, referrals, leads, documents, reports, communication, privacy, sessions, and notifications.
+- Shared mobile-first shell with role-specific navigation and fail-closed membership checks.
+
+### Tasks, SLA, and workflows
+
+- Task CRUD, assignments, watchers, comments, attachments, priorities, due dates, related entities, status history, filters, pagination foundation, audit, and notifications.
+- First-response and resolution SLA policies with business hours, pause states, warning, breach, escalation, and KPI evidence.
+- Declarative workflows with definitions, ordered steps, runs, events, idempotency, bounded retries, and supported operations only.
+- No arbitrary code execution or dynamic SQL workflow action.
+
+### Marketplace and payments
+
+- Categories, listings, AR/EN/TR translations, media references, favorites, cart, direct ordering, orders, order items, reviews, refunds, and disputes.
+- Draft/review/publish/archive lifecycle and published-only anonymous catalogue access.
+- Provider-neutral payment adapters, intents, transactions, signed webhook records, idempotency, refunds, and manual/offline payment mode.
+- Real paid providers are disabled.
+- No card data, crypto, USDT, billing, or trial was added.
+
+### WhatsApp, push, and AI
+
+- WhatsApp approved-template model, validation, opt-in/opt-out, queue, delivery state, retry limits, tenant scope, and audit.
+- Web Push subscriptions, per-event preferences, safe lock-screen payloads, deep links, unsubscribe, and server-only send boundary.
+- Tenant-scoped AI knowledge, RAG/rule fallback, PII redaction, prompt-injection protection, retention, consent, opt-out, usage evidence, and human escalation.
+- Public assistant, portal assistants, and admin copilot UI.
+- Provider adapters remain disabled unless an approved provider and server-only credentials are supplied.
+
+### Privacy and legal
+
+- Privacy request workflow for access, download, correction, deletion, and consent withdrawal.
+- Profile data, consent history, sessions, communications preferences, AI opt-out, and marketing opt-out.
+- Versioned Privacy, Cookie, AI, and Terms policies with tenant overrides and published dates.
+- AR/EN/TR cookie controls for necessary, analytics, preferences, and marketing categories.
+- Non-essential scripts remain disabled before consent.
+
+### PWA and mobile
+
+- Installable manifest, icons, shortcuts, offline shell, service-worker versioning, update prompt, and privacy-safe public caching.
+- Admin, portal, API, auth, tracking, and authenticated responses are excluded from cache.
+- Android Capacitor debug APK builds in CI.
+- HTTPS-only mobile wrapper with cleartext, mixed content, and web debugging disabled.
+- iOS readiness is validated without paid signing or store publication.
+- Deep-link, auth callback, logout/revoke, portal navigation, and fallback behavior are represented in the architecture.
+
+### Security, sessions, and monitoring
+
+- Stable administrator identity and fail-closed unknown roles.
+- Tenant-aware RLS and explicit Data API grants.
+- Minimal device/session metadata, one/all revoke, suspicious-login alerts, MFA requirement model, and audit.
+- No hidden employee surveillance.
+- Vercel OIDC server gateway verifies issuer, audience, owner, project, environment, subject, timestamps, digest, and replay nonce.
+- OIDC tokens and privileged Supabase keys never reach the browser.
+- Health checks, provider status, backup health, runtime error capture, KPI, incidents, public status, and postmortem model.
+- Public status is redacted and does not expose private incident ownership or notes.
+
+## Database delivery
 
 Supabase project: `fvaurkfnsvsfohpzguho`
 
-## Delivery status
+Eleven PR101 migrations were applied additively after a verified backup and restore dry run:
 
-The repository contains the completed public multilingual experience, administration and CMS operations, unified tracking, security hardening, database migrations, automated verification, and release documentation.
+1. `pr101_product_expansion_foundation`
+2. `pr101_product_expansion_operations`
+3. `pr101_kpi_schema_guard`
+4. `pr101_product_expansion_hardening`
+5. `pr101_product_expansion_runtime_fixes`
+6. `pr101_tenant_admin_permissions`
+7. `pr101_portal_provider_session_policies`
+8. `pr101_kpi_notifications_workflow_runtime`
+9. `pr101_security_tenant_finalization`
+10. `pr101_data_api_grants_and_isolation`
+11. `pr101_advisor_hardening`
 
-The final owner-only manual checks are deliberately separated into `docs/PRELAUNCH_MANUAL_CHECKLIST.md` and are required before public launch. They require real administrator accounts, MFA recovery material, real file uploads, and exact Production deployment access.
+No Production business data was deleted. The original APP/SR records and all existing CMS/admin records were preserved and tenant-scoped.
 
-## Public website
+### Recovery evidence
 
-- Arabic-first design with English and Turkish URL-owned locales.
-- Responsive desktop and mobile navigation.
-- Programs, services, service request, jobs, reviews, success stories, partners, gallery, knowledge, contact, FAQ, privacy, terms, and AI policy.
-- Segmented AR/EN/TR switcher using Next Router navigation.
-- Mobile dock for WhatsApp, AI support, and quick navigation.
-- Locale-correct ticker direction and localized links.
-- SEO metadata, canonical URLs, alternates, sitemap, robots, OpenGraph, and JSON-LD.
-- Tracking pages intentionally excluded from indexing.
+Before migrations:
 
-## Unified request tracking
+- Backup: `87bbc013-9c61-478b-b8e7-9c65b3868a6c`
+- Checksum: `ee68634abd563e91bf487c723b570c61b6653d3f6a09c3470b0f45dba88afd69`
+- Dry run: `PR101-PREFLIGHT-87BBC0139C61` — validated
+- Limited restore: `PR101-LIMITED-87BBC0139C61` — completed
 
-All public request families issue a unique code:
+After migrations:
 
-- `APP` — agency application;
-- `SR` — service request;
-- `JOB` — job application;
-- `CNT` — contact request.
+- Backup: `712bedc8-892e-4410-88c4-73f52eb1526c`
+- Checksum: `52b50fa45657056e29440a5f3d865854f2fe100b18642ca37befc3f98cf030a9`
+- Dry run: `PR101-POST-DRY-712BEDC8892E` — validated
+- Limited restore: `PR101-POST-LIMITED-712BEDC8892E` — completed
 
-The format is `<PREFIX>-YYYY-XXXXXXXXXX`.
+Both limited restores used temporary rehydration and changed no Production business rows.
 
-Users track by code only. They are not required to search by WhatsApp number, platform, or program. The localized receipt supports copying, opening the correct tracking route, and printing.
+## Verification record
 
-Public tracking returns only approved status information and does not expose applicant PII.
+Before final documentation commits, exact head `b8fd62eaa7cbd341c113f6ece273577f325a449b` passed:
 
-## Administration and CMS
+- HAMZA AGENCY Quality Gate run `30586825287`.
+- PR99 Management Quality Gate run `30586825265`.
+- PR101 Mobile Readiness run `30586825274`.
+- Lint, TypeScript, translations, migration safety, secret scan, unit/integration tests, build, runtime route smoke, authenticated isolated E2E, runtime-error rejection, Android build, and iOS readiness.
+- Vercel Preview deployment `dpl_ERDaFtfK3mMKDFtYHBNGpGWChrCL` reached `READY`.
+- Preview runtime error/fatal/warning inspection returned no entries in the inspected exact-deployment window.
 
-The administration platform includes:
+Android evidence:
 
-- programs and localized program pages;
-- pages, sections, Page Builder, drafts, publish/unpublish, scheduling, versions, and restore;
-- settings, announcements, media, header/footer/global content, and SEO controls;
-- jobs, reviews, success stories, partners, gallery, and knowledge base;
-- applications, service requests, job applications, contact messages, and unified request operations;
-- search, filters, status updates, internal notes, pagination, and controlled exports;
-- translation workbench and revision history;
-- notifications, analytics, activity logs, trash, backups, permissions, launch checklist, and system health.
+- Workflow artifact: `8776845550`
+- Artifact digest: `sha256:12a4bde8b23940e11786b65a6c38fe0ddf813bbb91636116c95bff34a7adc733`
+- APK SHA-256: `007022c638e1ae3b0a6872fbec0ec30d038b7ee5d5f94e3b23964e756c119781`
 
-## Authorization model
+The final documentation/runtime-smoke commits require a fresh exact-head CI and Vercel Preview pass before Ready for Review.
 
-Administrator identity uses Supabase Auth `user_id` first. Email fallback exists only for historical rows whose `user_id` is null.
+## Advisor record
 
-Supported roles:
+Supabase Security and Performance Advisors were run after the PR101 migrations.
 
-- `super_admin`;
-- `deputy_super_admin`;
-- `program_admin`.
+- PR101 tables have RLS and explicit policy coverage.
+- PR101 Data API grants are paired with tenant/user policies.
+- Product foreign-key indexes and overlapping policy hotspots were hardened.
+- Remaining Security Advisor findings are pre-existing legacy SECURITY DEFINER views and the account-level leaked-password protection setting.
+- Leaked-password protection is an owner-only account action in the prelaunch checklist.
+- Newly created unused-index notices are expected before real traffic and are not treated as a launch failure.
 
-Unknown roles fail closed.
+## Environment rules
 
-Module actions are controlled by permissions such as:
+Public browser variables only:
 
-- `can_view`;
-- `can_edit`;
-- `can_export`.
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_OR_ANON_KEY
+NEXT_PUBLIC_SITE_URL=https://hamza-agency.com
+NEXT_PUBLIC_WHATSAPP_NUMBER=YOUR_PUBLIC_WHATSAPP_NUMBER
+NEXT_PUBLIC_DEFAULT_LANGUAGE=ar
+NEXT_PUBLIC_SUPPORTED_LANGUAGES=ar,en,tr
+NEXT_PUBLIC_AI_SUPPORT_ENABLED=true
+```
 
-Applications additionally enforce assigned-program scope at database RLS level for `program_admin` accounts.
+Never commit private values. Never expose Service Role, provider secrets, VAPID private keys, payment webhook secrets, or OIDC tokens in `NEXT_PUBLIC_*` variables.
 
-## Server and database security
+## Local verification
 
-- Vercel OIDC is used for trusted server-to-server actions.
-- No manually shared RPC HMAC secret is required.
-- OIDC tokens remain server-side.
-- Issuer, audience, subject, project, environment, timestamps, digest, and nonce are validated.
-- Service Role secrets are not exposed to browser code.
-- Public submission and lookup functions include abuse guards and approved response envelopes.
-- Media upload validation checks size, MIME type, and magic bytes.
-- Backups use the stable active top-administrator predicate.
-- Unknown roles are never normalized to elevated access.
+```bash
+npm ci
+npm run lint
+npm run typecheck
+npm run verify:translations
+npm run verify:migrations
+npm run verify:secrets
+npm run verify:pr101
+npm test
+npm run build
+npm run test:smoke
+npm run test:e2e
+```
 
-## Database migrations
+Protected CI additionally validates exact checkout, authenticated isolated browser behavior, runtime errors, mobile configuration, Android artifact creation, and iOS readiness.
 
-The live project records the PR #100 migration chain, including:
+## Remaining owner/account work
 
-- `20260729091443_pr100_security_data_integrity_closeout`
-- `20260729093232_pr100_public_rpc_abuse_hardening`
-- `20260729103239_pr100_application_tracking_codes`
-- `20260729112619_pr100_signed_gateway_least_privilege`
-- `20260729135538_pr100_vercel_oidc_gateway`
-- `20260729140425_pr100_oidc_gateway_role_check`
-- `20260729141852_pr100_oidc_gateway_claim_role_compatibility`
-- `20260729181851_pr100_final_completion`
-- `20260729182032_pr100_enable_documented_schedules`
-- `20260730185634_pr100_comprehensive_audit_hardening`
-- `20260730185730_pr100_comprehensive_audit_hardening`
-- `20260730185735_pr100_comprehensive_audit_hardening`
+- Enroll primary and backup administrators in MFA and store recovery codes privately.
+- Enable leaked-password protection when available on the selected Supabase plan.
+- Choose and configure any real WhatsApp, payment, push, or external AI provider using server-only credentials.
+- Decide whether to enroll in Google Play or Apple Developer and perform release signing/store publication.
+- Perform final owner QA on the exact Production merge deployment.
+- Explicitly approve merge.
+- Explicitly approve the guarded one-time PR #100 post-deploy revocation only after replacement Production routes pass.
 
-The three final audit versions are intentionally retained because Supabase recorded the same additive statement under those exact versions. Repository tests require them to remain byte-identical.
+## Release rule
 
-## Automated quality gate
-
-Every release head must pass:
-
-- ESLint with zero warnings;
-- TypeScript type checking;
-- public translation verification;
-- migration safety verification;
-- client-secret scanning;
-- Node regression tests;
-- Next.js production build;
-- runtime route smoke;
-- authenticated isolated Playwright E2E;
-- URL-owned locale runtime verification;
-- runtime-error rejection;
-- matching Vercel Preview readiness.
-
-The exact final evidence is recorded in PR #100 and `docs/PR100_FINAL_CLOSEOUT.md`.
-
-## Supabase advisor review
-
-Security and performance advisors were reviewed. Not every warning should be removed mechanically:
-
-- anonymous security-definer functions that intentionally serve guarded public forms/lookup routes must remain callable until the replacement Production routes are verified and guarded revocation is run;
-- authenticated security-definer functions enforce administrator checks internally;
-- the nonce table intentionally has no direct client policy;
-- unused-index findings are informational on a new/low-traffic system;
-- policy consolidation and auth init-plan performance cleanup require a separately staged database migration rather than a risky final-day rewrite;
-- leaked-password protection is an owner-controlled Auth setting included in the pre-launch checklist.
-
-## Backup and recovery
-
-The system includes private backup creation, metadata/checksum validation, dry-run support, limited restore paths, restore operation records, and scheduled backup support within the selected platform constraints.
-
-Before public launch, create and verify a fresh backup and test a limited restore using disposable fixture data only.
-
-## Release process
-
-1. Complete automated verification on the exact PR head.
-2. Ensure the exact Vercel Preview is `READY` and clean.
-3. Commit complete repository documentation.
-4. Merge PR #100 into `main` using the verified exact head.
-5. Confirm the exact merge commit is deployed to Production.
-6. Perform `docs/PRELAUNCH_MANUAL_CHECKLIST.md`.
-7. Verify APP/SR/JOB/CNT submission and tracking on Production.
-8. Run `supabase/postdeploy/pr100_revoke_legacy_public_rpcs.sql` only after the replacements pass.
-9. Re-test Production and record final owner launch approval.
-
-## Important safety boundaries
-
-- Never store MFA recovery codes in the repository or chat.
-- Never commit `.env` files, private backups, Service Role keys, OIDC tokens, or private user data.
-- Never run the guarded post-deploy revocation before replacement routes pass in Production.
-- Merging the repository and approving public launch are separate decisions.
-
-## Final documents
-
-- `README.md`
-- `docs/HAMZA_AGENCY_FINAL_DELIVERY.md`
-- `docs/PR100_FINAL_CLOSEOUT.md`
-- `docs/PRELAUNCH_MANUAL_CHECKLIST.md`
-- `.env.example`
-- `supabase/postdeploy/pr100_revoke_legacy_public_rpcs.sql`
+A successful PR and database migration do not equal full launch. PR #105 remains unmerged until owner approval. After merge, the exact merge commit must reach Production `READY`, Production smoke and owner checks must pass, a fresh backup/dry-run/limited-restore must be recorded, and the owner must separately approve post-deploy revocation. Only then may the project be declared **HAMZA AGENCY — Fully Launched**.
