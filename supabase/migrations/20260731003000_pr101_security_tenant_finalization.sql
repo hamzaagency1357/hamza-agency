@@ -93,7 +93,25 @@ alter table public.tenant_domains add constraint tenant_domains_normalized_hostn
 check (hostname=lower(hostname) and hostname ~ '^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$') not valid;
 alter table public.tenant_domains validate constraint tenant_domains_normalized_hostname_check;
 
--- Tenant columns become mandatory only after the prior migration has completed its backfill.
+-- Legacy admin code remains compatible while all new tenant-aware code supplies tenant_id explicitly.
+-- The trigger only fills a missing tenant with the current primary tenant and never overrides an explicit scope.
+create or replace function private.assign_primary_tenant()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.tenant_id is null then
+    select id into new.tenant_id from public.tenants where is_primary=true and status='active' limit 1;
+  end if;
+  if new.tenant_id is null then raise exception 'primary_tenant_not_configured'; end if;
+  return new;
+end;
+$$;
+revoke all on function private.assign_primary_tenant() from public,anon,authenticated;
+
+-- Tenant columns become mandatory only after a final backfill and a compatibility trigger are installed.
 do $$
 declare
   table_name text;
@@ -105,10 +123,13 @@ begin
     'activity_logs','backups','restore_operations'
   ] loop
     if to_regclass('public.'||table_name) is not null then
+      execute format('update public.%I set tenant_id=(select id from public.tenants where is_primary=true and status=''active'' limit 1) where tenant_id is null',table_name);
       execute format('select count(*) from public.%I where tenant_id is null',table_name) into missing_count;
       if missing_count<>0 then
         raise exception 'tenant_backfill_incomplete:%:%',table_name,missing_count;
       end if;
+      execute format('drop trigger if exists pr101_assign_primary_tenant_trigger on public.%I',table_name);
+      execute format('create trigger pr101_assign_primary_tenant_trigger before insert on public.%I for each row execute function private.assign_primary_tenant()',table_name);
       execute format('alter table public.%I alter column tenant_id set not null',table_name);
     end if;
   end loop;
@@ -121,6 +142,7 @@ create index if not exists tenant_memberships_tenant_role_status_idx on public.t
 create index if not exists tenant_admin_audit_tenant_created_idx on public.tenant_admin_audit(tenant_id,created_at desc);
 
 comment on function public.get_public_incident_status(text) is 'Returns only public, tenant-resolved incident fields; ownership and postmortems remain private.';
+comment on function private.assign_primary_tenant() is 'Compatibility trigger for legacy single-tenant writes; explicit tenant_id values are never overridden.';
 comment on constraint tenant_domains_normalized_hostname_check on public.tenant_domains is 'Domain resolution accepts normalized lowercase hostnames only.';
 
 commit;
