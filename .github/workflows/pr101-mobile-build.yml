@@ -1,0 +1,68 @@
+name: PR101 Mobile Readiness
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/pr101-mobile-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-debug:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feat/pr101-complete-product-expansion'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+      - name: Install pinned Capacitor workspace
+        working-directory: mobile
+        run: npm install --no-audit --no-fund --ignore-scripts
+      - name: Generate native Android project
+        working-directory: mobile
+        run: |
+          npx cap add android
+          npm run native:configure
+          npx cap sync android
+      - name: Reject cleartext and embedded secrets
+        working-directory: mobile
+        run: |
+          test 'false' = "$(node -p "require('./capacitor.config.json').server.cleartext")"
+          ! grep -RIE "SUPABASE_SERVICE_ROLE|PAYMENT_WEBHOOK_SECRET|VERCEL_OIDC_TOKEN|BEGIN (RSA|PRIVATE) KEY" android capacitor.config.json www
+      - name: Build debug APK
+        working-directory: mobile/android
+        run: ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hamza-agency-pr101-android-debug
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  ios-readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Validate iOS-safe wrapper configuration
+        run: |
+          node -e "const c=require('./mobile/capacitor.config.json'); if(c.server.cleartext!==false||!c.server.url.startsWith('https://')) process.exit(1);"
+          test -f mobile/www/index.html
+          ! grep -RIE "SUPABASE_SERVICE_ROLE|PAYMENT_WEBHOOK_SECRET|VERCEL_OIDC_TOKEN|BEGIN (RSA|PRIVATE) KEY" mobile
+      - name: Record readiness boundary
+        run: echo "iOS project generation and signing require macOS and an owner-controlled Apple developer account; no paid enrollment or store publication is performed in PR101."
