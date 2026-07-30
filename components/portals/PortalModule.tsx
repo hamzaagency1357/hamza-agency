@@ -63,10 +63,18 @@ export default function PortalModule({ role, moduleKey }: { role: PortalRole; mo
   const fields = useMemo(() => rows.length ? Object.keys(rows[0]) : [], [rows]);
 
   useEffect(() => {
-    if (!config || !supabase) return;
+    if (!config) return;
+    const next = `/portal/${role}/${moduleKey}`;
+    if (!supabase) {
+      router.replace(`/portal/login?next=${encodeURIComponent(next)}`);
+      return;
+    }
     void (async () => {
       const { data: auth } = await supabase.auth.getUser();
-      if (!auth.user) return router.replace(`/portal/login?next=/portal/${role}/${moduleKey}`);
+      if (!auth.user) {
+        router.replace(`/portal/login?next=${encodeURIComponent(next)}`);
+        return;
+      }
       const membership = await supabase.from("tenant_memberships").select("tenant_id").eq("user_id", auth.user.id).eq("role", role).eq("status", "active").limit(1).maybeSingle();
       if (!membership.data) return setState("denied");
       if (!config.table) return setState("ready");
