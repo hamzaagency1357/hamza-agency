@@ -8,6 +8,8 @@ const EDGE_FUNCTION_NAME = "pr100-vercel-oidc-gateway";
 const ALLOWED_ACTIONS = new Set([
   "application_lookup",
   "service_lookup",
+  "job_lookup",
+  "contact_lookup",
   "ai_guard",
   "password_reset_guard",
   "application_submit",
@@ -24,7 +26,7 @@ function getRuntimeOidcToken(request: Request) {
 export async function callOidcGateway<T = JsonObject>(
   request: Request,
   action: string,
-  body: JsonObject,
+  body: JsonObject
 ): Promise<T> {
   if (!ALLOWED_ACTIONS.has(action)) throw new Error("oidc_gateway_invalid_action");
 
@@ -44,13 +46,7 @@ export async function callOidcGateway<T = JsonObject>(
       Authorization: `Bearer ${oidcToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      action,
-      timestamp,
-      nonce,
-      body: bodyText,
-      bodyDigest,
-    }),
+    body: JSON.stringify({ action, timestamp, nonce, body: bodyText, bodyDigest }),
     signal: AbortSignal.timeout(10_000),
   });
 
