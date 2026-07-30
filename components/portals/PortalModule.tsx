@@ -7,6 +7,14 @@ import type { PortalRole } from "@/lib/productExpansion/domain";
 
 type Row = Record<string, unknown>;
 
+function isRow(value: unknown): value is Row {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeRows(value: unknown): Row[] {
+  return Array.isArray(value) ? value.filter(isRow) : [];
+}
+
 const roleModules: Record<PortalRole, Record<string, { title: string; table?: string; select?: string; userColumn?: string }>> = {
   creator: {
     profile: { title: "الملف الشخصي", table: "portal_profiles", select: "display_name,phone,locale,status,marketing_opt_in,ai_opt_out", userColumn: "user_id" },
@@ -66,7 +74,7 @@ export default function PortalModule({ role, moduleKey }: { role: PortalRole; mo
       if (config.userColumn) query = query.eq(config.userColumn, auth.user.id);
       const result = await query;
       if (result.error) setError(result.error.message);
-      setRows((result.data ?? []) as Row[]);
+      setRows(normalizeRows(result.data));
       setState("ready");
     })();
   }, [config, moduleKey, role, router]);
