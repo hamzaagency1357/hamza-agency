@@ -12,6 +12,8 @@ export type AdminModule =
   | "announcements"
   | "settings"
   | "service_requests"
+  | "contact"
+  | "requests"
   | "jobs"
   | "reviews"
   | "success_stories"
@@ -32,6 +34,8 @@ export type AdminModule =
   | "launch_checklist";
 
 export type AdminProfile = {
+  id: number;
+  user_id: string | null;
   email: string;
   role: AdminRole;
   assigned_program: string | null;
@@ -46,6 +50,7 @@ export type AdminAccessResult = {
 };
 
 export type AdminModulePermission = {
+  admin_user_id: number | null;
   admin_email: string;
   module_key: AdminModule;
   can_view: boolean;
@@ -65,7 +70,7 @@ export type AdminPermissionAction =
   | "can_export"
   | "can_manage";
 
-const superAdminModules: AdminModule[] = [
+const platformModules: AdminModule[] = [
   "dashboard",
   "applications",
   "programs",
@@ -74,6 +79,8 @@ const superAdminModules: AdminModule[] = [
   "announcements",
   "settings",
   "service_requests",
+  "contact",
+  "requests",
   "jobs",
   "reviews",
   "success_stories",
@@ -94,40 +101,7 @@ const superAdminModules: AdminModule[] = [
   "launch_checklist",
 ];
 
-const deputySuperAdminModules: AdminModule[] = [
-  "dashboard",
-  "applications",
-  "programs",
-  "pages",
-  "media",
-  "announcements",
-  "settings",
-  "service_requests",
-  "jobs",
-  "reviews",
-  "success_stories",
-  "partners",
-  "gallery",
-  "activity_logs",
-  "trash",
-  "backups",
-  "version_history",
-  "export_center",
-  "audit_mode",
-  "knowledge_base",
-  "ai_support",
-  "ai_settings",
-  "permissions",
-  "notifications",
-  "analytics",
-  "launch_checklist",
-];
-
-const programAdminModules: AdminModule[] = [
-  "dashboard",
-  "applications",
-  "programs",
-];
+const programAdminModules: AdminModule[] = ["dashboard", "applications", "programs"];
 
 export function normalizeAdminRole(role: string | null | undefined): AdminRole {
   if (role === "deputy_super_admin") return "deputy_super_admin";
@@ -136,9 +110,7 @@ export function normalizeAdminRole(role: string | null | undefined): AdminRole {
 }
 
 export function getAllowedModulesForRole(role: AdminRole): AdminModule[] {
-  if (role === "super_admin") return superAdminModules;
-  if (role === "deputy_super_admin") return deputySuperAdminModules;
-  return programAdminModules;
+  return role === "program_admin" ? programAdminModules : platformModules;
 }
 
 export function canAccessAdminModule(role: AdminRole, module: AdminModule): boolean {
@@ -146,25 +118,45 @@ export function canAccessAdminModule(role: AdminRole, module: AdminModule): bool
 }
 
 export async function getAdminModulePermission(
-  adminEmail: string,
+  profile: AdminProfile,
   module: AdminModule
 ): Promise<AdminModulePermission | null> {
   if (!isSupabaseConfigured || !supabase) return null;
 
-  const email = adminEmail.trim().toLowerCase();
-  if (!email) return null;
+  const fields =
+    "admin_user_id, admin_email, module_key, can_view, can_create, can_edit, can_delete, can_export, can_manage, notes";
 
-  const { data, error } = await supabase
+  let data: Record<string, unknown> | null = null;
+  let queryError: unknown = null;
+
+  const primary = await supabase
     .from("admin_permissions")
-    .select("admin_email, module_key, can_view, can_create, can_edit, can_delete, can_export, can_manage, notes")
-    .ilike("admin_email", email)
+    .select(fields)
+    .eq("admin_user_id", profile.id)
     .eq("module_key", module)
     .maybeSingle();
 
-  if (error || !data) return null;
+  data = primary.data as Record<string, unknown> | null;
+  queryError = primary.error;
+
+  if (!data && !queryError && profile.email) {
+    const fallback = await supabase
+      .from("admin_permissions")
+      .select(fields)
+      .is("admin_user_id", null)
+      .ilike("admin_email", profile.email.trim().toLowerCase())
+      .eq("module_key", module)
+      .maybeSingle();
+
+    data = fallback.data as Record<string, unknown> | null;
+    queryError = fallback.error;
+  }
+
+  if (queryError || !data) return null;
 
   return {
-    admin_email: data.admin_email || email,
+    admin_user_id: typeof data.admin_user_id === "number" ? data.admin_user_id : null,
+    admin_email: typeof data.admin_email === "string" ? data.admin_email : profile.email,
     module_key: module,
     can_view: data.can_view === true,
     can_create: data.can_create === true,
@@ -172,7 +164,7 @@ export async function getAdminModulePermission(
     can_delete: data.can_delete === true,
     can_export: data.can_export === true,
     can_manage: data.can_manage === true,
-    notes: data.notes || null,
+    notes: typeof data.notes === "string" ? data.notes : null,
   };
 }
 
@@ -182,29 +174,18 @@ export async function canUseAdminModulePermission(
   action: AdminPermissionAction = "can_view"
 ): Promise<boolean> {
   if (profile.role === "super_admin") return true;
-
-  if (profile.role === "program_admin") {
-    return canAccessAdminModule(profile.role, module);
-  }
-
+  if (profile.role === "program_admin") return canAccessAdminModule(profile.role, module);
   if (!canAccessAdminModule(profile.role, module)) return false;
 
-  const permission = await getAdminModulePermission(profile.email, module);
-
+  const permission = await getAdminModulePermission(profile, module);
   if (!permission) return true;
   if (permission.can_manage) return true;
-
   return permission[action] === true;
 }
 
 export async function getCurrentAdminProfile(): Promise<AdminAccessResult> {
   if (!isSupabaseConfigured || !supabase) {
-    return {
-      isAuthorized: false,
-      reason: "not_configured",
-      user: null,
-      profile: null,
-    };
+    return { isAuthorized: false, reason: "not_configured", user: null, profile: null };
   }
 
   const {
@@ -212,41 +193,39 @@ export async function getCurrentAdminProfile(): Promise<AdminAccessResult> {
   } = await supabase.auth.getSession();
 
   if (!session?.user) {
-    return {
-      isAuthorized: false,
-      reason: "not_signed_in",
-      user: null,
-      profile: null,
-    };
+    return { isAuthorized: false, reason: "not_signed_in", user: null, profile: null };
   }
 
-  const email = session.user.email || "";
-
-  if (!email) {
-    return {
-      isAuthorized: false,
-      reason: "not_signed_in",
-      user: session.user,
-      profile: null,
-    };
-  }
-
-  const { data, error } = await supabase
+  const fields = "id, user_id, email, role, assigned_program, is_active";
+  const primary = await supabase
     .from("admin_users")
-    .select("email, role, assigned_program, is_active")
-    .ilike("email", email)
+    .select(fields)
+    .eq("user_id", session.user.id)
     .maybeSingle();
 
-  if (error || !data) {
-    return {
-      isAuthorized: false,
-      reason: "not_admin",
-      user: session.user,
-      profile: null,
-    };
+  let data = primary.data;
+  let queryError = primary.error;
+  const email = session.user.email?.trim() || "";
+
+  if (!data && !queryError && email) {
+    const fallback = await supabase
+      .from("admin_users")
+      .select(fields)
+      .is("user_id", null)
+      .ilike("email", email)
+      .maybeSingle();
+
+    data = fallback.data;
+    queryError = fallback.error;
+  }
+
+  if (queryError || !data) {
+    return { isAuthorized: false, reason: "not_admin", user: session.user, profile: null };
   }
 
   const profile: AdminProfile = {
+    id: Number(data.id),
+    user_id: data.user_id || null,
     email: data.email || email,
     role: normalizeAdminRole(data.role),
     assigned_program: data.assigned_program || null,
@@ -254,45 +233,18 @@ export async function getCurrentAdminProfile(): Promise<AdminAccessResult> {
   };
 
   if (!profile.is_active) {
-    return {
-      isAuthorized: false,
-      reason: "inactive",
-      user: session.user,
-      profile,
-    };
+    return { isAuthorized: false, reason: "inactive", user: session.user, profile };
   }
 
-  return {
-    isAuthorized: true,
-    reason: "authorized",
-    user: session.user,
-    profile,
-  };
+  return { isAuthorized: true, reason: "authorized", user: session.user, profile };
 }
 
-export async function requireAdminModuleAccess(
-  module: AdminModule
-): Promise<AdminAccessResult> {
+export async function requireAdminModuleAccess(module: AdminModule): Promise<AdminAccessResult> {
   const result = await getCurrentAdminProfile();
+  if (!result.isAuthorized || !result.profile) return result;
 
-  if (!result.isAuthorized || !result.profile) {
-    return result;
-  }
-
-  const canViewModule = await canUseAdminModulePermission(
-    result.profile,
-    module,
-    "can_view"
-  );
-
-  if (!canViewModule) {
-    return {
-      ...result,
-      isAuthorized: false,
-      reason: "forbidden",
-    };
-  }
-
+  const canView = await canUseAdminModulePermission(result.profile, module, "can_view");
+  if (!canView) return { ...result, isAuthorized: false, reason: "forbidden" };
   return result;
 }
 
