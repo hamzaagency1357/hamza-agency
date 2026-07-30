@@ -101,8 +101,6 @@ end;
 $$;
 revoke all on function private.emit_product_notification() from public,anon,authenticated;
 
-foreach -- marker intentionally omitted: explicit triggers provide auditable coverage.
-
 drop trigger if exists task_assignment_notification_trigger on public.task_assignments;
 create trigger task_assignment_notification_trigger after insert on public.task_assignments
 for each row execute function private.emit_product_notification();
