@@ -26,9 +26,14 @@ test("tracking routes are supported but excluded from indexing and sitemap outpu
 });
 
 test("application PII is protected by action permissions and program-scoped RLS", async () => {
-  const migration = await source(
-    "supabase/migrations/20260730184000_pr100_comprehensive_audit_hardening.sql",
-  );
+  const migrationPaths = [
+    "supabase/migrations/20260730185634_pr100_comprehensive_audit_hardening.sql",
+    "supabase/migrations/20260730185730_pr100_comprehensive_audit_hardening.sql",
+    "supabase/migrations/20260730185735_pr100_comprehensive_audit_hardening.sql",
+  ];
+  const migrations = await Promise.all(migrationPaths.map(source));
+  assert.equal(new Set(migrations).size, 1, "recorded duplicate migration versions must remain byte-identical");
+  const migration = migrations[0];
 
   assert.match(migration, /admin_users_role_check/);
   assert.match(
