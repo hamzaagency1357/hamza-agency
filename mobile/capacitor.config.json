@@ -1,0 +1,22 @@
+{
+  "appId": "com.hamzaagency.platform",
+  "appName": "HAMZA AGENCY",
+  "webDir": "www",
+  "server": {
+    "url": "https://hamza-agency.com",
+    "cleartext": false,
+    "allowNavigation": ["hamza-agency.com", "*.hamza-agency.com"]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "backgroundColor": "#09050fff",
+      "showSpinner": false
+    }
+  }
+}
