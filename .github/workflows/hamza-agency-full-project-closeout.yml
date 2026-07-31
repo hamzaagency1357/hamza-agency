@@ -19,6 +19,22 @@ permissions:
   pull-requests: read
 
 jobs:
+  validate-preview:
+    runs-on: ubuntu-latest
+    outputs:
+      preview_host: ${{ steps.url.outputs.preview_host }}
+    steps:
+      - id: url
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='${{ inputs.preview_url }}'
+          [[ "$url" == https://* ]]
+          [[ "$url" != https://hamza-agency.com* && "$url" != https://www.hamza-agency.com* ]]
+          host="$(node -e 'process.stdout.write(new URL(process.argv[1]).hostname)' "$url")"
+          test -n "$host"
+          echo "preview_host=$host" >> "$GITHUB_OUTPUT"
+
   exact-head-and-existing-gates:
     runs-on: ubuntu-latest
     steps:
@@ -43,7 +59,8 @@ jobs:
               'HAMZA AGENCY Quality Gate',
               'PR99 Management Quality Gate',
               'PR101 Checkpoint 1B Local E2E',
-              'PR101 Mobile Readiness'
+              'PR101 Mobile Readiness',
+              'HAMZA AGENCY Closeout Structure'
             ]);
             const { data } = await github.rest.actions.listWorkflowRunsForRepo({
               owner: context.repo.owner, repo: context.repo.repo, head_sha: sha, per_page: 100
@@ -53,31 +70,37 @@ jobs:
             if (missing.length) core.setFailed(`Missing successful exact-head gates: ${missing.join(', ')}`);
 
   preview-public:
+    needs: validate-preview
     uses: ./.github/workflows/hamza-closeout-suite.yml
     with:
       execution_mode: preview-readonly
       suite: public
       target_url: ${{ inputs.preview_url }}
       expected_sha: ${{ inputs.expected_sha }}
+      preview_host: ${{ needs.validate-preview.outputs.preview_host }}
 
   preview-translations:
+    needs: validate-preview
     uses: ./.github/workflows/hamza-closeout-suite.yml
     with:
       execution_mode: preview-readonly
       suite: translations
       target_url: ${{ inputs.preview_url }}
       expected_sha: ${{ inputs.expected_sha }}
+      preview_host: ${{ needs.validate-preview.outputs.preview_host }}
 
   preview-security:
+    needs: validate-preview
     uses: ./.github/workflows/hamza-closeout-suite.yml
     with:
       execution_mode: preview-readonly
       suite: security
       target_url: ${{ inputs.preview_url }}
       expected_sha: ${{ inputs.expected_sha }}
+      preview_host: ${{ needs.validate-preview.outputs.preview_host }}
 
   closeout-summary:
-    needs: [exact-head-and-existing-gates, preview-public, preview-translations, preview-security]
+    needs: [validate-preview, exact-head-and-existing-gates, preview-public, preview-translations, preview-security]
     runs-on: ubuntu-latest
     steps:
       - run: |
@@ -85,6 +108,7 @@ jobs:
           # HAMZA AGENCY Full Project Closeout
           - Head: \`${{ inputs.expected_sha }}\`
           - Existing Quality Gates: reused and verified on the same Head
+          - Preview host: \`${{ needs.validate-preview.outputs.preview_host }}\`
           - Preview suites: public, translations, security
           - Production writes: none
           - Result: all implemented closeout gates passed
