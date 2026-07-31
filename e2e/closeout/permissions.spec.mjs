@@ -15,21 +15,22 @@ for (const role of ["creator", "client", "employee", "partner"]) {
   });
 }
 
-test("suspended membership is denied without a portal session", async ({ page }, testInfo) => {
-  await login(page, fixture.accounts.suspended);
-  await expect(page).toHaveURL(/\/portal\/login/);
-  await expect(page.getByRole("alert")).toContainText(/تعليق|suspended|askıya/i);
-  await page.screenshot({ path: evidence(testInfo, "permissions", "suspended"), fullPage: true, animations: "disabled" });
-  await annotate(testInfo, 2);
-});
-
-test("disabled account is denied fail closed", async ({ page }, testInfo) => {
-  await login(page, fixture.accounts.disabled);
-  await expect(page).toHaveURL(/\/portal\/login/);
-  await expect(page.getByRole("alert")).toContainText(/معطل|disabled|devre dışı/i);
-  await page.screenshot({ path: evidence(testInfo, "permissions", "disabled"), fullPage: true, animations: "disabled" });
-  await annotate(testInfo, 2);
-});
+const denialCases = [
+  ["pending membership", "pending", /بانتظار|awaiting|bekliyor/i],
+  ["suspended membership", "suspended", /تعليق العضوية|membership is suspended|üyelik askıya/i],
+  ["revoked membership", "revoked", /إلغاء العضوية|revoked|iptal edildi/i],
+  ["suspended account", "accountSuspended", /تعليق الحساب|temporarily suspended|hesap geçici/i],
+  ["disabled account", "disabled", /الحساب معط|disabled|devre dışı/i],
+];
+for (const [label, accountKey, message] of denialCases) {
+  test(`${label} is denied fail closed`, async ({ page }, testInfo) => {
+    await login(page, fixture.accounts[accountKey]);
+    await expect(page).toHaveURL(/\/portal\/login/);
+    await expect(page.getByRole("alert")).toContainText(message);
+    await page.screenshot({ path: evidence(testInfo, "permissions", accountKey), fullPage: true, animations: "disabled" });
+    await annotate(testInfo, 2);
+  });
+}
 
 test("tenant B membership cannot enter tenant A host", async ({ page }, testInfo) => {
   await login(page, fixture.accounts.otherTenant);
