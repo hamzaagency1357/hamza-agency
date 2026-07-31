@@ -29,7 +29,6 @@ env:
   SUPABASE_TELEMETRY_DISABLED: "1"
   PR101_FIXTURE_FILE: /tmp/pr101-local-fixtures.json
   PR101_APP_URL: http://127.0.0.1:3000
-  PR101_BOOTSTRAP_MIGRATION: supabase/migrations/00000000000000_legacy_schema_bootstrap.sql
 
 jobs:
   local-e2e:
@@ -71,7 +70,7 @@ jobs:
           npx --no-install supabase stop --help >/dev/null
           test -f supabase/config.toml
           test -f supabase/seed.sql
-          test -f supabase/local-bootstrap/00000000000000_legacy_schema_bootstrap.sql
+          test -n "$(find supabase/local-bootstrap -maxdepth 1 -type f -name '*.sql' -print -quit)"
 
       - name: Assert Production isolation
         run: |
@@ -83,9 +82,14 @@ jobs:
           ! grep -RIE "supabase[[:space:]]+link|db[[:space:]]+push" .github/workflows/pr101-checkpoint-1b-local-e2e.yml scripts/pr101-local-*.mjs
 
       - name: Install local-only pre-history schema bootstrap
+        shell: bash
         run: |
-          test ! -e "$PR101_BOOTSTRAP_MIGRATION"
-          cp supabase/local-bootstrap/00000000000000_legacy_schema_bootstrap.sql "$PR101_BOOTSTRAP_MIGRATION"
+          set -euo pipefail
+          for source in supabase/local-bootstrap/*.sql; do
+            target="supabase/migrations/$(basename "$source")"
+            test ! -e "$target"
+            cp "$source" "$target"
+          done
 
       - name: Start isolated local Supabase stack
         run: $SUPABASE_BIN start
@@ -152,10 +156,14 @@ jobs:
 
       - name: Always destroy local stack and temporary credentials
         if: always()
+        shell: bash
         run: |
           set +e
           if [ -f /tmp/pr101-next.pid ]; then kill "$(cat /tmp/pr101-next.pid)" 2>/dev/null || true; fi
           pkill -f "next dev" 2>/dev/null || true
-          rm -f /tmp/pr101-next.pid /tmp/pr101-next.log "$PR101_FIXTURE_FILE" /tmp/pr101-supabase.env "$PR101_BOOTSTRAP_MIGRATION"
+          rm -f /tmp/pr101-next.pid /tmp/pr101-next.log "$PR101_FIXTURE_FILE" /tmp/pr101-supabase.env
+          for source in supabase/local-bootstrap/*.sql; do
+            rm -f "supabase/migrations/$(basename "$source")"
+          done
           "$SUPABASE_BIN" stop --no-backup
           rm -rf supabase/.temp
