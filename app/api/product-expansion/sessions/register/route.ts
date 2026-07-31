@@ -21,6 +21,7 @@ function parseUserAgent(value: string) {
 export async function POST(request: NextRequest) {
   const access = await authorizeTenantRequest(request);
   if (!access.ok) return json(access.status, { ok: false, code: access.code });
+  if (!access.user.sessionId) return json(403, { ok: false, code: "auth_session_unavailable" });
 
   const userAgent = (request.headers.get("user-agent") || "Unknown").slice(0, 500);
   const device = parseUserAgent(userAgent);
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
     method: "POST",
     body: JSON.stringify({
       p_tenant: access.tenantId,
-      p_auth_session: null,
+      p_auth_session: access.user.sessionId,
       p_device_label: device.deviceLabel,
       p_platform: device.platform,
       p_browser: device.browser,
