@@ -69,6 +69,34 @@ jobs:
           test "$status" = "implemented" || { echo "Suite '${{ inputs.suite }}' is registered but not implemented; failing closed." >&2; exit 1; }
           test -f "e2e/closeout/${{ inputs.suite }}.spec.mjs"
 
+      - name: Build isolated local application
+        if: inputs.execution_mode == 'local-isolated'
+        run: npm run build
+
+      - name: Start isolated local HTTPS target
+        if: inputs.execution_mode == 'local-isolated'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/hamza-closeout-tls
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout /tmp/hamza-closeout-tls/key.pem \
+            -out /tmp/hamza-closeout-tls/cert.pem \
+            -days 1 -subj '/CN=127.0.0.1' \
+            -addext 'subjectAltName=IP:127.0.0.1,DNS:localhost'
+          npm run start > /tmp/hamza-closeout-next.log 2>&1 &
+          echo $! > /tmp/hamza-closeout-next.pid
+          for i in {1..40}; do curl -fsS http://127.0.0.1:3000/ >/dev/null && break; sleep 2; done
+          CLOSEOUT_TLS_KEY=/tmp/hamza-closeout-tls/key.pem \
+          CLOSEOUT_TLS_CERT=/tmp/hamza-closeout-tls/cert.pem \
+          CLOSEOUT_UPSTREAM_URL=http://127.0.0.1:3000 \
+          CLOSEOUT_HTTPS_PORT=3443 \
+          node scripts/closeout/local-https-proxy.mjs > /tmp/hamza-closeout-proxy.log 2>&1 &
+          echo $! > /tmp/hamza-closeout-proxy.pid
+          for i in {1..40}; do curl -kfsS https://127.0.0.1:3443/ >/dev/null && exit 0; sleep 2; done
+          cat /tmp/hamza-closeout-next.log /tmp/hamza-closeout-proxy.log
+          exit 1
+
       - name: Install pinned Chromium
         run: npx --no-install playwright install --with-deps chromium
 
@@ -95,4 +123,6 @@ jobs:
       - name: Always remove raw runtime evidence
         if: always()
         shell: bash
-        run: rm -rf artifacts/raw
+        run: |
+          rm -rf artifacts/raw
+          test ! -e artifacts/raw
