@@ -13,6 +13,27 @@ export async function login(page, account) {
   await page.locator("#password").fill(account.password);
   await page.getByRole("button", { name: /دخول|Sign in|Giriş yap/ }).click();
 }
+export async function browserPortalCredentials(page) {
+  return page.evaluate(() => {
+    let accessToken = "";
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key) continue;
+      try {
+        const value = JSON.parse(localStorage.getItem(key) || "null");
+        const candidate = value?.access_token || value?.currentSession?.access_token;
+        if (typeof candidate === "string" && candidate.split(".").length === 3) {
+          accessToken = candidate;
+          break;
+        }
+      } catch {}
+    }
+    return {
+      accessToken,
+      platformSessionId: sessionStorage.getItem("hamza_portal_platform_session") || "",
+    };
+  });
+}
 export function evidence(testInfo, suite, role, locale = "ar") {
   const device = testInfo.project.name.startsWith("mobile") ? "mobile" : "desktop";
   const sha = process.env.CLOSEOUT_EXPECTED_SHA.slice(0, 8);
