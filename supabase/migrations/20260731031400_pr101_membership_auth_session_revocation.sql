@@ -1,36 +1,6 @@
--- HAMZA AGENCY PR101 tenant-scoped membership suspension and explicit account-global revocation
+-- HAMZA AGENCY PR101 tenant-scoped membership suspension only
+-- Account-global Supabase Auth revocation is intentionally deferred to Project-wide Security Closeout.
 begin;
-
-create or replace function private.revoke_auth_sessions_for_user(p_user_id uuid)
-returns jsonb
-language plpgsql
-security definer
-set search_path=pg_catalog,auth,private
-as $$
-declare
-  v_sessions integer:=0;
-  v_refresh_tokens integer:=0;
-begin
-  if p_user_id is null then raise exception 'invalid_user'; end if;
-
-  update auth.sessions session_row
-  set not_after=least(coalesce(session_row.not_after,now()),now()),updated_at=now()
-  where session_row.user_id=p_user_id
-    and (session_row.not_after is null or session_row.not_after>now());
-  get diagnostics v_sessions=row_count;
-
-  update auth.refresh_tokens token_row
-  set revoked=true,updated_at=now()
-  where token_row.user_id=p_user_id::text
-    and coalesce(token_row.revoked,false)=false;
-  get diagnostics v_refresh_tokens=row_count;
-
-  return jsonb_build_object('scope','account_global','sessions_expired',v_sessions,'refresh_tokens_revoked',v_refresh_tokens);
-end;
-$$;
-
-revoke all on function private.revoke_auth_sessions_for_user(uuid) from public,anon,authenticated;
-grant execute on function private.revoke_auth_sessions_for_user(uuid) to service_role;
 
 create or replace function public.manage_tenant_membership(
   p_tenant_id uuid,p_membership_id uuid,p_status text,p_role text,p_program_id bigint,p_permissions jsonb
@@ -100,51 +70,7 @@ $$;
 revoke all on function public.manage_tenant_membership(uuid,uuid,text,text,bigint,jsonb) from public,anon;
 grant execute on function public.manage_tenant_membership(uuid,uuid,text,text,bigint,jsonb) to authenticated;
 
-create or replace function public.revoke_account_auth_sessions(p_user_id uuid,p_reason text default 'account_global_security_event')
-returns jsonb
-language plpgsql
-security definer
-set search_path=pg_catalog,public,private,auth
-as $$
-declare
-  v_actor uuid:=auth.uid();
-  v_result jsonb;
-  v_tenant uuid;
-begin
-  if v_actor is null then raise exception 'forbidden' using errcode='42501'; end if;
-
-  select membership_row.tenant_id into v_tenant
-  from public.tenant_memberships membership_row
-  where membership_row.user_id=v_actor
-    and membership_row.status='active'
-    and membership_row.role='super_admin'
-  order by membership_row.created_at asc
-  limit 1;
-
-  if v_tenant is null then raise exception 'forbidden' using errcode='42501'; end if;
-
-  v_result:=private.revoke_auth_sessions_for_user(p_user_id);
-
-  update public.user_sessions session_row
-  set revoked_at=coalesce(session_row.revoked_at,now()),revoked_by=v_actor,revoke_reason=left(coalesce(p_reason,'account_global_security_event'),200)
-  where session_row.user_id=p_user_id and session_row.revoked_at is null;
-
-  insert into public.tenant_admin_audit(tenant_id,actor_id,action,entity_type,entity_id,before_data,after_data)
-  values(
-    v_tenant,v_actor,'account.auth_sessions_revoked','auth_account',p_user_id::text,'{}'::jsonb,
-    v_result||jsonb_build_object('revocation_scope','account_global','reason',left(coalesce(p_reason,'account_global_security_event'),200))
-  );
-
-  return v_result;
-end;
-$$;
-
-revoke all on function public.revoke_account_auth_sessions(uuid,text) from public,anon;
-grant execute on function public.revoke_account_auth_sessions(uuid,text) to authenticated;
-
-comment on function private.revoke_auth_sessions_for_user(uuid) is
-  'Version-coupled internal boundary for explicit account-global Supabase Auth revocation only. Never used as a side effect of one tenant membership suspension.';
-comment on function public.revoke_account_auth_sessions(uuid,text) is
-  'Explicit account-global session revocation operation. Tenant suspension remains tenant-scoped.';
+comment on function public.manage_tenant_membership(uuid,uuid,text,text,bigint,jsonb) is
+  'Tenant-scoped membership management. Suspension and revocation invalidate only platform sessions for the affected tenant.';
 
 commit;
