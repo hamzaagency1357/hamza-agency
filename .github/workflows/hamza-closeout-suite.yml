@@ -30,6 +30,7 @@ jobs:
       CLOSEOUT_SUPABASE_URL: ${{ inputs.execution_mode == 'local-isolated' && 'http://127.0.0.1:54321' || '' }}
       CLOSEOUT_AUTH_URL: ${{ inputs.execution_mode == 'local-isolated' && 'http://127.0.0.1:54321/auth/v1' || '' }}
       CLOSEOUT_PORTAL_FIXTURE_FILE: /tmp/hamza-portal-fixtures.json
+      CLOSEOUT_PORTAL_WORKDIR: .tmp/portal-closeout
       NEXT_PUBLIC_SITE_URL: https://127.0.0.1:3443
       SESSION_HASH_KEY: closeout-local-only-session-hash-key
     steps:
@@ -71,7 +72,18 @@ jobs:
           cli="$GITHUB_WORKSPACE/tools/pr101-local-e2e/node_modules/.bin/supabase"
           test -x "$cli"
           test "$($cli --version)" = "2.109.1"
-          ln -sf "$cli" "$GITHUB_WORKSPACE/node_modules/.bin/supabase"
+          echo "SUPABASE_BIN=$cli" >> "$GITHUB_ENV"
+      - name: Build bounded temporary portal project
+        if: inputs.execution_mode == 'local-isolated' && (inputs.suite == 'admin' || inputs.suite == 'permissions' || inputs.suite == 'security')
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$CLOSEOUT_PORTAL_WORKDIR"
+          mkdir -p "$CLOSEOUT_PORTAL_WORKDIR/supabase/migrations"
+          cp supabase/config.toml "$CLOSEOUT_PORTAL_WORKDIR/supabase/config.toml"
+          printf '%s\n' '-- Synthetic portal fixtures are created after reset.' > "$CLOSEOUT_PORTAL_WORKDIR/supabase/seed.sql"
+          cp supabase/portal-closeout-contract/baseline.sql "$CLOSEOUT_PORTAL_WORKDIR/supabase/migrations/20260731010000_portal_closeout_contract.sql"
+          test "$(find "$CLOSEOUT_PORTAL_WORKDIR/supabase/migrations" -type f -name '*.sql' | wc -l)" -eq 1
       - name: Start isolated Supabase and create portal fixtures
         if: inputs.execution_mode == 'local-isolated' && (inputs.suite == 'admin' || inputs.suite == 'permissions' || inputs.suite == 'security')
         shell: bash
@@ -79,10 +91,15 @@ jobs:
           set -euo pipefail
           test ! -f supabase/.temp/project-ref
           test -z "${SUPABASE_ACCESS_TOKEN:-}"
-          npx --no-install supabase start --exclude studio,imgproxy >/tmp/closeout-supabase-start.log 2>&1
-          npx --no-install supabase db reset
-          npx --no-install supabase status -o env >/tmp/closeout-supabase.env
+          cd "$CLOSEOUT_PORTAL_WORKDIR"
+          if ! "$SUPABASE_BIN" start --exclude studio,imgproxy >/tmp/closeout-supabase-start.log 2>&1; then
+            sed -E 's/(sb_(publishable|secret)_[A-Za-z0-9_-]+)/[REDACTED]/g; s#postgresql?://[^[:space:]]+#[REDACTED_DB_URL]#g' /tmp/closeout-supabase-start.log >&2
+            exit 1
+          fi
+          "$SUPABASE_BIN" db reset
+          "$SUPABASE_BIN" status -o env >/tmp/closeout-supabase.env
           chmod 600 /tmp/closeout-supabase.env
+          cd "$GITHUB_WORKSPACE"
           for required in API_URL ANON_KEY SERVICE_ROLE_KEY DB_URL; do grep -q "^${required}=" /tmp/closeout-supabase.env; done
           while IFS='=' read -r key value; do
             value="${value%\"}"; value="${value#\"}"
@@ -141,7 +158,8 @@ jobs:
           fi
           if [ -f /tmp/hamza-closeout-next.pid ]; then kill "$(cat /tmp/hamza-closeout-next.pid)" 2>/dev/null; fi
           if [ -f /tmp/hamza-closeout-proxy.pid ]; then kill "$(cat /tmp/hamza-closeout-proxy.pid)" 2>/dev/null; fi
-          if command -v npx >/dev/null && [ "${CLOSEOUT_STATEFUL:-false}" = "true" ]; then npx --no-install supabase stop --no-backup >/dev/null 2>&1; fi
-          rm -rf artifacts/raw /tmp/hamza-closeout-* /tmp/closeout-supabase* "$CLOSEOUT_PORTAL_FIXTURE_FILE" supabase/.temp
+          if [ -d "$CLOSEOUT_PORTAL_WORKDIR" ] && [ -n "${SUPABASE_BIN:-}" ]; then cd "$CLOSEOUT_PORTAL_WORKDIR" && "$SUPABASE_BIN" stop --no-backup >/dev/null 2>&1; cd "$GITHUB_WORKSPACE"; fi
+          rm -rf artifacts/raw /tmp/hamza-closeout-* /tmp/closeout-supabase* "$CLOSEOUT_PORTAL_FIXTURE_FILE" "$CLOSEOUT_PORTAL_WORKDIR" supabase/.temp
           test ! -e artifacts/raw
           test ! -e "$CLOSEOUT_PORTAL_FIXTURE_FILE"
+          test ! -e "$CLOSEOUT_PORTAL_WORKDIR"
