@@ -40,6 +40,14 @@ test("portal API enforces role, tenant, ownership and platform-session boundarie
   assert.match(content, /module_not_found/);
 });
 
+test("ownership-filtered writes fail closed instead of returning empty success", () => {
+  const content = source("app/api/product-expansion/portal/route.ts");
+  assert.match(content, /requireAffectedRow/);
+  assert.match(content, /Array\.isArray\(result\.data\)\s*&&\s*result\.data\.length\s*===\s*0/);
+  assert.match(content, /owned_resource_not_found/);
+  assert.match(content, /security_alerts\?id=eq\.[\s\S]*tenant_id=eq\.\$\{tenant\}[\s\S]*user_id=eq\.\$\{user\}/);
+});
+
 test("registered platform sessions bind to the verified Supabase auth session", () => {
   const userSource = source("lib/server/supabaseUser.ts");
   const registerSource = source("app/api/product-expansion/sessions/register/route.ts");
