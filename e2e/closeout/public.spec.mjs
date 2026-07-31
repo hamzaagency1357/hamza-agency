@@ -1,26 +1,11 @@
 import path from "node:path";
 import { test, expect } from "@playwright/test";
-import { PRODUCTION_HOSTS } from "../../scripts/closeout/environment-guard.mjs";
+import { buildUrlGuard, parseAllowedHosts } from "../../scripts/closeout/url-guard.mjs";
 
 const expectedHost = new URL(process.env.CLOSEOUT_TARGET_URL).hostname.toLowerCase();
 const shortSha = process.env.CLOSEOUT_EXPECTED_SHA.slice(0, 8);
-const allowedExternalHosts = new Set(
-  String(process.env.CLOSEOUT_ALLOWED_EXTERNAL_HOSTS || "")
-    .split(",")
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean),
-);
-const blockedActionPath = /\/(?:logout|accept-invitation|invite|auth\/callback)(?:\/|$)|[?&](?:token|code)=/i;
-
-function assertSafeUrl(raw, context) {
-  const url = new URL(raw);
-  if (url.protocol !== "https:") throw new Error(`${context} left HTTPS: ${url.href}`);
-  if (PRODUCTION_HOSTS.has(url.hostname.toLowerCase())) throw new Error(`${context} reached Production: ${url.href}`);
-  if (url.hostname.toLowerCase() !== expectedHost && !allowedExternalHosts.has(url.hostname.toLowerCase())) {
-    throw new Error(`${context} reached a host outside the allowlist: ${url.href}`);
-  }
-  if (blockedActionPath.test(`${url.pathname}${url.search}`)) throw new Error(`${context} reached a state-changing action URL: ${url.href}`);
-}
+const allowedExternalHosts = parseAllowedHosts(process.env.CLOSEOUT_ALLOWED_EXTERNAL_HOSTS);
+const assertSafeUrl = buildUrlGuard({ expectedHost, allowedExternalHosts });
 
 async function installReadonlyGuards(page) {
   page.on("framenavigated", (frame) => {
@@ -32,7 +17,7 @@ async function installReadonlyGuards(page) {
     const url = new URL(request.url());
     if (!["GET", "HEAD", "OPTIONS"].includes(method)) throw new Error(`Readonly closeout blocked ${method} ${url.href}`);
     if (request.isNavigationRequest()) assertSafeUrl(url.href, "navigation request");
-    if (url.hostname.toLowerCase() !== expectedHost && !allowedExternalHosts.has(url.hostname.toLowerCase())) {
+    if (url.hostname.toLowerCase() !== expectedHost && !allowedExternalHosts.includes(url.hostname.toLowerCase())) {
       throw new Error(`Network request reached a host outside the allowlist: ${url.href}`);
     }
     await route.continue();
