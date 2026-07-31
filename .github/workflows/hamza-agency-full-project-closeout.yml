@@ -1,0 +1,91 @@
+name: HAMZA AGENCY Full Project Closeout
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Final pinned 40-character Head SHA
+        required: true
+        type: string
+      preview_url:
+        description: Exact Vercel Preview URL for the same Head
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  pull-requests: read
+
+jobs:
+  exact-head-and-existing-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 1
+      - name: Assert exact final Head
+        run: |
+          [[ '${{ inputs.expected_sha }}' =~ ^[0-9a-fA-F]{40}$ ]]
+          test "$(git rev-parse HEAD)" = '${{ inputs.expected_sha }}'
+      - name: Require every registered suite to be complete
+        run: |
+          pending="$(node -e 'const s=require("./e2e/closeout/suites.json"); console.log(Object.entries(s).filter(([,v])=>v.status!=="implemented"||v.stateful_extension==="pending").map(([k])=>k).join(","))')"
+          if [ -n "$pending" ]; then echo "Full closeout blocked by pending suites: $pending" >&2; exit 1; fi
+      - name: Verify required existing workflow conclusions for this Head
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = '${{ inputs.expected_sha }}';
+            const required = new Set([
+              'HAMZA AGENCY Quality Gate',
+              'PR99 Management Quality Gate',
+              'PR101 Checkpoint 1B Local E2E',
+              'PR101 Mobile Readiness'
+            ]);
+            const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+              owner: context.repo.owner, repo: context.repo.repo, head_sha: sha, per_page: 100
+            });
+            const successful = new Set(data.workflow_runs.filter(r => r.status === 'completed' && r.conclusion === 'success').map(r => r.name));
+            const missing = [...required].filter(name => !successful.has(name));
+            if (missing.length) core.setFailed(`Missing successful exact-head gates: ${missing.join(', ')}`);
+
+  preview-public:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: preview-readonly
+      suite: public
+      target_url: ${{ inputs.preview_url }}
+      expected_sha: ${{ inputs.expected_sha }}
+
+  preview-translations:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: preview-readonly
+      suite: translations
+      target_url: ${{ inputs.preview_url }}
+      expected_sha: ${{ inputs.expected_sha }}
+
+  preview-security:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: preview-readonly
+      suite: security
+      target_url: ${{ inputs.preview_url }}
+      expected_sha: ${{ inputs.expected_sha }}
+
+  closeout-summary:
+    needs: [exact-head-and-existing-gates, preview-public, preview-translations, preview-security]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          # HAMZA AGENCY Full Project Closeout
+          - Head: \`${{ inputs.expected_sha }}\`
+          - Existing Quality Gates: reused and verified on the same Head
+          - Preview suites: public, translations, security
+          - Production writes: none
+          - Result: all implemented closeout gates passed
+          EOF
