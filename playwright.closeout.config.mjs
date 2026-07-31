@@ -2,25 +2,32 @@ import { defineConfig, devices } from "@playwright/test";
 import { assertCloseoutEnvironment } from "./scripts/closeout/environment-guard.mjs";
 
 const guard = assertCloseoutEnvironment();
-const readonly = guard.mode !== "local-isolated";
+const suiteFile = `${guard.suite}.spec.mjs`;
 
 export default defineConfig({
   testDir: "./e2e/closeout",
+  testMatch: suiteFile,
   timeout: 45_000,
   expect: { timeout: 10_000 },
   retries: process.env.CI ? 1 : 0,
   workers: guard.mode === "local-isolated" ? 1 : undefined,
   forbidOnly: true,
-  reporter: [["line"], ["html", { outputFolder: "artifacts/playwright-report", open: "never" }], ["json", { outputFile: "artifacts/results.json" }]],
-  outputDir: "artifacts/test-results",
+  fullyParallel: guard.mode !== "local-isolated",
+  reporter: [
+    ["line"],
+    ["html", { outputFolder: "artifacts/raw/playwright-report", open: "never" }],
+    ["json", { outputFile: "artifacts/raw/results.json" }],
+  ],
+  outputDir: "artifacts/raw/test-results",
   use: {
     baseURL: guard.targetOrigin,
     headless: true,
-    trace: "retain-on-failure",
-    screenshot: "only-on-failure",
+    trace: "off",
+    screenshot: "off",
     video: "off",
     storageState: undefined,
-    extraHTTPHeaders: { "x-closeout-readonly": readonly ? "1" : "0" },
+    serviceWorkers: "block",
+    extraHTTPHeaders: { "x-closeout-readonly": guard.readonly ? "1" : "0" },
   },
   projects: [
     { name: "desktop-chromium", use: { ...devices["Desktop Chrome"] } },
