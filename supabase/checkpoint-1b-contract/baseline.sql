@@ -146,7 +146,8 @@ create table public.tenant_settings (
 create or replace function private.has_tenant_role(target_tenant uuid,allowed_roles text[])
 returns boolean language sql stable security definer set search_path=pg_catalog,public,private
 as $$ select exists(select 1 from public.tenant_memberships m where m.tenant_id=target_tenant and m.user_id=auth.uid() and m.status='active' and m.role=any(allowed_roles)); $$;
-revoke all on function private.has_tenant_role(uuid,text[]) from public,anon,authenticated;
+revoke all on function private.has_tenant_role(uuid,text[]) from public,anon;
+grant execute on function private.has_tenant_role(uuid,text[]) to authenticated;
 
 create or replace function public.current_user_has_tenant_role(target_tenant uuid,allowed_roles text[])
 returns boolean language sql stable set search_path=pg_catalog,public,private
@@ -157,7 +158,8 @@ grant execute on function public.current_user_has_tenant_role(uuid,text[]) to au
 create or replace function private.can_manage_tenant_member(target_tenant uuid,target_role text)
 returns boolean language sql stable security definer set search_path=pg_catalog,public,private
 as $$ select case when target_role='super_admin' then public.current_user_has_tenant_role(target_tenant,array['super_admin']) else public.current_user_has_tenant_role(target_tenant,array['super_admin','tenant_admin']) end; $$;
-revoke all on function private.can_manage_tenant_member(uuid,text) from public,anon,authenticated;
+revoke all on function private.can_manage_tenant_member(uuid,text) from public,anon;
+grant execute on function private.can_manage_tenant_member(uuid,text) to authenticated;
 
 create or replace function private.public_tenant_runtime(target_hostname text)
 returns jsonb language plpgsql stable security definer set search_path=pg_catalog,public,private
