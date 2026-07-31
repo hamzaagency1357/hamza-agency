@@ -30,7 +30,7 @@ test("sensitive portal components do not perform direct Supabase DML", () => {
 
 test("portal API enforces role, tenant, ownership and platform-session boundaries", () => {
   const content = source("app/api/product-expansion/portal/route.ts");
-  assert.match(content, /allowedRoles:\s*\[input\.role\]/);
+  assert.match(content, /allowedRoles:\s*\[parsed\.role\]/);
   assert.match(content, /requirePlatformSession:\s*write/);
   assert.match(content, /tenant_id=eq\.\$\{tenant\}/);
   assert.match(content, /user_id=eq\.\$\{user\}/);
