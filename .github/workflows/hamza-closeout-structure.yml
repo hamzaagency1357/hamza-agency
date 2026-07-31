@@ -1,0 +1,81 @@
+name: HAMZA AGENCY Closeout Structure
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/hamza-closeout-*.yml"
+      - ".github/workflows/hamza-agency-full-project-closeout.yml"
+      - "e2e/closeout/**"
+      - "scripts/closeout/**"
+      - "tests/closeout-automation.test.mjs"
+      - "playwright.closeout.config.mjs"
+      - "AGENTS.md"
+      - "package.json"
+      - "package-lock.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hamza-closeout-structure-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feat/pr101-complete-product-expansion'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Assert exact event Head
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='${{ github.event.pull_request.head.sha || github.sha }}'
+          test "$(git rev-parse HEAD)" = "$expected"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Validate closeout structure contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f AGENTS.md
+          test -f docs/HAMZA_AGENCY_FULL_PROJECT_CLOSEOUT.md
+          test -f e2e/closeout/public.spec.mjs
+          test -f e2e/closeout/translations.spec.mjs
+          test -f e2e/closeout/security.spec.mjs
+          test ! -f e2e/closeout/readonly.spec.mjs
+          ! grep -R "collect_only" .github/workflows/hamza-closeout-*.yml .github/workflows/hamza-agency-full-project-closeout.yml
+          ! grep -R "sanitize-artifacts.mjs.*|| true" .github/workflows scripts/closeout
+          ! grep -R "npx --yes.*playwright" .github/workflows package.json
+          ! grep -R "test.skip" e2e/closeout
+          grep -q '"@playwright/test": "1.55.0"' package.json
+          npm ls @playwright/test --depth=0
+
+      - name: Run closeout contract tests
+        run: node --test tests/closeout-automation.test.mjs
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
