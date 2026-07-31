@@ -8,8 +8,9 @@ import {
   normalizeInvitationRole,
   type InvitationRole,
 } from "@/lib/productExpansion/invitationSecurity";
-import { resolveTenantForRequest, resolveTenantPrimaryOrigin } from "@/lib/server/tenantRuntime";
-import { supabaseRestAsUser, verifySupabaseBearer } from "@/lib/server/supabaseUser";
+import { authorizeTenantRequest } from "@/lib/server/tenantAuthorization";
+import { resolveTenantPrimaryOrigin } from "@/lib/server/tenantRuntime";
+import { supabaseRestAsUser } from "@/lib/server/supabaseUser";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,21 +43,36 @@ async function bodyOf(request: Request): Promise<Json | null> { try { const valu
 function internalFailure(correlationId: string, operation: string, detail: unknown) { console.error(JSON.stringify({ level: "error", event: "tenant_invitation_failure", correlation_id: correlationId, operation, detail })); }
 
 async function authorize(request: Request) {
-  const user = await verifySupabaseBearer(request);
-  if (!user) return { error: json(401, { ok: false, code: "unauthenticated" }) } as const;
-  const tenant = await resolveTenantForRequest(request, user);
-  if (!tenant.ok || !tenant.tenantId) return { error: json(403, { ok: false, code: "request_rejected" }) } as const;
-  const membership = await supabaseRestAsUser<Array<{ role: string }>>(`/tenant_memberships?select=role&tenant_id=eq.${encodeURIComponent(tenant.tenantId)}&user_id=eq.${encodeURIComponent(user.id)}&status=eq.active&role=in.(super_admin,tenant_admin)&limit=1`, user);
-  if (!membership.ok || !membership.data?.[0]) return { error: json(403, { ok: false, code: "request_rejected" }) } as const;
-  const invitationOrigin = await resolveTenantPrimaryOrigin(tenant.tenantId, user);
+  const access = await authorizeTenantRequest(request, { allowedRoles: ["super_admin", "tenant_admin"] });
+  if (!access.ok) {
+    return { error: json(access.status, { ok: false, code: access.status === 401 ? "unauthenticated" : "request_rejected" }) } as const;
+  }
+  const invitationOrigin = await resolveTenantPrimaryOrigin(access.tenantId, access.user);
   if (!invitationOrigin) return { error: json(503, { ok: false, code: "request_unavailable" }) } as const;
-  return { user, tenantId: tenant.tenantId, invitationOrigin } as const;
+  return {
+    user: access.user,
+    tenantId: access.tenantId,
+    invitationOrigin,
+    role: access.membership.role,
+  } as const;
 }
 
 export async function GET(request: Request) {
   const access = await authorize(request); if ("error" in access) return access.error;
-  const result = await supabaseRestAsUser<Json[]>(`/tenant_invitations?select=id,email,role,program_id,status,expires_at,last_sent_at,send_count,created_at&tenant_id=eq.${encodeURIComponent(access.tenantId)}&order=created_at.desc&limit=100`, access.user);
-  return result.ok ? json(200, { ok: true, invitations: result.data ?? [] }) : json(503, { ok: false, code: "request_unavailable" });
+  const [invitations, memberships, programs] = await Promise.all([
+    supabaseRestAsUser<Json[]>(`/tenant_invitations?select=id,email,role,program_id,status,expires_at,last_sent_at,send_count,created_at&tenant_id=eq.${encodeURIComponent(access.tenantId)}&order=created_at.desc&limit=100`, access.user),
+    supabaseRestAsUser<Json[]>(`/tenant_memberships?select=id,user_id,role,status,program_id,permissions,mfa_required,created_at,updated_at&tenant_id=eq.${encodeURIComponent(access.tenantId)}&order=created_at.desc&limit=200`, access.user),
+    supabaseRestAsUser<Json[]>(`/programs?select=id,title&tenant_id=eq.${encodeURIComponent(access.tenantId)}&order=id.asc&limit=200`, access.user),
+  ]);
+  if (!invitations.ok || !memberships.ok || !programs.ok) return json(503, { ok: false, code: "request_unavailable" });
+  return json(200, {
+    ok: true,
+    tenant_id: access.tenantId,
+    actor_role: access.role,
+    invitations: invitations.data ?? [],
+    memberships: memberships.data ?? [],
+    programs: programs.data ?? [],
+  });
 }
 
 export async function POST(request: Request) {
