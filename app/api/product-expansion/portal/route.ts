@@ -136,7 +136,7 @@ export async function PATCH(request: Request) {
   if (section === "alert") {
     const id = typeof body.id === "string" ? body.id : "";
     if (!/^[0-9a-f-]{36}$/i.test(id)) return json(400, { ok: false, code: "invalid_alert" });
-    return write(`/security_alerts?id=eq.${encodeURIComponent(id)}&tenant_id=eq.${tenant}&user_id=eq.${user}`, access, { acknowledged_at: new Date().toISOString() }, "alert_write_failed", "PATCH");
+    return write(`/security_alerts?id=eq.${encodeURIComponent(id)}&tenant_id=eq.${tenant}&user_id=eq.${user}`, access, { acknowledged_at: new Date().toISOString() }, "alert_write_failed", "PATCH", false, 200, true);
   }
   return json(404, { ok: false, code: "section_not_found" });
 }
@@ -160,11 +160,24 @@ export async function POST(request: Request) {
   return json(404, { ok: false, code: "section_not_found" });
 }
 
-async function write(path: string, access: AuthorizedTenantRequest, body: Record<string, unknown>, code: string, method: "POST" | "PATCH", merge = false, success = 200) {
+async function write(
+  path: string,
+  access: AuthorizedTenantRequest,
+  body: Record<string, unknown>,
+  code: string,
+  method: "POST" | "PATCH",
+  merge = false,
+  success = 200,
+  requireAffectedRow = false,
+) {
   const result = await supabaseRestAsUser<unknown>(path, access.user, {
     method,
     headers: merge ? { Prefer: "resolution=merge-duplicates,return=representation" } : undefined,
     body: JSON.stringify(body),
   });
-  return result.ok ? json(success, { ok: true, rows: result.data || [] }) : json(result.status, { ok: false, code });
+  if (!result.ok) return json(result.status, { ok: false, code });
+  if (requireAffectedRow && Array.isArray(result.data) && result.data.length === 0) {
+    return json(404, { ok: false, code: "owned_resource_not_found" });
+  }
+  return json(success, { ok: true, rows: result.data || [] });
 }
