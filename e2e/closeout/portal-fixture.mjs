@@ -12,6 +12,23 @@ export async function login(page, account) {
   await page.locator("#email").fill(account.email);
   await page.locator("#password").fill(account.password);
   await page.getByRole("button", { name: /دخول|Sign in|Giriş yap/ }).click();
+  await page.waitForFunction(() => {
+    const hasSupabaseSession = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
+      .filter(Boolean)
+      .some((key) => {
+        try {
+          const value = JSON.parse(localStorage.getItem(key) || "null");
+          const token = value?.access_token || value?.currentSession?.access_token;
+          return typeof token === "string" && token.split(".").length === 3;
+        } catch {
+          return false;
+        }
+      });
+    const hasPlatformSession = Boolean(sessionStorage.getItem("hamza_portal_platform_session"));
+    const leftLogin = !location.pathname.startsWith("/portal/login");
+    const visibleAlert = Boolean(document.querySelector("form p[role='alert']"));
+    return visibleAlert || (hasSupabaseSession && hasPlatformSession && leftLogin);
+  }, null, { timeout: 15000 });
 }
 export async function browserPortalCredentials(page) {
   return page.evaluate(() => {
