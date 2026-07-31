@@ -8,7 +8,7 @@ const exactOrigin = "https://127.0.0.1:3443/__closeout_supabase";
 if (supabaseUrl !== exactOrigin || !anonKey) throw new Error("local_auth_proxy_environment_invalid");
 
 const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
-const account = fixture?.accounts?.creator;
+const account = fixture?.accounts?.authProbe;
 if (!account?.email || !account?.password) throw new Error("local_auth_probe_fixture_invalid");
 
 const requestPath = "/tmp/hamza-closeout-auth-request.json";
@@ -25,9 +25,7 @@ try {
   ], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   if (result.status !== 0 || result.stdout.trim() !== "200") throw new Error("local_auth_proxy_request_failed");
   const response = JSON.parse(await readFile(responsePath, "utf8"));
-  if (typeof response?.access_token !== "string" || response.access_token.split(".").length !== 3) {
-    throw new Error("local_auth_proxy_token_missing");
-  }
+  if (typeof response?.access_token !== "string" || response.access_token.split(".").length !== 3) throw new Error("local_auth_proxy_token_missing");
   console.log(JSON.stringify({ ok: true, authenticated: true, origin: "loopback-same-origin" }));
 } finally {
   await rm(requestPath, { force: true });
