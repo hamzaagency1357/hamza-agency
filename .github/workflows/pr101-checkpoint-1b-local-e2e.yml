@@ -11,7 +11,9 @@ on:
       - "lib/server/tenantAuthorization.ts"
       - "lib/server/tenantRuntime.ts"
       - "lib/server/supabaseUser.ts"
-      - "supabase/**"
+      - "supabase/checkpoint-1b-contract/**"
+      - "supabase/migrations/2026073102*.sql"
+      - "supabase/migrations/2026073103*.sql"
       - "scripts/pr101-local-*.mjs"
       - "tools/pr101-local-e2e/**"
       - "package.json"
@@ -29,6 +31,7 @@ env:
   SUPABASE_TELEMETRY_DISABLED: "1"
   PR101_FIXTURE_FILE: /tmp/pr101-local-fixtures.json
   PR101_APP_URL: http://127.0.0.1:3000
+  PR101_WORKDIR: .tmp/pr101-checkpoint-1b
 
 jobs:
   local-e2e:
@@ -38,6 +41,18 @@ jobs:
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Assert exact PR head
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          echo "Checkpoint 1B head: $actual"
+          test "$actual" = "$expected"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -65,12 +80,11 @@ jobs:
       - name: Verify pinned Supabase CLI commands
         run: |
           test "$(npx --no-install supabase --version)" = "2.109.1"
-          npx --no-install supabase start --help >/dev/null
+          npx --no-install supabase start --help >/tmp/pr101-start-help.txt
           npx --no-install supabase db reset --help >/dev/null
           npx --no-install supabase stop --help >/dev/null
           test -f supabase/config.toml
-          test -f supabase/seed.sql
-          test -n "$(find supabase/local-bootstrap -maxdepth 1 -type f -name '*.sql' -print -quit)"
+          test -f supabase/checkpoint-1b-contract/baseline.sql
 
       - name: Assert Production isolation
         run: |
@@ -78,29 +92,53 @@ jobs:
           test -z "${SUPABASE_ACCESS_TOKEN:-}"
           test -z "${SUPABASE_DB_PASSWORD:-}"
           prod_ref="fvaurkfn""svsfohpzguho"
-          ! grep -R "$prod_ref" scripts/pr101-local-*.mjs supabase/config.toml supabase/seed.sql supabase/local-bootstrap
+          ! grep -R "$prod_ref" scripts/pr101-local-*.mjs supabase/checkpoint-1b-contract
           ! grep -RIE "supabase[[:space:]]+link|db[[:space:]]+push" .github/workflows/pr101-checkpoint-1b-local-e2e.yml scripts/pr101-local-*.mjs
 
-      - name: Install local-only pre-history schema bootstrap
+      - name: Build bounded temporary Supabase project
         shell: bash
         run: |
           set -euo pipefail
-          for source in supabase/local-bootstrap/*.sql; do
-            target="supabase/migrations/$(basename "$source")"
-            test ! -e "$target"
-            cp "$source" "$target"
+          rm -rf "$PR101_WORKDIR"
+          mkdir -p "$PR101_WORKDIR/supabase/migrations"
+          cp supabase/config.toml "$PR101_WORKDIR/supabase/config.toml"
+          printf '%s\n' '-- Synthetic fixtures are created through the local Auth Admin API after reset.' > "$PR101_WORKDIR/supabase/seed.sql"
+          cp supabase/checkpoint-1b-contract/baseline.sql "$PR101_WORKDIR/supabase/migrations/20260731020000_checkpoint_1b_contract.sql"
+          for migration in \
+            20260731024500_pr101_operational_tenant_invitations_hardened.sql \
+            20260731031000_pr101_invitation_crypto_search_path.sql \
+            20260731031100_pr101_invitation_create_qualified_columns.sql \
+            20260731031125_pr101_membership_unique_constraint.sql \
+            20260731031150_pr101_invitation_rpc_qualified_columns.sql \
+            20260731031175_pr101_invitation_accept_named_conflict.sql \
+            20260731031200_pr101_public_tenant_runtime_exact_host.sql \
+            20260731031400_pr101_membership_auth_session_revocation.sql \
+            20260731031500_pr101_membership_rpc_only_writes.sql; do
+            cp "supabase/migrations/$migration" "$PR101_WORKDIR/supabase/migrations/$migration"
           done
+          test "$(find "$PR101_WORKDIR/supabase/migrations" -type f -name '*.sql' | wc -l)" -eq 10
 
       - name: Start isolated local Supabase stack
-        run: $SUPABASE_BIN start
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PR101_WORKDIR"
+          start_args=()
+          if grep -q -- '--exclude' /tmp/pr101-start-help.txt; then
+            start_args+=(--exclude studio,imgproxy)
+          fi
+          "$SUPABASE_BIN" start "${start_args[@]}"
 
-      - name: Full ordered migration reset and local seed
-        run: $SUPABASE_BIN db reset
+      - name: Reset contract schema and pending migrations
+        run: |
+          cd "$PR101_WORKDIR"
+          "$SUPABASE_BIN" db reset
 
       - name: Capture and mask local-only runtime values
         shell: bash
         run: |
           set +x
+          cd "$PR101_WORKDIR"
           "$SUPABASE_BIN" status -o env > /tmp/pr101-supabase.env
           for required in API_URL ANON_KEY SERVICE_ROLE_KEY DB_URL; do
             grep -q "^${required}=" /tmp/pr101-supabase.env || { echo "missing local ${required}" >&2; exit 1; }
@@ -110,9 +148,7 @@ jobs:
             value="${value#\"}"
             [ -n "$value" ] && echo "::add-mask::$value"
             case "$key" in
-              API_URL|ANON_KEY|SERVICE_ROLE_KEY|DB_URL)
-                echo "$key=$value" >> "$GITHUB_ENV"
-                ;;
+              API_URL|ANON_KEY|SERVICE_ROLE_KEY|DB_URL) echo "$key=$value" >> "$GITHUB_ENV" ;;
             esac
           done < /tmp/pr101-supabase.env
 
@@ -145,14 +181,15 @@ jobs:
 
       - name: Confirm local stack remains healthy
         run: |
+          cd "$PR101_WORKDIR"
           "$SUPABASE_BIN" status >/dev/null
-          test -s "$PR101_FIXTURE_FILE"
+          test -s "$GITHUB_WORKSPACE/$PR101_FIXTURE_FILE" || test -s "$PR101_FIXTURE_FILE"
 
       - name: Diagnostic logs without credentials
         if: failure()
         run: |
           if [ -f /tmp/pr101-next.log ]; then tail -n 160 /tmp/pr101-next.log | sed -E 's/(Bearer )[A-Za-z0-9._-]+/\1[REDACTED]/g'; fi
-          "$SUPABASE_BIN" status || true
+          cd "$PR101_WORKDIR" 2>/dev/null && "$SUPABASE_BIN" status || true
 
       - name: Always destroy local stack and temporary credentials
         if: always()
@@ -161,9 +198,10 @@ jobs:
           set +e
           if [ -f /tmp/pr101-next.pid ]; then kill "$(cat /tmp/pr101-next.pid)" 2>/dev/null || true; fi
           pkill -f "next dev" 2>/dev/null || true
-          rm -f /tmp/pr101-next.pid /tmp/pr101-next.log "$PR101_FIXTURE_FILE" /tmp/pr101-supabase.env
-          for source in supabase/local-bootstrap/*.sql; do
-            rm -f "supabase/migrations/$(basename "$source")"
-          done
-          "$SUPABASE_BIN" stop --no-backup
-          rm -rf supabase/.temp
+          rm -f /tmp/pr101-next.pid /tmp/pr101-next.log "$PR101_FIXTURE_FILE" /tmp/pr101-supabase.env /tmp/pr101-start-help.txt
+          if [ -d "$PR101_WORKDIR" ]; then
+            cd "$PR101_WORKDIR"
+            "$SUPABASE_BIN" stop --no-backup
+            cd "$GITHUB_WORKSPACE"
+          fi
+          rm -rf "$PR101_WORKDIR"
