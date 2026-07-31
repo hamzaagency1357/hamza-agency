@@ -29,12 +29,13 @@ env:
   SUPABASE_TELEMETRY_DISABLED: "1"
   PR101_FIXTURE_FILE: /tmp/pr101-local-fixtures.json
   PR101_APP_URL: http://127.0.0.1:3000
+  PR101_BOOTSTRAP_MIGRATION: supabase/migrations/00000000000000_legacy_schema_bootstrap.sql
 
 jobs:
   local-e2e:
     if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feat/pr101-complete-product-expansion'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 50
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@v4
@@ -67,8 +68,10 @@ jobs:
           test "$(npx --no-install supabase --version)" = "2.109.1"
           npx --no-install supabase start --help >/dev/null
           npx --no-install supabase db reset --help >/dev/null
+          npx --no-install supabase stop --help >/dev/null
           test -f supabase/config.toml
           test -f supabase/seed.sql
+          test -f supabase/local-bootstrap/00000000000000_legacy_schema_bootstrap.sql
 
       - name: Assert Production isolation
         run: |
@@ -76,7 +79,13 @@ jobs:
           test -z "${SUPABASE_ACCESS_TOKEN:-}"
           test -z "${SUPABASE_DB_PASSWORD:-}"
           prod_ref="fvaurkfn""svsfohpzguho"
-          ! grep -R "$prod_ref" scripts/pr101-local-*.mjs supabase/config.toml supabase/seed.sql
+          ! grep -R "$prod_ref" scripts/pr101-local-*.mjs supabase/config.toml supabase/seed.sql supabase/local-bootstrap
+          ! grep -RIE "supabase[[:space:]]+link|db[[:space:]]+push" .github/workflows/pr101-checkpoint-1b-local-e2e.yml scripts/pr101-local-*.mjs
+
+      - name: Install local-only pre-history schema bootstrap
+        run: |
+          test ! -e "$PR101_BOOTSTRAP_MIGRATION"
+          cp supabase/local-bootstrap/00000000000000_legacy_schema_bootstrap.sql "$PR101_BOOTSTRAP_MIGRATION"
 
       - name: Start isolated local Supabase stack
         run: $SUPABASE_BIN start
@@ -127,6 +136,9 @@ jobs:
       - name: Run authenticated invitation, suspension and concurrency E2E
         run: node scripts/pr101-local-e2e.mjs
 
+      - name: Verify tenant-scoped revoked platform session behavior
+        run: node scripts/pr101-local-platform-session-check.mjs
+
       - name: Confirm local stack remains healthy
         run: |
           "$SUPABASE_BIN" status >/dev/null
@@ -144,6 +156,6 @@ jobs:
           set +e
           if [ -f /tmp/pr101-next.pid ]; then kill "$(cat /tmp/pr101-next.pid)" 2>/dev/null || true; fi
           pkill -f "next dev" 2>/dev/null || true
-          rm -f /tmp/pr101-next.pid /tmp/pr101-next.log "$PR101_FIXTURE_FILE" /tmp/pr101-supabase.env
+          rm -f /tmp/pr101-next.pid /tmp/pr101-next.log "$PR101_FIXTURE_FILE" /tmp/pr101-supabase.env "$PR101_BOOTSTRAP_MIGRATION"
           "$SUPABASE_BIN" stop --no-backup
           rm -rf supabase/.temp
