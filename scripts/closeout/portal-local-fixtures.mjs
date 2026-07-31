@@ -12,6 +12,10 @@ const tenants = {
   a: "c10e0000-0000-4000-8000-000000000001",
   b: "c10e0000-0000-4000-8000-000000000002",
 };
+const records = {
+  clientAlert: "c10e1000-0000-4000-8000-000000000001",
+  employeeAlert: "c10e1000-0000-4000-8000-000000000002",
+};
 const prefix = `closeout-${(process.env.CLOSEOUT_EXPECTED_SHA || "local").slice(0, 8)}`;
 const accounts = {
   creator: { email: `${prefix}-creator@example.test`, password: "LocalOnly-Creator-2026!", role: "creator", status: "active" },
@@ -19,6 +23,7 @@ const accounts = {
   employee: { email: `${prefix}-employee@example.test`, password: "LocalOnly-Employee-2026!", role: "employee", status: "active" },
   partner: { email: `${prefix}-partner@example.test`, password: "LocalOnly-Partner-2026!", role: "partner", status: "active" },
   suspended: { email: `${prefix}-suspended@example.test`, password: "LocalOnly-Suspended-2026!", role: "creator", status: "suspended" },
+  disabled: { email: `${prefix}-disabled@example.test`, password: "LocalOnly-Disabled-2026!", role: "creator", status: "active" },
   otherTenant: { email: `${prefix}-other@example.test`, password: "LocalOnly-Other-2026!", role: "client", status: "active" },
 };
 
@@ -72,17 +77,25 @@ values
  ('${tenants.a}'::uuid,'${created.employee.id}'::uuid,'employee','active','{}',false),
  ('${tenants.a}'::uuid,'${created.partner.id}'::uuid,'partner','active','{}',false),
  ('${tenants.a}'::uuid,'${created.suspended.id}'::uuid,'creator','suspended','{}',false),
+ ('${tenants.a}'::uuid,'${created.disabled.id}'::uuid,'creator','active','{}',false),
  ('${tenants.b}'::uuid,'${created.otherTenant.id}'::uuid,'client','active','{}',false)
 on conflict (tenant_id,user_id) do update set role=excluded.role,status=excluded.status;
 insert into public.portal_profiles(user_id,display_name,locale,status,marketing_opt_in,ai_opt_out)
 select user_id,'Closeout '||role,'ar','active',false,false from public.tenant_memberships where tenant_id='${tenants.a}'::uuid and status='active'
 on conflict (user_id) do update set status='active';
-insert into public.portal_profiles(user_id,display_name,locale,status) values ('${created.suspended.id}'::uuid,'Suspended','ar','suspended')
-on conflict (user_id) do update set status='suspended';
+insert into public.portal_profiles(user_id,display_name,locale,status) values
+ ('${created.suspended.id}'::uuid,'Suspended','ar','suspended'),
+ ('${created.disabled.id}'::uuid,'Disabled','ar','pending_deletion')
+on conflict (user_id) do update set status=excluded.status;
+insert into public.security_alerts(id,tenant_id,user_id,alert_type,severity,metadata)
+values
+ ('${records.clientAlert}'::uuid,'${tenants.a}'::uuid,'${created.client.id}'::uuid,'client_owned','low','{"fixture":true}'),
+ ('${records.employeeAlert}'::uuid,'${tenants.a}'::uuid,'${created.employee.id}'::uuid,'employee_private','high','{"fixture":true}')
+on conflict (id) do update set acknowledged_at=null;
 commit;
 `);
 
-const fixture = { prefix, apiUrl, tenants, accounts: created };
+const fixture = { prefix, apiUrl, tenants, records, accounts: created };
 await writeFile(fixturePath, JSON.stringify(fixture), { mode: 0o600 });
 await chmod(fixturePath, 0o600);
-console.log(JSON.stringify({ ok: true, users: Object.keys(created).length, tenants: 2 }));
+console.log(JSON.stringify({ ok: true, users: Object.keys(created).length, tenants: 2, privateRecords: Object.keys(records).length }));
