@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { test, expect } from "@playwright/test";
-import { login, portalFixture } from "./portal-fixture.mjs";
+import { browserPortalCredentials, login, portalFixture } from "./portal-fixture.mjs";
 
 const expectedHost = new URL(process.env.CLOSEOUT_TARGET_URL).hostname.toLowerCase();
 const shortSha = process.env.CLOSEOUT_EXPECTED_SHA.slice(0, 8);
@@ -13,6 +13,34 @@ function recordAssertions(testInfo, count) {
 function screenshotName(name, projectName) {
   const device = projectName.startsWith("mobile") ? "mobile" : "desktop";
   return path.join("artifacts", "safe", "screenshots", `security-${name}-${device}-${shortSha}.png`);
+}
+async function portalWrite(page, credentials, section, body = {}) {
+  return page.evaluate(async ({ accessToken, platformSessionId, sectionName, payload }) => {
+    const response = await fetch(`/api/product-expansion/portal?role=creator&section=${encodeURIComponent(sectionName)}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "x-platform-session-id": platformSessionId,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    return { status: response.status, body: await response.json() };
+  }, { ...credentials, sectionName: section, payload: body });
+}
+async function portalPost(page, credentials, section, body = {}) {
+  return page.evaluate(async ({ accessToken, platformSessionId, sectionName, payload }) => {
+    const response = await fetch(`/api/product-expansion/portal?role=creator&section=${encodeURIComponent(sectionName)}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "x-platform-session-id": platformSessionId,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    return { status: response.status, body: await response.json() };
+  }, { ...credentials, sectionName: section, payload: body });
 }
 
 test("signed-out admin and portal guards expose no private data", async ({ page }, testInfo) => {
@@ -38,19 +66,52 @@ test("service worker excludes private surfaces", async ({ request }, testInfo) =
 
 if (fs.existsSync(fixturePath)) {
   const fixture = portalFixture();
-  test("revoked platform session blocks subsequent sensitive writes", async ({ page }, testInfo) => {
+
+  test("revoking one platform session blocks that session sensitive writes", async ({ page }, testInfo) => {
     await login(page, fixture.accounts.creator);
+    await expect(page).toHaveURL(/\/portal\/creator/);
     await page.goto("/portal/creator/sessions", { waitUntil: "networkidle" });
     await expect(page).toHaveURL(/\/portal\/creator\/sessions/);
-    const revokeAll = page.getByRole("button", { name: /إلغاء جميع الجلسات|Revoke all sessions|Tüm oturumları iptal et/ });
-    await expect(revokeAll).toBeVisible();
-    await revokeAll.click();
-    await expect(page.getByRole("status")).toContainText(/تم تحديث|updated|güncellendi/i);
-    await page.goto("/portal/creator/profile", { waitUntil: "networkidle" });
-    const save = page.getByRole("button", { name: /حفظ الملف|Save profile|Profili kaydet/ });
-    await save.click();
-    await expect(page.getByRole("status")).toContainText(/تعذر|could not|tamamlanamadı/i);
-    recordAssertions(testInfo, 5);
-    await page.screenshot({ path: screenshotName("revoked-session", testInfo.project.name), fullPage: true, animations: "disabled" });
+    const credentials = await browserPortalCredentials(page);
+    expect(credentials.accessToken).not.toBe("");
+    expect(credentials.platformSessionId).not.toBe("");
+    const revoked = await portalPost(page, credentials, "revoke-session", { id: credentials.platformSessionId });
+    expect(revoked.status).toBe(200);
+    expect(revoked.body.ok).toBe(true);
+    const denied = await portalWrite(page, credentials, "profile", { display_name: "must-not-write" });
+    expect(denied.status).toBe(403);
+    expect(denied.body.code).toBe("platform_session_invalid");
+    recordAssertions(testInfo, 8);
+    await page.screenshot({ path: screenshotName("revoke-one", testInfo.project.name), fullPage: true, animations: "disabled" });
+  });
+
+  test("revoking all sessions invalidates every platform session for the user", async ({ browser, page }, testInfo) => {
+    await login(page, fixture.accounts.creator);
+    await expect(page).toHaveURL(/\/portal\/creator/);
+    await page.goto("/portal/creator/sessions", { waitUntil: "networkidle" });
+    const first = await browserPortalCredentials(page);
+
+    const secondContext = await browser.newContext({ baseURL: process.env.CLOSEOUT_TARGET_URL, ignoreHTTPSErrors: true });
+    const secondPage = await secondContext.newPage();
+    await login(secondPage, fixture.accounts.creator);
+    await expect(secondPage).toHaveURL(/\/portal\/creator/);
+    await secondPage.goto("/portal/creator/sessions", { waitUntil: "networkidle" });
+    const second = await browserPortalCredentials(secondPage);
+    expect(first.platformSessionId).not.toBe("");
+    expect(second.platformSessionId).not.toBe("");
+    expect(second.platformSessionId).not.toBe(first.platformSessionId);
+
+    const revoked = await portalPost(page, first, "revoke-all-sessions");
+    expect(revoked.status).toBe(200);
+    expect(revoked.body.ok).toBe(true);
+    const firstDenied = await portalWrite(page, first, "profile", { display_name: "blocked-first" });
+    const secondDenied = await portalWrite(secondPage, second, "profile", { display_name: "blocked-second" });
+    expect(firstDenied.status).toBe(403);
+    expect(firstDenied.body.code).toBe("platform_session_invalid");
+    expect(secondDenied.status).toBe(403);
+    expect(secondDenied.body.code).toBe("platform_session_invalid");
+    await secondContext.close();
+    recordAssertions(testInfo, 12);
+    await page.screenshot({ path: screenshotName("revoke-all", testInfo.project.name), fullPage: true, animations: "disabled" });
   });
 }
