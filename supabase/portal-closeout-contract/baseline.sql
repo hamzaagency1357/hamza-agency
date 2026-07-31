@@ -13,7 +13,6 @@ create table public.tenants (
   supported_locales text[] not null default array['ar','en','tr']::text[],
   created_at timestamptz not null default now()
 );
-
 create table public.tenant_domains (
   id uuid primary key default extensions.gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) on delete cascade,
@@ -23,7 +22,6 @@ create table public.tenant_domains (
   verified_at timestamptz,
   created_at timestamptz not null default now()
 );
-
 create table public.tenant_memberships (
   id uuid primary key default extensions.gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) on delete cascade,
@@ -37,7 +35,6 @@ create table public.tenant_memberships (
   updated_at timestamptz not null default now(),
   unique (tenant_id,user_id)
 );
-
 create table public.portal_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   display_name text,
@@ -48,7 +45,6 @@ create table public.portal_profiles (
   ai_opt_out boolean not null default false,
   updated_at timestamptz not null default now()
 );
-
 create table public.privacy_requests (
   id uuid primary key default extensions.gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) on delete cascade,
@@ -59,7 +55,6 @@ create table public.privacy_requests (
   due_at timestamptz,
   created_at timestamptz not null default now()
 );
-
 create table public.portal_notification_preferences (
   tenant_id uuid not null references public.tenants(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -69,7 +64,6 @@ create table public.portal_notification_preferences (
   updated_at timestamptz not null default now(),
   primary key (tenant_id,user_id,channel,event_key)
 );
-
 create table public.communication_consents (
   tenant_id uuid not null references public.tenants(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -80,7 +74,6 @@ create table public.communication_consents (
   withdrawn_at timestamptz,
   primary key (tenant_id,user_id,channel)
 );
-
 create table public.user_sessions (
   id uuid primary key default extensions.gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) on delete cascade,
@@ -93,11 +86,11 @@ create table public.user_sessions (
   suspicious boolean not null default false,
   last_active_at timestamptz not null default now(),
   revoked_at timestamptz,
+  revoked_by uuid references auth.users(id),
   revoke_reason text,
   created_at timestamptz not null default now(),
   unique (tenant_id,user_id,auth_session_id)
 );
-
 create table public.security_alerts (
   id uuid primary key default extensions.gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) on delete cascade,
@@ -118,7 +111,6 @@ alter table public.portal_notification_preferences enable row level security;
 alter table public.communication_consents enable row level security;
 alter table public.user_sessions enable row level security;
 alter table public.security_alerts enable row level security;
-
 create policy membership_self_read on public.tenant_memberships for select to authenticated using (user_id=auth.uid());
 create policy profile_self_all on public.portal_profiles for all to authenticated using (user_id=auth.uid()) with check (user_id=auth.uid());
 create policy privacy_self_all on public.privacy_requests for all to authenticated using (user_id=auth.uid()) with check (user_id=auth.uid());
@@ -126,27 +118,40 @@ create policy preference_self_all on public.portal_notification_preferences for 
 create policy consent_self_all on public.communication_consents for all to authenticated using (user_id=auth.uid()) with check (user_id=auth.uid());
 create policy session_self_read on public.user_sessions for select to authenticated using (user_id=auth.uid());
 create policy alert_self_all on public.security_alerts for all to authenticated using (user_id=auth.uid()) with check (user_id=auth.uid());
-
 grant usage on schema public to anon,authenticated;
 grant select on public.tenant_memberships to authenticated;
 grant select,insert,update on public.portal_profiles,public.privacy_requests,public.portal_notification_preferences,public.communication_consents,public.security_alerts to authenticated;
 grant select on public.user_sessions to authenticated;
 
-create or replace function public.resolve_public_tenant_runtime(p_hostname text)
-returns table(id uuid)
+create or replace function private.public_tenant_runtime(p_hostname text)
+returns jsonb
 language sql
 stable
 security definer
-set search_path=public
+set search_path=pg_catalog,public
 as $$
-  select t.id
-  from public.tenant_domains d
-  join public.tenants t on t.id=d.tenant_id
-  where d.hostname=lower(split_part(trim(coalesce(p_hostname,'')),':',1))
-    and d.status in ('verified','active') and t.status='active'
-  order by d.is_primary desc
-  limit 1;
+  select to_jsonb(runtime)
+  from (
+    select t.id
+    from public.tenant_domains d
+    join public.tenants t on t.id=d.tenant_id
+    where d.hostname=lower(split_part(trim(coalesce(p_hostname,'')),':',1))
+      and d.status in ('verified','active') and t.status='active'
+    order by d.is_primary desc
+    limit 1
+  ) runtime;
 $$;
+revoke all on function private.public_tenant_runtime(text) from public;
+grant usage on schema private to anon,authenticated;
+grant execute on function private.public_tenant_runtime(text) to anon,authenticated;
+
+create or replace function public.resolve_public_tenant_runtime(p_hostname text)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path=private
+as $$ select private.public_tenant_runtime(p_hostname); $$;
 revoke all on function public.resolve_public_tenant_runtime(text) from public;
 grant execute on function public.resolve_public_tenant_runtime(text) to anon,authenticated;
 
@@ -160,46 +165,45 @@ as $$
 declare actor uuid := (select auth.uid()); existing uuid;
 begin
   if actor is null then raise exception 'forbidden'; end if;
-  if not exists(select 1 from public.tenant_memberships m where m.tenant_id=p_tenant and m.user_id=actor and m.status='active') then
-    raise exception 'forbidden';
-  end if;
+  if not exists(select 1 from public.tenant_memberships m where m.tenant_id=p_tenant and m.user_id=actor and m.status='active') then raise exception 'forbidden'; end if;
   if p_auth_session is not null then
-    select id into existing from public.user_sessions
-    where tenant_id=p_tenant and user_id=actor and auth_session_id=p_auth_session and revoked_at is null limit 1;
+    select id into existing from public.user_sessions where tenant_id=p_tenant and user_id=actor and auth_session_id=p_auth_session and revoked_at is null limit 1;
   end if;
   if existing is not null then
-    update public.user_sessions set last_active_at=now(),device_label=left(coalesce(p_device_label,device_label),120),platform=left(coalesce(p_platform,platform),80),browser=left(coalesce(p_browser,browser),80),ip_hash=left(coalesce(p_ip_hash,ip_hash),64),suspicious=suspicious or coalesce(p_suspicious,false)
-    where id=existing and user_id=actor;
+    update public.user_sessions set last_active_at=now(),device_label=left(coalesce(p_device_label,device_label),120),platform=left(coalesce(p_platform,platform),80),browser=left(coalesce(p_browser,browser),80),ip_hash=left(coalesce(p_ip_hash,ip_hash),64),suspicious=suspicious or coalesce(p_suspicious,false) where id=existing and user_id=actor;
     return existing;
   end if;
   insert into public.user_sessions(tenant_id,user_id,auth_session_id,device_label,platform,browser,ip_hash,suspicious)
-  values(p_tenant,actor,p_auth_session,left(p_device_label,120),left(p_platform,80),left(p_browser,80),left(p_ip_hash,64),coalesce(p_suspicious,false))
-  returning id into existing;
+  values(p_tenant,actor,p_auth_session,left(p_device_label,120),left(p_platform,80),left(p_browser,80),left(p_ip_hash,64),coalesce(p_suspicious,false)) returning id into existing;
   return existing;
 end;$$;
 
-create or replace function public.revoke_own_platform_session(p_session uuid,p_reason text)
+create or replace function public.revoke_own_platform_session(p_session uuid,p_reason text default 'user_requested')
 returns boolean
 language plpgsql
-security definer
+security invoker
 set search_path=public
 as $$
+declare actor uuid := (select auth.uid()); changed integer;
 begin
-  update public.user_sessions set revoked_at=now(),revoke_reason=left(coalesce(p_reason,'user_requested'),120)
-  where id=p_session and user_id=auth.uid() and revoked_at is null;
-  return found;
+  if actor is null then return false; end if;
+  update public.user_sessions set revoked_at=coalesce(revoked_at,now()),revoked_by=actor,revoke_reason=left(coalesce(p_reason,'user_requested'),200)
+  where id=p_session and user_id=actor and revoked_at is null;
+  get diagnostics changed=row_count;
+  return changed>0;
 end;$$;
 
 create or replace function public.revoke_all_own_platform_sessions(p_tenant uuid,p_reason text default 'user_requested_all')
 returns integer
 language plpgsql
-security definer
+security invoker
 set search_path=public
 as $$
-declare v_count integer;
+declare actor uuid := (select auth.uid()); v_count integer;
 begin
-  update public.user_sessions set revoked_at=now(),revoke_reason=left(coalesce(p_reason,'user_requested_all'),120)
-  where tenant_id=p_tenant and user_id=auth.uid() and revoked_at is null;
+  if actor is null then return 0; end if;
+  update public.user_sessions set revoked_at=coalesce(revoked_at,now()),revoked_by=actor,revoke_reason=left(coalesce(p_reason,'user_requested_all'),200)
+  where tenant_id=p_tenant and user_id=actor and revoked_at is null;
   get diagnostics v_count=row_count;
   return v_count;
 end;$$;
