@@ -7,9 +7,7 @@ const expectedHost = new URL(process.env.CLOSEOUT_TARGET_URL).hostname.toLowerCa
 const shortSha = process.env.CLOSEOUT_EXPECTED_SHA.slice(0, 8);
 const fixturePath = process.env.CLOSEOUT_PORTAL_FIXTURE_FILE || "/tmp/hamza-portal-fixtures.json";
 
-function recordAssertions(testInfo, count) {
-  testInfo.annotations.push({ type: "closeout-assertions", description: String(count) });
-}
+function recordAssertions(testInfo, count) { testInfo.annotations.push({ type: "closeout-assertions", description: String(count) }); }
 function screenshotName(name, projectName) {
   const device = projectName.startsWith("mobile") ? "mobile" : "desktop";
   return path.join("artifacts", "safe", "screenshots", `security-${name}-${device}-${shortSha}.png`);
@@ -18,11 +16,7 @@ async function portalWrite(page, credentials, section, body = {}) {
   return page.evaluate(async ({ accessToken, platformSessionId, sectionName, payload }) => {
     const response = await fetch(`/api/product-expansion/portal?role=creator&section=${encodeURIComponent(sectionName)}`, {
       method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "x-platform-session-id": platformSessionId,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${accessToken}`, "x-platform-session-id": platformSessionId, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     return { status: response.status, body: await response.json() };
@@ -32,11 +26,7 @@ async function portalPost(page, credentials, section, body = {}) {
   return page.evaluate(async ({ accessToken, platformSessionId, sectionName, payload }) => {
     const response = await fetch(`/api/product-expansion/portal?role=creator&section=${encodeURIComponent(sectionName)}`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "x-platform-session-id": platformSessionId,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${accessToken}`, "x-platform-session-id": platformSessionId, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     return { status: response.status, body: await response.json() };
@@ -68,7 +58,7 @@ if (fs.existsSync(fixturePath)) {
   const fixture = portalFixture();
 
   test("revoking one platform session blocks that session sensitive writes", async ({ page }, testInfo) => {
-    await login(page, fixture.accounts.creator);
+    await login(page, fixture.accounts.revokeOne);
     await expect(page).toHaveURL(/\/portal\/creator/);
     await page.goto("/portal/creator/sessions", { waitUntil: "networkidle" });
     await expect(page).toHaveURL(/\/portal\/creator\/sessions/);
@@ -86,14 +76,14 @@ if (fs.existsSync(fixturePath)) {
   });
 
   test("revoking all sessions invalidates every platform session for the user", async ({ browser, page }, testInfo) => {
-    await login(page, fixture.accounts.creator);
+    await login(page, fixture.accounts.revokeAll);
     await expect(page).toHaveURL(/\/portal\/creator/);
     await page.goto("/portal/creator/sessions", { waitUntil: "networkidle" });
     const first = await browserPortalCredentials(page);
 
-    const secondContext = await browser.newContext({ baseURL: process.env.CLOSEOUT_TARGET_URL, ignoreHTTPSErrors: true });
+    const secondContext = await browser.newContext({ baseURL: process.env.CLOSEOUT_TARGET_URL, ignoreHTTPSErrors: true, serviceWorkers: "block" });
     const secondPage = await secondContext.newPage();
-    await login(secondPage, fixture.accounts.creator);
+    await login(secondPage, fixture.accounts.revokeAll);
     await expect(secondPage).toHaveURL(/\/portal\/creator/);
     await secondPage.goto("/portal/creator/sessions", { waitUntil: "networkidle" });
     const second = await browserPortalCredentials(secondPage);
