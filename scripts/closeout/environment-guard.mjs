@@ -44,7 +44,7 @@ export function assertCloseoutEnvironment(input = process.env) {
   const supabase = parseUrl("CLOSEOUT_SUPABASE_URL", input.CLOSEOUT_SUPABASE_URL, mode === "local-isolated");
   const auth = parseUrl("CLOSEOUT_AUTH_URL", input.CLOSEOUT_AUTH_URL, mode === "local-isolated");
   const expectedSha = input.CLOSEOUT_EXPECTED_SHA;
-  const actualSha = input.GITHUB_SHA || input.VERCEL_GIT_COMMIT_SHA || input.CLOSEOUT_ACTUAL_SHA;
+  const actualSha = input.CLOSEOUT_ACTUAL_SHA || input.VERCEL_GIT_COMMIT_SHA || input.GITHUB_SHA;
 
   if (!SUPPORTED_MODES.has(mode)) fail(`unsupported execution mode: ${mode || "missing"}`);
   if (!SUPPORTED_SUITES.has(suite)) fail(`unsupported suite: ${suite || "missing"}`);
