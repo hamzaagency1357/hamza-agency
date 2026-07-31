@@ -8,17 +8,14 @@ const dbUrl = process.env.DB_URL;
 const fixturePath = process.env.CLOSEOUT_PORTAL_FIXTURE_FILE || "/tmp/hamza-portal-fixtures.json";
 if (!apiUrl || !serviceRoleKey || !dbUrl) throw new Error("missing_local_supabase_environment");
 
-const tenants = {
-  a: "c10e0000-0000-4000-8000-000000000001",
-  b: "c10e0000-0000-4000-8000-000000000002",
-};
-const records = {
-  clientAlert: "c10e1000-0000-4000-8000-000000000001",
-  employeeAlert: "c10e1000-0000-4000-8000-000000000002",
-};
+const tenants = { a: "c10e0000-0000-4000-8000-000000000001", b: "c10e0000-0000-4000-8000-000000000002" };
+const records = { clientAlert: "c10e1000-0000-4000-8000-000000000001", employeeAlert: "c10e1000-0000-4000-8000-000000000002" };
 const prefix = `closeout-${(process.env.CLOSEOUT_EXPECTED_SHA || "local").slice(0, 8)}`;
 const accounts = {
+  authProbe: { email: `${prefix}-auth-probe@example.test`, password: "LocalOnly-Auth-Probe-2026!", role: "creator", status: "active" },
   creator: { email: `${prefix}-creator@example.test`, password: "LocalOnly-Creator-2026!", role: "creator", status: "active" },
+  revokeOne: { email: `${prefix}-revoke-one@example.test`, password: "LocalOnly-Revoke-One-2026!", role: "creator", status: "active" },
+  revokeAll: { email: `${prefix}-revoke-all@example.test`, password: "LocalOnly-Revoke-All-2026!", role: "creator", status: "active" },
   client: { email: `${prefix}-client@example.test`, password: "LocalOnly-Client-2026!", role: "client", status: "active" },
   employee: { email: `${prefix}-employee@example.test`, password: "LocalOnly-Employee-2026!", role: "employee", status: "active" },
   partner: { email: `${prefix}-partner@example.test`, password: "LocalOnly-Partner-2026!", role: "partner", status: "active" },
@@ -30,14 +27,9 @@ const accounts = {
   otherTenant: { email: `${prefix}-other@example.test`, password: "LocalOnly-Other-2026!", role: "client", status: "active" },
 };
 
-function psql(sql) {
-  execFileSync("psql", [dbUrl, "-v", "ON_ERROR_STOP=1", "-q"], { input: sql, stdio: ["pipe", "inherit", "inherit"] });
-}
+function psql(sql) { execFileSync("psql", [dbUrl, "-v", "ON_ERROR_STOP=1", "-q"], { input: sql, stdio: ["pipe", "inherit", "inherit"] }); }
 async function admin(path, init = {}) {
-  const response = await fetch(`${apiUrl}/auth/v1/admin${path}`, {
-    ...init,
-    headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json", ...(init.headers || {}) },
-  });
+  const response = await fetch(`${apiUrl}/auth/v1/admin${path}`, { ...init, headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json", ...(init.headers || {}) } });
   const body = await response.json().catch(() => null);
   if (!response.ok) throw new Error(`local_auth_admin_failed:${response.status}`);
   return body;
@@ -66,9 +58,7 @@ for (const [key, account] of Object.entries(accounts)) created[key] = { ...accou
 psql(`
 begin;
 insert into public.tenants(id,slug,name,status,is_primary,default_locale,supported_locales)
-values
- ('${tenants.a}'::uuid,'${prefix}-tenant-a','Closeout Tenant A','active',false,'ar',array['ar','en','tr']),
- ('${tenants.b}'::uuid,'${prefix}-tenant-b','Closeout Tenant B','active',false,'ar',array['ar','en','tr'])
+values ('${tenants.a}'::uuid,'${prefix}-tenant-a','Closeout Tenant A','active',false,'ar',array['ar','en','tr']), ('${tenants.b}'::uuid,'${prefix}-tenant-b','Closeout Tenant B','active',false,'ar',array['ar','en','tr'])
 on conflict (id) do update set status='active',name=excluded.name;
 insert into public.tenant_domains(tenant_id,hostname,status,is_primary,verified_at)
 values ('${tenants.a}'::uuid,'127.0.0.1','active',true,now()),('${tenants.b}'::uuid,'tenant-b.closeout.test','active',true,now())
@@ -76,6 +66,8 @@ on conflict (hostname) do update set tenant_id=excluded.tenant_id,status='active
 insert into public.tenant_memberships(tenant_id,user_id,role,status,permissions,mfa_required)
 values
  ('${tenants.a}'::uuid,'${created.creator.id}'::uuid,'creator','active','{}',false),
+ ('${tenants.a}'::uuid,'${created.revokeOne.id}'::uuid,'creator','active','{}',false),
+ ('${tenants.a}'::uuid,'${created.revokeAll.id}'::uuid,'creator','active','{}',false),
  ('${tenants.a}'::uuid,'${created.client.id}'::uuid,'client','active','{}',false),
  ('${tenants.a}'::uuid,'${created.employee.id}'::uuid,'employee','active','{}',false),
  ('${tenants.a}'::uuid,'${created.partner.id}'::uuid,'partner','active','{}',false),
@@ -94,9 +86,7 @@ insert into public.portal_profiles(user_id,display_name,locale,status) values
  ('${created.disabled.id}'::uuid,'Disabled','ar','pending_deletion')
 on conflict (user_id) do update set status=excluded.status;
 insert into public.security_alerts(id,tenant_id,user_id,alert_type,severity,metadata)
-values
- ('${records.clientAlert}'::uuid,'${tenants.a}'::uuid,'${created.client.id}'::uuid,'client_owned','low','{"fixture":true}'),
- ('${records.employeeAlert}'::uuid,'${tenants.a}'::uuid,'${created.employee.id}'::uuid,'employee_private','high','{"fixture":true}')
+values ('${records.clientAlert}'::uuid,'${tenants.a}'::uuid,'${created.client.id}'::uuid,'client_owned','low','{"fixture":true}'), ('${records.employeeAlert}'::uuid,'${tenants.a}'::uuid,'${created.employee.id}'::uuid,'employee_private','high','{"fixture":true}')
 on conflict (id) do update set acknowledged_at=null;
 commit;
 `);
