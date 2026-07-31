@@ -22,6 +22,7 @@ export default defineConfig({
   use: {
     baseURL: guard.targetOrigin,
     headless: true,
+    ignoreHTTPSErrors: guard.mode === "local-isolated",
     trace: "off",
     screenshot: "off",
     video: "off",
