@@ -23,9 +23,14 @@ function verifiedSessionId(accessToken: string): string | null {
   }
 }
 
+export function supabaseServerUrl(): string | null {
+  const value = process.env.SUPABASE_SERVER_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  return value ? value.replace(/\/+$/, "") : null;
+}
+
 export async function verifySupabaseBearer(request: Request): Promise<VerifiedSupabaseUser | null> {
   const accessToken = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() || "";
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
+  const url = supabaseServerUrl();
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!accessToken || !url || !key) return null;
   try {
@@ -51,7 +56,7 @@ export async function verifySupabaseBearer(request: Request): Promise<VerifiedSu
 }
 
 export async function supabaseRestAsUser<T>(path: string, user: VerifiedSupabaseUser, init?: RequestInit): Promise<{ ok: boolean; status: number; data: T | null }> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
+  const url = supabaseServerUrl();
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key || !path.startsWith("/")) return { ok: false, status: 503, data: null };
   try {
