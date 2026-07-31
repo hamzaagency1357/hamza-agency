@@ -38,16 +38,23 @@ export type AuthorizedTenantRequest = VerifiedTenantIdentity & {
   platformSessionId: string | null;
 };
 
+export type TenantAuthorizationCode =
+  | "authentication_required"
+  | "tenant_not_found"
+  | "membership_pending"
+  | "membership_suspended"
+  | "membership_revoked"
+  | "active_membership_required"
+  | "account_suspended"
+  | "account_disabled"
+  | "role_not_allowed"
+  | "platform_session_invalid"
+  | "authorization_unavailable";
+
 export type RejectedTenantRequest = {
   ok: false;
   status: 401 | 403 | 503;
-  code:
-    | "authentication_required"
-    | "tenant_not_found"
-    | "active_membership_required"
-    | "role_not_allowed"
-    | "platform_session_invalid"
-    | "authorization_unavailable";
+  code: TenantAuthorizationCode;
 };
 
 export type TenantIdentityResult = VerifiedTenantIdentity | RejectedTenantRequest;
@@ -69,10 +76,12 @@ type MembershipRow = {
   permissions?: unknown;
   mfa_required?: unknown;
 };
+type ProfileRow = { status?: unknown };
 type SessionRow = {
   id?: unknown;
   tenant_id?: unknown;
   user_id?: unknown;
+  auth_session_id?: unknown;
   revoked_at?: unknown;
 };
 
@@ -109,6 +118,13 @@ function platformSessionIdFromRequest(request: Request): string | null {
   return isUuid(value) ? value : null;
 }
 
+function membershipCode(status: unknown): TenantAuthorizationCode {
+  if (status === "invited") return "membership_pending";
+  if (status === "suspended") return "membership_suspended";
+  if (status === "revoked") return "membership_revoked";
+  return "active_membership_required";
+}
+
 async function resolveExactTenantId(hostname: string): Promise<string | null | undefined> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -141,9 +157,7 @@ export async function verifyTenantRequestIdentity(request: Request): Promise<Ten
   if (!hostname) return { ok: false, status: 403, code: "tenant_not_found" };
 
   const tenantId = await resolveExactTenantId(hostname);
-  if (tenantId === undefined) {
-    return { ok: false, status: 503, code: "authorization_unavailable" };
-  }
+  if (tenantId === undefined) return { ok: false, status: 503, code: "authorization_unavailable" };
   if (!tenantId) return { ok: false, status: 403, code: "tenant_not_found" };
 
   return { ok: true, user, tenantId, hostname };
@@ -160,10 +174,9 @@ export async function authorizeTenantRequest(
     `/tenant_memberships?select=id,tenant_id,user_id,role,status,program_id,permissions,mfa_required`
       + `&tenant_id=eq.${encodeURIComponent(identity.tenantId)}`
       + `&user_id=eq.${encodeURIComponent(identity.user.id)}`
-      + "&status=eq.active&limit=1",
+      + "&limit=1",
     identity.user,
   );
-
   if (!membershipResult.ok) {
     return {
       ok: false,
@@ -173,29 +186,34 @@ export async function authorizeTenantRequest(
   }
 
   const row = firstObject<MembershipRow>(membershipResult.data);
-  if (
-    !row
-    || !isUuid(row.id)
-    || row.tenant_id !== identity.tenantId
-    || row.user_id !== identity.user.id
-    || row.status !== "active"
-    || !isRole(row.role)
-  ) {
-    return { ok: false, status: 403, code: "active_membership_required" };
+  if (!row || !isUuid(row.id) || row.tenant_id !== identity.tenantId || row.user_id !== identity.user.id || !isRole(row.role)) {
+    return { ok: false, status: 403, code: membershipCode(row?.status) };
   }
+  if (row.status !== "active") return { ok: false, status: 403, code: membershipCode(row.status) };
+
+  const profileResult = await supabaseRestAsUser<ProfileRow[]>(
+    `/portal_profiles?select=status&user_id=eq.${encodeURIComponent(identity.user.id)}&limit=1`,
+    identity.user,
+  );
+  if (!profileResult.ok && profileResult.status >= 500) {
+    return { ok: false, status: 503, code: "authorization_unavailable" };
+  }
+  const profile = firstObject<ProfileRow>(profileResult.data);
+  if (profile?.status === "suspended") return { ok: false, status: 403, code: "account_suspended" };
+  if (profile?.status === "pending_deletion") return { ok: false, status: 403, code: "account_disabled" };
 
   if (options.allowedRoles && !options.allowedRoles.includes(row.role)) {
     return { ok: false, status: 403, code: "role_not_allowed" };
   }
 
   const platformSessionId = platformSessionIdFromRequest(request);
-  if (options.requirePlatformSession && !platformSessionId) {
+  if (options.requirePlatformSession && (!platformSessionId || !identity.user.sessionId)) {
     return { ok: false, status: 403, code: "platform_session_invalid" };
   }
 
   if (platformSessionId) {
     const sessionResult = await supabaseRestAsUser<SessionRow[]>(
-      `/user_sessions?select=id,tenant_id,user_id,revoked_at`
+      `/user_sessions?select=id,tenant_id,user_id,auth_session_id,revoked_at`
         + `&id=eq.${encodeURIComponent(platformSessionId)}`
         + `&tenant_id=eq.${encodeURIComponent(identity.tenantId)}`
         + `&user_id=eq.${encodeURIComponent(identity.user.id)}`
@@ -210,6 +228,8 @@ export async function authorizeTenantRequest(
       || session.tenant_id !== identity.tenantId
       || session.user_id !== identity.user.id
       || session.revoked_at !== null
+      || !identity.user.sessionId
+      || session.auth_session_id !== identity.user.sessionId
     ) {
       return { ok: false, status: 403, code: "platform_session_invalid" };
     }
