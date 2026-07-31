@@ -1,4 +1,4 @@
--- HAMZA AGENCY PR101 membership suspension auth-session invalidation
+-- HAMZA AGENCY PR101 tenant-scoped membership suspension and explicit account-global revocation
 begin;
 
 create or replace function private.revoke_auth_sessions_for_user(p_user_id uuid)
@@ -25,7 +25,7 @@ begin
     and coalesce(token_row.revoked,false)=false;
   get diagnostics v_refresh_tokens=row_count;
 
-  return jsonb_build_object('sessions_expired',v_sessions,'refresh_tokens_revoked',v_refresh_tokens);
+  return jsonb_build_object('scope','account_global','sessions_expired',v_sessions,'refresh_tokens_revoked',v_refresh_tokens);
 end;
 $$;
 
@@ -45,7 +45,7 @@ declare
   v_before public.tenant_memberships%rowtype;
   v_after public.tenant_memberships%rowtype;
   v_permissions jsonb;
-  v_auth_revocation jsonb:='{}'::jsonb;
+  v_tenant_sessions integer:=0;
 begin
   if v_actor is null or p_tenant_id is null or not public.current_user_has_tenant_role(p_tenant_id,array['super_admin','tenant_admin']) then
     raise exception 'forbidden' using errcode='42501';
@@ -81,14 +81,17 @@ begin
   if p_status in ('suspended','revoked') then
     update public.user_sessions session_row
     set revoked_at=coalesce(session_row.revoked_at,now()),revoked_by=v_actor,revoke_reason='membership_'||p_status
-    where session_row.tenant_id=p_tenant_id and session_row.user_id=v_after.user_id and session_row.revoked_at is null;
-
-    v_auth_revocation:=private.revoke_auth_sessions_for_user(v_after.user_id);
+    where session_row.tenant_id=p_tenant_id
+      and session_row.user_id=v_after.user_id
+      and session_row.revoked_at is null;
+    get diagnostics v_tenant_sessions=row_count;
   end if;
 
   insert into public.tenant_admin_audit(tenant_id,actor_id,action,entity_type,entity_id,before_data,after_data)
-  values(p_tenant_id,v_actor,'tenant.membership_updated','tenant_membership',v_after.id::text,to_jsonb(v_before),
-    to_jsonb(v_after)||jsonb_build_object('auth_revocation',v_auth_revocation));
+  values(
+    p_tenant_id,v_actor,'tenant.membership_updated','tenant_membership',v_after.id::text,to_jsonb(v_before),
+    to_jsonb(v_after)||jsonb_build_object('revocation_scope','tenant','tenant_sessions_revoked',v_tenant_sessions)
+  );
 
   return v_after;
 end;
@@ -97,7 +100,51 @@ $$;
 revoke all on function public.manage_tenant_membership(uuid,uuid,text,text,bigint,jsonb) from public,anon;
 grant execute on function public.manage_tenant_membership(uuid,uuid,text,text,bigint,jsonb) to authenticated;
 
+create or replace function public.revoke_account_auth_sessions(p_user_id uuid,p_reason text default 'account_global_security_event')
+returns jsonb
+language plpgsql
+security definer
+set search_path=pg_catalog,public,private,auth
+as $$
+declare
+  v_actor uuid:=auth.uid();
+  v_result jsonb;
+  v_tenant uuid;
+begin
+  if v_actor is null then raise exception 'forbidden' using errcode='42501'; end if;
+
+  select membership_row.tenant_id into v_tenant
+  from public.tenant_memberships membership_row
+  where membership_row.user_id=v_actor
+    and membership_row.status='active'
+    and membership_row.role='super_admin'
+  order by membership_row.created_at asc
+  limit 1;
+
+  if v_tenant is null then raise exception 'forbidden' using errcode='42501'; end if;
+
+  v_result:=private.revoke_auth_sessions_for_user(p_user_id);
+
+  update public.user_sessions session_row
+  set revoked_at=coalesce(session_row.revoked_at,now()),revoked_by=v_actor,revoke_reason=left(coalesce(p_reason,'account_global_security_event'),200)
+  where session_row.user_id=p_user_id and session_row.revoked_at is null;
+
+  insert into public.tenant_admin_audit(tenant_id,actor_id,action,entity_type,entity_id,before_data,after_data)
+  values(
+    v_tenant,v_actor,'account.auth_sessions_revoked','auth_account',p_user_id::text,'{}'::jsonb,
+    v_result||jsonb_build_object('revocation_scope','account_global','reason',left(coalesce(p_reason,'account_global_security_event'),200))
+  );
+
+  return v_result;
+end;
+$$;
+
+revoke all on function public.revoke_account_auth_sessions(uuid,text) from public,anon;
+grant execute on function public.revoke_account_auth_sessions(uuid,text) to authenticated;
+
 comment on function private.revoke_auth_sessions_for_user(uuid) is
-  'Internal-only Supabase Auth session and refresh-token invalidation used after membership suspension or revocation.';
+  'Version-coupled internal boundary for explicit account-global Supabase Auth revocation only. Never used as a side effect of one tenant membership suspension.';
+comment on function public.revoke_account_auth_sessions(uuid,text) is
+  'Explicit account-global session revocation operation. Tenant suspension remains tenant-scoped.';
 
 commit;
