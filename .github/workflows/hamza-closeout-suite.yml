@@ -82,6 +82,7 @@ jobs:
           npx --no-install supabase start --exclude studio,imgproxy >/tmp/closeout-supabase-start.log 2>&1
           npx --no-install supabase db reset
           npx --no-install supabase status -o env >/tmp/closeout-supabase.env
+          chmod 600 /tmp/closeout-supabase.env
           for required in API_URL ANON_KEY SERVICE_ROLE_KEY DB_URL; do grep -q "^${required}=" /tmp/closeout-supabase.env; done
           while IFS='=' read -r key value; do
             value="${value%\"}"; value="${value#\"}"
@@ -89,7 +90,8 @@ jobs:
             case "$key" in
               API_URL) echo "API_URL=$value" >> "$GITHUB_ENV"; echo "NEXT_PUBLIC_SUPABASE_URL=$value" >> "$GITHUB_ENV" ;;
               ANON_KEY) echo "ANON_KEY=$value" >> "$GITHUB_ENV"; echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$value" >> "$GITHUB_ENV" ;;
-              SERVICE_ROLE_KEY|DB_URL) echo "$key=$value" >> "$GITHUB_ENV" ;;
+              DB_URL) echo "DB_URL=$value" >> "$GITHUB_ENV" ;;
+              SERVICE_ROLE_KEY) : ;;
             esac
           done < /tmp/closeout-supabase.env
           set -a; . /tmp/closeout-supabase.env; set +a
@@ -133,7 +135,10 @@ jobs:
         shell: bash
         run: |
           set +e
-          if [ -f "$CLOSEOUT_PORTAL_FIXTURE_FILE" ] && [ -n "${API_URL:-}" ] && [ -n "${SERVICE_ROLE_KEY:-}" ] && [ -n "${DB_URL:-}" ]; then node scripts/closeout/portal-local-fixtures.mjs cleanup; fi
+          if [ -f "$CLOSEOUT_PORTAL_FIXTURE_FILE" ] && [ -f /tmp/closeout-supabase.env ]; then
+            set -a; . /tmp/closeout-supabase.env; set +a
+            node scripts/closeout/portal-local-fixtures.mjs cleanup
+          fi
           if [ -f /tmp/hamza-closeout-next.pid ]; then kill "$(cat /tmp/hamza-closeout-next.pid)" 2>/dev/null; fi
           if [ -f /tmp/hamza-closeout-proxy.pid ]; then kill "$(cat /tmp/hamza-closeout-proxy.pid)" 2>/dev/null; fi
           if command -v npx >/dev/null && [ "${CLOSEOUT_STATEFUL:-false}" = "true" ]; then npx --no-install supabase stop --no-backup >/dev/null 2>&1; fi
