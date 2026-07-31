@@ -30,8 +30,8 @@ test("acceptance derives tenant from locked token and verifies expected host ten
 });
 
 test("membership direct writes are removed while approved RPC execution remains", () => {
-  assert.match(membershipSql, /revoke insert,update,delete on public\.tenant_memberships from authenticated/i);
-  assert.match(membershipSql, /grant select on public\.tenant_memberships to authenticated/i);
+  assert.match(membershipSql, /revoke insert,update,delete on (?:table )?public\.tenant_memberships from authenticated/i);
+  assert.match(membershipSql, /grant select on (?:table )?public\.tenant_memberships to authenticated/i);
   assert.match(membershipSql, /grant execute on function public\.accept_tenant_invitation\(uuid,text\) to authenticated/i);
   assert.match(membershipSql, /grant execute on function public\.manage_tenant_membership\(uuid,uuid,text,text,bigint,jsonb\) to authenticated/i);
   assert.match(membershipSql, /revoke all on function public\.accept_tenant_invitation\(uuid,text\) from public,anon/i);
