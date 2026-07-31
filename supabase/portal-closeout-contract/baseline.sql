@@ -1,4 +1,5 @@
 -- Isolated portal closeout contract. Synthetic local data only.
+-- This bounded harness mirrors only portal-facing contracts from real migrations.
 create extension if not exists pgcrypto with schema extensions;
 create schema if not exists private;
 
@@ -6,7 +7,7 @@ create table public.tenants (
   id uuid primary key default extensions.gen_random_uuid(),
   slug text not null unique,
   name text not null,
-  status text not null default 'active' check (status in ('active','suspended','disabled')),
+  status text not null default 'active' check (status in ('active','suspended','archived')),
   is_primary boolean not null default false,
   default_locale text not null default 'ar',
   supported_locales text[] not null default array['ar','en','tr']::text[],
@@ -17,7 +18,7 @@ create table public.tenant_domains (
   id uuid primary key default extensions.gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) on delete cascade,
   hostname text not null unique,
-  status text not null default 'active' check (status in ('pending','verified','active','disabled')),
+  status text not null default 'pending' check (status in ('pending','verified','active','failed','disabled')),
   is_primary boolean not null default false,
   verified_at timestamptz,
   created_at timestamptz not null default now()
@@ -28,7 +29,7 @@ create table public.tenant_memberships (
   tenant_id uuid not null references public.tenants(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   role text not null check (role in ('creator','client','employee','partner','tenant_admin','super_admin')),
-  status text not null default 'invited' check (status in ('invited','active','suspended','revoked')),
+  status text not null default 'active' check (status in ('invited','active','suspended','revoked')),
   program_id bigint,
   permissions jsonb not null default '{}'::jsonb,
   mfa_required boolean not null default false,
@@ -42,7 +43,7 @@ create table public.portal_profiles (
   display_name text,
   phone text,
   locale text not null default 'ar' check (locale in ('ar','en','tr')),
-  status text not null default 'active' check (status in ('active','pending','suspended','blocked','disabled')),
+  status text not null default 'active' check (status in ('active','suspended','pending_deletion')),
   marketing_opt_in boolean not null default false,
   ai_opt_out boolean not null default false,
   updated_at timestamptz not null default now()
@@ -52,7 +53,7 @@ create table public.privacy_requests (
   id uuid primary key default extensions.gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
-  request_type text not null,
+  request_type text not null check (request_type in ('access','download','correction','deletion','consent_withdrawal')),
   status text not null default 'submitted',
   details jsonb not null default '{}'::jsonb,
   due_at timestamptz,
@@ -84,7 +85,7 @@ create table public.user_sessions (
   id uuid primary key default extensions.gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
-  auth_session_id uuid not null,
+  auth_session_id uuid,
   device_label text,
   platform text,
   browser text,
@@ -150,23 +151,31 @@ revoke all on function public.resolve_public_tenant_runtime(text) from public;
 grant execute on function public.resolve_public_tenant_runtime(text) to anon,authenticated;
 
 create or replace function public.register_platform_session(
-  p_tenant uuid,p_auth_session uuid,p_device_label text,p_platform text,p_browser text,p_ip_hash text,p_suspicious boolean
+  p_tenant uuid,p_auth_session uuid,p_device_label text,p_platform text,p_browser text,p_ip_hash text,p_suspicious boolean default false
 ) returns uuid
 language plpgsql
-security definer
+security invoker
 set search_path=public
 as $$
-declare v_id uuid;
+declare actor uuid := (select auth.uid()); existing uuid;
 begin
-  if auth.uid() is null then raise exception 'authentication_required'; end if;
-  if not exists(select 1 from public.tenant_memberships m where m.tenant_id=p_tenant and m.user_id=auth.uid() and m.status='active') then
-    raise exception 'active_membership_required';
+  if actor is null then raise exception 'forbidden'; end if;
+  if not exists(select 1 from public.tenant_memberships m where m.tenant_id=p_tenant and m.user_id=actor and m.status='active') then
+    raise exception 'forbidden';
   end if;
-  insert into public.user_sessions(tenant_id,user_id,auth_session_id,device_label,platform,browser,ip_hash,suspicious,last_active_at,revoked_at,revoke_reason)
-  values(p_tenant,auth.uid(),p_auth_session,left(p_device_label,160),left(p_platform,80),left(p_browser,80),p_ip_hash,coalesce(p_suspicious,false),now(),null,null)
-  on conflict(tenant_id,user_id,auth_session_id) do update set device_label=excluded.device_label,platform=excluded.platform,browser=excluded.browser,ip_hash=excluded.ip_hash,suspicious=excluded.suspicious,last_active_at=now(),revoked_at=null,revoke_reason=null
-  returning id into v_id;
-  return v_id;
+  if p_auth_session is not null then
+    select id into existing from public.user_sessions
+    where tenant_id=p_tenant and user_id=actor and auth_session_id=p_auth_session and revoked_at is null limit 1;
+  end if;
+  if existing is not null then
+    update public.user_sessions set last_active_at=now(),device_label=left(coalesce(p_device_label,device_label),120),platform=left(coalesce(p_platform,platform),80),browser=left(coalesce(p_browser,browser),80),ip_hash=left(coalesce(p_ip_hash,ip_hash),64),suspicious=suspicious or coalesce(p_suspicious,false)
+    where id=existing and user_id=actor;
+    return existing;
+  end if;
+  insert into public.user_sessions(tenant_id,user_id,auth_session_id,device_label,platform,browser,ip_hash,suspicious)
+  values(p_tenant,actor,p_auth_session,left(p_device_label,120),left(p_platform,80),left(p_browser,80),left(p_ip_hash,64),coalesce(p_suspicious,false))
+  returning id into existing;
+  return existing;
 end;$$;
 
 create or replace function public.revoke_own_platform_session(p_session uuid,p_reason text)
@@ -181,7 +190,7 @@ begin
   return found;
 end;$$;
 
-create or replace function public.revoke_all_own_platform_sessions(p_tenant uuid,p_reason text)
+create or replace function public.revoke_all_own_platform_sessions(p_tenant uuid,p_reason text default 'user_requested_all')
 returns integer
 language plpgsql
 security definer
@@ -195,9 +204,9 @@ begin
   return v_count;
 end;$$;
 
-revoke all on function public.register_platform_session(uuid,uuid,text,text,text,text,boolean) from public;
-revoke all on function public.revoke_own_platform_session(uuid,text) from public;
-revoke all on function public.revoke_all_own_platform_sessions(uuid,text) from public;
+revoke all on function public.register_platform_session(uuid,uuid,text,text,text,text,boolean) from public,anon;
+revoke all on function public.revoke_own_platform_session(uuid,text) from public,anon;
+revoke all on function public.revoke_all_own_platform_sessions(uuid,text) from public,anon;
 grant execute on function public.register_platform_session(uuid,uuid,text,text,text,text,boolean) to authenticated;
 grant execute on function public.revoke_own_platform_session(uuid,text) to authenticated;
 grant execute on function public.revoke_all_own_platform_sessions(uuid,text) to authenticated;
