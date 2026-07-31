@@ -84,6 +84,9 @@ jobs:
           printf '%s\n' '-- Synthetic portal fixtures are created after reset.' > "$CLOSEOUT_PORTAL_WORKDIR/supabase/seed.sql"
           cp supabase/portal-closeout-contract/baseline.sql "$CLOSEOUT_PORTAL_WORKDIR/supabase/migrations/20260731010000_portal_closeout_contract.sql"
           test "$(find "$CLOSEOUT_PORTAL_WORKDIR/supabase/migrations" -type f -name '*.sql' | wc -l)" -eq 1
+      - name: Verify bounded portal contract against real migrations
+        if: inputs.execution_mode == 'local-isolated' && (inputs.suite == 'admin' || inputs.suite == 'permissions' || inputs.suite == 'security')
+        run: node --test tests/pr101-portal-local-contract.test.mjs
       - name: Start isolated Supabase and create portal fixtures
         if: inputs.execution_mode == 'local-isolated' && (inputs.suite == 'admin' || inputs.suite == 'permissions' || inputs.suite == 'security')
         shell: bash
@@ -105,7 +108,7 @@ jobs:
             value="${value%\"}"; value="${value#\"}"
             [ -n "$value" ] && echo "::add-mask::$value"
             case "$key" in
-              API_URL) echo "API_URL=$value" >> "$GITHUB_ENV"; echo "NEXT_PUBLIC_SUPABASE_URL=$value" >> "$GITHUB_ENV" ;;
+              API_URL) echo "API_URL=$value" >> "$GITHUB_ENV"; echo "SUPABASE_SERVER_URL=$value" >> "$GITHUB_ENV"; echo "NEXT_PUBLIC_SUPABASE_URL=https://127.0.0.1:3543" >> "$GITHUB_ENV" ;;
               ANON_KEY) echo "ANON_KEY=$value" >> "$GITHUB_ENV"; echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$value" >> "$GITHUB_ENV" ;;
               DB_URL) echo "DB_URL=$value" >> "$GITHUB_ENV" ;;
               SERVICE_ROLE_KEY) : ;;
@@ -116,20 +119,26 @@ jobs:
       - name: Build isolated local application
         if: inputs.execution_mode == 'local-isolated'
         run: npm run build
-      - name: Start isolated local HTTPS target
+      - name: Start isolated local HTTPS targets
         if: inputs.execution_mode == 'local-isolated'
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p /tmp/hamza-closeout-tls
           openssl req -x509 -newkey rsa:2048 -nodes -keyout /tmp/hamza-closeout-tls/key.pem -out /tmp/hamza-closeout-tls/cert.pem -days 1 -subj '/CN=127.0.0.1' -addext 'subjectAltName=IP:127.0.0.1,DNS:localhost'
+          if [ "${CLOSEOUT_STATEFUL:-false}" = "true" ]; then
+            CLOSEOUT_TLS_KEY=/tmp/hamza-closeout-tls/key.pem CLOSEOUT_TLS_CERT=/tmp/hamza-closeout-tls/cert.pem CLOSEOUT_UPSTREAM_URL=http://127.0.0.1:54321 CLOSEOUT_HTTPS_PORT=3543 node scripts/closeout/local-https-proxy.mjs >/tmp/hamza-closeout-supabase-proxy.log 2>&1 &
+            echo $! >/tmp/hamza-closeout-supabase-proxy.pid
+            for i in {1..40}; do curl -kfsS https://127.0.0.1:3543/auth/v1/settings >/dev/null && break; sleep 2; done
+            curl -kfsS https://127.0.0.1:3543/auth/v1/settings >/dev/null
+          fi
           npm run start >/tmp/hamza-closeout-next.log 2>&1 & echo $! >/tmp/hamza-closeout-next.pid
           for i in {1..60}; do curl -fsS http://127.0.0.1:3000/ >/dev/null && break; sleep 2; done
+          curl -fsS http://127.0.0.1:3000/ >/dev/null
           CLOSEOUT_TLS_KEY=/tmp/hamza-closeout-tls/key.pem CLOSEOUT_TLS_CERT=/tmp/hamza-closeout-tls/cert.pem CLOSEOUT_UPSTREAM_URL=http://127.0.0.1:3000 CLOSEOUT_HTTPS_PORT=3443 node scripts/closeout/local-https-proxy.mjs >/tmp/hamza-closeout-proxy.log 2>&1 &
           echo $! >/tmp/hamza-closeout-proxy.pid
-          for i in {1..40}; do curl -kfsS https://127.0.0.1:3443/ >/dev/null && exit 0; sleep 2; done
-          cat /tmp/hamza-closeout-next.log /tmp/hamza-closeout-proxy.log
-          exit 1
+          for i in {1..40}; do curl -kfsS https://127.0.0.1:3443/ >/dev/null && break; sleep 2; done
+          curl -kfsS https://127.0.0.1:3443/ >/dev/null
       - name: Install pinned Chromium
         run: npx --no-install playwright install --with-deps chromium
       - name: Run selected Playwright suite
@@ -158,6 +167,7 @@ jobs:
           fi
           if [ -f /tmp/hamza-closeout-next.pid ]; then kill "$(cat /tmp/hamza-closeout-next.pid)" 2>/dev/null; fi
           if [ -f /tmp/hamza-closeout-proxy.pid ]; then kill "$(cat /tmp/hamza-closeout-proxy.pid)" 2>/dev/null; fi
+          if [ -f /tmp/hamza-closeout-supabase-proxy.pid ]; then kill "$(cat /tmp/hamza-closeout-supabase-proxy.pid)" 2>/dev/null; fi
           if [ -d "$CLOSEOUT_PORTAL_WORKDIR" ] && [ -n "${SUPABASE_BIN:-}" ]; then cd "$CLOSEOUT_PORTAL_WORKDIR" && "$SUPABASE_BIN" stop --no-backup >/dev/null 2>&1; cd "$GITHUB_WORKSPACE"; fi
           rm -rf artifacts/raw /tmp/hamza-closeout-* /tmp/closeout-supabase* "$CLOSEOUT_PORTAL_FIXTURE_FILE" "$CLOSEOUT_PORTAL_WORKDIR" supabase/.temp
           test ! -e artifacts/raw
