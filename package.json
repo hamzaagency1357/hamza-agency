@@ -18,7 +18,8 @@
     "verify:secrets": "node scripts/verify-no-client-secrets.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:smoke": "node scripts/runtime-smoke-test.mjs",
-    "test:e2e": "npx --yes @playwright/test@1.55.0 test --config=playwright.config.mjs"
+    "test:e2e": "playwright test --config=playwright.config.mjs",
+    "test:closeout": "playwright test --config=playwright.closeout.config.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
+    "@playwright/test": "1.55.0",
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
