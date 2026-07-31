@@ -3,11 +3,11 @@ import path from "node:path";
 
 const FORBIDDEN_NAMES = [/\.har$/i, /trace/i, /storage-state/i, /session/i, /cookie/i, /token/i];
 const SECRET_PATTERNS = [
-  /\bBearer\s+[A-Za-z0-9._~+/=-]+/i,
+  /\bBearer\s+(?!\[REDACTED\])(?:[A-Za-z0-9._~+/=-]+)/i,
   /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/,
   /sb_(?:publishable|secret)_[A-Za-z0-9_-]+/,
-  /(?:access_token|refresh_token|service_role|mfa_secret|recovery_code)["']?\s*[:=]\s*["']?(?!\[REDACTED\])/i,
-  /authorization["']?\s*[:=]\s*["']?(?!\[REDACTED\])/i,
+  /(?:access_token|refresh_token|service_role|mfa_secret|recovery_code)["']?\s*[:=]\s*["']?(?!\[REDACTED\])[^"'\s,}]+/i,
+  /authorization["']?\s*[:=]\s*["']?(?!Bearer\s+\[REDACTED\]|\[REDACTED\])[^"'\n,}]+/i,
 ];
 
 function walk(root) {
