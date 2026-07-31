@@ -6,9 +6,17 @@ on:
     paths:
       - ".github/workflows/hamza-closeout-*.yml"
       - ".github/workflows/hamza-agency-full-project-closeout.yml"
+      - "app/api/product-expansion/portal/**"
+      - "app/api/product-expansion/sessions/**"
+      - "app/portal/**"
+      - "components/portals/**"
+      - "lib/productExpansion/portal*"
+      - "lib/server/tenantAuthorization.ts"
+      - "lib/server/supabaseUser.ts"
       - "e2e/closeout/**"
       - "scripts/closeout/**"
       - "tests/closeout-automation.test.mjs"
+      - "tests/pr101-portal-security-contract.test.mjs"
       - "playwright.closeout.config.mjs"
       - "playwright.config.mjs"
       - "AGENTS.md"
@@ -33,56 +41,41 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
-
       - name: Assert exact event Head
         shell: bash
         run: |
           set -euo pipefail
           expected='${{ github.event.pull_request.head.sha || github.sha }}'
           test "$(git rev-parse HEAD)" = "$expected"
-
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
-
       - name: Validate closeout structure contracts
         shell: bash
         run: |
           set -euo pipefail
           test -f AGENTS.md
           test -f docs/HAMZA_AGENCY_FULL_PROJECT_CLOSEOUT.md
-          test -f e2e/closeout/public.spec.mjs
-          test -f e2e/closeout/translations.spec.mjs
-          test -f e2e/closeout/security.spec.mjs
+          for suite in public translations admin permissions security; do test -f "e2e/closeout/$suite.spec.mjs"; done
           test ! -f e2e/closeout/readonly.spec.mjs
-          closeout_workflows=(
-            .github/workflows/hamza-closeout-suite.yml
-            .github/workflows/hamza-closeout-dispatcher.yml
-            .github/workflows/hamza-agency-full-project-closeout.yml
-          )
+          closeout_workflows=(.github/workflows/hamza-closeout-suite.yml .github/workflows/hamza-closeout-dispatcher.yml .github/workflows/hamza-agency-full-project-closeout.yml)
           ! grep -n "collect_only" "${closeout_workflows[@]}"
           ! grep -n "sanitize-artifacts.mjs.*|| true" "${closeout_workflows[@]}" scripts/closeout/*.mjs
           ! grep -n "npx --yes.*playwright" "${closeout_workflows[@]}" package.json
           ! grep -R "test.skip" e2e/closeout
           grep -q '"@playwright/test": "1.55.0"' package.json
           npm ls @playwright/test --depth=0
-
       - name: Run closeout contract tests
         run: node --test tests/closeout-automation.test.mjs
-
       - name: Lint
         run: npm run lint
-
       - name: Typecheck
         run: npm run typecheck
-
       - name: Unit and integration tests
         run: npm test
-
       - name: Build
         run: npm run build
 
@@ -101,6 +94,24 @@ jobs:
     with:
       execution_mode: local-isolated
       suite: translations
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
+  admin-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: admin
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
+  permissions-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: permissions
       target_url: https://127.0.0.1:3443
       expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
 
