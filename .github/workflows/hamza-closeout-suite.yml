@@ -1,0 +1,87 @@
+name: HAMZA AGENCY Closeout Suite
+
+on:
+  workflow_call:
+    inputs:
+      execution_mode:
+        required: true
+        type: string
+      suite:
+        required: true
+        type: string
+      target_url:
+        required: true
+        type: string
+      expected_sha:
+        required: true
+        type: string
+      collect_only:
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  closeout-suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    concurrency:
+      group: closeout-${{ inputs.execution_mode }}-${{ inputs.suite }}-${{ inputs.expected_sha }}
+      cancel-in-progress: false
+    env:
+      CLOSEOUT_EXECUTION_MODE: ${{ inputs.execution_mode }}
+      CLOSEOUT_SUITE: ${{ inputs.suite }}
+      CLOSEOUT_TARGET_URL: ${{ inputs.target_url }}
+      CLOSEOUT_EXPECTED_SHA: ${{ inputs.expected_sha }}
+      CLOSEOUT_ACTUAL_SHA: ${{ inputs.expected_sha }}
+      CLOSEOUT_SUPABASE_URL: ${{ inputs.execution_mode == 'local-isolated' && 'http://127.0.0.1:54321' || '' }}
+      CLOSEOUT_AUTH_URL: ${{ inputs.execution_mode == 'local-isolated' && 'http://127.0.0.1:54321/auth/v1' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 1
+
+      - name: Assert exact Head
+        run: test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Reject unsupported or unsafe dispatch
+        run: |
+          case "${{ inputs.execution_mode }}" in preview-readonly|local-isolated|production-readonly) ;; *) exit 1 ;; esac
+          case "${{ inputs.suite }}" in public|translations|tracking|admin|page-builder|backup-restore|trash|notifications|permissions|security) ;; *) exit 1 ;; esac
+          if [ "${{ inputs.collect_only }}" = "true" ]; then exit 0; fi
+          node scripts/closeout/environment-guard.mjs
+          case "${{ inputs.suite }}" in
+            public|translations|security) ;;
+            *) echo "Suite '${{ inputs.suite }}' is registered but not implemented yet; failing closed." >&2; exit 1 ;;
+          esac
+
+      - name: Install Chromium
+        if: ${{ !inputs.collect_only }}
+        run: npx --yes playwright@1.55.0 install --with-deps chromium
+
+      - name: Run selected Playwright suite
+        if: ${{ !inputs.collect_only }}
+        run: npx --yes @playwright/test@1.55.0 test --config=playwright.closeout.config.mjs --grep "${{ inputs.suite }}"
+
+      - name: Sanitize reports
+        if: always() && !inputs.collect_only
+        run: node scripts/closeout/sanitize-artifacts.mjs artifacts || true
+
+      - name: Upload safe reports
+        if: always() && !inputs.collect_only
+        uses: actions/upload-artifact@v4
+        with:
+          name: closeout-${{ inputs.execution_mode }}-${{ inputs.suite }}-${{ inputs.expected_sha }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 14
