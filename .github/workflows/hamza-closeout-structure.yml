@@ -58,9 +58,14 @@ jobs:
           test -f e2e/closeout/translations.spec.mjs
           test -f e2e/closeout/security.spec.mjs
           test ! -f e2e/closeout/readonly.spec.mjs
-          ! grep -R "collect_only" .github/workflows/hamza-closeout-*.yml .github/workflows/hamza-agency-full-project-closeout.yml
-          ! grep -R "sanitize-artifacts.mjs.*|| true" .github/workflows scripts/closeout
-          ! grep -R "npx --yes.*playwright" .github/workflows package.json
+          closeout_workflows=(
+            .github/workflows/hamza-closeout-suite.yml
+            .github/workflows/hamza-closeout-dispatcher.yml
+            .github/workflows/hamza-agency-full-project-closeout.yml
+          )
+          ! grep -n "collect_only" "${closeout_workflows[@]}"
+          ! grep -n "sanitize-artifacts.mjs.*|| true" "${closeout_workflows[@]}" scripts/closeout/*.mjs
+          ! grep -n "npx --yes.*playwright" "${closeout_workflows[@]}" package.json
           ! grep -R "test.skip" e2e/closeout
           grep -q '"@playwright/test": "1.55.0"' package.json
           npm ls @playwright/test --depth=0
