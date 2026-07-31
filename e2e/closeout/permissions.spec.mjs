@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test";
 import { annotate, browserPortalCredentials, evidence, login, portalFixture } from "./portal-fixture.mjs";
 
 const fixture = portalFixture();
+const portalAlert = (page) => page.locator("form p[role='alert']");
 for (const role of ["creator", "client", "employee", "partner"]) {
   test(`${role} reaches only the matching portal`, async ({ page }, testInfo) => {
     await login(page, fixture.accounts[role]);
@@ -26,7 +27,7 @@ for (const [label, accountKey, message] of denialCases) {
   test(`${label} is denied fail closed`, async ({ page }, testInfo) => {
     await login(page, fixture.accounts[accountKey]);
     await expect(page).toHaveURL(/\/portal\/login/);
-    await expect(page.getByRole("alert")).toContainText(message);
+    await expect(portalAlert(page)).toContainText(message);
     await page.screenshot({ path: evidence(testInfo, "permissions", accountKey), fullPage: true, animations: "disabled" });
     await annotate(testInfo, 2);
   });
@@ -35,7 +36,7 @@ for (const [label, accountKey, message] of denialCases) {
 test("tenant B membership cannot enter tenant A host", async ({ page }, testInfo) => {
   await login(page, fixture.accounts.otherTenant);
   await expect(page).toHaveURL(/\/portal\/login/);
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(portalAlert(page)).toBeVisible();
   await page.screenshot({ path: evidence(testInfo, "permissions", "tenant-b-to-a"), fullPage: true, animations: "disabled" });
   await annotate(testInfo, 2);
 });
