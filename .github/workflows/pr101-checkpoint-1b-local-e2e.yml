@@ -112,11 +112,12 @@ jobs:
             20260731031150_pr101_invitation_rpc_qualified_columns.sql \
             20260731031175_pr101_invitation_accept_named_conflict.sql \
             20260731031200_pr101_public_tenant_runtime_exact_host.sql \
+            20260731031300_pr101_notification_trigger_record_guard.sql \
             20260731031400_pr101_membership_auth_session_revocation.sql \
             20260731031500_pr101_membership_rpc_only_writes.sql; do
             cp "supabase/migrations/$migration" "$PR101_WORKDIR/supabase/migrations/$migration"
           done
-          test "$(find "$PR101_WORKDIR/supabase/migrations" -type f -name '*.sql' | wc -l)" -eq 10
+          test "$(find "$PR101_WORKDIR/supabase/migrations" -type f -name '*.sql' | wc -l)" -eq 11
 
       - name: Start isolated local Supabase stack
         shell: bash
