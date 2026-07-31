@@ -24,6 +24,18 @@ async function installReadonlyGuards(page) {
   });
 }
 
+function isIgnorableRscPrefetchFailure(request) {
+  const url = new URL(request.url());
+  return request.method() === "GET"
+    && !request.isNavigationRequest()
+    && url.hostname.toLowerCase() === expectedHost
+    && url.searchParams.has("_rsc");
+}
+
+function recordAssertions(testInfo, count) {
+  testInfo.annotations.push({ type: "closeout-assertions", description: String(count) });
+}
+
 function screenshotName(locale, projectName) {
   const device = projectName.startsWith("mobile") ? "mobile" : "desktop";
   return path.join("artifacts", "safe", "screenshots", `public-${locale}-${device}-${shortSha}.png`);
@@ -35,7 +47,9 @@ for (const [route, locale] of [["/", "ar"], ["/en", "en"], ["/tr", "tr"]]) {
     const errors = [];
     const failed = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    page.on("requestfailed", (request) => failed.push(`${request.method()} ${request.url()}`));
+    page.on("requestfailed", (request) => {
+      if (!isIgnorableRscPrefetchFailure(request)) failed.push(`${request.method()} ${request.url()}`);
+    });
 
     const response = await page.goto(route, { waitUntil: "networkidle" });
     expect(response?.ok(), `${route} HTTP status`).toBeTruthy();
@@ -44,12 +58,13 @@ for (const [route, locale] of [["/", "ar"], ["/en", "en"], ["/tr", "tr"]]) {
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     expect(errors).toEqual([]);
     expect(failed).toEqual([]);
+    recordAssertions(testInfo, 6);
 
     await page.screenshot({ path: screenshotName(locale, testInfo.project.name), fullPage: true, animations: "disabled" });
   });
 }
 
-test("public marketplace and status routes render read-only", async ({ page }) => {
+test("public marketplace and status routes render read-only", async ({ page }, testInfo) => {
   await installReadonlyGuards(page);
   for (const route of ["/marketplace", "/status"]) {
     const response = await page.goto(route, { waitUntil: "networkidle" });
@@ -57,4 +72,5 @@ test("public marketplace and status routes render read-only", async ({ page }) =
     expect(new URL(page.url()).hostname.toLowerCase()).toBe(expectedHost);
     await expect(page.locator("body")).toBeVisible();
   }
+  recordAssertions(testInfo, 6);
 });
