@@ -1,0 +1,12 @@
+{
+  "public": { "mode": "preview-readonly", "status": "implemented", "spec": "readonly.spec.mjs" },
+  "translations": { "mode": "preview-readonly", "status": "implemented", "spec": "readonly.spec.mjs" },
+  "tracking": { "mode": "local-isolated", "status": "pending" },
+  "admin": { "mode": "local-isolated", "status": "pending" },
+  "page-builder": { "mode": "local-isolated", "status": "pending" },
+  "backup-restore": { "mode": "local-isolated", "status": "pending" },
+  "trash": { "mode": "local-isolated", "status": "pending" },
+  "notifications": { "mode": "local-isolated", "status": "pending" },
+  "permissions": { "mode": "local-isolated", "status": "pending" },
+  "security": { "mode": "preview-readonly", "status": "implemented", "spec": "readonly.spec.mjs", "stateful_extension": "pending" }
+}
