@@ -1,17 +1,10 @@
 import "server-only";
 
+import { cleanTenantHostname, resolveTrustedTenantHostname } from "@/lib/productExpansion/tenantHostname";
 import type { VerifiedSupabaseUser } from "@/lib/server/supabaseUser";
 import { supabaseRestAsUser } from "@/lib/server/supabaseUser";
 
 type TenantDomainRow = { tenant_id: string; hostname: string; status: string; is_primary?: boolean };
-
-export function cleanTenantHostname(value: string) {
-  const first = value.split(",")[0]?.trim().toLowerCase() ?? "";
-  const withoutScheme = first.replace(/^https?:\/\//, "");
-  const host = withoutScheme.split("/")[0] ?? "";
-  const hostname = host.startsWith("[") ? host.slice(1, host.indexOf("]")) : host.split(":")[0];
-  return /^[a-z0-9.-]+$/.test(hostname) ? hostname.replace(/^\.+|\.+$/g, "") : "";
-}
 
 function configuredCanonicalHostname() {
   try {
@@ -22,30 +15,16 @@ function configuredCanonicalHostname() {
   }
 }
 
-function isLocalHostname(hostname: string) {
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-}
-
 export function trustedRequestHostname(request: Request) {
-  const requestUrl = new URL(request.url);
-  const forwardedHost = cleanTenantHostname(request.headers.get("x-forwarded-host") ?? "");
-  const hostHeader = cleanTenantHostname(request.headers.get("host") ?? "");
-  const requestHost = cleanTenantHostname(requestUrl.hostname);
-  const hostname = forwardedHost || hostHeader || requestHost;
-
-  if (!hostname) return "";
-
-  if (isLocalHostname(hostname)) {
-    return process.env.NODE_ENV === "production" ? "" : configuredCanonicalHostname();
-  }
-
-  if (hostname.endsWith(".vercel.app")) {
-    const deploymentHost = cleanTenantHostname(request.headers.get("x-vercel-deployment-url") ?? "");
-    const isVerifiedPreview = process.env.VERCEL === "1" && deploymentHost === hostname;
-    return isVerifiedPreview ? configuredCanonicalHostname() : "";
-  }
-
-  return hostname;
+  return resolveTrustedTenantHostname({
+    requestUrl: request.url,
+    forwardedHost: request.headers.get("x-forwarded-host"),
+    hostHeader: request.headers.get("host"),
+    vercelDeploymentUrl: request.headers.get("x-vercel-deployment-url"),
+    canonicalHostname: configuredCanonicalHostname(),
+    isVercel: process.env.VERCEL === "1",
+    isProduction: process.env.NODE_ENV === "production",
+  });
 }
 
 export async function resolveTenantForRequest(request: Request, user: VerifiedSupabaseUser) {
