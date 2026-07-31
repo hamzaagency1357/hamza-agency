@@ -1,0 +1,145 @@
+name: PR101 Checkpoint 1B Local E2E
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/pr101-checkpoint-1b-local-e2e.yml"
+      - "app/api/product-expansion/invitations/**"
+      - "app/api/product-expansion/sessions/**"
+      - "app/api/product-expansion/tenant-access/**"
+      - "lib/server/tenantAuthorization.ts"
+      - "lib/server/tenantRuntime.ts"
+      - "lib/server/supabaseUser.ts"
+      - "supabase/**"
+      - "scripts/pr101-local-*.mjs"
+      - "tools/pr101-local-e2e/**"
+      - "package.json"
+      - "package-lock.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr101-checkpoint-1b-local-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  SUPABASE_TELEMETRY_DISABLED: "1"
+  PR101_FIXTURE_FILE: /tmp/pr101-local-fixtures.json
+  PR101_APP_URL: http://127.0.0.1:3000
+
+jobs:
+  local-e2e:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feat/pr101-complete-product-expansion'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Verify Docker and install PostgreSQL client
+        run: |
+          docker info >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Install application dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install pinned Supabase CLI
+        run: |
+          npm install --prefix tools/pr101-local-e2e --no-audit --no-fund --ignore-scripts
+          echo "$GITHUB_WORKSPACE/tools/pr101-local-e2e/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: Verify pinned Supabase CLI commands
+        run: |
+          npx supabase --version
+          npx supabase start --help >/dev/null
+          npx supabase db reset --help >/dev/null
+          test -f supabase/config.toml
+          test -f supabase/seed.sql
+
+      - name: Assert Production isolation
+        run: |
+          test ! -f supabase/.temp/project-ref
+          test -z "${SUPABASE_ACCESS_TOKEN:-}"
+          test -z "${SUPABASE_DB_PASSWORD:-}"
+          ! grep -R "fvaurkfnsvsfohpzguho" .github/workflows/pr101-checkpoint-1b-local-e2e.yml scripts/pr101-local-*.mjs supabase/config.toml supabase/seed.sql
+
+      - name: Start isolated local Supabase stack
+        run: npx supabase start
+
+      - name: Full ordered migration reset and local seed
+        run: npx supabase db reset
+
+      - name: Capture and mask local-only runtime values
+        shell: bash
+        run: |
+          set +x
+          npx supabase status -o env > /tmp/pr101-supabase.env
+          for required in API_URL ANON_KEY SERVICE_ROLE_KEY DB_URL; do
+            grep -q "^${required}=" /tmp/pr101-supabase.env || { echo "missing local ${required}" >&2; exit 1; }
+          done
+          while IFS='=' read -r key value; do
+            value="${value%\"}"
+            value="${value#\"}"
+            [ -n "$value" ] && echo "::add-mask::$value"
+            case "$key" in
+              API_URL|ANON_KEY|SERVICE_ROLE_KEY|DB_URL)
+                echo "$key=$value" >> "$GITHUB_ENV"
+                ;;
+            esac
+          done < /tmp/pr101-supabase.env
+
+      - name: Create synthetic local Auth and tenant fixtures
+        run: node scripts/pr101-local-fixtures.mjs
+
+      - name: Start Next.js against Supabase Local only
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
+          NEXT_PUBLIC_SITE_URL: http://tenant-a.test
+          SESSION_HASH_KEY: pr101-local-runner-only-session-hash-key
+        run: |
+          set +x
+          nohup npm run dev -- --hostname 127.0.0.1 --port 3000 >/tmp/pr101-next.log 2>&1 &
+          echo $! >/tmp/pr101-next.pid
+          for attempt in $(seq 1 90); do
+            curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null && exit 0
+            sleep 2
+          done
+          echo "Next.js did not become ready" >&2
+          tail -n 120 /tmp/pr101-next.log >&2
+          exit 1
+
+      - name: Run authenticated invitation, suspension and concurrency E2E
+        run: node scripts/pr101-local-e2e.mjs
+
+      - name: Confirm local stack remains healthy
+        run: |
+          npx supabase status >/dev/null
+          test -s "$PR101_FIXTURE_FILE"
+
+      - name: Diagnostic logs without credentials
+        if: failure()
+        run: |
+          if [ -f /tmp/pr101-next.log ]; then tail -n 160 /tmp/pr101-next.log | sed -E 's/(Bearer )[A-Za-z0-9._-]+/\1[REDACTED]/g'; fi
+          npx supabase status || true
+
+      - name: Always destroy local stack and temporary credentials
+        if: always()
+        run: |
+          set +e
+          if [ -f /tmp/pr101-next.pid ]; then kill "$(cat /tmp/pr101-next.pid)" 2>/dev/null || true; fi
+          pkill -f "next dev" 2>/dev/null || true
+          rm -f /tmp/pr101-next.pid /tmp/pr101-next.log "$PR101_FIXTURE_FILE" /tmp/pr101-supabase.env
+          npx supabase stop --no-backup
+          rm -rf supabase/.temp
