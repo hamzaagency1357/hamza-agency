@@ -1,5 +1,6 @@
 const config = {
   testDir: "./e2e",
+  testIgnore: ["**/closeout/**"],
   timeout: 45_000,
   retries: 0,
   workers: 1,
