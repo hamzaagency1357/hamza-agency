@@ -25,7 +25,7 @@ function requireBoth(label, pattern) {
 }
 
 function functionBlock(source, name) {
-  const matches = [...source.matchAll(new RegExp(`(?:create or replace )?function public\\.${name}\\s*\\(`, "g"))];
+  const matches = [...source.matchAll(new RegExp(`create or replace function public\\.${name}\\s*\\(`, "g"))];
   assert.ok(matches.length > 0, `${name} missing`);
   const start = matches.at(-1).index;
   const next = source.indexOf("create or replace function public.", start + 1);
