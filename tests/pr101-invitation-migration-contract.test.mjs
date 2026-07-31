@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const invitationSql = await readFile(new URL("../supabase/migrations/20260731024500_pr101_operational_tenant_invitations_hardened.sql", import.meta.url), "utf8");
+const cryptoSql = await readFile(new URL("../supabase/migrations/20260731031000_pr101_invitation_crypto_search_path.sql", import.meta.url), "utf8");
+const runtimeSql = await readFile(new URL("../supabase/migrations/20260731031200_pr101_public_tenant_runtime_exact_host.sql", import.meta.url), "utf8");
 const membershipSql = await readFile(new URL("../supabase/migrations/20260731031500_pr101_membership_rpc_only_writes.sql", import.meta.url), "utf8");
 
 test("private schema usage required by existing tenant role wrappers is preserved", () => {
@@ -27,6 +29,23 @@ test("acceptance derives tenant from locked token and verifies expected host ten
   assert.match(invitationSql, /where token_hash=p_token_hash for update/i);
   assert.match(invitationSql, /v_invitation\.tenant_id<>p_expected_tenant_id/i);
   assert.match(invitationSql, /private\.consume_invitation_rate_limit\(v_invitation\.tenant_id,'accept'/i);
+});
+
+test("crypto-dependent invitation functions explicitly include extensions", () => {
+  for (const signature of [
+    /alter function private\.consume_invitation_rate_limit\(uuid,text,text\)[\s\S]*?extensions/i,
+    /alter function public\.create_tenant_invitation\(uuid,text,text,bigint,jsonb,text,timestamptz\)[\s\S]*?extensions/i,
+    /alter function public\.resend_tenant_invitation\(uuid,uuid,text,timestamptz\)[\s\S]*?extensions/i,
+    /alter function public\.accept_tenant_invitation\(uuid,text\)[\s\S]*?extensions/i,
+  ]) assert.match(cryptoSql, signature);
+});
+
+test("public tenant runtime resolves exact registered hosts and rejects primary fallback", () => {
+  assert.match(runtimeSql, /from public\.tenant_domains d\s+join public\.tenants t on t\.id=d\.tenant_id/i);
+  assert.match(runtimeSql, /where d\.hostname=normalized_host/i);
+  assert.match(runtimeSql, /if normalized_host !~[\s\S]*?return null/i);
+  assert.doesNotMatch(runtimeSql, /order by \(d\.id is not null\) desc\s*,\s*t\.is_primary desc/i);
+  assert.match(runtimeSql, /grant execute on function public\.resolve_public_tenant_runtime\(text\) to anon,authenticated/i);
 });
 
 test("membership direct writes are removed while approved RPC execution remains", () => {
