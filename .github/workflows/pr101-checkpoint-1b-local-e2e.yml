@@ -127,7 +127,11 @@ jobs:
           if grep -q -- '--exclude' /tmp/pr101-start-help.txt; then
             start_args+=(--exclude studio,imgproxy)
           fi
-          "$SUPABASE_BIN" start "${start_args[@]}"
+          if ! "$SUPABASE_BIN" start "${start_args[@]}" >/tmp/pr101-supabase-start.log 2>&1; then
+            sed -E 's/(sb_(publishable|secret)_[A-Za-z0-9_-]+)/[REDACTED]/g; s#postgresql?://[^[:space:]]+#[REDACTED_DB_URL]#g' /tmp/pr101-supabase-start.log >&2
+            exit 1
+          fi
+          echo "Supabase Local started with nonessential services excluded."
 
       - name: Reset contract schema and pending migrations
         run: |
@@ -183,13 +187,13 @@ jobs:
         run: |
           cd "$PR101_WORKDIR"
           "$SUPABASE_BIN" status >/dev/null
-          test -s "$GITHUB_WORKSPACE/$PR101_FIXTURE_FILE" || test -s "$PR101_FIXTURE_FILE"
+          test -s "$PR101_FIXTURE_FILE"
 
       - name: Diagnostic logs without credentials
         if: failure()
         run: |
           if [ -f /tmp/pr101-next.log ]; then tail -n 160 /tmp/pr101-next.log | sed -E 's/(Bearer )[A-Za-z0-9._-]+/\1[REDACTED]/g'; fi
-          cd "$PR101_WORKDIR" 2>/dev/null && "$SUPABASE_BIN" status || true
+          cd "$PR101_WORKDIR" 2>/dev/null && "$SUPABASE_BIN" status >/dev/null || true
 
       - name: Always destroy local stack and temporary credentials
         if: always()
@@ -198,10 +202,10 @@ jobs:
           set +e
           if [ -f /tmp/pr101-next.pid ]; then kill "$(cat /tmp/pr101-next.pid)" 2>/dev/null || true; fi
           pkill -f "next dev" 2>/dev/null || true
-          rm -f /tmp/pr101-next.pid /tmp/pr101-next.log "$PR101_FIXTURE_FILE" /tmp/pr101-supabase.env /tmp/pr101-start-help.txt
+          rm -f /tmp/pr101-next.pid /tmp/pr101-next.log "$PR101_FIXTURE_FILE" /tmp/pr101-supabase.env /tmp/pr101-start-help.txt /tmp/pr101-supabase-start.log
           if [ -d "$PR101_WORKDIR" ]; then
             cd "$PR101_WORKDIR"
-            "$SUPABASE_BIN" stop --no-backup
+            "$SUPABASE_BIN" stop --no-backup >/dev/null 2>&1
             cd "$GITHUB_WORKSPACE"
           fi
           rm -rf "$PR101_WORKDIR"
