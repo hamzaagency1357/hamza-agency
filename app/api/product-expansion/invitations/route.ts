@@ -64,7 +64,7 @@ export async function GET(request: Request) {
   const [invitations, memberships, programs] = await Promise.all([
     supabaseRestAsUser<Json[]>(`/tenant_invitations?select=id,email,role,program_id,status,expires_at,last_sent_at,send_count,created_at&tenant_id=eq.${encodeURIComponent(access.tenantId)}&order=created_at.desc&limit=100`, access.user),
     supabaseRestAsUser<Json[]>(`/tenant_memberships?select=id,user_id,role,status,program_id,permissions,mfa_required,created_at,updated_at&tenant_id=eq.${encodeURIComponent(access.tenantId)}&order=created_at.desc&limit=200`, access.user),
-    supabaseRestAsUser<Json[]>(`/programs?select=id,title&tenant_id=eq.${encodeURIComponent(access.tenantId)}&order=id.asc&limit=200`, access.user),
+    supabaseRestAsUser<Json[]>(`/programs?select=id,title:name&tenant_id=eq.${encodeURIComponent(access.tenantId)}&order=id.asc&limit=200`, access.user),
   ]);
   if (!invitations.ok || !memberships.ok || !programs.ok) return json(503, { ok: false, code: "request_unavailable" });
   return json(200, {
