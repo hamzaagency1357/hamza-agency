@@ -7,7 +7,7 @@ const dbUrl = process.env.DB_URL || process.env.SUPABASE_LOCAL_DB_URL;
 if (!apiUrl || !serviceRoleKey || !dbUrl) throw new Error("missing_local_supabase_environment");
 
 const tenants = { a: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", b: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" };
-const hosts = { a: "tenant-a.pr101.test", b: "tenant-b.pr101.test" };
+const hosts = { a: "tenant-a.test", b: "tenant-b.test" };
 const users = {
   admin: { email: "pr101-admin@example.test", password: "LocalOnly-Admin-2026!" },
   invited: { email: "pr101-invited@example.test", password: "LocalOnly-Invited-2026!" },
@@ -58,7 +58,7 @@ insert into public.tenant_memberships(tenant_id,user_id,role,status,permissions,
 values
   ('${tenants.a}'::uuid,'${ids.admin}'::uuid,'super_admin','active','{}'::jsonb,true),
   ('${tenants.b}'::uuid,'${ids.admin}'::uuid,'super_admin','active','{}'::jsonb,true),
-  ('${tenants.b}'::uuid,'${ids.invited}'::uuid,'client','active','{}'::jsonb,false)
+  ('${tenants.b}'::uuid,'${ids.invited}'::uuid,'creator','active','{}'::jsonb,false)
 on conflict (tenant_id,user_id) do update
 set role=excluded.role,status='active',permissions=excluded.permissions,mfa_required=excluded.mfa_required,updated_at=now();
 commit;`;
