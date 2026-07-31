@@ -24,11 +24,15 @@ function requireBoth(label, pattern) {
   assert.match(local, pattern, `${label} missing from bounded local contract`);
 }
 
-function functionBlock(source, name) {
-  const matches = [...source.matchAll(new RegExp(`create or replace function public\\.${name}\\s*\\(`, "g"))];
-  assert.ok(matches.length > 0, `${name} missing`);
+function functionBlock(source, schema, name) {
+  const marker = `create or replace function ${schema}.${name}`;
+  const matches = [...source.matchAll(new RegExp(`${marker.replaceAll(".", "\\.")}\\s*\\(`, "g"))];
+  assert.ok(matches.length > 0, `${schema}.${name} missing`);
   const start = matches.at(-1).index;
-  const next = source.indexOf("create or replace function public.", start + 1);
+  const nextPublic = source.indexOf("create or replace function public.", start + 1);
+  const nextPrivate = source.indexOf("create or replace function private.", start + 1);
+  const candidates = [nextPublic, nextPrivate].filter((value) => value !== -1);
+  const next = candidates.length ? Math.min(...candidates) : -1;
   return source.slice(start, next === -1 ? start + 5000 : next);
 }
 
@@ -68,20 +72,24 @@ test("bounded membership, account and uniqueness states cannot drift", () => {
 
 test("bounded RPC signatures and execution modes match real migrations", () => {
   const contracts = [
-    ["resolve_public_tenant_runtime", ["p_hostname text"], /returns table\s*\(/, "definer"],
+    ["resolve_public_tenant_runtime", ["p_hostname text"], /returns jsonb/, "invoker"],
     ["register_platform_session", ["p_tenant uuid", "p_auth_session uuid", "p_device_label text", "p_platform text", "p_browser text", "p_ip_hash text", "p_suspicious boolean"], /returns uuid/, "invoker"],
-    ["revoke_own_platform_session", ["p_session uuid", "p_reason text"], /returns boolean/, "definer"],
-    ["revoke_all_own_platform_sessions", ["p_tenant uuid", "p_reason text"], /returns integer/, "definer"],
+    ["revoke_own_platform_session", ["p_session uuid", "p_reason text"], /returns boolean/, "invoker"],
+    ["revoke_all_own_platform_sessions", ["p_tenant uuid", "p_reason text"], /returns integer/, "invoker"],
   ];
   for (const [name, args, returns, mode] of contracts) {
-    const realBlock = functionBlock(real, name);
-    const localBlock = functionBlock(local, name);
-    for (const block of [realBlock, localBlock]) {
+    for (const block of [functionBlock(real, "public", name), functionBlock(local, "public", name)]) {
       for (const arg of args) assert.match(block, new RegExp(arg.replace(" ", "\\s+")), `${name} missing ${arg}`);
       assert.match(block, returns, `${name} return type drift`);
       assert.match(block, new RegExp(`security ${mode}`), `${name} must be SECURITY ${mode.toUpperCase()}`);
-      assert.match(block, /set search_path\s*=\s*(?:pg_catalog,\s*)?(?:public|''|private,\s*public)/, `${name} must pin search_path`);
+      assert.match(block, /set search_path\s*=\s*(?:pg_catalog,\s*)?(?:public|private|''|private,\s*public)/, `${name} must pin search_path`);
     }
+  }
+  for (const source of [real, local]) {
+    const privateResolver = functionBlock(source, "private", "public_tenant_runtime");
+    assert.match(privateResolver, /returns jsonb/);
+    assert.match(privateResolver, /security definer/);
+    assert.match(privateResolver, /set search_path\s*=\s*(?:pg_catalog,\s*)?public/);
   }
 });
 
@@ -103,13 +111,15 @@ test("platform sessions remain bound to authenticated users and auth session ide
   for (const source of [real, local]) {
     assert.match(source, /create table(?: if not exists)? public\.user_sessions[\s\S]{0,1800}user_id uuid not null/);
     assert.match(source, /create table(?: if not exists)? public\.user_sessions[\s\S]{0,1800}auth_session_id uuid/);
-    const register = functionBlock(source, "register_platform_session");
-    assert.match(register, /auth\.uid\(\)/);
+    const register = functionBlock(source, "public", "register_platform_session");
+    assert.match(register, /actor uuid\s*:=\s*\(select auth\.uid\(\)\)/);
     assert.match(register, /p_auth_session/);
-    const revokeOne = functionBlock(source, "revoke_own_platform_session");
-    assert.match(revokeOne, /user_id\s*=\s*(?:\(select )?auth\.uid\(\)\)?/);
-    const revokeAll = functionBlock(source, "revoke_all_own_platform_sessions");
+    const revokeOne = functionBlock(source, "public", "revoke_own_platform_session");
+    assert.match(revokeOne, /actor uuid\s*:=\s*\(select auth\.uid\(\)\)/);
+    assert.match(revokeOne, /user_id\s*=\s*actor/);
+    const revokeAll = functionBlock(source, "public", "revoke_all_own_platform_sessions");
+    assert.match(revokeAll, /actor uuid\s*:=\s*\(select auth\.uid\(\)\)/);
     assert.match(revokeAll, /tenant_id\s*=\s*p_tenant/);
-    assert.match(revokeAll, /user_id\s*=\s*(?:\(select )?auth\.uid\(\)\)?/);
+    assert.match(revokeAll, /user_id\s*=\s*actor/);
   }
 });
