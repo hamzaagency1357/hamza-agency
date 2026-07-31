@@ -25,15 +25,18 @@ const legacyPublicRpcNames = [
 ];
 const restoredAppliedMigration = "20260729181851_pr100_final_completion.sql";
 
-// These four PR101 source files were generated before this verifier was expanded. They are
-// still unapplied and may only be deployed through Supabase's atomic apply_migration API.
-// Every later PR101 migration carries its own explicit BEGIN/COMMIT boundary.
 const atomicMigrationRunnerFiles = new Set([
   "20260730232500_pr101_product_expansion_foundation.sql",
   "20260730233500_pr101_product_expansion_operations.sql",
   "20260730234000_pr101_kpi_schema_guard.sql",
   "20260730234500_pr101_product_expansion_hardening.sql",
 ]);
+
+export function stripSqlComments(sql) {
+  return sql
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/--[^\r\n]*/g, " ");
+}
 
 export function extractPermanentDeleteFunction(sql) {
   const match = sql.match(/create\s+or\s+replace\s+function\s+public\.pr99_permanent_delete_trash\b[\s\S]*?\$\$\s*;/i);
@@ -90,7 +93,9 @@ export function validateDeploymentOrdering(file, sql) {
 
 export function validateMigrationText(file, sql) {
   const errors = [];
-  const scanText = sql.replace(/revoke\s+truncate(?:\s*,\s*(?:trigger|references))*\s+on\s+all\s+tables\s+in\s+schema\s+public\s+from\s+anon\s*,\s*authenticated\s*;/gi, "");
+  const scanText = stripSqlComments(
+    sql.replace(/revoke\s+truncate(?:\s*,\s*(?:trigger|references))*\s+on\s+all\s+tables\s+in\s+schema\s+public\s+from\s+anon\s*,\s*authenticated\s*;/gi, ""),
+  );
   for (const pattern of forbidden) if (pattern.test(scanText)) errors.push(`${file}: forbidden destructive SQL ${pattern}`);
   for (const pattern of secrets) if (pattern.test(sql)) errors.push(`${file}: possible secret ${pattern}`);
 
@@ -106,7 +111,7 @@ export function validateMigrationText(file, sql) {
   const retentionFn = extractSecurityRetentionFunction(sql);
   let withoutProtectedDeletes = permanentFn ? sql.replace(permanentFn, "") : sql;
   withoutProtectedDeletes = retentionFn ? withoutProtectedDeletes.replace(retentionFn, "") : withoutProtectedDeletes;
-  withoutProtectedDeletes = withoutProtectedDeletes.replace(
+  withoutProtectedDeletes = stripSqlComments(withoutProtectedDeletes).replace(
     /delete\s+from\s+public\.pr101_gateway_nonces\s+where\s+expires_at\s*<\s*now\(\)(?:\s*-\s*interval\s+'1 day')?\s*;/gi,
     "",
   );
@@ -119,7 +124,7 @@ export function validateMigrationText(file, sql) {
   if (/\bdelete\s+from\b/i.test(retentionFn)) {
     for (const error of validateSecurityRetention(sql)) errors.push(`${file}: ${error}`);
   }
-  if (/pr101/i.test(file) && /create\s+table\s+(?!if\s+not\s+exists)/i.test(sql)) errors.push(`${file}: PR101 create-table statements must be additive and idempotent`);
+  if (/pr101/i.test(file) && /create\s+table\s+(?!if\s+not\s+exists)/i.test(scanText)) errors.push(`${file}: PR101 create-table statements must be additive and idempotent`);
   return errors;
 }
 
