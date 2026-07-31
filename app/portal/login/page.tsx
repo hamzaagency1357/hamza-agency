@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { fetchPortalAccess, isPortalRole } from "@/lib/productExpansion/portalAccessClient";
 
 export default function PortalLoginPage() {
   const router = useRouter();
@@ -19,15 +20,33 @@ export default function PortalLoginPage() {
       setError("تعذر الاتصال بخدمة تسجيل الدخول.");
       return;
     }
+
     setLoading(true);
     const result = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
     if (result.error) {
+      setLoading(false);
       setError("بيانات الدخول غير صحيحة أو الحساب غير متاح.");
       return;
     }
-    const next = searchParams.get("next");
-    router.replace(next?.startsWith("/portal/") ? next : "/portal/creator");
+
+    const access = await fetchPortalAccess(supabase);
+    setLoading(false);
+    if (!access.ok) {
+      await supabase.auth.signOut();
+      setError(access.code === "active_membership_required"
+        ? "لا توجد عضوية فعالة لهذا الحساب، أو أن العضوية معلقة أو ملغاة."
+        : "تعذر التحقق من صلاحية الحساب حاليًا.");
+      return;
+    }
+
+    if (!isPortalRole(access.role)) {
+      router.replace("/admin");
+      return;
+    }
+
+    const roleRoot = `/portal/${access.role}`;
+    const requested = searchParams.get("next");
+    router.replace(requested?.startsWith(roleRoot) ? requested : roleRoot);
   }
 
   return (
@@ -36,9 +55,9 @@ export default function PortalLoginPage() {
         <h1 className="text-3xl font-black">تسجيل الدخول إلى البوابة</h1>
         <p className="mt-2 text-sm text-white/65">استخدم حسابك الموثق لدى وكالة حمزة.</p>
         <label className="mt-6 block text-sm font-bold" htmlFor="email">البريد الإلكتروني</label>
-        <input id="email" type="email" autoComplete="email" required value={email} onChange={(e)=>setEmail(e.target.value)} className="mt-2 min-h-12 w-full rounded-xl border border-white/15 bg-white/5 px-4 outline-none focus:border-violet-300" />
+        <input id="email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} className="mt-2 min-h-12 w-full rounded-xl border border-white/15 bg-white/5 px-4 outline-none focus:border-violet-300" />
         <label className="mt-4 block text-sm font-bold" htmlFor="password">كلمة المرور</label>
-        <input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e)=>setPassword(e.target.value)} className="mt-2 min-h-12 w-full rounded-xl border border-white/15 bg-white/5 px-4 outline-none focus:border-violet-300" />
+        <input id="password" type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} className="mt-2 min-h-12 w-full rounded-xl border border-white/15 bg-white/5 px-4 outline-none focus:border-violet-300" />
         {error ? <p role="alert" className="mt-4 text-sm text-red-300">{error}</p> : null}
         <button disabled={loading} className="mt-6 min-h-12 w-full rounded-xl bg-violet-600 px-4 font-black hover:bg-violet-500 disabled:opacity-60">{loading ? "جارٍ التحقق…" : "دخول"}</button>
       </form>
