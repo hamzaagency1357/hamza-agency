@@ -27,6 +27,10 @@ function baseEnv(overrides = {}) {
   };
 }
 
+function resultFile(file, testValue) {
+  fs.writeFileSync(file, JSON.stringify({ suites: [{ specs: [{ title: "public", tests: [testValue] }] }] }));
+}
+
 test("preview environment requires HTTPS and exact host", () => {
   assert.equal(assertCloseoutEnvironment(baseEnv()).targetHost, "preview.example.vercel.app");
   assert.throws(() => assertCloseoutEnvironment(baseEnv({ CLOSEOUT_TARGET_URL: "http://preview.example.vercel.app" })), /requires HTTPS/);
@@ -36,6 +40,11 @@ test("preview environment requires HTTPS and exact host", () => {
 test("stateful suites fail closed outside local-isolated", () => {
   assert.throws(() => assertCloseoutEnvironment(baseEnv({ CLOSEOUT_SUITE: "admin" })), /requires local-isolated/);
   assert.throws(() => assertCloseoutEnvironment(baseEnv({ CLOSEOUT_ACTUAL_SHA: "b".repeat(40) })), /Head mismatch/);
+});
+
+test("explicit checked-out Head takes precedence over pull merge ref", () => {
+  const result = assertCloseoutEnvironment(baseEnv({ GITHUB_SHA: "b".repeat(40) }));
+  assert.equal(result.expectedSha, SHA);
 });
 
 test("preview URL guard blocks Production, unknown hosts, and action URLs", () => {
@@ -61,20 +70,24 @@ test("artifact sanitization copies only sanitized text and rejects raw HAR", () 
   assert.throws(() => sanitizeArtifactTree(raw, path.join(root, "safe-2")), /Forbidden raw artifact type/);
 });
 
-test("result validator rejects empty, skipped, and assertion-free runs", () => {
+test("result validator rejects empty, skipped, flaky, and assertion-free runs", () => {
   const root = tempDir();
   const file = path.join(root, "results.json");
   fs.writeFileSync(file, JSON.stringify({ suites: [] }));
   assert.throws(() => validatePlaywrightResults(file, "public"), /executed = 0/);
 
-  fs.writeFileSync(file, JSON.stringify({ suites: [{ specs: [{ title: "public", tests: [{ results: [{ status: "skipped", steps: [] }] }] }] }] }));
+  resultFile(file, { results: [{ status: "skipped" }], annotations: [] });
   assert.throws(() => validatePlaywrightResults(file, "public"), /executed = 0|unexpected skips/);
 
-  fs.writeFileSync(file, JSON.stringify({ suites: [{ specs: [{ title: "public", tests: [{ results: [{ status: "passed", steps: [] }] }] }] }] }));
-  assert.throws(() => validatePlaywrightResults(file, "public"), /no assertion evidence/);
+  resultFile(file, { results: [{ status: "passed" }], annotations: [] });
+  assert.throws(() => validatePlaywrightResults(file, "public"), /tests without assertion evidence/);
 
-  fs.writeFileSync(file, JSON.stringify({ suites: [{ specs: [{ title: "public", tests: [{ results: [{ status: "passed", steps: [{ category: "expect", title: "expect.toBeTruthy" }] }] }] }] }] }));
+  resultFile(file, { status: "flaky", results: [{ status: "failed" }, { status: "passed" }], annotations: [{ type: "closeout-assertions", description: "1" }] });
+  assert.throws(() => validatePlaywrightResults(file, "public"), /flaky tests/);
+
+  resultFile(file, { results: [{ status: "passed" }], annotations: [{ type: "closeout-assertions", description: "3" }] });
   const summary = validatePlaywrightResults(file, "public");
   assert.equal(summary.executed, 1);
-  assert.equal(summary.assertions, 1);
+  assert.equal(summary.assertions, 3);
+  assert.equal(summary.assertionFree, 0);
 });
