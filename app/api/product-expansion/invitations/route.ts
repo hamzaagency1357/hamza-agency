@@ -46,9 +46,6 @@ async function authorize(request: Request) {
   if (!access.ok) {
     return { error: json(access.status, { ok: false, code: access.status === 401 ? "unauthenticated" : "request_rejected" }) } as const;
   }
-  // The authorization guard already resolved this exact hostname through the reviewed
-  // public tenant runtime RPC. Reusing that verified host avoids a second RLS query and
-  // cannot redirect an invitation to another tenant.
   const protocol = process.env.NODE_ENV === "production" ? "https" : new URL(request.url).protocol.replace(":", "");
   const invitationOrigin = `${protocol}://${access.hostname}`;
   return {
@@ -64,16 +61,25 @@ export async function GET(request: Request) {
   const [invitations, memberships, programs] = await Promise.all([
     supabaseRestAsUser<Json[]>(`/tenant_invitations?select=id,email,role,program_id,status,expires_at,last_sent_at,send_count,created_at&tenant_id=eq.${encodeURIComponent(access.tenantId)}&order=created_at.desc&limit=100`, access.user),
     supabaseRestAsUser<Json[]>(`/tenant_memberships?select=id,user_id,role,status,program_id,permissions,mfa_required,created_at,updated_at&tenant_id=eq.${encodeURIComponent(access.tenantId)}&order=created_at.desc&limit=200`, access.user),
-    supabaseRestAsUser<Json[]>(`/programs?select=id,title:name&tenant_id=eq.${encodeURIComponent(access.tenantId)}&order=id.asc&limit=200`, access.user),
+    supabaseRestAsUser<Json[]>(`/programs?select=id,name&tenant_id=eq.${encodeURIComponent(access.tenantId)}&order=id.asc&limit=200`, access.user),
   ]);
-  if (!invitations.ok || !memberships.ok || !programs.ok) return json(503, { ok: false, code: "request_unavailable" });
+  if (!invitations.ok || !memberships.ok || !programs.ok) {
+    console.error(JSON.stringify({
+      level: "error",
+      event: "tenant_invitation_console_read_failure",
+      invitations_status: invitations.status,
+      memberships_status: memberships.status,
+      programs_status: programs.status,
+    }));
+    return json(503, { ok: false, code: "request_unavailable" });
+  }
   return json(200, {
     ok: true,
     tenant_id: access.tenantId,
     actor_role: access.role,
     invitations: invitations.data ?? [],
     memberships: memberships.data ?? [],
-    programs: programs.data ?? [],
+    programs: (programs.data ?? []).map((program) => ({ id: program.id, title: program.name })),
   });
 }
 
