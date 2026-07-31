@@ -15,15 +15,26 @@ function configuredCanonicalHostname() {
   }
 }
 
+function isExactLocalCloseout(canonicalHostname: string) {
+  return process.env.CLOSEOUT_EXECUTION_MODE === "local-isolated"
+    && process.env.CLOSEOUT_TARGET_URL === "https://127.0.0.1:3443"
+    && process.env.NEXT_PUBLIC_SITE_URL === "https://127.0.0.1:3443"
+    && process.env.NEXT_PUBLIC_SUPABASE_URL === "https://127.0.0.1:3443/__closeout_supabase"
+    && process.env.SUPABASE_SERVER_URL === "http://127.0.0.1:54321"
+    && canonicalHostname === "127.0.0.1";
+}
+
 export function trustedRequestHostname(request: Request) {
+  const canonicalHostname = configuredCanonicalHostname();
+  const exactLocalCloseout = isExactLocalCloseout(canonicalHostname);
   return resolveTrustedTenantHostname({
     requestUrl: request.url,
     forwardedHost: request.headers.get("x-forwarded-host"),
     hostHeader: request.headers.get("host"),
     vercelDeploymentUrl: request.headers.get("x-vercel-deployment-url"),
-    canonicalHostname: configuredCanonicalHostname(),
+    canonicalHostname,
     isVercel: process.env.VERCEL === "1",
-    isProduction: process.env.NODE_ENV === "production",
+    isProduction: process.env.NODE_ENV === "production" && !exactLocalCloseout,
   });
 }
 
