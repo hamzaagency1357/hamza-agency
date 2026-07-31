@@ -5,12 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { PortalRole } from "@/lib/productExpansion/domain";
-
-type Membership = {
-  tenant_id: string;
-  role: PortalRole;
-  status: "invited" | "active" | "suspended" | "revoked";
-};
+import { fetchPortalAccess, isPortalRole } from "@/lib/productExpansion/portalAccessClient";
 
 type Copy = {
   title: string;
@@ -91,27 +86,37 @@ export default function PortalDashboard({ role, locale = "ar" }: { role: PortalR
   const cards = useMemo(() => roleCards[role], [role]);
 
   useEffect(() => {
+    let active = true;
     void (async () => {
       if (!supabase) {
+        if (active) setState("denied");
+        return;
+      }
+
+      const access = await fetchPortalAccess(supabase);
+      if (!active) return;
+      if (!access.ok) {
+        if (access.code === "authentication_required") {
+          router.replace(`/portal/login?next=/portal/${role}`);
+          return;
+        }
         setState("denied");
         return;
       }
-      const { data: auth } = await supabase.auth.getUser();
-      if (!auth.user) {
-        router.replace(`/portal/login?next=/portal/${role}`);
+
+      if (!isPortalRole(access.role)) {
+        router.replace("/admin");
         return;
       }
-      setEmail(auth.user.email ?? "");
-      const { data, error } = await supabase
-        .from("tenant_memberships")
-        .select("tenant_id,role,status")
-        .eq("user_id", auth.user.id)
-        .eq("role", role)
-        .eq("status", "active")
-        .limit(1)
-        .maybeSingle<Membership>();
-      setState(!error && data ? "ready" : "denied");
+      if (access.role !== role) {
+        router.replace(`/portal/${access.role}`);
+        return;
+      }
+
+      setEmail(access.email);
+      setState("ready");
     })();
+    return () => { active = false; };
   }, [role, router]);
 
   async function signOut() {
