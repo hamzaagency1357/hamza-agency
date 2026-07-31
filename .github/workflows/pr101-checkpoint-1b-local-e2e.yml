@@ -85,6 +85,7 @@ jobs:
           npx --no-install supabase stop --help >/dev/null
           test -f supabase/config.toml
           test -f supabase/checkpoint-1b-contract/baseline.sql
+          test -f supabase/checkpoint-1b-contract/register-platform-session.sql
 
       - name: Assert Production isolation
         run: |
@@ -104,6 +105,7 @@ jobs:
           cp supabase/config.toml "$PR101_WORKDIR/supabase/config.toml"
           printf '%s\n' '-- Synthetic fixtures are created through the local Auth Admin API after reset.' > "$PR101_WORKDIR/supabase/seed.sql"
           cp supabase/checkpoint-1b-contract/baseline.sql "$PR101_WORKDIR/supabase/migrations/20260731020000_checkpoint_1b_contract.sql"
+          cp supabase/checkpoint-1b-contract/register-platform-session.sql "$PR101_WORKDIR/supabase/migrations/20260731021000_checkpoint_1b_platform_session_contract.sql"
           for migration in \
             20260731024500_pr101_operational_tenant_invitations_hardened.sql \
             20260731031000_pr101_invitation_crypto_search_path.sql \
@@ -117,7 +119,7 @@ jobs:
             20260731031500_pr101_membership_rpc_only_writes.sql; do
             cp "supabase/migrations/$migration" "$PR101_WORKDIR/supabase/migrations/$migration"
           done
-          test "$(find "$PR101_WORKDIR/supabase/migrations" -type f -name '*.sql' | wc -l)" -eq 11
+          test "$(find "$PR101_WORKDIR/supabase/migrations" -type f -name '*.sql' | wc -l)" -eq 12
 
       - name: Start isolated local Supabase stack
         shell: bash
