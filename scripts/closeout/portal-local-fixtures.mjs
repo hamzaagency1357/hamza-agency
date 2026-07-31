@@ -22,7 +22,10 @@ const accounts = {
   client: { email: `${prefix}-client@example.test`, password: "LocalOnly-Client-2026!", role: "client", status: "active" },
   employee: { email: `${prefix}-employee@example.test`, password: "LocalOnly-Employee-2026!", role: "employee", status: "active" },
   partner: { email: `${prefix}-partner@example.test`, password: "LocalOnly-Partner-2026!", role: "partner", status: "active" },
+  pending: { email: `${prefix}-pending@example.test`, password: "LocalOnly-Pending-2026!", role: "creator", status: "invited" },
   suspended: { email: `${prefix}-suspended@example.test`, password: "LocalOnly-Suspended-2026!", role: "creator", status: "suspended" },
+  revoked: { email: `${prefix}-revoked@example.test`, password: "LocalOnly-Revoked-2026!", role: "creator", status: "revoked" },
+  accountSuspended: { email: `${prefix}-account-suspended@example.test`, password: "LocalOnly-Account-Suspended-2026!", role: "creator", status: "active" },
   disabled: { email: `${prefix}-disabled@example.test`, password: "LocalOnly-Disabled-2026!", role: "creator", status: "active" },
   otherTenant: { email: `${prefix}-other@example.test`, password: "LocalOnly-Other-2026!", role: "client", status: "active" },
 };
@@ -76,15 +79,18 @@ values
  ('${tenants.a}'::uuid,'${created.client.id}'::uuid,'client','active','{}',false),
  ('${tenants.a}'::uuid,'${created.employee.id}'::uuid,'employee','active','{}',false),
  ('${tenants.a}'::uuid,'${created.partner.id}'::uuid,'partner','active','{}',false),
+ ('${tenants.a}'::uuid,'${created.pending.id}'::uuid,'creator','invited','{}',false),
  ('${tenants.a}'::uuid,'${created.suspended.id}'::uuid,'creator','suspended','{}',false),
+ ('${tenants.a}'::uuid,'${created.revoked.id}'::uuid,'creator','revoked','{}',false),
+ ('${tenants.a}'::uuid,'${created.accountSuspended.id}'::uuid,'creator','active','{}',false),
  ('${tenants.a}'::uuid,'${created.disabled.id}'::uuid,'creator','active','{}',false),
  ('${tenants.b}'::uuid,'${created.otherTenant.id}'::uuid,'client','active','{}',false)
 on conflict (tenant_id,user_id) do update set role=excluded.role,status=excluded.status;
 insert into public.portal_profiles(user_id,display_name,locale,status,marketing_opt_in,ai_opt_out)
-select user_id,'Closeout '||role,'ar','active',false,false from public.tenant_memberships where tenant_id='${tenants.a}'::uuid and status='active'
+select user_id,'Closeout '||role,'ar','active',false,false from public.tenant_memberships
 on conflict (user_id) do update set status='active';
 insert into public.portal_profiles(user_id,display_name,locale,status) values
- ('${created.suspended.id}'::uuid,'Suspended','ar','suspended'),
+ ('${created.accountSuspended.id}'::uuid,'Account Suspended','ar','suspended'),
  ('${created.disabled.id}'::uuid,'Disabled','ar','pending_deletion')
 on conflict (user_id) do update set status=excluded.status;
 insert into public.security_alerts(id,tenant_id,user_id,alert_type,severity,metadata)
