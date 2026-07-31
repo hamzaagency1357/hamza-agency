@@ -30,37 +30,35 @@ jobs:
       CLOSEOUT_SUPABASE_URL: ${{ inputs.execution_mode == 'local-isolated' && 'http://127.0.0.1:54321' || '' }}
       CLOSEOUT_AUTH_URL: ${{ inputs.execution_mode == 'local-isolated' && 'http://127.0.0.1:54321/auth/v1' || '' }}
       CLOSEOUT_PORTAL_FIXTURE_FILE: /tmp/hamza-portal-fixtures.json
+      NEXT_PUBLIC_SITE_URL: https://127.0.0.1:3443
+      SESSION_HASH_KEY: closeout-local-only-session-hash-key
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.expected_sha }}
           fetch-depth: 1
-
       - name: Assert exact Head
         shell: bash
         run: |
           set -euo pipefail
           [[ '${{ inputs.expected_sha }}' =~ ^[0-9a-fA-F]{40}$ ]]
           test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
-
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
-
       - name: Reject unsupported, pending, or unsafe dispatch
         shell: bash
         run: |
           set -euo pipefail
-          case "${{ inputs.suite }}" in admin|permissions|security) echo "CLOSEOUT_STATEFUL=true" >> "$GITHUB_ENV" ;; *) echo "CLOSEOUT_STATEFUL=false" >> "$GITHUB_ENV" ;; esac
-          node scripts/closeout/environment-guard.mjs
+          case "${{ inputs.suite }}" in admin|permissions|security) stateful=true ;; *) stateful=false ;; esac
+          echo "CLOSEOUT_STATEFUL=$stateful" >> "$GITHUB_ENV"
+          CLOSEOUT_STATEFUL="$stateful" node scripts/closeout/environment-guard.mjs
           status="$(node -e 'const s=require("./e2e/closeout/suites.json"); const x=s[process.env.CLOSEOUT_SUITE]; if(!x) process.exit(2); process.stdout.write(x.status)')"
           test "$status" = "implemented" || { echo "Suite '${{ inputs.suite }}' is registered but not implemented; failing closed." >&2; exit 1; }
           test -f "e2e/closeout/${{ inputs.suite }}.spec.mjs"
-
       - name: Install isolated database tooling
         if: inputs.execution_mode == 'local-isolated' && (inputs.suite == 'admin' || inputs.suite == 'permissions' || inputs.suite == 'security')
         shell: bash
@@ -74,7 +72,6 @@ jobs:
           test -x "$cli"
           test "$($cli --version)" = "2.109.1"
           ln -sf "$cli" "$GITHUB_WORKSPACE/node_modules/.bin/supabase"
-
       - name: Start isolated Supabase and create portal fixtures
         if: inputs.execution_mode == 'local-isolated' && (inputs.suite == 'admin' || inputs.suite == 'permissions' || inputs.suite == 'security')
         shell: bash
@@ -89,30 +86,20 @@ jobs:
           while IFS='=' read -r key value; do
             value="${value%\"}"; value="${value#\"}"
             [ -n "$value" ] && echo "::add-mask::$value"
-            case "$key" in API_URL|ANON_KEY|SERVICE_ROLE_KEY|DB_URL) echo "$key=$value" >> "$GITHUB_ENV" ;; esac
+            case "$key" in
+              API_URL) echo "API_URL=$value" >> "$GITHUB_ENV"; echo "NEXT_PUBLIC_SUPABASE_URL=$value" >> "$GITHUB_ENV" ;;
+              ANON_KEY) echo "ANON_KEY=$value" >> "$GITHUB_ENV"; echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$value" >> "$GITHUB_ENV" ;;
+              SERVICE_ROLE_KEY|DB_URL) echo "$key=$value" >> "$GITHUB_ENV" ;;
+            esac
           done < /tmp/closeout-supabase.env
-          set -a
-          . /tmp/closeout-supabase.env
-          set +a
+          set -a; . /tmp/closeout-supabase.env; set +a
           node scripts/closeout/portal-local-fixtures.mjs setup
-
       - name: Build isolated local application
         if: inputs.execution_mode == 'local-isolated'
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
-          NEXT_PUBLIC_SITE_URL: https://127.0.0.1:3443
-          SESSION_HASH_KEY: closeout-local-only-session-hash-key
         run: npm run build
-
       - name: Start isolated local HTTPS target
         if: inputs.execution_mode == 'local-isolated'
         shell: bash
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
-          NEXT_PUBLIC_SITE_URL: https://127.0.0.1:3443
-          SESSION_HASH_KEY: closeout-local-only-session-hash-key
         run: |
           set -euo pipefail
           mkdir -p /tmp/hamza-closeout-tls
@@ -124,22 +111,16 @@ jobs:
           for i in {1..40}; do curl -kfsS https://127.0.0.1:3443/ >/dev/null && exit 0; sleep 2; done
           cat /tmp/hamza-closeout-next.log /tmp/hamza-closeout-proxy.log
           exit 1
-
       - name: Install pinned Chromium
         run: npx --no-install playwright install --with-deps chromium
-
       - name: Run selected Playwright suite
         run: npx --no-install playwright test --config=playwright.closeout.config.mjs
-
       - name: Validate executed suite results
         run: node scripts/closeout/validate-results.mjs artifacts/raw/results.json "${{ inputs.suite }}"
-
       - name: Sanitize reports into isolated safe directory
         run: node scripts/closeout/sanitize-artifacts.mjs artifacts/raw artifacts/safe/reports
-
       - name: Scan sanitized artifacts for secrets
         run: node scripts/closeout/scan-safe-artifacts.mjs artifacts/safe
-
       - name: Upload safe reports only
         uses: actions/upload-artifact@v4
         with:
@@ -147,7 +128,6 @@ jobs:
           path: artifacts/safe
           if-no-files-found: error
           retention-days: 14
-
       - name: Always remove fixtures and local runtime
         if: always()
         shell: bash
@@ -156,7 +136,7 @@ jobs:
           if [ -f "$CLOSEOUT_PORTAL_FIXTURE_FILE" ] && [ -n "${API_URL:-}" ] && [ -n "${SERVICE_ROLE_KEY:-}" ] && [ -n "${DB_URL:-}" ]; then node scripts/closeout/portal-local-fixtures.mjs cleanup; fi
           if [ -f /tmp/hamza-closeout-next.pid ]; then kill "$(cat /tmp/hamza-closeout-next.pid)" 2>/dev/null; fi
           if [ -f /tmp/hamza-closeout-proxy.pid ]; then kill "$(cat /tmp/hamza-closeout-proxy.pid)" 2>/dev/null; fi
-          if command -v npx >/dev/null && [ "$CLOSEOUT_STATEFUL" = "true" ]; then npx --no-install supabase stop --no-backup >/dev/null 2>&1; fi
+          if command -v npx >/dev/null && [ "${CLOSEOUT_STATEFUL:-false}" = "true" ]; then npx --no-install supabase stop --no-backup >/dev/null 2>&1; fi
           rm -rf artifacts/raw /tmp/hamza-closeout-* /tmp/closeout-supabase* "$CLOSEOUT_PORTAL_FIXTURE_FILE" supabase/.temp
           test ! -e artifacts/raw
           test ! -e "$CLOSEOUT_PORTAL_FIXTURE_FILE"
