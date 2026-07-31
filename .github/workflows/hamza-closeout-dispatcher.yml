@@ -21,11 +21,6 @@ on:
         description: Full 40-character PR Head SHA
         required: true
         type: string
-      collect_only:
-        description: Collect existing evidence without running tests
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -35,6 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       allowed: ${{ steps.guard.outputs.allowed }}
+      preview_host: ${{ steps.guard.outputs.preview_host }}
     steps:
       - id: guard
         shell: bash
@@ -46,9 +42,18 @@ jobs:
           suite='${{ inputs.suite }}'
           url='${{ inputs.target_url }}'
           case "$mode" in
-            preview-readonly) [[ "$url" != https://hamza-agency.com* && "$url" != https://www.hamza-agency.com* ]] ;;
-            production-readonly) [[ "$url" == https://hamza-agency.com* || "$url" == https://www.hamza-agency.com* ]] ;;
-            local-isolated) [[ "$url" == http://127.0.0.1:* || "$url" == http://localhost:* ]] ;;
+            preview-readonly)
+              [[ "$url" == https://* ]]
+              [[ "$url" != https://hamza-agency.com* && "$url" != https://www.hamza-agency.com* ]]
+              host="$(node -e 'process.stdout.write(new URL(process.argv[1]).hostname)' "$url")"
+              echo "preview_host=$host" >> "$GITHUB_OUTPUT"
+              ;;
+            production-readonly)
+              [[ "$url" == https://hamza-agency.com* || "$url" == https://www.hamza-agency.com* ]]
+              ;;
+            local-isolated)
+              [[ "$url" == http://127.0.0.1:* || "$url" == http://localhost:* ]]
+              ;;
             *) exit 1 ;;
           esac
           case "$suite" in
@@ -66,4 +71,4 @@ jobs:
       suite: ${{ inputs.suite }}
       target_url: ${{ inputs.target_url }}
       expected_sha: ${{ inputs.expected_sha }}
-      collect_only: ${{ inputs.collect_only }}
+      preview_host: ${{ needs.validate-inputs.outputs.preview_host }}
