@@ -1,5 +1,6 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { hashInvitationToken, isValidRawInvitationToken } from "@/lib/productExpansion/invitationSecurity";
 import { resolveTenantForRequest } from "@/lib/server/tenantRuntime";
 import { supabaseRestAsUser, verifySupabaseBearer } from "@/lib/server/supabaseUser";
 
@@ -22,15 +23,6 @@ function response(status: number, body: Record<string, unknown>) {
   });
 }
 
-function subjectHash(parts: string[]) {
-  return createHash("sha256").update(parts.join("|"), "utf8").digest("hex");
-}
-
-function safeClientNetworkHash(request: Request, userId: string, tenantId: string) {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  return subjectHash([userId, tenantId, forwarded]);
-}
-
 function internalFailure(correlationId: string, detail: unknown) {
   console.error(JSON.stringify({
     level: "warn",
@@ -50,45 +42,29 @@ export async function POST(request: Request) {
     return response(400, { ok: false, code: "invitation_accept_failed", correlation_id: correlationId });
   }
 
-  let token = "";
+  let token: unknown;
   try {
     const input = await request.json() as unknown;
-    if (input && typeof input === "object" && !Array.isArray(input)) {
-      const value = (input as Record<string, unknown>).token;
-      token = typeof value === "string" ? value.trim() : "";
-    }
+    token = input && typeof input === "object" && !Array.isArray(input)
+      ? (input as Record<string, unknown>).token
+      : null;
   } catch {
     return response(400, { ok: false, code: "invitation_accept_failed", correlation_id: correlationId });
   }
 
-  if (!/^[A-Za-z0-9_-]{40,100}$/.test(token)) {
+  if (!isValidRawInvitationToken(token)) {
     return response(400, { ok: false, code: "invitation_accept_failed", correlation_id: correlationId });
   }
 
-  const tokenHash = createHash("sha256").update(token, "utf8").digest("hex");
-  token = "";
-
-  const limit = await supabaseRestAsUser<boolean>("/rpc/consume_invitation_rate_limit", user, {
-    method: "POST",
-    body: JSON.stringify({
-      p_tenant_id: tenant.tenantId,
-      p_action: "accept",
-      p_subject_hash: subjectHash([safeClientNetworkHash(request, user.id, tenant.tenantId), tokenHash]),
-      p_limit: 12,
-      p_window_seconds: 900,
-    }),
-  });
-
-  if (!limit.ok || limit.data !== true) {
-    return response(429, { ok: false, code: "invitation_accept_failed", correlation_id: correlationId });
-  }
+  const tokenHash = hashInvitationToken(token.trim());
+  token = null;
 
   const result = await supabaseRestAsUser<AcceptResult[]>("/rpc/accept_tenant_invitation", user, {
     method: "POST",
     body: JSON.stringify({ p_expected_tenant_id: tenant.tenantId, p_token_hash: tokenHash }),
   });
   const accepted = result.data?.[0];
-  if (!result.ok || !accepted?.accepted || !accepted.membership_id) {
+  if (!result.ok || !accepted?.accepted || !accepted.membership_id || accepted.tenant_id !== tenant.tenantId) {
     internalFailure(correlationId, {
       database_status: result.status,
       accepted: accepted?.accepted === true,
