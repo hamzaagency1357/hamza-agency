@@ -1,9 +1,10 @@
 -- HAMZA AGENCY PR101 operational tenant invitations, review-hardened
--- Additive only. No DROP TABLE, TRUNCATE, or production-row deletion.
+-- Additive only. No destructive production-row operation.
 begin;
 
 create schema if not exists private;
-revoke all on schema private from public,anon,authenticated;
+revoke all on schema private from public;
+grant usage on schema private to authenticated,anon,service_role;
 
 do $$
 begin
@@ -46,9 +47,10 @@ create table if not exists public.tenant_invitations (
   constraint tenant_invitations_expiry check (expires_at>created_at)
 );
 
-create unique index if not exists tenant_invitations_token_hash_uidx on public.tenant_invitations(token_hash);
-create unique index if not exists tenant_invitations_one_pending_uidx
-  on public.tenant_invitations(tenant_id,email,role,coalesce(program_id,0::bigint))
+create unique index if not exists tenant_invitations_token_hash_uidx
+  on public.tenant_invitations(token_hash);
+create unique index if not exists tenant_invitations_one_pending_email_uidx
+  on public.tenant_invitations(tenant_id,email)
   where status='invited';
 create index if not exists tenant_invitations_tenant_status_idx
   on public.tenant_invitations(tenant_id,status,created_at desc);
@@ -94,36 +96,31 @@ end;
 $$;
 revoke all on function private.normalize_invitation_permissions(text,jsonb) from public,anon,authenticated;
 
-create or replace function public.consume_invitation_rate_limit(
-  p_tenant_id uuid,p_action text,p_subject_hash text,p_limit integer,p_window_seconds integer
+create or replace function private.consume_invitation_rate_limit(
+  p_tenant_id uuid,p_action text,p_subject_hash text
 )
 returns boolean language plpgsql security definer
 set search_path=pg_catalog,public,private
 as $$
-declare v_user uuid:=auth.uid(); v_bucket timestamptz; v_attempts integer;
+declare v_bucket timestamptz; v_attempts integer; v_limit integer; v_window_seconds integer;
 begin
-  if v_user is null then raise exception 'unauthenticated' using errcode='42501'; end if;
-  if p_action not in ('create','resend','accept') or p_subject_hash !~ '^[a-f0-9]{64}$' then raise exception 'invalid_rate_limit'; end if;
-  if p_limit<1 or p_limit>100 or p_window_seconds<30 or p_window_seconds>86400 then raise exception 'invalid_rate_limit'; end if;
+  if auth.uid() is null or p_tenant_id is null or p_subject_hash !~ '^[a-f0-9]{64}$' then raise exception 'invalid_rate_limit'; end if;
+  select limits.max_attempts,limits.window_seconds
+  into v_limit,v_window_seconds
+  from (values ('create',20,3600),('resend',10,3600),('accept',12,900)) as limits(action,max_attempts,window_seconds)
+  where limits.action=p_action;
+  if v_limit is null then raise exception 'invalid_rate_limit'; end if;
   if not exists(select 1 from public.tenants where id=p_tenant_id and status='active') then raise exception 'tenant_not_found'; end if;
-  if p_action in ('create','resend') and not public.current_user_has_tenant_role(p_tenant_id,array['super_admin','tenant_admin']) then raise exception 'forbidden' using errcode='42501'; end if;
-  v_bucket:=to_timestamp(floor(extract(epoch from now())/p_window_seconds)*p_window_seconds);
+  v_bucket:=to_timestamp(floor(extract(epoch from now())/v_window_seconds)*v_window_seconds);
   insert into private.invitation_rate_limits(tenant_id,action,subject_hash,bucket_started_at,attempts)
   values(p_tenant_id,p_action,p_subject_hash,v_bucket,1)
   on conflict(tenant_id,action,subject_hash,bucket_started_at)
   do update set attempts=private.invitation_rate_limits.attempts+1,updated_at=now()
   returning attempts into v_attempts;
-  if v_attempts>p_limit then
-    insert into public.tenant_admin_audit(tenant_id,actor_id,action,entity_type,entity_id,after_data)
-    values(p_tenant_id,v_user,'tenant.invitation_rate_limited','security_event',p_subject_hash,
-      jsonb_build_object('operation',p_action,'attempts',v_attempts,'window_seconds',p_window_seconds));
-    return false;
-  end if;
-  return true;
+  return v_attempts<=v_limit;
 end;
 $$;
-revoke all on function public.consume_invitation_rate_limit(uuid,text,text,integer,integer) from public,anon;
-grant execute on function public.consume_invitation_rate_limit(uuid,text,text,integer,integer) to authenticated;
+revoke all on function private.consume_invitation_rate_limit(uuid,text,text) from public,anon,authenticated;
 
 create or replace function public.expire_tenant_invitations(p_tenant_id uuid)
 returns integer language plpgsql security definer
@@ -163,7 +160,7 @@ returns table(id uuid,tenant_id uuid,email text,role text,program_id bigint,stat
 language plpgsql security definer
 set search_path=pg_catalog,public,private
 as $$
-declare v_actor uuid:=auth.uid(); v_email text:=lower(btrim(coalesce(p_email,''))); v_invitation public.tenant_invitations%rowtype; v_permissions jsonb;
+declare v_actor uuid:=auth.uid(); v_email text:=lower(btrim(coalesce(p_email,''))); v_invitation public.tenant_invitations%rowtype; v_permissions jsonb; v_subject text;
 begin
   if v_actor is null or p_tenant_id is null or not public.current_user_has_tenant_role(p_tenant_id,array['super_admin','tenant_admin']) then raise exception 'forbidden' using errcode='42501'; end if;
   if p_role not in ('creator','client','employee','partner','tenant_admin') then raise exception 'invalid_invitation'; end if;
@@ -172,10 +169,16 @@ begin
   if p_token_hash !~ '^[a-f0-9]{64}$' or p_expires_at<=now() or p_expires_at>now()+interval '30 days' then raise exception 'invalid_invitation'; end if;
   v_permissions:=private.normalize_invitation_permissions(p_role,p_permissions);
   if p_program_id is not null and not exists(select 1 from public.programs where id=p_program_id and tenant_id=p_tenant_id) then raise exception 'invalid_invitation'; end if;
+  v_subject:=encode(digest(v_actor::text||'|'||p_tenant_id::text||'|create|'||v_email,'sha256'),'hex');
+  if not private.consume_invitation_rate_limit(p_tenant_id,'create',v_subject) then raise exception 'invitation_rate_limited' using errcode='P0001'; end if;
   perform public.expire_tenant_invitations(p_tenant_id);
   if exists(select 1 from public.tenant_memberships m join auth.users u on u.id=m.user_id where m.tenant_id=p_tenant_id and lower(u.email)=v_email and m.status='active') then raise exception 'invalid_invitation'; end if;
-  insert into public.tenant_invitations(tenant_id,email,role,program_id,permissions,token_hash,invited_by,expires_at)
-  values(p_tenant_id,v_email,p_role,p_program_id,v_permissions,p_token_hash,v_actor,p_expires_at) returning * into v_invitation;
+  begin
+    insert into public.tenant_invitations(tenant_id,email,role,program_id,permissions,token_hash,invited_by,expires_at)
+    values(p_tenant_id,v_email,p_role,p_program_id,v_permissions,p_token_hash,v_actor,p_expires_at) returning * into v_invitation;
+  exception when unique_violation then
+    raise exception 'pending_invitation_exists' using errcode='P0001';
+  end;
   insert into public.tenant_admin_audit(tenant_id,actor_id,action,entity_type,entity_id,after_data)
   values(p_tenant_id,v_actor,'tenant.invitation_created','tenant_invitation',v_invitation.id::text,jsonb_build_object('email',v_email,'role',p_role,'program_id',p_program_id,'expires_at',p_expires_at));
   insert into public.notifications(tenant_id,title,message,type,recipient_email,notification_key,metadata,event_key,event_type,entity_type,entity_id,status,priority)
@@ -193,23 +196,21 @@ create or replace function public.resend_tenant_invitation(
 )
 returns table(id uuid,email text,role text,status text,expires_at timestamptz,last_sent_at timestamptz,send_count integer)
 language plpgsql security definer
-set search_path=pg_catalog,public
+set search_path=pg_catalog,public,private
 as $$
-declare v_actor uuid:=auth.uid(); v_invitation public.tenant_invitations%rowtype;
+declare v_actor uuid:=auth.uid(); v_invitation public.tenant_invitations%rowtype; v_subject text;
 begin
   if v_actor is null or p_tenant_id is null or not public.current_user_has_tenant_role(p_tenant_id,array['super_admin','tenant_admin']) then raise exception 'forbidden' using errcode='42501'; end if;
   if p_token_hash !~ '^[a-f0-9]{64}$' or p_expires_at<=now() or p_expires_at>now()+interval '30 days' then raise exception 'invalid_invitation'; end if;
   select * into v_invitation from public.tenant_invitations where id=p_invitation_id and tenant_id=p_tenant_id for update;
   if not found or v_invitation.status in ('accepted','revoked') then raise exception 'invitation_not_resendable'; end if;
   if v_invitation.send_count>=25 then raise exception 'resend_limit_reached'; end if;
+  v_subject:=encode(digest(v_actor::text||'|'||p_tenant_id::text||'|resend|'||p_invitation_id::text,'sha256'),'hex');
+  if not private.consume_invitation_rate_limit(p_tenant_id,'resend',v_subject) then raise exception 'invitation_rate_limited' using errcode='P0001'; end if;
   update public.tenant_invitations set token_hash=p_token_hash,status='invited',expires_at=p_expires_at,last_sent_at=now(),send_count=send_count+1,updated_at=now()
   where id=p_invitation_id and tenant_id=p_tenant_id returning * into v_invitation;
   insert into public.tenant_admin_audit(tenant_id,actor_id,action,entity_type,entity_id,after_data)
   values(p_tenant_id,v_actor,'tenant.invitation_resent','tenant_invitation',v_invitation.id::text,jsonb_build_object('email',v_invitation.email,'expires_at',v_invitation.expires_at,'send_count',v_invitation.send_count));
-  insert into public.notifications(tenant_id,title,message,type,recipient_email,notification_key,metadata,event_key,event_type,entity_type,entity_id,status,priority)
-  values(p_tenant_id,'إعادة إرسال دعوة HAMZA AGENCY','تم إصدار رابط دعوة جديد وإبطال الرابط السابق.','tenant_invitation',v_invitation.email,
-    'tenant_invitation_resend:'||v_invitation.id||':'||v_invitation.send_count,jsonb_build_object('invitation_id',v_invitation.id,'delivery','provider_disabled'),
-    'tenant.invitation.resent:'||v_invitation.id||':'||v_invitation.send_count,'tenant.invitation.resent','tenant_invitation',v_invitation.id::text,'queued','normal') on conflict do nothing;
   return query select v_invitation.id,v_invitation.email,v_invitation.role,v_invitation.status,v_invitation.expires_at,v_invitation.last_sent_at,v_invitation.send_count;
 end;
 $$;
@@ -230,10 +231,6 @@ begin
   update public.tenant_invitations set status='revoked',revoked_at=now(),updated_at=now() where id=p_invitation_id and tenant_id=p_tenant_id;
   insert into public.tenant_admin_audit(tenant_id,actor_id,action,entity_type,entity_id,after_data)
   values(p_tenant_id,v_actor,'tenant.invitation_revoked','tenant_invitation',v_invitation.id::text,jsonb_build_object('email',v_invitation.email));
-  insert into public.notifications(tenant_id,title,message,type,recipient_email,notification_key,metadata,event_key,event_type,entity_type,entity_id,status,priority)
-  values(p_tenant_id,'تم إلغاء دعوة الانضمام','لم يعد رابط الدعوة صالحاً للاستخدام.','tenant_invitation',v_invitation.email,
-    'tenant_invitation_revoked:'||v_invitation.id,jsonb_build_object('invitation_id',v_invitation.id,'delivery','provider_disabled'),
-    'tenant.invitation.revoked:'||v_invitation.id,'tenant.invitation.revoked','tenant_invitation',v_invitation.id::text,'queued','normal') on conflict do nothing;
   return true;
 end;
 $$;
@@ -245,19 +242,21 @@ returns table(accepted boolean,membership_id uuid,tenant_id uuid,role text,progr
 language plpgsql security definer
 set search_path=pg_catalog,public,auth,private
 as $$
-declare v_user uuid:=auth.uid(); v_email text:=lower(coalesce(auth.jwt()->>'email','')); v_invitation public.tenant_invitations%rowtype; v_membership public.tenant_memberships%rowtype;
+declare v_user uuid:=auth.uid(); v_email text:=lower(coalesce(auth.jwt()->>'email','')); v_invitation public.tenant_invitations%rowtype; v_membership public.tenant_memberships%rowtype; v_subject text;
 begin
   if v_user is null or v_email='' or p_expected_tenant_id is null or p_token_hash !~ '^[a-f0-9]{64}$' then
     return query select false,null::uuid,null::uuid,null::text,null::bigint,null::text; return;
   end if;
-  select * into v_invitation from public.tenant_invitations where token_hash=p_token_hash and tenant_id=p_expected_tenant_id for update;
-  if not found or v_invitation.status<>'invited' then
+  select * into v_invitation from public.tenant_invitations where token_hash=p_token_hash for update;
+  if not found or v_invitation.tenant_id<>p_expected_tenant_id or v_invitation.status<>'invited' then
     return query select false,null::uuid,null::uuid,null::text,null::bigint,null::text; return;
+  end if;
+  v_subject:=encode(digest(v_user::text||'|'||p_token_hash,'sha256'),'hex');
+  if not private.consume_invitation_rate_limit(v_invitation.tenant_id,'accept',v_subject) then
+    return query select false,null::uuid,null::uuid,null::text,null::bigint,'rate_limited'::text; return;
   end if;
   if v_invitation.expires_at<=now() then
     update public.tenant_invitations set status='expired',updated_at=now() where id=v_invitation.id and status='invited';
-    insert into public.tenant_admin_audit(tenant_id,actor_id,action,entity_type,entity_id,after_data)
-    values(v_invitation.tenant_id,v_user,'tenant.invitation_expired_on_accept','tenant_invitation',v_invitation.id::text,jsonb_build_object('email',v_email));
     return query select false,null::uuid,v_invitation.tenant_id,null::text,null::bigint,'expired'::text; return;
   end if;
   if lower(v_invitation.email)<>v_email then
@@ -272,10 +271,6 @@ begin
   if not found then return query select false,null::uuid,null::uuid,null::text,null::bigint,null::text; return; end if;
   insert into public.tenant_admin_audit(tenant_id,actor_id,action,entity_type,entity_id,after_data)
   values(v_invitation.tenant_id,v_user,'tenant.invitation_accepted','tenant_membership',v_membership.id::text,jsonb_build_object('email',v_email,'role',v_membership.role,'program_id',v_membership.program_id));
-  insert into public.notifications(tenant_id,title,message,type,recipient_user_id,recipient_email,notification_key,metadata,event_key,event_type,entity_type,entity_id,status,priority)
-  values(v_invitation.tenant_id,'تم قبول الدعوة','أصبح حسابك عضواً فعالاً في مساحة العمل.','tenant_membership',v_user,v_email,
-    'tenant_invitation_accepted:'||v_invitation.id,jsonb_build_object('membership_id',v_membership.id,'role',v_membership.role),
-    'tenant.invitation.accepted:'||v_invitation.id,'tenant.invitation.accepted','tenant_membership',v_membership.id::text,'created','normal') on conflict do nothing;
   return query select true,v_membership.id,v_membership.tenant_id,v_membership.role,v_membership.program_id,v_membership.status;
 end;
 $$;
@@ -307,10 +302,6 @@ begin
   end if;
   insert into public.tenant_admin_audit(tenant_id,actor_id,action,entity_type,entity_id,before_data,after_data)
   values(p_tenant_id,v_actor,'tenant.membership_updated','tenant_membership',v_after.id::text,to_jsonb(v_before),to_jsonb(v_after));
-  insert into public.notifications(tenant_id,title,message,type,recipient_user_id,notification_key,metadata,event_key,event_type,entity_type,entity_id,status,priority)
-  values(p_tenant_id,'تم تحديث العضوية','تم تحديث حالة أو صلاحيات عضويتك.','tenant_membership',v_after.user_id,
-    'tenant_membership_updated:'||v_after.id||':'||extract(epoch from v_after.updated_at)::bigint,jsonb_build_object('status',v_after.status,'role',v_after.role),
-    'tenant.membership.updated:'||v_after.id||':'||extract(epoch from v_after.updated_at)::bigint,'tenant.membership.updated','tenant_membership',v_after.id::text,'created','high') on conflict do nothing;
   return v_after;
 end;
 $$;
@@ -318,7 +309,7 @@ revoke all on function public.manage_tenant_membership(uuid,uuid,text,text,bigin
 grant execute on function public.manage_tenant_membership(uuid,uuid,text,text,bigint,jsonb) to authenticated;
 
 comment on table public.tenant_invitations is 'Stores only SHA-256 token hashes. Raw tokens are generated server-side, shown once and never persisted.';
-comment on function public.accept_tenant_invitation(uuid,text) is 'Returns a structured result so expired-state updates commit without exception rollback.';
+comment on function public.accept_tenant_invitation(uuid,text) is 'Locks by token hash, derives the tenant from the invitation and rejects host-tenant mismatch.';
 comment on function public.expire_tenant_invitations(uuid) is 'Authenticated tenant-scoped expiration; NULL and cross-tenant calls are rejected.';
 comment on function private.expire_all_tenant_invitations() is 'Server-only scheduler entry point.';
 
