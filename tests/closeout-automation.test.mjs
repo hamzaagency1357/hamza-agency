@@ -61,11 +61,18 @@ test("artifact sanitization copies only sanitized text and rejects raw HAR", () 
   const raw = path.join(root, "raw");
   const safe = path.join(root, "safe");
   fs.mkdirSync(raw, { recursive: true });
-  fs.writeFileSync(path.join(raw, "report.json"), JSON.stringify({ authorization: "Bearer abc.def.ghi", access_token: "secret" }));
+  fs.writeFileSync(path.join(raw, "report.json"), JSON.stringify({ authorization: "Bearer abc.def.ghi", access_token: "secret-value" }));
   assert.equal(sanitizeArtifactTree(raw, safe), 1);
   const sanitized = fs.readFileSync(path.join(safe, "report.json"), "utf8");
   assert.match(sanitized, /\[REDACTED\]/);
+  fs.appendFileSync(path.join(safe, "report.json"), "\n/authorization:|refresh_token/i\n");
   assert.equal(scanSafeArtifacts(safe), 1);
+
+  const unsafe = path.join(root, "unsafe");
+  fs.mkdirSync(unsafe, { recursive: true });
+  fs.writeFileSync(path.join(unsafe, "report.json"), JSON.stringify({ authorization: "Bearer raw-secret-value" }));
+  assert.throws(() => scanSafeArtifacts(unsafe), /secret pattern/);
+
   fs.writeFileSync(path.join(raw, "network.har"), "{}");
   assert.throws(() => sanitizeArtifactTree(raw, path.join(root, "safe-2")), /Forbidden raw artifact type/);
 });
