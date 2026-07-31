@@ -3,6 +3,8 @@
 begin;
 
 revoke insert,update,delete on table public.tenant_memberships from authenticated;
+grant select on table public.tenant_memberships to authenticated;
+
 revoke all on function public.manage_tenant_membership(uuid,uuid,text,text,bigint,jsonb) from public,anon;
 grant execute on function public.manage_tenant_membership(uuid,uuid,text,text,bigint,jsonb) to authenticated;
 revoke all on function public.accept_tenant_invitation(uuid,text) from public,anon;
