@@ -9,8 +9,10 @@ It records only newly closed systems, reused gates, safe artifacts, cleanup evid
 - Repository: `hamzaagency1357/hamza-agency`
 - Pull request: `#105`
 - Branch: `feat/pr101-complete-product-expansion`
-- PR state at Checkpoint 1B close: open, Draft, unmerged
+- PR state: open, Draft, unmerged
 - Checkpoint 1B application Head: `8a42699c9c9245422f9f0370c113e89f3950deea`
+- Automation Foundation close Head: `983b0dc32df67879c45225404dfc79ed9505367d`
+- Automation Foundation: **Closed**
 - Production post-deploy revocation: not executed
 - Project ready for final delivery: **No**
 
@@ -101,11 +103,53 @@ Read-only verification after application confirmed:
 
 ### Real blockers remaining
 
-Checkpoint 1B itself has no known open blocker. Full project delivery remains blocked by the remaining product systems, permanent closeout automation, the final exact-head closeout run, final deployment verification, and Owner Final QA.
+Checkpoint 1B itself has no known open blocker. Full project delivery remains blocked by the remaining product systems, the final exact-head closeout run, final deployment verification, and Owner Final QA.
+
+## Batch record — Automation Foundation closeout
+
+### Automation Foundation: Closed
+
+The permanent closeout foundation was closed on Head `983b0dc32df67879c45225404dfc79ed9505367d`.
+
+All required exact-head workflows completed successfully:
+
+- HAMZA AGENCY Closeout Structure — run `30656479043` — success.
+- HAMZA AGENCY Quality Gate — run `30656478882` — success.
+- PR99 Management Quality Gate — run `30656478866` — success.
+- PR101 Checkpoint 1B Local E2E — run `30656478928` — success.
+- PR101 Mobile Readiness — run `30656478892` — success.
+
+Closeout Structure completed locked dependency installation, structure contracts, closeout contract tests, Lint, Typecheck, unit and integration tests, and a successful production Build of 82 routes.
+
+The actual Playwright evidence ran against a locally built production runtime behind an isolated HTTPS proxy. It proves `local-isolated / built-runtime readonly`; it does not claim practical Vercel Preview QA or Mobile Dispatcher execution before the workflow exists on `main`.
+
+Suite results:
+
+- `public`: 8 executed, 0 skipped, 0 failed, 0 flaky, 48 assertion evidence records, 0 assertion-free tests.
+- `translations`: 6 executed, 0 skipped, 0 failed, 0 flaky, 48 assertion evidence records, 0 assertion-free tests.
+- read-only `security`: 4 executed, 0 skipped, 0 failed, 0 flaky, 26 assertion evidence records, 0 assertion-free tests.
+- Total: 18 executed, 0 unexpected skips, 0 failures, 0 flaky tests, 122 assertion evidence records, and no empty suite.
+
+Artifact verification:
+
+- Sanitization passed for all three suites.
+- Secret scan after sanitization passed for all three suites.
+- Only `artifacts/safe` was uploaded.
+- `artifacts/raw` was deleted in every job.
+- No HAR, trace, storage-state, cookie, token, or session artifact was present in the downloaded archives.
+- 14 safe screenshots were verified: 6 public, 6 translations, and 2 read-only security screenshots.
+- AR, EN, and TR screenshots exist on Desktop and Mobile.
+- Screenshot names contain the suite, locale or scenario, device, and Head prefix `983b0dc3`.
+- Main-document redirect and Host allowlist guards passed; Production and unapproved Hosts remain blocked.
+- Checkpoint 1B Local E2E cleanup succeeded and no test fixtures remain.
+
+Vercel Preview QA remains a near-launch verification because the free-plan build limit did not produce a Preview for this Head. Mobile Dispatcher verification remains pending until the reusable workflow is present on `main`; neither limitation reopens the Automation Foundation implementation itself.
+
+Remaining work toward Full Project Closeout includes the four role portals, remaining operational systems and their stateful local-isolated suites, final Preview and Production read-only verification, Owner Final QA, explicit merge approval, and explicit launch approval.
 
 ## Permanent automation policy
 
-The project adopts the closeout automation as permanent shared infrastructure, not as a Checkpoint 1B-only improvement. It must use the current Playwright stack and existing Quality Gates, enforce `preview-readonly`, `local-isolated`, and `production-readonly` modes, fail closed on ambiguous environments, and never perform Production writes.
+The project adopts the closeout automation as permanent shared infrastructure, not as a Checkpoint 1B-only improvement. It uses the current Playwright stack and existing Quality Gates, enforces `preview-readonly`, `local-isolated`, and `production-readonly` modes, fails closed on ambiguous environments, and never performs Production writes.
 
 Each remaining system must add its runtime, authenticated, data, cleanup, and security scenarios to the appropriate shared suite. The final workflow must aggregate evidence for one exact Head SHA instead of copying successful gates.
 
