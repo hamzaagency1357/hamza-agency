@@ -79,10 +79,10 @@ jobs:
           ! grep -R "$prod_ref" scripts/pr101-local-*.mjs supabase/config.toml supabase/seed.sql
 
       - name: Start isolated local Supabase stack
-        run: "$SUPABASE_BIN" start
+        run: $SUPABASE_BIN start
 
       - name: Full ordered migration reset and local seed
-        run: "$SUPABASE_BIN" db reset
+        run: $SUPABASE_BIN db reset
 
       - name: Capture and mask local-only runtime values
         shell: bash
