@@ -1,0 +1,11 @@
+{
+  "name": "@hamza-agency/pr101-local-e2e-tools",
+  "private": true,
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "supabase": "2.109.1"
+  }
+}
