@@ -3,6 +3,7 @@ import "server-only";
 import { trustedRequestHostname } from "@/lib/server/tenantRuntime";
 import {
   supabaseRestAsUser,
+  supabaseServerUrl,
   verifySupabaseBearer,
   type VerifiedSupabaseUser,
 } from "@/lib/server/supabaseUser";
@@ -126,7 +127,7 @@ function membershipCode(status: unknown): TenantAuthorizationCode {
 }
 
 async function resolveExactTenantId(hostname: string): Promise<string | null | undefined> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
+  const url = supabaseServerUrl();
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return undefined;
   try {
