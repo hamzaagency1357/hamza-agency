@@ -4,7 +4,24 @@ export type VerifiedSupabaseUser = {
   id: string;
   email: string | null;
   accessToken: string;
+  sessionId: string | null;
 };
+
+function isUuid(value: unknown): value is string {
+  return typeof value === "string"
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function verifiedSessionId(accessToken: string): string | null {
+  try {
+    const parts = accessToken.split(".");
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as Record<string, unknown>;
+    return isUuid(payload.session_id) ? payload.session_id : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function verifySupabaseBearer(request: Request): Promise<VerifiedSupabaseUser | null> {
   const accessToken = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() || "";
@@ -22,7 +39,12 @@ export async function verifySupabaseBearer(request: Request): Promise<VerifiedSu
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
     const row = value as Record<string, unknown>;
     if (typeof row.id !== "string") return null;
-    return { id: row.id, email: typeof row.email === "string" ? row.email : null, accessToken };
+    return {
+      id: row.id,
+      email: typeof row.email === "string" ? row.email : null,
+      accessToken,
+      sessionId: verifiedSessionId(accessToken),
+    };
   } catch {
     return null;
   }
