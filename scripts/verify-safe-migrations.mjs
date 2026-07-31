@@ -24,7 +24,6 @@ const legacyPublicRpcNames = [
   "pr99_submit_ai_support",
 ];
 const restoredAppliedMigration = "20260729181851_pr100_final_completion.sql";
-
 const atomicMigrationRunnerFiles = new Set([
   "20260730232500_pr101_product_expansion_foundation.sql",
   "20260730233500_pr101_product_expansion_operations.sql",
@@ -32,10 +31,129 @@ const atomicMigrationRunnerFiles = new Set([
   "20260730234500_pr101_product_expansion_hardening.sql",
 ]);
 
+function dollarTagAt(sql, index) {
+  const match = sql.slice(index).match(/^\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/);
+  return match?.[0] ?? null;
+}
+
 export function stripSqlComments(sql) {
-  return sql
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/--[^\r\n]*/g, " ");
+  let output = "";
+  let index = 0;
+  let mode = "normal";
+  let blockDepth = 0;
+  let dollarTag = null;
+
+  while (index < sql.length) {
+    const current = sql[index];
+    const next = sql[index + 1] ?? "";
+
+    if (mode === "line-comment") {
+      if (current === "\n" || current === "\r") {
+        output += current;
+        mode = "normal";
+      } else {
+        output += " ";
+      }
+      index += 1;
+      continue;
+    }
+
+    if (mode === "block-comment") {
+      if (current === "/" && next === "*") {
+        output += "  ";
+        blockDepth += 1;
+        index += 2;
+        continue;
+      }
+      if (current === "*" && next === "/") {
+        output += "  ";
+        blockDepth -= 1;
+        index += 2;
+        if (blockDepth === 0) mode = "normal";
+        continue;
+      }
+      output += current === "\n" || current === "\r" ? current : " ";
+      index += 1;
+      continue;
+    }
+
+    if (mode === "single-quote") {
+      output += current;
+      if (current === "\\" && next) {
+        output += next;
+        index += 2;
+        continue;
+      }
+      if (current === "'" && next === "'") {
+        output += next;
+        index += 2;
+        continue;
+      }
+      if (current === "'") mode = "normal";
+      index += 1;
+      continue;
+    }
+
+    if (mode === "double-quote") {
+      output += current;
+      if (current === '"' && next === '"') {
+        output += next;
+        index += 2;
+        continue;
+      }
+      if (current === '"') mode = "normal";
+      index += 1;
+      continue;
+    }
+
+    if (dollarTag && sql.startsWith(dollarTag, index)) {
+      output += dollarTag;
+      index += dollarTag.length;
+      dollarTag = null;
+      continue;
+    }
+
+    if (!dollarTag && current === "$") {
+      const tag = dollarTagAt(sql, index);
+      if (tag) {
+        output += tag;
+        index += tag.length;
+        dollarTag = tag;
+        continue;
+      }
+    }
+
+    if (current === "'" ) {
+      output += current;
+      mode = "single-quote";
+      index += 1;
+      continue;
+    }
+    if (current === '"') {
+      output += current;
+      mode = "double-quote";
+      index += 1;
+      continue;
+    }
+    if (current === "-" && next === "-") {
+      output += "  ";
+      mode = "line-comment";
+      index += 2;
+      continue;
+    }
+    if (current === "/" && next === "*") {
+      output += "  ";
+      mode = "block-comment";
+      blockDepth = 1;
+      index += 2;
+      continue;
+    }
+
+    output += current;
+    index += 1;
+  }
+
+  return output;
 }
 
 export function extractPermanentDeleteFunction(sql) {
@@ -102,10 +220,10 @@ export function validateMigrationText(file, sql) {
   if (
     file !== restoredAppliedMigration &&
     !atomicMigrationRunnerFiles.has(file) &&
-    (!/\bbegin\s*;/i.test(sql) || !/\bcommit\s*;/i.test(sql))
+    (!/\bbegin\s*;/i.test(scanText) || !/\bcommit\s*;/i.test(scanText))
   ) errors.push(`${file}: migration should be transactional`);
 
-  errors.push(...validateDeploymentOrdering(file, sql));
+  errors.push(...validateDeploymentOrdering(file, scanText));
 
   const permanentFn = extractPermanentDeleteFunction(sql);
   const retentionFn = extractSecurityRetentionFunction(sql);
