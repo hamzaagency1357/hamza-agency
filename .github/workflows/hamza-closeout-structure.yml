@@ -10,6 +10,7 @@ on:
       - "scripts/closeout/**"
       - "tests/closeout-automation.test.mjs"
       - "playwright.closeout.config.mjs"
+      - "playwright.config.mjs"
       - "AGENTS.md"
       - "package.json"
       - "package-lock.json"
@@ -84,3 +85,30 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  public-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: public
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
+  translations-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: translations
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
+  security-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: security
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
