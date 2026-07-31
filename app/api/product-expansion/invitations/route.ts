@@ -9,7 +9,6 @@ import {
   type InvitationRole,
 } from "@/lib/productExpansion/invitationSecurity";
 import { authorizeTenantRequest } from "@/lib/server/tenantAuthorization";
-import { resolveTenantPrimaryOrigin } from "@/lib/server/tenantRuntime";
 import { supabaseRestAsUser } from "@/lib/server/supabaseUser";
 
 export const runtime = "nodejs";
@@ -47,8 +46,11 @@ async function authorize(request: Request) {
   if (!access.ok) {
     return { error: json(access.status, { ok: false, code: access.status === 401 ? "unauthenticated" : "request_rejected" }) } as const;
   }
-  const invitationOrigin = await resolveTenantPrimaryOrigin(access.tenantId, access.user);
-  if (!invitationOrigin) return { error: json(503, { ok: false, code: "request_unavailable" }) } as const;
+  // The authorization guard already resolved this exact hostname through the reviewed
+  // public tenant runtime RPC. Reusing that verified host avoids a second RLS query and
+  // cannot redirect an invitation to another tenant.
+  const protocol = process.env.NODE_ENV === "production" ? "https" : new URL(request.url).protocol.replace(":", "");
+  const invitationOrigin = `${protocol}://${access.hostname}`;
   return {
     user: access.user,
     tenantId: access.tenantId,
