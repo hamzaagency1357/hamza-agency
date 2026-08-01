@@ -29,6 +29,7 @@ jobs:
       CLOSEOUT_TARGET_URL: ${{ inputs.target_url }}
       CLOSEOUT_PREVIEW_HOST: ${{ inputs.preview_host }}
       CLOSEOUT_VERCEL_BYPASS_SECRET: ${{ secrets.vercel_automation_bypass_secret }}
+      CLOSEOUT_ALLOWED_EXTERNAL_HOSTS: ${{ inputs.execution_mode == 'preview-readonly' && 'fvaurkfnsvsfohpzguho.supabase.co' || '' }}
       CLOSEOUT_EXPECTED_SHA: ${{ inputs.expected_sha }}
       CLOSEOUT_ACTUAL_SHA: ${{ inputs.expected_sha }}
       CLOSEOUT_SUPABASE_URL: ${{ inputs.execution_mode == 'local-isolated' && 'http://127.0.0.1:54321' || '' }}
@@ -61,6 +62,7 @@ jobs:
         run: |
           set -euo pipefail
           case "${{ inputs.suite }}" in admin|permissions|security) stateful=true ;; *) stateful=false ;; esac
+          if [ "${{ inputs.execution_mode }}" = "preview-readonly" ]; then stateful=false; fi
           echo "CLOSEOUT_STATEFUL=$stateful" >> "$GITHUB_ENV"
           if [ "${{ inputs.execution_mode }}" = "preview-readonly" ]; then
             test -n "${CLOSEOUT_VERCEL_BYPASS_SECRET:-}" || { echo "Preview bypass secret is required." >&2; exit 1; }
