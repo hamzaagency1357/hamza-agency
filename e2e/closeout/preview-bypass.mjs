@@ -19,7 +19,7 @@ function assertExactJsonArguments(rawBody) {
   }
 }
 
-export function assertPreviewReadonlyRequest({ method, rawUrl, isNavigationRequest, expectedHost, supabaseHost, postData = "" }) {
+export function assertPreviewReadonlyRequest({ method, rawUrl, isNavigationRequest, supabaseHost, postData = "" }) {
   const url = new URL(rawUrl);
   const host = url.hostname.toLowerCase();
   if (READONLY_METHODS.has(method)) return url;
