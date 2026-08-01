@@ -1,11 +1,13 @@
 import path from "node:path";
 import { test, expect } from "@playwright/test";
 import { buildUrlGuard, parseAllowedHosts } from "../../scripts/closeout/url-guard.mjs";
+import { assertPreviewReadonlyRequest, previewRequestHeaders } from "./preview-bypass.mjs";
 
 const expectedHost = new URL(process.env.CLOSEOUT_TARGET_URL).hostname.toLowerCase();
 const shortSha = process.env.CLOSEOUT_EXPECTED_SHA.slice(0, 8);
 const allowedExternalHosts = parseAllowedHosts(process.env.CLOSEOUT_ALLOWED_EXTERNAL_HOSTS);
 const assertSafeUrl = buildUrlGuard({ expectedHost, allowedExternalHosts });
+const supabaseHost = "fvaurkfnsvsfohpzguho.supabase.co";
 
 async function installReadonlyGuards(page) {
   page.on("framenavigated", (frame) => {
@@ -15,13 +17,24 @@ async function installReadonlyGuards(page) {
     const request = route.request();
     const method = request.method();
     const url = new URL(request.url());
-    if (!["GET", "HEAD", "OPTIONS"].includes(method)) throw new Error(`Readonly closeout blocked ${method} ${url.href}`);
+    assertPreviewReadonlyRequest({
+      method,
+      rawUrl: url.href,
+      isNavigationRequest: request.isNavigationRequest(),
+      expectedHost,
+      supabaseHost,
+      postData: request.postData() || "",
+    });
     if (request.isNavigationRequest()) assertSafeUrl(url.href, "navigation request");
     if (url.hostname.toLowerCase() !== expectedHost && !allowedExternalHosts.includes(url.hostname.toLowerCase())) {
       throw new Error(`Network request reached a host outside the allowlist: ${url.href}`);
     }
-    const headers = request.headers();
-    if (url.hostname.toLowerCase() === expectedHost) headers["x-vercel-protection-bypass"] = process.env.CLOSEOUT_VERCEL_BYPASS_SECRET;
+    const headers = previewRequestHeaders({
+      headers: request.headers(),
+      host: url.hostname.toLowerCase(),
+      expectedHost,
+      bypassSecret: process.env.CLOSEOUT_VERCEL_BYPASS_SECRET,
+    });
     await route.continue({ headers });
   });
 }

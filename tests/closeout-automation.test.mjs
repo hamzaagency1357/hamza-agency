@@ -8,6 +8,7 @@ import { buildUrlGuard } from "../scripts/closeout/url-guard.mjs";
 import { sanitizeArtifactTree } from "../scripts/closeout/sanitize-artifacts.mjs";
 import { scanSafeArtifacts } from "../scripts/closeout/scan-safe-artifacts.mjs";
 import { validatePlaywrightResults } from "../scripts/closeout/validate-results.mjs";
+import { assertPreviewReadonlyRequest, previewRequestHeaders, TRANSLATION_REVISION_RPC_PATH } from "../e2e/closeout/preview-bypass.mjs";
 
 const SHA = "a".repeat(40);
 
@@ -150,4 +151,45 @@ test("Preview bypass stays masked, Header-only, exact-host, and read-only", () =
   assert.match(helper, /url\.hostname\.toLowerCase\(\) === expectedHost/);
   assert.match(helper, /headers\["x-vercel-protection-bypass"\]/);
   assert.match(helper, /Navigation left the exact Preview host/);
+});
+
+
+test("Preview permits only the exact read-only translation RPC POST and never forwards Vercel bypass to Supabase", () => {
+  const expectedHost = "preview.example.vercel.app";
+  const supabaseHost = "fvaurkfnsvsfohpzguho.supabase.co";
+  const rpcUrl = `https://${supabaseHost}${TRANSLATION_REVISION_RPC_PATH}`;
+  const approvedBody = JSON.stringify({
+    p_source_type: "program",
+    p_source_ids: ["00000000-0000-0000-0000-000000000000"],
+    p_language: "en",
+  });
+
+  assert.equal(assertPreviewReadonlyRequest({
+    method: "POST",
+    rawUrl: rpcUrl,
+    isNavigationRequest: false,
+    expectedHost,
+    supabaseHost,
+    postData: approvedBody,
+  }).pathname, TRANSLATION_REVISION_RPC_PATH);
+
+  for (const request of [
+    { method: "POST", rawUrl: `https://${supabaseHost}/rest/v1/rpc/other_rpc`, isNavigationRequest: false, postData: approvedBody },
+    { method: "POST", rawUrl: rpcUrl, isNavigationRequest: true, postData: approvedBody },
+    { method: "POST", rawUrl: rpcUrl, isNavigationRequest: false, postData: JSON.stringify({ ...JSON.parse(approvedBody), extra: true }) },
+    { method: "POST", rawUrl: `https://other.supabase.co${TRANSLATION_REVISION_RPC_PATH}`, isNavigationRequest: false, postData: approvedBody },
+    { method: "PUT", rawUrl: rpcUrl, isNavigationRequest: false, postData: approvedBody },
+  ]) {
+    assert.throws(() => assertPreviewReadonlyRequest({ ...request, expectedHost, supabaseHost }), /Readonly closeout blocked|unapproved arguments/);
+  }
+
+  const supabaseHeaders = previewRequestHeaders({
+    headers: { "x-vercel-protection-bypass": "must-not-leak", accept: "application/json" },
+    host: supabaseHost,
+    expectedHost,
+    bypassSecret: "preview-only",
+  });
+  assert.equal(supabaseHeaders["x-vercel-protection-bypass"], undefined);
+  assert.equal(supabaseHeaders.accept, "application/json");
+  assert.equal(previewRequestHeaders({ headers: {}, host: expectedHost, expectedHost, bypassSecret: "preview-only" })["x-vercel-protection-bypass"], "preview-only");
 });
