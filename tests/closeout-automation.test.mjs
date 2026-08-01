@@ -111,3 +111,17 @@ test("reusable workflow preserves failures while sanitizing and cleaning artifac
   assert.match(workflow, /name: Preserve the real suite conclusion\n\s+if: always\(\)/);
   assert.match(workflow, /test '\$\{\{ steps\.playwright\.outcome \}\}' = success/);
 });
+
+test("every registered closeout suite is implemented and aggregated", () => {
+  const registry = JSON.parse(fs.readFileSync(path.resolve("e2e/closeout/suites.json"), "utf8"));
+  const aggregator = fs.readFileSync(path.resolve(".github/workflows/hamza-agency-full-project-closeout.yml"), "utf8");
+  const reusable = fs.readFileSync(path.resolve(".github/workflows/hamza-closeout-suite.yml"), "utf8");
+  for (const [suite, entry] of Object.entries(registry)) {
+    assert.equal(entry.status, "implemented", `${suite} must fail closed until implemented`);
+    assert.ok(entry.spec, `${suite} requires an explicit spec`);
+    assert.ok(fs.existsSync(path.resolve("e2e/closeout", entry.spec)), `${suite} spec is missing`);
+    assert.match(aggregator, new RegExp(`suite: ${suite.replace("-", "\\-")}`));
+  }
+  assert.match(reusable, /PR99_E2E_MODE: \$\{\{ inputs\.execution_mode == 'local-isolated'/);
+  assert.match(reusable, /tracking\|admin\|page-builder\|backup-restore\|trash\|notifications\|permissions\|security/);
+});

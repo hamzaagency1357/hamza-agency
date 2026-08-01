@@ -59,7 +59,7 @@ jobs:
           set -euo pipefail
           test -f AGENTS.md
           test -f docs/HAMZA_AGENCY_FULL_PROJECT_CLOSEOUT.md
-          for suite in public translations admin permissions security; do test -f "e2e/closeout/$suite.spec.mjs"; done
+          for suite in public translations tracking admin page-builder backup-restore trash notifications permissions security; do test -f "e2e/closeout/$suite.spec.mjs"; done
           test ! -f e2e/closeout/readonly.spec.mjs
           closeout_workflows=(.github/workflows/hamza-closeout-suite.yml .github/workflows/hamza-closeout-dispatcher.yml .github/workflows/hamza-agency-full-project-closeout.yml)
           ! grep -n "collect_only" "${closeout_workflows[@]}"
@@ -121,5 +121,50 @@ jobs:
     with:
       execution_mode: local-isolated
       suite: security
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
+  tracking-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: tracking
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
+  page-builder-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: page-builder
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
+  backup-restore-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: backup-restore
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
+  trash-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: trash
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
+  notifications-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: notifications
       target_url: https://127.0.0.1:3443
       expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}

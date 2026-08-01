@@ -1,12 +1,12 @@
 {
   "public": { "mode": "preview-readonly", "status": "implemented", "spec": "public.spec.mjs" },
   "translations": { "mode": "preview-readonly", "status": "implemented", "spec": "translations.spec.mjs" },
-  "tracking": { "mode": "local-isolated", "status": "pending" },
+  "tracking": { "mode": "local-isolated", "status": "implemented", "spec": "tracking.spec.mjs" },
   "admin": { "mode": "local-isolated", "status": "implemented", "spec": "admin.spec.mjs" },
-  "page-builder": { "mode": "local-isolated", "status": "pending" },
-  "backup-restore": { "mode": "local-isolated", "status": "pending" },
-  "trash": { "mode": "local-isolated", "status": "pending" },
-  "notifications": { "mode": "local-isolated", "status": "pending" },
+  "page-builder": { "mode": "local-isolated", "status": "implemented", "spec": "page-builder.spec.mjs" },
+  "backup-restore": { "mode": "local-isolated", "status": "implemented", "spec": "backup-restore.spec.mjs" },
+  "trash": { "mode": "local-isolated", "status": "implemented", "spec": "trash.spec.mjs" },
+  "notifications": { "mode": "local-isolated", "status": "implemented", "spec": "notifications.spec.mjs" },
   "permissions": { "mode": "local-isolated", "status": "implemented", "spec": "permissions.spec.mjs" },
   "security": { "mode": "preview-readonly", "status": "implemented", "spec": "security.spec.mjs", "stateful_extension": "implemented" }
 }

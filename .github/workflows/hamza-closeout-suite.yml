@@ -33,6 +33,8 @@ jobs:
       CLOSEOUT_PORTAL_WORKDIR: .tmp/portal-closeout
       NEXT_PUBLIC_SITE_URL: https://127.0.0.1:3443
       SESSION_HASH_KEY: closeout-local-only-session-hash-key
+      PR99_E2E_MODE: ${{ inputs.execution_mode == 'local-isolated' && '1' || '0' }}
+      PR99_E2E_TOKEN: closeout-local-only-fixture-token-2026
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,7 +56,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "${{ inputs.suite }}" in admin|permissions|security) stateful=true ;; *) stateful=false ;; esac
+          case "${{ inputs.suite }}" in tracking|admin|page-builder|backup-restore|trash|notifications|permissions|security) stateful=true ;; *) stateful=false ;; esac
           echo "CLOSEOUT_STATEFUL=$stateful" >> "$GITHUB_ENV"
           CLOSEOUT_STATEFUL="$stateful" node scripts/closeout/environment-guard.mjs
           status="$(node -e 'const s=require("./e2e/closeout/suites.json"); const x=s[process.env.CLOSEOUT_SUITE]; if(!x) process.exit(2); process.stdout.write(x.status)')"

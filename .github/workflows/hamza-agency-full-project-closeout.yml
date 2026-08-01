@@ -99,8 +99,64 @@ jobs:
       expected_sha: ${{ inputs.expected_sha }}
       preview_host: ${{ needs.validate-preview.outputs.preview_host }}
 
+  local-tracking:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: tracking
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ inputs.expected_sha }}
+
+  local-admin:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: admin
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ inputs.expected_sha }}
+
+  local-page-builder:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: page-builder
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ inputs.expected_sha }}
+
+  local-backup-restore:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: backup-restore
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ inputs.expected_sha }}
+
+  local-trash:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: trash
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ inputs.expected_sha }}
+
+  local-notifications:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: notifications
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ inputs.expected_sha }}
+
+  local-permissions:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: local-isolated
+      suite: permissions
+      target_url: https://127.0.0.1:3443
+      expected_sha: ${{ inputs.expected_sha }}
+
   closeout-summary:
-    needs: [validate-preview, exact-head-and-existing-gates, preview-public, preview-translations, preview-security]
+    needs: [validate-preview, exact-head-and-existing-gates, preview-public, preview-translations, preview-security, local-tracking, local-admin, local-page-builder, local-backup-restore, local-trash, local-notifications, local-permissions]
     runs-on: ubuntu-latest
     steps:
       - run: |
@@ -110,6 +166,7 @@ jobs:
           - Existing Quality Gates: reused and verified on the same Head
           - Preview host: \`${{ needs.validate-preview.outputs.preview_host }}\`
           - Preview suites: public, translations, security
+          - Local isolated suites: tracking, admin, page-builder, backup-restore, trash, notifications, permissions
           - Production writes: none
           - Result: all implemented closeout gates passed
           EOF
