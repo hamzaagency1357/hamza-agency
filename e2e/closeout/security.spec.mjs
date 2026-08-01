@@ -34,10 +34,10 @@ async function portalPost(page, credentials, section, body = {}) {
 }
 
 test("signed-out admin and portal guards expose no private data", async ({ page }, testInfo) => {
-  await page.goto("/admin", { waitUntil: "networkidle" });
+  await page.goto("/admin", { waitUntil: "domcontentloaded" });
   expect(new URL(page.url()).hostname.toLowerCase()).toBe(expectedHost);
   await expect(page.locator("body")).not.toContainText(/service_role|authorization:|refresh_token|recovery code|payment_secret|mfa_secret/i);
-  await page.goto("/portal/client/orders", { waitUntil: "networkidle" });
+  await page.goto("/portal/client/orders", { waitUntil: "domcontentloaded" });
   expect(new URL(page.url()).hostname.toLowerCase()).toBe(expectedHost);
   await expect(page).toHaveURL(/\/portal\/login/);
   await expect(page.locator("body")).not.toContainText(/order_code|client_user_id|service_role|authorization:|refresh_token|recovery code/i);
@@ -60,7 +60,7 @@ if (fs.existsSync(fixturePath)) {
   test("revoking one platform session blocks that session sensitive writes", async ({ page }, testInfo) => {
     await login(page, fixture.accounts.revokeOne);
     await expect(page).toHaveURL(/\/portal\/creator/);
-    await page.goto("/portal/creator/sessions", { waitUntil: "networkidle" });
+    await page.goto("/portal/creator/sessions", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/portal\/creator\/sessions/);
     const credentials = await browserPortalCredentials(page);
     expect(credentials.accessToken).not.toBe("");
@@ -78,14 +78,14 @@ if (fs.existsSync(fixturePath)) {
   test("revoking all sessions invalidates every platform session for the user", async ({ browser, page }, testInfo) => {
     await login(page, fixture.accounts.revokeAll);
     await expect(page).toHaveURL(/\/portal\/creator/);
-    await page.goto("/portal/creator/sessions", { waitUntil: "networkidle" });
+    await page.goto("/portal/creator/sessions", { waitUntil: "domcontentloaded" });
     const first = await browserPortalCredentials(page);
 
     const secondContext = await browser.newContext({ baseURL: process.env.CLOSEOUT_TARGET_URL, ignoreHTTPSErrors: true, serviceWorkers: "block" });
     const secondPage = await secondContext.newPage();
     await login(secondPage, fixture.accounts.revokeAll);
     await expect(secondPage).toHaveURL(/\/portal\/creator/);
-    await secondPage.goto("/portal/creator/sessions", { waitUntil: "networkidle" });
+    await secondPage.goto("/portal/creator/sessions", { waitUntil: "domcontentloaded" });
     const second = await browserPortalCredentials(secondPage);
     expect(first.platformSessionId).not.toBe("");
     expect(second.platformSessionId).not.toBe("");
