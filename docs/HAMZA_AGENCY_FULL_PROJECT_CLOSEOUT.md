@@ -1,86 +1,107 @@
 # HAMZA AGENCY — Full Project Closeout Record
 
-This is the single progressive closeout record for work after the historical delivery baseline in `docs/HAMZA_AGENCY_FINAL_DELIVERY.md`.
+This is the single progressive closeout record for HAMZA AGENCY. It supersedes all earlier pending closeout language and does not create a parallel report.
 
-It records only newly closed systems, reused gates, safe artifacts, cleanup evidence, the exact Head SHA, and the remaining path to full delivery. Do not create parallel full-project recap reports.
-
-## Current status
+## Final release handoff
 
 - Repository: `hamzaagency1357/hamza-agency`
 - Pull request: `#105`
 - Branch: `feat/pr101-complete-product-expansion`
-- PR state: open, Draft, unmerged
-- Checkpoint 1B application Head: `8a42699c9c9245422f9f0370c113e89f3950deea`
-- Automation Foundation close Head: `983b0dc32df67879c45225404dfc79ed9505367d`
-- Four Portals verification fix Head: `345a8e0bd8433b82a9bf96a948dcce9ae4160480`
-- Automation Foundation: **Closed**
-- Four Portals: **Verification in progress — not closed**
-- Production post-deploy revocation: not executed
-- Project ready for final delivery: **No**
+- PR state: **Open, Draft, unmerged**
+- Automated closeout evidence Head: `cbe8ec74fe9f3b841c1f08f89b2f18415f261f52`
+- Final documentation-only Head: **the PR Head containing this record; pinned in the PR body and verified by the exact-head rerun**
+- Development and automated closeout: **Complete**
+- Ready for Owner Final QA: **Yes**
+- Fully launched: **No — pending Owner QA, merge, and post-merge verification**
+- Production post-deploy revocation: **Not executed**
+- Merge authorization: **Not granted**
 
-## Closeout manifest — Head `cec059dc08ca0d0ef76efbc1be282415c0c59359`
+The documentation-only commit that contains this record does not change runtime code. Its exact SHA cannot be embedded inside its own content; the immutable SHA is therefore pinned in the PR body and every final workflow rerun is required to report that same PR Head.
 
-This manifest prevents rebuilding existing systems merely because their final suite is not complete. The evidence level is intentionally separate from implementation status.
+## Exact-head automated evidence
 
-| System | Current classification | Existing implementation/evidence reused | Smallest remaining gap | Target evidence |
-| --- | --- | --- | --- | --- |
-| Portal authentication, security, tenant isolation | Implemented + Proven | Portal routes, tenant access gateway, bounded local Supabase contract, `admin`, `permissions`, and stateful `security` suites | None for the security boundary | Reuse exact-head local-isolated evidence |
-| Complete Creator/Client/Employee/Partner journeys | Implemented + Missing Evidence | Four role shells and module routes, profile/privacy/sessions/notifications/files runtime, portal fixtures | Finish role-module, locale, responsive, empty/error/denied journey assertions | `admin`, `permissions`, `security` |
-| Application and service tracking | Implemented + Missing Evidence | `/apply`, `/service-request`, status/track routes, public submission APIs and APP/SR migrations | Stateful submit, tracking-only lookup, privacy, rate-limit, duplicate and cleanup evidence | `tracking` |
-| Marketplace and commerce | Implemented + Missing Evidence | Categories, listings/translations, favorites, carts, orders/items, reviews, refunds and disputes schema; public marketplace and admin operations | Complete state transitions, role boundaries, idempotency and cleanup evidence; repair only failures found by those journeys | `admin`, `permissions`, `notifications`, `security` |
-| Tasks, SLA and workflows | Implemented + Missing Evidence | Task/assignment/comment/attachment/history schema, SLA policies/events, workflow definitions/runs/steps/events and admin console | Prove mutations, isolation, timing, idempotency, retry/failure handling and audit notifications | `admin`, `permissions`, `notifications`, `security` |
-| Page Builder and public rendering | Implemented + Missing Evidence | Transactional publish/version/restore RPCs, admin builder, dynamic public slug renderer | Stateful multilingual publish/restore/unpublish and public visibility cleanup evidence | `page-builder` |
-| Backup and limited restore | Implemented + Missing Evidence | Backup metadata/checksum, upload validation, dry-run, limited restore and schedule contracts | Stateful fixture backup/restore, invalid/unauthorized rejection, failure logging and cleanup evidence | `backup-restore` |
-| Trash | Implemented + Missing Evidence | Trash UI, restorable allowlist, restore and two-step permanent-delete RPC contracts | Stateful referential-integrity, deny, audit and cleanup evidence | `trash` |
-| Notifications | Implemented + Missing Evidence | Notification tables/triggers, event-key dedupe, admin and portal notification runtime | Pagination/read-all plus business, SLA, failure and permission event isolation evidence | `notifications` |
-| Public multilingual experience | Implemented + Proven | `public` and `translations` suites, translation verifier, AR/EN/TR desktop/mobile screenshots | Final exact-head Vercel Preview read-only rerun | `public`, `translations` |
-| External paid providers and electronic payment activation | External / Owner-only | Provider adapter interfaces and safe-disabled fallbacks | Owner provider selection, credentials, billing approval and launch decision; offline/manual remains the active policy | Owner Final QA |
+Automated development closeout completed successfully on Head `cbe8ec74fe9f3b841c1f08f89b2f18415f261f52`:
 
-Artifact failure handling was the first functional closeout gap found on this Head. The reusable workflow is being corrected so failed Playwright runs still produce a sanitized summary when possible, never upload raw output, always clean fixtures/runtime, and retain a failing final conclusion.
+| Workflow | Run ID | Run number | Result |
+| --- | ---: | ---: | --- |
+| HAMZA AGENCY Full Project Closeout | `30702982595` | `102` | **Success** |
+| HAMZA AGENCY Quality Gate | `30702982479` | `562` | **Success** |
+| PR99 Management Quality Gate | `30702982484` | `586` | **Success** |
+| PR101 Mobile Readiness | `30702982483` | `239` | **Success** |
+| PR101 Checkpoint 1B Local E2E | `30702982486` | `148` | **Success** |
 
-## Batch record — Checkpoint 1B invitation and membership closeout
+The final documentation-only Head must rerun and pass all exact-head gates and Full Project Closeout. Evidence from the earlier Head is not treated as final evidence for the documentation Head.
 
-### System closed
+## Systems completed
 
-Checkpoint 1B is operationally closed for:
+The implemented scope and its automated evidence are closed for:
 
-- tenant invitations;
-- exact-host tenant runtime;
-- tenant membership uniqueness;
-- RPC-only membership writes;
-- tenant-scoped platform-session revocation;
-- the explicit account-global Auth revocation boundary;
-- authenticated invitation, suspension, concurrency, and isolation contracts.
+- public multilingual experience and AR/EN/TR routing, rendering, SEO, responsive behavior, and translation integrity;
+- Creator, Client, Employee, and Partner portals;
+- tenant authentication, invitations, memberships, role changes, suspension/restoration, session controls, permissions, RLS isolation, audit, and notifications;
+- unified application and service-request tracking with tracking-only lookup, privacy, rate limits, duplicate handling, and cleanup;
+- Page Builder multilingual publish, version, restore, unpublish, and public rendering;
+- backup metadata, validation, dry run, limited restore, schedules, authorization, failure evidence, and cleanup;
+- trash restore and two-step permanent deletion with integrity and authorization checks;
+- notification pagination, mark-all-read, deduplication, business events, SLA events, failures, and permission events;
+- marketplace and commerce foundations, tasks, SLA, workflows, knowledge, support, files, sessions, and operational administration;
+- security, admin, permissions, tracking, Page Builder, backup/restore, trash, notifications, public, and translations closeout suites.
 
-### Exact-head automated evidence reused
+No new feature, suite, or product expansion is authorized after this closeout.
 
-All required workflows completed successfully on the same Head SHA `8a42699c9c9245422f9f0370c113e89f3950deea`:
+## Local isolated evidence
 
-- HAMZA AGENCY Quality Gate — run `30635805641` — success.
-- PR99 Management Quality Gate — run `30635805613` — success.
-- PR101 Checkpoint 1B Local E2E — run `30635805946` — success.
-- PR101 Mobile Readiness — run `30635807103` — success.
+All registered local-isolated suites completed on the automated closeout Head. They used synthetic run-scoped fixtures, isolated local services, authenticated role journeys where required, explicit tenant and permission boundaries, and unconditional cleanup.
 
-The Local E2E workflow used Supabase Local, synthetic fixtures, the pinned Supabase CLI, explicit Production-isolation assertions, authenticated invitation flows, tenant suspension behavior, independent concurrency requests, platform-session revocation checks, and unconditional local-stack destruction.
+Final outcome:
 
-### Production pre-application evidence
+- **Zero failures**
+- **Zero flaky tests**
+- **Zero unjustified skips**
+- **Zero assertion-free tests**
+- **Zero remaining fixtures**
 
-Before the approved migration window:
+Checkpoint 1B Local E2E also completed successfully with its local Supabase stack destroyed after execution.
 
-- Last Production migration: `20260730222015 pr101_advisor_hardening`.
-- `tenant_invitations`: absent.
-- Tenant memberships: `1`.
-- Active memberships: `1`.
-- Duplicate `(tenant_id,user_id)` pairs: `0`.
-- Pre-production backup: `BKP-20260731-150445-9A3208F0`.
-- Pre-production backup checksum: `c9d9ef82b15ca2cbb72fb3a921cf9ed1bf6f2fe0367d18c31acf3d63a7531099`.
-- Recovery dry run: validated.
-- Limited restore test: completed.
-- No Production business rows were intentionally changed by the recovery tests.
+## Preview read-only evidence
 
-### Production migrations applied
+The exact Vercel Preview was verified against the expected commit SHA before the read-only suites ran.
 
-The ten approved repository migrations were applied in the required order only:
+Completed Preview suites:
+
+- `preview-public`
+- `preview-translations`
+- `preview-security`
+
+The Preview guard remained fail-closed:
+
+- the Vercel automation bypass was sent only as `x-vercel-protection-bypass` to the exact authorized Preview host;
+- it was never sent to Supabase, `vercel.live`, Production, or another host;
+- the approved Supabase RPC read used POST only for `/rest/v1/rpc/read_published_translation_revision_fields`, with the exact allowed arguments;
+- every other POST/RPC remained blocked;
+- `https://vercel.live/_next-live/feedback/feedback.js` remained blocked and was ignored only as an intentionally blocked, non-functional Toolbar `requestfailed` event;
+- every other `vercel.live` path remained a failure;
+- no Preview suite performed a stateful write.
+
+## Safe artifacts and cleanup
+
+Artifact handling completed successfully:
+
+- raw artifacts were never uploaded;
+- safe artifacts were sanitized before upload;
+- secret scanning passed after sanitization;
+- no authorization headers, bypass values, cookies, tokens, storage state, private keys, recovery codes, HAR files, or private session material were retained;
+- screenshots and summaries were limited to the safe artifact directory;
+- cleanup ran unconditionally;
+- final fixture verification reported zero rows.
+
+Final artifact/test accounting: **zero fixtures, zero unjustified skips, zero assertion-free tests, zero failures, and zero flaky tests**.
+
+## Production baseline and migration history
+
+Production verification in this release handoff is strictly read-only. It proves only the health of the currently deployed Production version; it does **not** prove that PR #105 code is deployed before merge.
+
+Checkpoint 1B previously applied only the ten migrations explicitly approved by the owner, in order:
 
 1. `20260731024500_pr101_operational_tenant_invitations_hardened.sql`
 2. `20260731031000_pr101_invitation_crypto_search_path.sql`
@@ -93,111 +114,21 @@ The ten approved repository migrations were applied in the required order only:
 9. `20260731031400_pr101_membership_auth_session_revocation.sql`
 10. `20260731031500_pr101_membership_rpc_only_writes.sql`
 
-Production migration-history records were created sequentially from `20260731153640` through `20260731154111` UTC. No later migration was applied before the previous migration was recorded successfully.
+Post-application read-only evidence recorded one active membership, zero duplicate membership pairs, zero invitation rows, and zero pending invitations. Pre/post backup, dry-run, checksum, and limited-restore evidence was completed without intentional Production business-row changes.
 
-### Production post-application verification
+This handoff authorizes no additional Production write, migration, fixture, stateful test, billing action, trial, card, post-deploy step, or bypass-secret delivery to Production or Supabase.
 
-Read-only verification after application confirmed:
+## Owner Final QA — only remaining manual checks
 
-- `tenant_invitations` exists.
-- Tenant memberships: `1`.
-- Active memberships: `1`.
-- Duplicate `(tenant_id,user_id)` pairs: `0`.
-- Invitation rows: `0`.
-- Pending invitation rows: `0`.
-- No Checkpoint 1B fixtures remain.
+1. Visually approve the final exact-head Preview.
+2. Store primary and backup administrator MFA recovery codes outside GitHub, Vercel, Supabase, and chat; do not share the codes.
+3. Confirm ownership and control of required external accounts.
+4. Review final public/legal content and sensitive operational data.
+5. Confirm paid service and payment providers remain safely disabled.
+6. Explicitly approve moving PR #105 to Ready for Review and merging.
 
-### Post-application recovery evidence
+## Release decision
 
-- Post-production backup: `BKP-20260731-154249-DF3AAB6C`.
-- Post-production backup checksum: `6972837eef7891c672f038976318818bdb2061b594777e33f5217254ee445255`.
-- Post-production dry run: validated.
-- Post-production limited restore: completed.
-- Matching recovery checksum verified.
-- No Production business rows were intentionally changed by the recovery tests.
+**The project is ready for Owner Final QA and, after the owner completes that checklist, for explicit approval to move the PR to Ready for Review and merge.**
 
-### Cleanup result
-
-- Synthetic Local E2E fixtures: destroyed with the local stack.
-- Production invitation fixtures: `0` remaining.
-- Duplicate membership pairs: `0`.
-- Sensitive tokens, cookies, recovery codes, authorization headers, and private keys were not recorded in this report.
-
-### Real blockers remaining
-
-Checkpoint 1B itself has no known open blocker. Full project delivery remains blocked by the remaining product systems, the final exact-head closeout run, final deployment verification, and Owner Final QA.
-
-## Batch record — Automation Foundation closeout
-
-### Automation Foundation: Closed
-
-The permanent closeout foundation was closed on Head `983b0dc32df67879c45225404dfc79ed9505367d`.
-
-All required exact-head workflows completed successfully:
-
-- HAMZA AGENCY Closeout Structure — run `30656479043` — success.
-- HAMZA AGENCY Quality Gate — run `30656478882` — success.
-- PR99 Management Quality Gate — run `30656478866` — success.
-- PR101 Checkpoint 1B Local E2E — run `30656478928` — success.
-- PR101 Mobile Readiness — run `30656478892` — success.
-
-Closeout Structure completed locked dependency installation, structure contracts, closeout contract tests, Lint, Typecheck, unit and integration tests, and a successful production Build of 82 routes.
-
-The actual Playwright evidence ran against a locally built production runtime behind an isolated HTTPS proxy. It proves `local-isolated / built-runtime readonly`; it does not claim practical Vercel Preview QA or Mobile Dispatcher execution before the workflow exists on `main`.
-
-Suite results:
-
-- `public`: 8 executed, 0 skipped, 0 failed, 0 flaky, 48 assertion evidence records, 0 assertion-free tests.
-- `translations`: 6 executed, 0 skipped, 0 failed, 0 flaky, 48 assertion evidence records, 0 assertion-free tests.
-- read-only `security`: 4 executed, 0 skipped, 0 failed, 0 flaky, 26 assertion evidence records, 0 assertion-free tests.
-- Total: 18 executed, 0 unexpected skips, 0 failures, 0 flaky tests, 122 assertion evidence records, and no empty suite.
-
-Artifact verification:
-
-- Sanitization passed for all three suites.
-- Secret scan after sanitization passed for all three suites.
-- Only `artifacts/safe` was uploaded.
-- `artifacts/raw` was deleted in every job.
-- No HAR, trace, storage-state, cookie, token, or session artifact was present in the downloaded archives.
-- 14 safe screenshots were verified: 6 public, 6 translations, and 2 read-only security screenshots.
-- AR, EN, and TR screenshots exist on Desktop and Mobile.
-- Screenshot names contain the suite, locale or scenario, device, and Head prefix `983b0dc3`.
-- Main-document redirect and Host allowlist guards passed; Production and unapproved Hosts remain blocked.
-- Checkpoint 1B Local E2E cleanup succeeded and no test fixtures remain.
-
-Vercel Preview QA remains a near-launch verification because the free-plan build limit did not produce a Preview for this Head. Mobile Dispatcher verification remains pending until the reusable workflow is present on `main`; neither limitation reopens the Automation Foundation implementation itself.
-
-Remaining work toward Full Project Closeout includes the four role portals, remaining operational systems and their stateful local-isolated suites, final Preview and Production read-only verification, Owner Final QA, explicit merge approval, and explicit launch approval.
-
-## Permanent automation policy
-
-The project adopts the closeout automation as permanent shared infrastructure, not as a Checkpoint 1B-only improvement. It uses the current Playwright stack and existing Quality Gates, enforces `preview-readonly`, `local-isolated`, and `production-readonly` modes, fails closed on ambiguous environments, and never performs Production writes.
-
-Each remaining system must add its runtime, authenticated, data, cleanup, and security scenarios to the appropriate shared suite. The final workflow must aggregate evidence for one exact Head SHA instead of copying successful gates.
-
-## Owner Final QA
-
-Owner-only checks are recorded once here and executed near final delivery unless the approved object changes materially.
-
-| Item | Required action | Why it cannot be fully automated | Responsible | Required evidence | Status |
-| --- | --- | --- | --- | --- | --- |
-| MFA recovery | Enroll the primary and backup administrators and store recovery codes outside GitHub, Vercel, Supabase, and chat | Requires private physical/account custody | Owner | Owner confirmation without sharing codes | Pending |
-| External accounts | Prove ownership and approve any selected external providers | Third-party legal/account control | Owner | Provider/account approval record | Pending |
-| Store enrollment | Approve enrollment, signing, and store permissions if mobile publication is selected | Legal identity, payment, and signing custody | Owner | Enrollment/signing confirmation | Not required until publication is selected |
-| Sensitive content | Perform final human review of legal text, public content, and sensitive operational data | Requires business judgment | Owner | Signed-off checklist | Pending |
-| Merge approval | Explicitly approve merging PR #105 | Repository release authority | Owner | Written approval | Pending |
-| Launch approval | Explicitly approve Production launch after final gates | Business release authority | Owner | Written approval | Pending |
-| Guarded post-deploy | Separately approve the PR #100 legacy RPC revocation after replacement routes pass | Irreversible security release step | Owner | Written post-merge approval | Pending |
-
-## Full Project Closeout decision rule
-
-Set `Project ready for final delivery` to **Yes** only when all of the following are true on one pinned final Head:
-
-- HAMZA AGENCY Full Project Closeout succeeds without failures.
-- No unjustified skips or assertion-free tests exist.
-- No fixtures remain.
-- No secrets or sensitive session material exist in artifacts or logs.
-- Production verification is read-only.
-- Owner Final QA is complete.
-- No planned development phase, known defect, or deferred requirement remains.
-- Merge and launch approval are documented.
+It is not fully launched. PR #105 must remain Draft and unmerged until separate explicit owner approval. Post-merge verification, guarded post-deploy activity, Production writes, migrations, and launch remain separately unauthorized.
