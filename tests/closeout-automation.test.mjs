@@ -125,3 +125,13 @@ test("every registered closeout suite is implemented and aggregated", () => {
   assert.match(reusable, /PR99_E2E_MODE: \$\{\{ inputs\.execution_mode == 'local-isolated'/);
   assert.match(reusable, /case "\$\{\{ inputs\.suite \}\}" in admin\|permissions\|security\) stateful=true/);
 });
+
+test("automatic closeout waits for an exact-head Preview before readonly evidence", () => {
+  const workflow = fs.readFileSync(path.resolve(".github/workflows/hamza-closeout-structure.yml"), "utf8");
+  const health = fs.readFileSync(path.resolve("app/api/health/route.ts"), "utf8");
+  assert.match(workflow, /^name: HAMZA AGENCY Full Project Closeout/m);
+  assert.match(workflow, /actual=.*api\/health/);
+  assert.match(workflow, /if \[ "\$actual" = "\$EXPECTED_SHA" \]/);
+  for (const suite of ["public", "translations", "security"]) assert.match(workflow, new RegExp(`suite: ${suite}`));
+  assert.match(health, /commitSha: process\.env\.VERCEL_GIT_COMMIT_SHA/);
+});

@@ -1,4 +1,4 @@
-name: HAMZA AGENCY Closeout Structure
+name: HAMZA AGENCY Full Project Closeout
 
 on:
   pull_request:
@@ -8,6 +8,7 @@ on:
       - ".github/workflows/hamza-agency-full-project-closeout.yml"
       - "app/api/product-expansion/portal/**"
       - "app/api/product-expansion/sessions/**"
+      - "app/api/health/route.ts"
       - "app/portal/**"
       - "components/portals/**"
       - "lib/productExpansion/portal*"
@@ -78,6 +79,60 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+
+  exact-preview:
+    needs: validate
+    runs-on: ubuntu-latest
+    outputs:
+      preview_url: ${{ steps.preview.outputs.preview_url }}
+    steps:
+      - id: preview
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PREVIEW_URL: https://hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in {1..90}; do
+            actual="$(curl -fsS "$PREVIEW_URL/api/health" | node -e 'let x="";process.stdin.on("data",d=>x+=d).on("end",()=>{try{process.stdout.write(JSON.parse(x).commitSha||"")}catch{}})')" || true
+            if [ "$actual" = "$EXPECTED_SHA" ]; then
+              echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Exact-head Preview was not ready within 15 minutes." >&2
+          exit 1
+
+  preview-public-evidence:
+    needs: exact-preview
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: preview-readonly
+      suite: public
+      target_url: ${{ needs.exact-preview.outputs.preview_url }}
+      preview_host: hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app
+      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
+  preview-translations-evidence:
+    needs: exact-preview
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: preview-readonly
+      suite: translations
+      target_url: ${{ needs.exact-preview.outputs.preview_url }}
+      preview_host: hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app
+      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
+  preview-security-evidence:
+    needs: exact-preview
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: preview-readonly
+      suite: security
+      target_url: ${{ needs.exact-preview.outputs.preview_url }}
+      preview_host: hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app
+      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
 
   public-evidence:
     needs: validate
