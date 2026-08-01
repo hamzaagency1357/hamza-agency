@@ -1,17 +1,18 @@
 import { test, expect } from "@playwright/test";
-import { annotate, evidence, openFixture, resetFixture } from "./pr99-fixture.mjs";
+import { action, annotate, cleanupFixture, evidence, initializeFixture } from "./pr99-fixture.mjs";
 
-test("application and service submissions are isolated, deduplicated, and cleaned", async ({ page }, testInfo) => {
-  await openFixture(page);
-  await page.getByTestId("application").click();
-  await page.getByTestId("service").click();
-  await expect(page.getByTestId("state")).toContainText("application");
-  await expect(page.getByTestId("state")).toContainText("service_request");
-  await page.getByTestId("duplicate").click();
-  await expect(page.getByTestId("error")).toHaveText("duplicate");
+test("application and service submissions are isolated, deduplicated, and cleaned", async ({ page, request }, testInfo) => {
+  await initializeFixture(request);
+  expect((await action(request, "submit", { kind: "application", key: "application-1" })).response.ok()).toBe(true);
+  const service = await action(request, "submit", { kind: "service_request", key: "service-1" });
+  expect(service.body.state.submissions).toEqual(["application", "service_request"]);
+  const duplicate = await action(request, "submit", { kind: "application", key: "application-1" });
+  expect(duplicate.response.status()).toBe(429);
+  expect(duplicate.body.code).toBe("duplicate");
+  await page.goto("/pr99-e2e", { waitUntil: "domcontentloaded" });
   await expect(page.locator("body")).not.toContainText(/whatsapp|authorization:|service_role/i);
   await page.screenshot({ path: evidence(testInfo, "tracking", "submit-dedupe"), fullPage: true, animations: "disabled" });
-  await resetFixture(page);
+  await cleanupFixture(request);
   await annotate(testInfo, 7);
 });
 

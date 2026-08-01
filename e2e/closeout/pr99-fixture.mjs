@@ -12,6 +12,29 @@ export async function openFixture(page) {
   await expect(page.getByTestId("state")).toContainText("admin_login");
 }
 
+export async function action(request, actionName, extra = {}) {
+  const response = await request.post("/api/pr99-e2e", {
+    headers: { "x-pr99-e2e-token": token },
+    data: { action: actionName, ...extra },
+  });
+  return { response, body: await response.json() };
+}
+
+export async function initializeFixture(request) {
+  expect(token.length).toBeGreaterThanOrEqual(32);
+  expect((await action(request, "reset")).response.ok()).toBe(true);
+  const loginResult = await action(request, "login");
+  expect(loginResult.response.ok()).toBe(true);
+  expect(loginResult.body.state.activity).toContain("admin_login");
+  return loginResult.body.state;
+}
+
+export async function cleanupFixture(request) {
+  const result = await action(request, "reset");
+  expect(result.response.ok()).toBe(true);
+  expect(result.body.state.authenticated).toBe(false);
+}
+
 export async function resetFixture(page) {
   await page.getByTestId("reset").click();
   await expect(page.getByTestId("state")).toContainText('"authenticated": false');
