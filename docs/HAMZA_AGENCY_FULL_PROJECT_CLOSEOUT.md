@@ -1,4 +1,4 @@
-# HAMZA AGENCY — Full Project Closeout Record
+# HAMZA AGENCY — Full Project Closeout Record and Macro Gap Audit
 
 This is the single progressive closeout record for HAMZA AGENCY. It supersedes all earlier pending closeout language and does not create a parallel report.
 
@@ -10,8 +10,8 @@ This is the single progressive closeout record for HAMZA AGENCY. It supersedes a
 - PR state: **Open, Draft, unmerged**
 - Automated closeout evidence Head: `cbe8ec74fe9f3b841c1f08f89b2f18415f261f52`
 - Final documentation-only Head: **the PR Head containing this record; pinned in the PR body and verified by the exact-head rerun**
-- Development and automated closeout: **Complete**
-- Ready for Owner Final QA: **Yes**
+- Development and automated closeout: **Reopened — configured evidence was narrower than the approved macro**
+- Ready for Owner Final QA: **No**
 - Fully launched: **No — pending Owner QA, merge, and post-merge verification**
 - Production post-deploy revocation: **Not executed**
 - Merge authorization: **Not granted**
@@ -32,7 +32,36 @@ Automated development closeout completed successfully on Head `cbe8ec74fe9f3b841
 
 The final documentation-only Head must rerun and pass all exact-head gates and Full Project Closeout. Evidence from the earlier Head is not treated as final evidence for the documentation Head.
 
-## Systems completed
+## Macro gap audit — current truth
+
+`HAMZA_AGENCY_ACCELERATED_FULL_PROJECT_CLOSEOUT_MACRO.md` is not present in this branch. The audit therefore maps the approved scope stated by the owner and the repository plans/inventory to executable code and evidence. Absence of the source macro is itself a traceability gap and no item is inferred closed merely from prose.
+
+| Macro system | Runtime implementation | Accepted functional evidence | Current decision |
+| --- | --- | --- | --- |
+| Public AR/EN/TR | Real public routes and published translation readers | Preview read-only suites | Closed for automation |
+| Invitations, memberships, sessions, permissions | Real APIs/RPCs/RLS | Checkpoint 1B local Supabase and portal permission suites | Closed for automation |
+| Commerce — Favorites and Cart | Tables/RLS exist; UI only ordered one listing directly | No independent suite on the audited Head | Open |
+| Commerce — Orders lifecycle | Create-order RPC exists; complete guarded lifecycle interface was absent | No independent suite | Open |
+| Commerce — Reviews, Refunds, Disputes | Tables and partial RLS exist; end-to-end lifecycle was absent | No independent suite | Open |
+| Commerce permissions, notifications and audit | Partial policies/events exist | No cross-role lifecycle evidence | Open |
+| Actual tenant administration | Real `/admin/*` pages exist | `admin.spec.mjs` tested Creator profile and Client privacy, not administration | Open |
+| Tasks, SLA and Workflows | Tables, portal reads and partial operations console exist | No independently registered Aggregator suites | Open |
+| Tracking | Real public APIs exist | Closeout suite mutates `/api/pr99-e2e` in-memory state | Evidence rejected; open |
+| Page Builder | Real UI/RPCs/tables exist | Closeout suite mutates `/api/pr99-e2e` and renders fixture-only pages | Evidence rejected; open |
+| Backup/Restore | Real UI/RPCs/tables exist | Closeout suite uses in-memory fixture state | Evidence rejected; open |
+| Trash | Real UI/RPCs/tables exist | Closeout suite uses in-memory fixture state | Evidence rejected; open |
+| Notifications | Real UI/tables/triggers exist | Closeout suite uses in-memory counters | Evidence rejected; open |
+| Aggregator completeness | Existing registered suites run | Commerce and Tasks/SLA/Workflows were absent | Open until required jobs are enforced |
+
+`/api/pr99-e2e`, `lib/pr99E2EFixture`, and fixture-only pages are not accepted as functional closeout evidence for any system.
+
+### Local reproducibility blocker
+
+The repository migration chain is not a reconstructible database baseline: its earliest tracked migrations alter pre-existing core tables such as `admin_users`, `pages`, `sections`, `backups`, `trash_items`, `notifications`, `agency_applications`, and `service_requests`, but the repository does not contain the migrations that originally create those tables. Consequently a fresh local Supabase `db reset` cannot instantiate the real PR99 systems from repository history alone. The bounded portal contract can prove portal/tenant contracts, but extending it by hand and calling it the real Page Builder/Backup/Trash/Tracking schema would merely replace one synthetic proof with another.
+
+Required resolution: obtain a **schema-only, data-free, read-only Production schema baseline** (or an equivalent authoritative schema snapshot supplied by the owner), sanitize and commit it as a local baseline, then run the real migrations and Local-isolated journeys against that baseline. This requires separate owner authorization and an authenticated schema-read path; it does not require or authorize any Production write.
+
+## Systems previously reported complete
 
 The implemented scope and its automated evidence are closed for:
 
@@ -44,7 +73,7 @@ The implemented scope and its automated evidence are closed for:
 - backup metadata, validation, dry run, limited restore, schedules, authorization, failure evidence, and cleanup;
 - trash restore and two-step permanent deletion with integrity and authorization checks;
 - notification pagination, mark-all-read, deduplication, business events, SLA events, failures, and permission events;
-- marketplace and commerce foundations, tasks, SLA, workflows, knowledge, support, files, sessions, and operational administration;
+- marketplace/commerce foundations, tasks, SLA, workflows, knowledge, support, files, sessions, and operational administration; **foundations are not full functional closeout**;
 - security, admin, permissions, tracking, Page Builder, backup/restore, trash, notifications, public, and translations closeout suites.
 
 No new feature, suite, or product expansion is authorized after this closeout.
@@ -129,6 +158,6 @@ This handoff authorizes no additional Production write, migration, fixture, stat
 
 ## Release decision
 
-**The project is ready for Owner Final QA and, after the owner completes that checklist, for explicit approval to move the PR to Ready for Review and merge.**
+**Ready for Owner Final QA: No. The previous successful Full Project Closeout is retained as evidence for the suites it actually ran, but it is not accepted as proof of the complete macro.**
 
 It is not fully launched. PR #105 must remain Draft and unmerged until separate explicit owner approval. Post-merge verification, guarded post-deploy activity, Production writes, migrations, and launch remain separately unauthorized.
