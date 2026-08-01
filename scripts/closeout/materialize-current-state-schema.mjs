@@ -20,9 +20,14 @@ function fail(message) {
 }
 
 if (!databaseUrl) fail('CURRENT_STATE_SCHEMA_DATABASE_URL is required and must point to an isolated local PostgreSQL database');
-if (!/^postgres(?:ql)?:\/\/(?:postgres@)?(?:127\.0\.0\.1|localhost)(?::\d+)?\//i.test(databaseUrl)) {
-  fail('refusing non-local PostgreSQL connection');
+let parsedDatabaseUrl;
+try {
+  parsedDatabaseUrl = new URL(databaseUrl);
+} catch {
+  fail('CURRENT_STATE_SCHEMA_DATABASE_URL is not a valid URL');
 }
+if (!['postgres:', 'postgresql:'].includes(parsedDatabaseUrl.protocol)) fail('refusing non-PostgreSQL connection');
+if (!['127.0.0.1', 'localhost', '::1'].includes(parsedDatabaseUrl.hostname)) fail('refusing non-local PostgreSQL connection');
 
 const partFiles = (await readdir(partsRoot)).filter((name) => /^part-\d{2}\.b64$/.test(name)).sort();
 if (partFiles.length !== manifest.transport.partCount) {
