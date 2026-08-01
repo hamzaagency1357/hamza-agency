@@ -8,7 +8,7 @@ export function portalFixture() {
   return JSON.parse(fs.readFileSync(fixturePath, "utf8"));
 }
 export async function login(page, account) {
-  await page.goto("/portal/login", { waitUntil: "networkidle" });
+  await page.goto("/portal/login", { waitUntil: "domcontentloaded" });
   await page.locator("#email").fill(account.email);
   await page.locator("#password").fill(account.password);
   await page.getByRole("button", { name: /دخول|Sign in|Giriş yap/ }).click();
