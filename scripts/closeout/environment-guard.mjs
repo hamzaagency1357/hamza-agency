@@ -62,6 +62,7 @@ export function assertCloseoutEnvironment(input = process.env) {
   if (writeSuite && mode !== "local-isolated") fail(`stateful suite ${suite} requires local-isolated mode`);
 
   if (mode === "preview-readonly") {
+    if (!input.CLOSEOUT_VERCEL_BYPASS_SECRET) fail("preview-readonly requires the automation bypass secret");
     if (base.protocol !== "https:") fail("preview-readonly requires HTTPS");
     if (isProdHost) fail("preview-readonly cannot target a Production host");
     if (input.CLOSEOUT_PREVIEW_HOST && input.CLOSEOUT_PREVIEW_HOST.toLowerCase() !== targetHost) {

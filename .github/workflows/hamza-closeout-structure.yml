@@ -90,11 +90,17 @@ jobs:
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           PREVIEW_URL: https://hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         shell: bash
         run: |
           set -euo pipefail
+          bypass_secret="${VERCEL_AUTOMATION_BYPASS_SECRET:-}"
+          test -n "$bypass_secret" || { echo "VERCEL_AUTOMATION_BYPASS_SECRET is required for Preview QA." >&2; exit 1; }
+          echo "::add-mask::$bypass_secret"
+          preview_host="$(node -e 'process.stdout.write(new URL(process.argv[1]).hostname)' "$PREVIEW_URL")"
+          test "$preview_host" = "hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app"
           for attempt in {1..90}; do
-            actual="$(curl -fsS "$PREVIEW_URL/api/health" | node -e 'let x="";process.stdin.on("data",d=>x+=d).on("end",()=>{try{process.stdout.write(JSON.parse(x).commitSha||"")}catch{}})')" || true
+            actual="$(curl -fsS -H "x-vercel-protection-bypass: $bypass_secret" "$PREVIEW_URL/api/health" | node -e 'let x="";process.stdin.on("data",d=>x+=d).on("end",()=>{try{process.stdout.write(JSON.parse(x).commitSha||"")}catch{}})')" || true
             if [ "$actual" = "$EXPECTED_SHA" ]; then
               echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
               exit 0
@@ -113,6 +119,8 @@ jobs:
       target_url: ${{ needs.exact-preview.outputs.preview_url }}
       preview_host: hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app
       expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+    secrets:
+      vercel_automation_bypass_secret: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
 
   preview-translations-evidence:
     needs: exact-preview
@@ -123,6 +131,8 @@ jobs:
       target_url: ${{ needs.exact-preview.outputs.preview_url }}
       preview_host: hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app
       expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+    secrets:
+      vercel_automation_bypass_secret: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
 
   preview-security-evidence:
     needs: exact-preview
@@ -133,6 +143,8 @@ jobs:
       target_url: ${{ needs.exact-preview.outputs.preview_url }}
       preview_host: hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app
       expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+    secrets:
+      vercel_automation_bypass_secret: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
 
   public-evidence:
     needs: validate

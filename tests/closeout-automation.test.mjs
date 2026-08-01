@@ -23,6 +23,7 @@ function baseEnv(overrides = {}) {
     CLOSEOUT_PREVIEW_HOST: "preview.example.vercel.app",
     CLOSEOUT_EXPECTED_SHA: SHA,
     CLOSEOUT_ACTUAL_SHA: SHA,
+    CLOSEOUT_VERCEL_BYPASS_SECRET: "test-only-bypass",
     ...overrides,
   };
 }
@@ -35,6 +36,7 @@ test("preview environment requires HTTPS and exact host", () => {
   assert.equal(assertCloseoutEnvironment(baseEnv()).targetHost, "preview.example.vercel.app");
   assert.throws(() => assertCloseoutEnvironment(baseEnv({ CLOSEOUT_TARGET_URL: "http://preview.example.vercel.app" })), /requires HTTPS/);
   assert.throws(() => assertCloseoutEnvironment(baseEnv({ CLOSEOUT_PREVIEW_HOST: "other.vercel.app" })), /preview host mismatch/);
+  assert.throws(() => assertCloseoutEnvironment(baseEnv({ CLOSEOUT_VERCEL_BYPASS_SECRET: "" })), /requires the automation bypass secret/);
 });
 
 test("stateful suites fail closed outside local-isolated", () => {
@@ -134,4 +136,18 @@ test("automatic closeout waits for an exact-head Preview before readonly evidenc
   assert.match(workflow, /if \[ "\$actual" = "\$EXPECTED_SHA" \]/);
   for (const suite of ["public", "translations", "security"]) assert.match(workflow, new RegExp(`suite: ${suite}`));
   assert.match(health, /commitSha: process\.env\.VERCEL_GIT_COMMIT_SHA/);
+});
+
+test("Preview bypass stays masked, Header-only, exact-host, and read-only", () => {
+  const structure = fs.readFileSync(path.resolve(".github/workflows/hamza-closeout-structure.yml"), "utf8");
+  const reusable = fs.readFileSync(path.resolve(".github/workflows/hamza-closeout-suite.yml"), "utf8");
+  const helper = fs.readFileSync(path.resolve("e2e/closeout/preview-bypass.mjs"), "utf8");
+  assert.match(structure, /VERCEL_AUTOMATION_BYPASS_SECRET: \$\{\{ secrets\.VERCEL_AUTOMATION_BYPASS_SECRET \}\}/);
+  assert.match(structure, /x-vercel-protection-bypass: \$bypass_secret/);
+  assert.doesNotMatch(structure, /[?&](?:x-vercel-protection-bypass|VERCEL_AUTOMATION_BYPASS_SECRET)=/i);
+  assert.match(structure, /echo "::add-mask::\$bypass_secret"/);
+  assert.match(reusable, /Preview bypass secret is required/);
+  assert.match(helper, /url\.hostname\.toLowerCase\(\) === expectedHost/);
+  assert.match(helper, /headers\["x-vercel-protection-bypass"\]/);
+  assert.match(helper, /Navigation left the exact Preview host/);
 });

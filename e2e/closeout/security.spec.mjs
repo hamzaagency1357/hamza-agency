@@ -2,10 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { test, expect } from "@playwright/test";
 import { browserPortalCredentials, login, portalFixture } from "./portal-fixture.mjs";
+import { installPreviewBypass, previewBypassHeaders } from "./preview-bypass.mjs";
 
 const expectedHost = new URL(process.env.CLOSEOUT_TARGET_URL).hostname.toLowerCase();
 const shortSha = process.env.CLOSEOUT_EXPECTED_SHA.slice(0, 8);
 const fixturePath = process.env.CLOSEOUT_PORTAL_FIXTURE_FILE || "/tmp/hamza-portal-fixtures.json";
+
+test.beforeEach(async ({ page }) => installPreviewBypass(page, expectedHost));
 
 function recordAssertions(testInfo, count) { testInfo.annotations.push({ type: "closeout-assertions", description: String(count) }); }
 function screenshotName(name, projectName) {
@@ -50,7 +53,7 @@ test("signed-out admin and portal guards expose no private data", async ({ page 
 });
 
 test("service worker excludes private surfaces", async ({ request }, testInfo) => {
-  const response = await request.get("/sw.js");
+  const response = await request.get("/sw.js", { headers: previewBypassHeaders(expectedHost, "/sw.js") });
   expect(response.ok()).toBeTruthy();
   const source = await response.text();
   for (const route of ["/admin", "/portal", "/api", "/auth", "/application-status", "/service-status"]) expect(source).toContain(route);

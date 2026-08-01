@@ -8,6 +8,9 @@ on:
       target_url: { required: true, type: string }
       expected_sha: { required: true, type: string }
       preview_host: { required: false, type: string, default: "" }
+    secrets:
+      vercel_automation_bypass_secret:
+        required: false
 
 permissions:
   contents: read
@@ -25,6 +28,7 @@ jobs:
       CLOSEOUT_SUITE: ${{ inputs.suite }}
       CLOSEOUT_TARGET_URL: ${{ inputs.target_url }}
       CLOSEOUT_PREVIEW_HOST: ${{ inputs.preview_host }}
+      CLOSEOUT_VERCEL_BYPASS_SECRET: ${{ secrets.vercel_automation_bypass_secret }}
       CLOSEOUT_EXPECTED_SHA: ${{ inputs.expected_sha }}
       CLOSEOUT_ACTUAL_SHA: ${{ inputs.expected_sha }}
       CLOSEOUT_SUPABASE_URL: ${{ inputs.execution_mode == 'local-isolated' && 'http://127.0.0.1:54321' || '' }}
@@ -58,6 +62,10 @@ jobs:
           set -euo pipefail
           case "${{ inputs.suite }}" in admin|permissions|security) stateful=true ;; *) stateful=false ;; esac
           echo "CLOSEOUT_STATEFUL=$stateful" >> "$GITHUB_ENV"
+          if [ "${{ inputs.execution_mode }}" = "preview-readonly" ]; then
+            test -n "${CLOSEOUT_VERCEL_BYPASS_SECRET:-}" || { echo "Preview bypass secret is required." >&2; exit 1; }
+            echo "::add-mask::$CLOSEOUT_VERCEL_BYPASS_SECRET"
+          fi
           CLOSEOUT_STATEFUL="$stateful" node scripts/closeout/environment-guard.mjs
           status="$(node -e 'const s=require("./e2e/closeout/suites.json"); const x=s[process.env.CLOSEOUT_SUITE]; if(!x) process.exit(2); process.stdout.write(x.status)')"
           test "$status" = "implemented" || { echo "Suite '${{ inputs.suite }}' is registered but not implemented; failing closed." >&2; exit 1; }

@@ -20,7 +20,9 @@ async function installReadonlyGuards(page) {
     if (url.hostname.toLowerCase() !== expectedHost && !allowedExternalHosts.includes(url.hostname.toLowerCase())) {
       throw new Error(`Network request reached a host outside the allowlist: ${url.href}`);
     }
-    await route.continue();
+    const headers = request.headers();
+    if (url.hostname.toLowerCase() === expectedHost) headers["x-vercel-protection-bypass"] = process.env.CLOSEOUT_VERCEL_BYPASS_SECRET;
+    await route.continue({ headers });
   });
 }
 
