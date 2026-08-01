@@ -4,6 +4,10 @@ import { annotate, browserPortalCredentials, evidence, login, portalFixture } fr
 
 const fixture = portalFixture();
 const portalAlert = (page) => page.locator("form p[role='alert']");
+async function waitForPlatformSession(page) {
+  await expect.poll(async () => (await browserPortalCredentials(page)).platformSessionId, { timeout: 10000 }).not.toBe("");
+  return browserPortalCredentials(page);
+}
 for (const role of ["creator", "client", "employee", "partner"]) {
   test(`${role} reaches only the matching portal`, async ({ page }, testInfo) => {
     await login(page, fixture.accounts[role]);
@@ -65,9 +69,8 @@ test("user ownership hides foreign alerts and IDOR write fails closed", async ({
   await expect(page).toHaveURL(/\/portal\/client\/sessions/);
   await expect(page.locator("body")).toContainText("client_owned");
   await expect(page.locator("body")).not.toContainText("employee_private");
-  const credentials = await browserPortalCredentials(page);
+  const credentials = await waitForPlatformSession(page);
   expect(credentials.accessToken).not.toBe("");
-  expect(credentials.platformSessionId).not.toBe("");
   const result = await page.evaluate(async ({ accessToken, platformSessionId, alertId }) => {
     const response = await fetch("/api/product-expansion/portal?role=client&section=alert", {
       method: "PATCH",
