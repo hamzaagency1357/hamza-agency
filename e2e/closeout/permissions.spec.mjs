@@ -8,7 +8,7 @@ for (const role of ["creator", "client", "employee", "partner"]) {
   test(`${role} reaches only the matching portal`, async ({ page }, testInfo) => {
     await login(page, fixture.accounts[role]);
     await expect(page).toHaveURL(new RegExp(`/portal/${role}(?:$|/)`));
-    await page.goto(`/portal/${role === "creator" ? "client" : "creator"}`, { waitUntil: "networkidle" });
+    await page.goto(`/portal/${role === "creator" ? "client" : "creator"}`, { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(new RegExp(`/portal/${role}(?:$|/)`));
     await expect(page.locator("body")).not.toContainText(/service_role|refresh_token|authorization:/i);
     await page.screenshot({ path: evidence(testInfo, "permissions", role), fullPage: true, animations: "disabled" });
@@ -61,7 +61,7 @@ test("tenant A membership cannot authorize against tenant B host", async ({ page
 test("user ownership hides foreign alerts and IDOR write fails closed", async ({ page }, testInfo) => {
   await login(page, fixture.accounts.client);
   await expect(page).toHaveURL(/\/portal\/client/);
-  await page.goto("/portal/client/sessions", { waitUntil: "networkidle" });
+  await page.goto("/portal/client/sessions", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/portal\/client\/sessions/);
   await expect(page.locator("body")).toContainText("client_owned");
   await expect(page.locator("body")).not.toContainText("employee_private");
