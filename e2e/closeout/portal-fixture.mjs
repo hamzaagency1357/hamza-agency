@@ -9,8 +9,12 @@ export function portalFixture() {
 }
 export async function login(page, account) {
   await page.goto("/portal/login", { waitUntil: "domcontentloaded" });
-  await page.locator("#email").fill(account.email);
-  await page.locator("#password").fill(account.password);
+  const email = page.locator("#email");
+  const password = page.locator("#password");
+  await expect(email).toBeVisible();
+  await expect(password).toBeVisible();
+  await email.fill(account.email);
+  await password.fill(account.password);
   await page.getByRole("button", { name: /دخول|Sign in|Giriş yap/ }).click();
   await page.waitForFunction(() => {
     const visibleAlert = Boolean(document.querySelector("form p[role='alert']"));
