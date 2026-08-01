@@ -148,14 +148,40 @@ jobs:
       - name: Install pinned Chromium
         run: npx --no-install playwright install --with-deps chromium
       - name: Run selected Playwright suite
+        id: playwright
+        continue-on-error: true
         run: npx --no-install playwright test --config=playwright.closeout.config.mjs
       - name: Validate executed suite results
+        id: validate
+        if: always()
+        continue-on-error: true
         run: node scripts/closeout/validate-results.mjs artifacts/raw/results.json "${{ inputs.suite }}"
+      - name: Generate safe failure summary source
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/raw
+          cat > artifacts/raw/failure-summary.md <<EOF
+          # Closeout suite result
+          - Suite: \`${{ inputs.suite }}\`
+          - Execution mode: \`${{ inputs.execution_mode }}\`
+          - Expected Head: \`${{ inputs.expected_sha }}\`
+          - Playwright outcome: \`${{ steps.playwright.outcome }}\`
+          - Result validation outcome: \`${{ steps.validate.outcome }}\`
+          EOF
       - name: Sanitize reports into isolated safe directory
+        id: sanitize
+        if: always()
+        continue-on-error: true
         run: node scripts/closeout/sanitize-artifacts.mjs artifacts/raw artifacts/safe/reports
       - name: Scan sanitized artifacts for secrets
+        id: secret_scan
+        if: always() && steps.sanitize.outcome == 'success'
+        continue-on-error: true
         run: node scripts/closeout/scan-safe-artifacts.mjs artifacts/safe
       - name: Upload safe reports only
+        if: always() && steps.sanitize.outcome == 'success' && steps.secret_scan.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: closeout-${{ inputs.execution_mode }}-${{ inputs.suite }}-${{ inputs.expected_sha }}
@@ -178,3 +204,12 @@ jobs:
           test ! -e artifacts/raw
           test ! -e "$CLOSEOUT_PORTAL_FIXTURE_FILE"
           test ! -e "$CLOSEOUT_PORTAL_WORKDIR"
+      - name: Preserve the real suite conclusion
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ steps.playwright.outcome }}' = success
+          test '${{ steps.validate.outcome }}' = success
+          test '${{ steps.sanitize.outcome }}' = success
+          test '${{ steps.secret_scan.outcome }}' = success

@@ -18,6 +18,26 @@ It records only newly closed systems, reused gates, safe artifacts, cleanup evid
 - Production post-deploy revocation: not executed
 - Project ready for final delivery: **No**
 
+## Closeout manifest — Head `cec059dc08ca0d0ef76efbc1be282415c0c59359`
+
+This manifest prevents rebuilding existing systems merely because their final suite is not complete. The evidence level is intentionally separate from implementation status.
+
+| System | Current classification | Existing implementation/evidence reused | Smallest remaining gap | Target evidence |
+| --- | --- | --- | --- | --- |
+| Portal authentication, security, tenant isolation | Implemented + Proven | Portal routes, tenant access gateway, bounded local Supabase contract, `admin`, `permissions`, and stateful `security` suites | None for the security boundary | Reuse exact-head local-isolated evidence |
+| Complete Creator/Client/Employee/Partner journeys | Implemented + Missing Evidence | Four role shells and module routes, profile/privacy/sessions/notifications/files runtime, portal fixtures | Finish role-module, locale, responsive, empty/error/denied journey assertions | `admin`, `permissions`, `security` |
+| Application and service tracking | Implemented + Missing Evidence | `/apply`, `/service-request`, status/track routes, public submission APIs and APP/SR migrations | Stateful submit, tracking-only lookup, privacy, rate-limit, duplicate and cleanup evidence | `tracking` |
+| Marketplace and commerce | Implemented + Missing Evidence | Categories, listings/translations, favorites, carts, orders/items, reviews, refunds and disputes schema; public marketplace and admin operations | Complete state transitions, role boundaries, idempotency and cleanup evidence; repair only failures found by those journeys | `admin`, `permissions`, `notifications`, `security` |
+| Tasks, SLA and workflows | Implemented + Missing Evidence | Task/assignment/comment/attachment/history schema, SLA policies/events, workflow definitions/runs/steps/events and admin console | Prove mutations, isolation, timing, idempotency, retry/failure handling and audit notifications | `admin`, `permissions`, `notifications`, `security` |
+| Page Builder and public rendering | Implemented + Missing Evidence | Transactional publish/version/restore RPCs, admin builder, dynamic public slug renderer | Stateful multilingual publish/restore/unpublish and public visibility cleanup evidence | `page-builder` |
+| Backup and limited restore | Implemented + Missing Evidence | Backup metadata/checksum, upload validation, dry-run, limited restore and schedule contracts | Stateful fixture backup/restore, invalid/unauthorized rejection, failure logging and cleanup evidence | `backup-restore` |
+| Trash | Implemented + Missing Evidence | Trash UI, restorable allowlist, restore and two-step permanent-delete RPC contracts | Stateful referential-integrity, deny, audit and cleanup evidence | `trash` |
+| Notifications | Implemented + Missing Evidence | Notification tables/triggers, event-key dedupe, admin and portal notification runtime | Pagination/read-all plus business, SLA, failure and permission event isolation evidence | `notifications` |
+| Public multilingual experience | Implemented + Proven | `public` and `translations` suites, translation verifier, AR/EN/TR desktop/mobile screenshots | Final exact-head Vercel Preview read-only rerun | `public`, `translations` |
+| External paid providers and electronic payment activation | External / Owner-only | Provider adapter interfaces and safe-disabled fallbacks | Owner provider selection, credentials, billing approval and launch decision; offline/manual remains the active policy | Owner Final QA |
+
+Artifact failure handling was the first functional closeout gap found on this Head. The reusable workflow is being corrected so failed Playwright runs still produce a sanitized summary when possible, never upload raw output, always clean fixtures/runtime, and retain a failing final conclusion.
+
 ## Batch record — Checkpoint 1B invitation and membership closeout
 
 ### System closed

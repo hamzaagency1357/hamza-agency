@@ -98,3 +98,16 @@ test("result validator rejects empty, skipped, flaky, and assertion-free runs", 
   assert.equal(summary.assertions, 3);
   assert.equal(summary.assertionFree, 0);
 });
+
+test("reusable workflow preserves failures while sanitizing and cleaning artifacts", () => {
+  const workflow = fs.readFileSync(path.resolve(".github/workflows/hamza-closeout-suite.yml"), "utf8");
+  assert.match(workflow, /id: playwright\n\s+continue-on-error: true/);
+  assert.match(workflow, /name: Generate safe failure summary source\n\s+if: always\(\)/);
+  assert.match(workflow, /id: sanitize\n\s+if: always\(\)\n\s+continue-on-error: true/);
+  assert.match(workflow, /id: secret_scan\n\s+if: always\(\) && steps\.sanitize\.outcome == 'success'/);
+  assert.match(workflow, /name: Upload safe reports only\n\s+if: always\(\) && steps\.sanitize\.outcome == 'success' && steps\.secret_scan\.outcome == 'success'/);
+  assert.match(workflow, /name: Always remove fixtures and local runtime\n\s+if: always\(\)/);
+  assert.match(workflow, /rm -rf artifacts\/raw/);
+  assert.match(workflow, /name: Preserve the real suite conclusion\n\s+if: always\(\)/);
+  assert.match(workflow, /test '\$\{\{ steps\.playwright\.outcome \}\}' = success/);
+});
