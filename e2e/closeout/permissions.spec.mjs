@@ -50,15 +50,15 @@ test("tenant A membership cannot authorize against tenant B host", async ({ page
   await expect(page).toHaveURL(/\/portal\/creator/);
   const credentials = await browserPortalCredentials(page);
   expect(credentials.accessToken).not.toBe("");
-  const result = await page.evaluate(async ({ accessToken }) => {
-    const response = await fetch("/api/product-expansion/portal?role=creator&section=profile", {
-      headers: { Authorization: `Bearer ${accessToken}`, "x-forwarded-host": "tenant-b.closeout.test" },
-      cache: "no-store",
-    });
-    return { status: response.status, body: await response.json() };
-  }, credentials);
-  expect(result.status).toBe(403);
-  expect(result.body.code).toBe("active_membership_required");
+  const response = await page.request.get(`${process.env.CLOSEOUT_TARGET_URL}/api/product-expansion/portal?role=creator&section=profile`, {
+    headers: {
+      Authorization: `Bearer ${credentials.accessToken}`,
+      "x-forwarded-host": "tenant-b.closeout.test",
+    },
+  });
+  const body = await response.json();
+  expect(response.status()).toBe(403);
+  expect(body.code).toBe("active_membership_required");
   await annotate(testInfo, 4);
 });
 
