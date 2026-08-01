@@ -117,11 +117,13 @@ create policy privacy_self_all on public.privacy_requests for all to authenticat
 create policy preference_self_all on public.portal_notification_preferences for all to authenticated using (user_id=auth.uid()) with check (user_id=auth.uid());
 create policy consent_self_all on public.communication_consents for all to authenticated using (user_id=auth.uid()) with check (user_id=auth.uid());
 create policy session_self_read on public.user_sessions for select to authenticated using (user_id=auth.uid());
+create policy session_self_insert on public.user_sessions for insert to authenticated with check (user_id=auth.uid());
+create policy session_self_update on public.user_sessions for update to authenticated using (user_id=auth.uid()) with check (user_id=auth.uid());
 create policy alert_self_all on public.security_alerts for all to authenticated using (user_id=auth.uid()) with check (user_id=auth.uid());
 grant usage on schema public to anon,authenticated;
 grant select on public.tenant_memberships to authenticated;
 grant select,insert,update on public.portal_profiles,public.privacy_requests,public.portal_notification_preferences,public.communication_consents,public.security_alerts to authenticated;
-grant select on public.user_sessions to authenticated;
+grant select,insert,update on public.user_sessions to authenticated;
 
 create or replace function private.public_tenant_runtime(p_hostname text)
 returns jsonb
