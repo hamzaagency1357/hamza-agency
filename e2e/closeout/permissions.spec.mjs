@@ -50,7 +50,9 @@ test("tenant A membership cannot authorize against tenant B host", async ({ page
   await expect(page).toHaveURL(/\/portal\/creator/);
   const credentials = await browserPortalCredentials(page);
   expect(credentials.accessToken).not.toBe("");
-  const response = await page.request.get(`${process.env.CLOSEOUT_TARGET_URL}/api/product-expansion/portal?role=creator&section=profile`, {
+  expect(process.env.CLOSEOUT_EXECUTION_MODE).toBe("local-isolated");
+  expect(process.env.CLOSEOUT_TARGET_URL).toBe("https://127.0.0.1:3443");
+  const response = await page.request.get("http://127.0.0.1:3000/api/product-expansion/portal?role=creator&section=profile", {
     headers: {
       Authorization: `Bearer ${credentials.accessToken}`,
       "x-forwarded-host": "tenant-b.closeout.test",
@@ -59,7 +61,7 @@ test("tenant A membership cannot authorize against tenant B host", async ({ page
   const body = await response.json();
   expect(response.status()).toBe(403);
   expect(body.code).toBe("active_membership_required");
-  await annotate(testInfo, 4);
+  await annotate(testInfo, 6);
 });
 
 test("user ownership hides foreign alerts and IDOR write fails closed", async ({ page }, testInfo) => {
