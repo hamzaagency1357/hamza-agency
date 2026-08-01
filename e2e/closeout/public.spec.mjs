@@ -64,7 +64,7 @@ function screenshotName(locale, projectName) {
   return path.join("artifacts", "safe", "screenshots", `public-${locale}-${device}-${shortSha}.png`);
 }
 
-test("the blocked Vercel Toolbar request is ignored exactly, while every other vercel.live path remains a failure", () => {
+test("the blocked Vercel Toolbar request is ignored exactly, while every other vercel.live path remains a failure", ({}, testInfo) => {
   const request = (url) => ({
     method: () => "GET",
     isNavigationRequest: () => false,
@@ -77,6 +77,7 @@ test("the blocked Vercel Toolbar request is ignored exactly, while every other v
   const otherVercelLiveUrl = "https://vercel.live/_next-live/feedback/other.js";
   expect(() => assertSafeUrl(otherVercelLiveUrl, "other vercel.live request")).toThrow(/outside the allowlist/);
   expect(isIgnorableBlockedVercelToolbarFailure(request(otherVercelLiveUrl))).toBe(false);
+  recordAssertions(testInfo, 4);
 });
 
 for (const [route, locale] of [["/", "ar"], ["/en", "en"], ["/tr", "tr"]]) {
