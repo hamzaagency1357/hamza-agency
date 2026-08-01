@@ -39,6 +39,14 @@ async function installReadonlyGuards(page) {
   });
 }
 
+const BLOCKED_VERCEL_TOOLBAR_URL = "https://vercel.live/_next-live/feedback/feedback.js";
+
+function isIgnorableBlockedVercelToolbarFailure(request) {
+  return request.method() === "GET"
+    && !request.isNavigationRequest()
+    && request.url() === BLOCKED_VERCEL_TOOLBAR_URL;
+}
+
 function isIgnorableRscPrefetchFailure(request) {
   const url = new URL(request.url());
   return request.method() === "GET"
@@ -56,6 +64,21 @@ function screenshotName(locale, projectName) {
   return path.join("artifacts", "safe", "screenshots", `public-${locale}-${device}-${shortSha}.png`);
 }
 
+test("the blocked Vercel Toolbar request is ignored exactly, while every other vercel.live path remains a failure", () => {
+  const request = (url) => ({
+    method: () => "GET",
+    isNavigationRequest: () => false,
+    url: () => url,
+  });
+
+  expect(() => assertSafeUrl(BLOCKED_VERCEL_TOOLBAR_URL, "Toolbar request")).toThrow(/outside the allowlist/);
+  expect(isIgnorableBlockedVercelToolbarFailure(request(BLOCKED_VERCEL_TOOLBAR_URL))).toBe(true);
+
+  const otherVercelLiveUrl = "https://vercel.live/_next-live/feedback/other.js";
+  expect(() => assertSafeUrl(otherVercelLiveUrl, "other vercel.live request")).toThrow(/outside the allowlist/);
+  expect(isIgnorableBlockedVercelToolbarFailure(request(otherVercelLiveUrl))).toBe(false);
+});
+
 for (const [route, locale] of [["/", "ar"], ["/en", "en"], ["/tr", "tr"]]) {
   test(`${locale} public runtime remains on the exact Preview host`, async ({ page }, testInfo) => {
     await installReadonlyGuards(page);
@@ -63,7 +86,9 @@ for (const [route, locale] of [["/", "ar"], ["/en", "en"], ["/tr", "tr"]]) {
     const failed = [];
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("requestfailed", (request) => {
-      if (!isIgnorableRscPrefetchFailure(request)) failed.push(`${request.method()} ${request.url()}`);
+      if (!isIgnorableRscPrefetchFailure(request) && !isIgnorableBlockedVercelToolbarFailure(request)) {
+        failed.push(`${request.method()} ${request.url()}`);
+      }
     });
 
     const response = await page.goto(route, { waitUntil: "networkidle" });
