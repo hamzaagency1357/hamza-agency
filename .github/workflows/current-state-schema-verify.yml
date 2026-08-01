@@ -1,0 +1,43 @@
+name: HAMZA Current-State Schema Verify
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/current-state-schema/**"
+      - "scripts/closeout/materialize-current-state-schema.mjs"
+      - ".github/workflows/current-state-schema-verify.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: current-state-schema-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-sanitized-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Materialize and verify sanitized schema
+        run: node scripts/closeout/materialize-current-state-schema.mjs
+      - name: Assert generated output is untracked and schema-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql="supabase/current-state-schema/generated/current-state-schema.sql"
+          test -s "$sql"
+          git check-ignore -q "$sql"
+          test "$(wc -c < "$sql")" -eq 495401
+          test "$(sha256sum "$sql" | cut -d' ' -f1)" = "3b1890376e3cca966b1dce0979dd2ed089f95237e1067febf4f58e8f1bf776f2"
+          ! grep -Eiq '^[[:space:]]*(insert[[:space:]]+into|copy)[[:space:]]' "$sql"
+          ! grep -Eiq '\b(setval|owner[[:space:]]+to|lo_import|pg_largeobject)\b' "$sql"
+          test -z "$(git status --porcelain --untracked-files=all)"
