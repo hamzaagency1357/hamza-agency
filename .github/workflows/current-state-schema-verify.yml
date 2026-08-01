@@ -20,6 +20,20 @@ jobs:
   verify-sanitized-snapshot:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: closeout-local-only
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CURRENT_STATE_SCHEMA_DATABASE_URL: postgresql://postgres:closeout-local-only@127.0.0.1:55432/postgres
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,6 +41,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - name: Install PostgreSQL client
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v psql >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends postgresql-client; }
+          psql "$CURRENT_STATE_SCHEMA_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'select 1' >/dev/null
       - name: Materialize and verify sanitized schema
         run: node scripts/closeout/materialize-current-state-schema.mjs
       - name: Assert generated output is untracked and schema-only
