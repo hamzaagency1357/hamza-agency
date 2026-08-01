@@ -12,7 +12,9 @@ It records only newly closed systems, reused gates, safe artifacts, cleanup evid
 - PR state: open, Draft, unmerged
 - Checkpoint 1B application Head: `8a42699c9c9245422f9f0370c113e89f3950deea`
 - Automation Foundation close Head: `983b0dc32df67879c45225404dfc79ed9505367d`
+- Four Portals verification fix Head: `345a8e0bd8433b82a9bf96a948dcce9ae4160480`
 - Automation Foundation: **Closed**
+- Four Portals: **Verification in progress — not closed**
 - Production post-deploy revocation: not executed
 - Project ready for final delivery: **No**
 
