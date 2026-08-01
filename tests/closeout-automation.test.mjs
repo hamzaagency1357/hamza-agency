@@ -123,5 +123,5 @@ test("every registered closeout suite is implemented and aggregated", () => {
     assert.match(aggregator, new RegExp(`suite: ${suite.replace("-", "\\-")}`));
   }
   assert.match(reusable, /PR99_E2E_MODE: \$\{\{ inputs\.execution_mode == 'local-isolated'/);
-  assert.match(reusable, /tracking\|admin\|page-builder\|backup-restore\|trash\|notifications\|permissions\|security/);
+  assert.match(reusable, /case "\$\{\{ inputs\.suite \}\}" in admin\|permissions\|security\) stateful=true/);
 });

@@ -56,7 +56,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "${{ inputs.suite }}" in tracking|admin|page-builder|backup-restore|trash|notifications|permissions|security) stateful=true ;; *) stateful=false ;; esac
+          case "${{ inputs.suite }}" in admin|permissions|security) stateful=true ;; *) stateful=false ;; esac
           echo "CLOSEOUT_STATEFUL=$stateful" >> "$GITHUB_ENV"
           CLOSEOUT_STATEFUL="$stateful" node scripts/closeout/environment-guard.mjs
           status="$(node -e 'const s=require("./e2e/closeout/suites.json"); const x=s[process.env.CLOSEOUT_SUITE]; if(!x) process.exit(2); process.stdout.write(x.status)')"
