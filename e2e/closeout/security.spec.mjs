@@ -12,6 +12,10 @@ function screenshotName(name, projectName) {
   const device = projectName.startsWith("mobile") ? "mobile" : "desktop";
   return path.join("artifacts", "safe", "screenshots", `security-${name}-${device}-${shortSha}.png`);
 }
+async function waitForPlatformSession(page) {
+  await expect.poll(async () => (await browserPortalCredentials(page)).platformSessionId, { timeout: 10000 }).not.toBe("");
+  return browserPortalCredentials(page);
+}
 async function portalWrite(page, credentials, section, body = {}) {
   return page.evaluate(async ({ accessToken, platformSessionId, sectionName, payload }) => {
     const response = await fetch(`/api/product-expansion/portal?role=creator&section=${encodeURIComponent(sectionName)}`, {
@@ -62,9 +66,8 @@ if (fs.existsSync(fixturePath)) {
     await expect(page).toHaveURL(/\/portal\/creator/);
     await page.goto("/portal/creator/sessions", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/portal\/creator\/sessions/);
-    const credentials = await browserPortalCredentials(page);
+    const credentials = await waitForPlatformSession(page);
     expect(credentials.accessToken).not.toBe("");
-    expect(credentials.platformSessionId).not.toBe("");
     const revoked = await portalPost(page, credentials, "revoke-session", { id: credentials.platformSessionId });
     expect(revoked.status).toBe(200);
     expect(revoked.body.ok).toBe(true);
@@ -79,16 +82,15 @@ if (fs.existsSync(fixturePath)) {
     await login(page, fixture.accounts.revokeAll);
     await expect(page).toHaveURL(/\/portal\/creator/);
     await page.goto("/portal/creator/sessions", { waitUntil: "domcontentloaded" });
-    const first = await browserPortalCredentials(page);
+    const first = await waitForPlatformSession(page);
 
     const secondContext = await browser.newContext({ baseURL: process.env.CLOSEOUT_TARGET_URL, ignoreHTTPSErrors: true, serviceWorkers: "block" });
     const secondPage = await secondContext.newPage();
     await login(secondPage, fixture.accounts.revokeAll);
     await expect(secondPage).toHaveURL(/\/portal\/creator/);
     await secondPage.goto("/portal/creator/sessions", { waitUntil: "domcontentloaded" });
-    const second = await browserPortalCredentials(secondPage);
+    const second = await waitForPlatformSession(secondPage);
     expect(first.platformSessionId).not.toBe("");
-    expect(second.platformSessionId).not.toBe("");
     expect(second.platformSessionId).not.toBe(first.platformSessionId);
 
     const revoked = await portalPost(page, first, "revoke-all-sessions");
