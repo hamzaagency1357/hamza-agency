@@ -95,13 +95,14 @@ jobs:
               DB_URL) echo "DB_URL=$value" >> "$GITHUB_ENV" ;;
             esac
           done < /tmp/macro-supabase.env
-      - name: Apply authoritative snapshot and additive macro migration
+      - name: Apply authoritative snapshot and additive macro migrations
         shell: bash
         run: |
           set -euo pipefail
           set -a; . /tmp/macro-supabase.env; set +a
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f /tmp/current-state-schema.apply.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803003000_pr105_macro_runtime_completion.sql
+          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803004000_pr105_macro_runtime_hardening.sql
           node scripts/closeout/portal-local-fixtures.mjs setup
           node scripts/closeout/macro-runtime-fixtures.mjs setup
       - name: Build and start local HTTPS application
