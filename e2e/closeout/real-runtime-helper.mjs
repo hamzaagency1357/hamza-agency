@@ -26,15 +26,17 @@ export async function rpc(request, accessToken, name, body, expected = 200) {
     headers: { apikey: anon, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     data: body,
   });
-  expect(response.status(), await response.text()).toBe(expected);
-  return expected >= 200 && expected < 300 ? response.json() : null;
+  const allowed = Array.isArray(expected) ? expected : [expected];
+  expect(allowed, await response.text()).toContain(response.status());
+  return response.ok() ? response.json() : null;
 }
 export async function rest(request, accessToken, path, expected = 200) {
   const f = fixture();
   const anon = process.env.ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const response = await request.get(`${f.apiUrl}/rest/v1/${path}`, { headers: { apikey: anon, Authorization: `Bearer ${accessToken}` } });
-  expect(response.status(), await response.text()).toBe(expected);
-  return expected >= 200 && expected < 300 ? response.json() : null;
+  const allowed = Array.isArray(expected) ? expected : [expected];
+  expect(allowed, await response.text()).toContain(response.status());
+  return response.ok() ? response.json() : null;
 }
 export function annotations(testInfo, count) {
   expect(count).toBeGreaterThan(0);
