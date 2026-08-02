@@ -35,50 +35,51 @@ if (action === "cleanup") {
 psql(`
 begin;
 
+-- The database is disposable and isolated. Delete by deterministic fixture keys
+-- instead of assuming uniqueness constraints that are not part of the runtime contract.
+delete from public.notifications where id in (${ids.notificationOne},${ids.notificationTwo});
+delete from public.trash_items where id in (${ids.trashRestore},${ids.trashDelete});
+delete from public.page_builder_sections where page_id in (${ids.page},${ids.trashRestorePage},${ids.trashDeletePage});
+delete from public.pages where id in (${ids.page},${ids.trashRestorePage},${ids.trashDeletePage});
+delete from public.service_requests where request_code=${q(serviceCode)};
+delete from public.agency_applications where tracking_code=${q(applicationCode)};
+delete from public.admin_users where lower(email)=lower(${q(fixture.accounts.employee.email)});
+
 insert into public.admin_users(email,role,is_active)
-values (${q(fixture.accounts.employee.email)},'super_admin',true)
-on conflict(email) do update set role='super_admin',is_active=true;
+values (${q(fixture.accounts.employee.email)},'super_admin',true);
 
 insert into public.agency_applications(full_name,country,whatsapp,platform,status,tracking_code)
-values ('Closeout Applicant','TR','+900000000001','tiktok','new',${q(applicationCode)})
-on conflict(tracking_code) do update set status='new',platform='tiktok';
+values ('Closeout Applicant','TR','+900000000001','tiktok','new',${q(applicationCode)});
 
 insert into public.service_requests(request_code,full_name,country,whatsapp,service_type,platform,status)
-values (${q(serviceCode)},'Closeout Service','TR','+900000000002','account_management','tiktok','new')
-on conflict(request_code) do update set status='new',service_type='account_management';
+values (${q(serviceCode)},'Closeout Service','TR','+900000000002','account_management','tiktok','new');
 
 insert into public.pages(id,title,slug,content,is_published,publishing_status)
 values
  (${ids.page},'Closeout Runtime Page','fixture-page','Closeout runtime page',false,'draft'),
  (${ids.trashRestorePage},'Restore Me','restore-me','Restore content',false,'draft'),
- (${ids.trashDeletePage},'Delete Me','delete-me','Delete content',false,'draft')
-on conflict(id) do update set title=excluded.title,slug=excluded.slug,content=excluded.content,is_published=false,publishing_status='draft';
+ (${ids.trashDeletePage},'Delete Me','delete-me','Delete content',false,'draft');
 
 insert into public.page_builder_sections(page_id,section_type,section_key,title,body,sort_order,language,is_visible,settings)
 values
  (${ids.page},'rich_text','hero','عنوان عربي حقيقي','محتوى عربي حقيقي من قاعدة البيانات',1,'ar',true,'{}'),
  (${ids.page},'rich_text','hero','Real English title','Real English database content',1,'en',true,'{}'),
- (${ids.page},'rich_text','hero','Gerçek Türkçe başlık','Gerçek Türkçe veritabanı içeriği',1,'tr',true,'{}')
-on conflict(page_id,language,section_key) do update
-set title=excluded.title,body=excluded.body,is_visible=true,sort_order=excluded.sort_order,settings=excluded.settings;
+ (${ids.page},'rich_text','hero','Gerçek Türkçe başlık','Gerçek Türkçe veritabanı içeriği',1,'tr',true,'{}');
 
 insert into public.trash_items(id,item_type,item_id,title,data,item_data,restore_status,deleted_by_email)
 select ${ids.trashRestore},'pages',id::text,title,to_jsonb(p),to_jsonb(p),'restorable',${q(fixture.accounts.employee.email)}
-from public.pages p where id=${ids.trashRestorePage}
-on conflict(id) do update set item_data=excluded.item_data,data=excluded.data,restore_status='restorable';
+from public.pages p where id=${ids.trashRestorePage};
 
 insert into public.trash_items(id,item_type,item_id,title,data,item_data,restore_status,deleted_by_email)
 select ${ids.trashDelete},'pages',id::text,title,to_jsonb(p),to_jsonb(p),'restorable',${q(fixture.accounts.employee.email)}
-from public.pages p where id=${ids.trashDeletePage}
-on conflict(id) do update set item_data=excluded.item_data,data=excluded.data,restore_status='restorable';
+from public.pages p where id=${ids.trashDeletePage};
 
 delete from public.pages where id=${ids.trashRestorePage};
 
 insert into public.notifications(id,title,message,type,is_read,recipient_role,event_key,event_type,entity_type,entity_id,priority,metadata,tenant_id)
 values
  (${ids.notificationOne},'Closeout notification 1','Unread real notification','system',false,'admin','closeout:notification:1','created','page',${q(String(ids.page))},'normal','{}',${q(fixture.tenants.a)}::uuid),
- (${ids.notificationTwo},'Closeout notification 2','Unread real notification','system',false,'admin','closeout:notification:2','created','page',${q(String(ids.page))},'high','{}',${q(fixture.tenants.a)}::uuid)
-on conflict(id) do update set is_read=false,message=excluded.message,event_key=excluded.event_key,tenant_id=excluded.tenant_id;
+ (${ids.notificationTwo},'Closeout notification 2','Unread real notification','system',false,'admin','closeout:notification:2','created','page',${q(String(ids.page))},'high','{}',${q(fixture.tenants.a)}::uuid);
 
 do $core_contract$
 begin
