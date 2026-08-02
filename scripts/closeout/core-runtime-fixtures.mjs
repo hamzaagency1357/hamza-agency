@@ -62,9 +62,9 @@ values
 
 insert into public.page_builder_sections(page_id,section_type,section_key,title,body,sort_order,language,is_visible,settings)
 values
- (${ids.page},'rich_text','hero','عنوان عربي حقيقي','محتوى عربي حقيقي من قاعدة البيانات',1,'ar',true,'{}'),
- (${ids.page},'rich_text','hero','Real English title','Real English database content',1,'en',true,'{}'),
- (${ids.page},'rich_text','hero','Gerçek Türkçe başlık','Gerçek Türkçe veritabanı içeriği',1,'tr',true,'{}');
+ (${ids.page},'text','hero','عنوان عربي حقيقي','محتوى عربي حقيقي من قاعدة البيانات',1,'ar',true,'{}'),
+ (${ids.page},'text','hero','Real English title','Real English database content',1,'en',true,'{}'),
+ (${ids.page},'text','hero','Gerçek Türkçe başlık','Gerçek Türkçe veritabanı içeriği',1,'tr',true,'{}');
 
 insert into public.trash_items(id,item_type,item_id,title,data,item_data,restore_status,deleted_by_email)
 select ${ids.trashRestore},'pages',id::text,title,to_jsonb(p),to_jsonb(p),'restorable',${q(fixture.accounts.employee.email)}
@@ -109,4 +109,4 @@ commit;
 
 fixture.core = { ...ids, applicationCode, serviceCode };
 await writeFile(fixturePath, JSON.stringify(fixture), { mode: 0o600 });
-console.log(JSON.stringify({ ok: true, page: ids.page, applicationCode, serviceCode, applicationStatus: "new", serviceStatus: "new" }));
+console.log(JSON.stringify({ ok: true, page: ids.page, applicationCode, serviceCode, applicationStatus: "new", serviceStatus: "new", pageSectionType: "text" }));
