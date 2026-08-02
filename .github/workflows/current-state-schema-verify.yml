@@ -190,10 +190,14 @@ jobs:
 
           snapshot="$GITHUB_WORKSPACE/supabase/current-state-schema/current-state-schema.sql"
           tables_expected="$(grep -Ec '^CREATE TABLE (public|private)\.' "$snapshot")"
-          sequences_expected="$(grep -Ec '^CREATE SEQUENCE (public|private)\.' "$snapshot")"
+          explicit_sequences_expected="$(grep -Ec '^CREATE SEQUENCE (public|private)\.' "$snapshot")"
+          identity_sequences_expected="$(grep -Ec ' GENERATED (ALWAYS|BY DEFAULT) AS IDENTITY' "$snapshot")"
+          sequences_expected="$((explicit_sequences_expected + identity_sequences_expected))"
           views_expected="$(grep -Ec '^CREATE( OR REPLACE)? VIEW (public|private)\.' "$snapshot")"
           functions_expected="$(grep -Ec '^CREATE( OR REPLACE)? (FUNCTION|PROCEDURE) (public|private)\.' "$snapshot")"
           policies_expected="$(grep -Ec '^CREATE POLICY ' "$snapshot")"
+
+          printf 'sequences evidence: explicit=%s identity=%s total=%s\n' "$explicit_sequences_expected" "$identity_sequences_expected" "$sequences_expected"
 
           mismatch=0
           compare_count() {
