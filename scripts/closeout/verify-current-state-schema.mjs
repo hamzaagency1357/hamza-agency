@@ -33,21 +33,31 @@ try {
 }
 if (text.includes('\u0000')) throw new Error('snapshot contains NUL bytes');
 
+// Function and procedure definitions are schema DDL and can legitimately contain
+// INSERT/COPY tokens inside dollar-quoted bodies. Mask those bodies before checking
+// for top-level row-loading statements while preserving line boundaries.
+const topLevelText = text.replace(
+  /\$([A-Za-z_][A-Za-z0-9_]*)?\$[\s\S]*?\$\1\$/g,
+  (block) => block.replace(/[^\n]/g, ' '),
+);
+
 const forbidden = [
-  [/^\s*INSERT\s+INTO\b/im, 'INSERT data statement'],
-  [/^\s*COPY\b/im, 'COPY data statement'],
-  [/\b(?:pg_catalog\.)?setval\s*\(/i, 'setval sequence value'],
-  [/\bOWNER\s+TO\b/i, 'ownership statement'],
-  [/\b(?:lo_create|lo_import|pg_largeobject)\b/i, 'large-object reference'],
-  [/postgres(?:ql)?:\/\/[^\s'"`]+/i, 'database connection string'],
-  [/-----BEGIN [A-Z ]*PRIVATE KEY-----/i, 'private key'],
-  [/\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\b/, 'JWT-like token'],
-  [/\bsb_(?:secret|publishable)_[A-Za-z0-9_-]{20,}\b/i, 'Supabase key'],
-  [/\b(?:SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY|SUPABASE_DB_PASSWORD|PGPASSWORD)\s*[:=]/i, 'credential assignment'],
-  [/\b(?:CREATE|ALTER)\s+ROLE\b[^;]*\bPASSWORD\s+(?:'[^']*'|"[^"]*")/i, 'role password'],
-  [/\bCREATE\s+(?:TABLE|SEQUENCE|VIEW|MATERIALIZED\s+VIEW|FUNCTION|PROCEDURE)\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:auth|storage|realtime|vault)\./i, 'managed-schema DDL'],
+  [topLevelText, /^\s*INSERT\s+INTO\b/im, 'INSERT data statement'],
+  [topLevelText, /^\s*COPY\b/im, 'COPY data statement'],
+  [text, /\b(?:pg_catalog\.)?setval\s*\(/i, 'setval sequence value'],
+  [text, /\bOWNER\s+TO\b/i, 'ownership statement'],
+  [text, /\b(?:lo_create|lo_import|pg_largeobject)\b/i, 'large-object reference'],
+  [text, /postgres(?:ql)?:\/\/[^\s'"`]+/i, 'database connection string'],
+  [text, /-----BEGIN [A-Z ]*PRIVATE KEY-----/i, 'private key'],
+  [text, /\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\b/, 'JWT-like token'],
+  [text, /\bsb_(?:secret|publishable)_[A-Za-z0-9_-]{20,}\b/i, 'Supabase key'],
+  [text, /\b(?:SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY|SUPABASE_DB_PASSWORD|PGPASSWORD)\s*[:=]/i, 'credential assignment'],
+  [text, /\b(?:CREATE|ALTER)\s+ROLE\b[^;]*\bPASSWORD\s+(?:'[^']*'|"[^"]*")/i, 'role password'],
+  [text, /\bCREATE\s+(?:TABLE|SEQUENCE|VIEW|MATERIALIZED\s+VIEW|FUNCTION|PROCEDURE)\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:auth|storage|realtime|vault)\./i, 'managed-schema DDL'],
 ];
-for (const [pattern, label] of forbidden) if (pattern.test(text)) throw new Error(`forbidden content detected: ${label}`);
+for (const [source, pattern, label] of forbidden) {
+  if (pattern.test(source)) throw new Error(`forbidden content detected: ${label}`);
+}
 
 for (const marker of [
   '-- HAMZA AGENCY sanitized current-state schema snapshot',
