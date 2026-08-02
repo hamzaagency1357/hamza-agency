@@ -170,11 +170,45 @@ jobs:
           SELECT 'functions='||count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname IN ('public','private');
           SELECT 'policies='||count(*) FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','private');
           SQL
-          grep -qx 'tables=83' /tmp/current-state-inventory.txt
-          grep -qx 'sequences=34' /tmp/current-state-inventory.txt
-          grep -qx 'views=6' /tmp/current-state-inventory.txt
-          grep -qx 'functions=74' /tmp/current-state-inventory.txt
-          grep -qx 'policies=50' /tmp/current-state-inventory.txt
+
+          read_actual() {
+            local metric="$1"
+            grep -E "^${metric}=[0-9]+$" /tmp/current-state-inventory.txt | cut -d= -f2-
+          }
+
+          tables_actual="$(read_actual tables)"
+          sequences_actual="$(read_actual sequences)"
+          views_actual="$(read_actual views)"
+          functions_actual="$(read_actual functions)"
+          policies_actual="$(read_actual policies)"
+
+          printf 'tables=%s\n' "$tables_actual"
+          printf 'sequences=%s\n' "$sequences_actual"
+          printf 'views=%s\n' "$views_actual"
+          printf 'functions=%s\n' "$functions_actual"
+          printf 'policies=%s\n' "$policies_actual"
+
+          snapshot="$GITHUB_WORKSPACE/supabase/current-state-schema/current-state-schema.sql"
+          tables_expected="$(grep -Ec '^CREATE TABLE (public|private)\.' "$snapshot")"
+          sequences_expected="$(grep -Ec '^CREATE SEQUENCE (public|private)\.' "$snapshot")"
+          views_expected="$(grep -Ec '^CREATE( OR REPLACE)? VIEW (public|private)\.' "$snapshot")"
+          functions_expected="$(grep -Ec '^CREATE( OR REPLACE)? (FUNCTION|PROCEDURE) (public|private)\.' "$snapshot")"
+          policies_expected="$(grep -Ec '^CREATE POLICY ' "$snapshot")"
+
+          mismatch=0
+          compare_count() {
+            local metric="$1" expected="$2" actual="$3"
+            printf '%s expected=%s actual=%s\n' "$metric" "$expected" "$actual"
+            [[ "$expected" =~ ^[0-9]+$ ]] || return 1
+            [[ "$actual" =~ ^[0-9]+$ ]] || return 1
+            [[ "$expected" = "$actual" ]]
+          }
+          compare_count tables "$tables_expected" "$tables_actual" || mismatch=1
+          compare_count sequences "$sequences_expected" "$sequences_actual" || mismatch=1
+          compare_count views "$views_expected" "$views_actual" || mismatch=1
+          compare_count functions "$functions_expected" "$functions_actual" || mismatch=1
+          compare_count policies "$policies_expected" "$policies_actual" || mismatch=1
+          test "$mismatch" -eq 0
 
       - name: Prove repository and snapshot remain unchanged
         shell: bash
