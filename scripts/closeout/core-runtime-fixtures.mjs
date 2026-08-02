@@ -40,12 +40,12 @@ values (${q(fixture.accounts.employee.email)},'super_admin',true)
 on conflict(email) do update set role='super_admin',is_active=true;
 
 insert into public.agency_applications(full_name,country,whatsapp,platform,status,tracking_code)
-values ('Closeout Applicant','TR','+900000000001','tiktok','pending',${q(applicationCode)})
-on conflict(tracking_code) do update set status='pending',platform='tiktok';
+values ('Closeout Applicant','TR','+900000000001','tiktok','new',${q(applicationCode)})
+on conflict(tracking_code) do update set status='new',platform='tiktok';
 
 insert into public.service_requests(request_code,full_name,country,whatsapp,service_type,platform,status)
-values (${q(serviceCode)},'Closeout Service','TR','+900000000002','account_management','tiktok','pending')
-on conflict(request_code) do update set status='pending',service_type='account_management';
+values (${q(serviceCode)},'Closeout Service','TR','+900000000002','account_management','tiktok','new')
+on conflict(request_code) do update set status='new',service_type='account_management';
 
 insert into public.pages(id,title,slug,content,is_published,publishing_status)
 values
@@ -74,21 +74,21 @@ on conflict(id) do update set item_data=excluded.item_data,data=excluded.data,re
 
 delete from public.pages where id=${ids.trashRestorePage};
 
-insert into public.notifications(id,title,message,type,is_read,recipient_role,event_key,event_type,entity_type,entity_id,priority,metadata)
+insert into public.notifications(id,title,message,type,is_read,recipient_role,event_key,event_type,entity_type,entity_id,priority,metadata,tenant_id)
 values
- (${ids.notificationOne},'Closeout notification 1','Unread real notification','system',false,'admin','closeout:notification:1','created','page',${q(String(ids.page))},'normal','{}'),
- (${ids.notificationTwo},'Closeout notification 2','Unread real notification','system',false,'admin','closeout:notification:2','created','page',${q(String(ids.page))},'high','{}')
-on conflict(id) do update set is_read=false,message=excluded.message,event_key=excluded.event_key;
+ (${ids.notificationOne},'Closeout notification 1','Unread real notification','system',false,'admin','closeout:notification:1','created','page',${q(String(ids.page))},'normal','{}',${q(fixture.tenants.a)}::uuid),
+ (${ids.notificationTwo},'Closeout notification 2','Unread real notification','system',false,'admin','closeout:notification:2','created','page',${q(String(ids.page))},'high','{}',${q(fixture.tenants.a)}::uuid)
+on conflict(id) do update set is_read=false,message=excluded.message,event_key=excluded.event_key,tenant_id=excluded.tenant_id;
 
 do $core_contract$
 begin
   if not exists(select 1 from public.admin_users where lower(email)=lower(${q(fixture.accounts.employee.email)}) and role='super_admin' and is_active=true) then
     raise exception 'core_admin_fixture_invalid';
   end if;
-  if not exists(select 1 from public.agency_applications where tracking_code=${q(applicationCode)}) then
+  if not exists(select 1 from public.agency_applications where tracking_code=${q(applicationCode)} and status='new') then
     raise exception 'core_application_fixture_invalid';
   end if;
-  if not exists(select 1 from public.service_requests where request_code=${q(serviceCode)}) then
+  if not exists(select 1 from public.service_requests where request_code=${q(serviceCode)} and status='new') then
     raise exception 'core_service_fixture_invalid';
   end if;
   if (select count(*) from public.page_builder_sections where page_id=${ids.page} and language in('ar','en','tr')) <> 3 then
@@ -108,4 +108,4 @@ commit;
 
 fixture.core = { ...ids, applicationCode, serviceCode };
 await writeFile(fixturePath, JSON.stringify(fixture), { mode: 0o600 });
-console.log(JSON.stringify({ ok: true, page: ids.page, applicationCode, serviceCode }));
+console.log(JSON.stringify({ ok: true, page: ids.page, applicationCode, serviceCode, applicationStatus: "new", serviceStatus: "new" }));
