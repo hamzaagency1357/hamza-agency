@@ -1,53 +1,17 @@
 {
-  "formatVersion": 1,
-  "snapshotKind": "sanitized-schema-only-current-state",
-  "source": {
-    "project": "HAMZA AGENCY Supabase Production",
-    "schemas": ["public", "private"],
-    "transactionMode": "read-only-rollback",
-    "extractedAt": "2026-08-01"
-  },
+  "formatVersion": 3,
+  "kind": "sanitized-current-state-schema",
+  "sourceSchemas": ["public", "private"],
   "transport": {
-    "encoding": "base64",
-    "envelope": "openpgp-symmetric-aes128-zlib",
-    "passphrase": "hamza-agency-local-schema-snapshot",
-    "partsDirectory": "supabase/current-state-schema/parts",
-    "partPattern": "part-*.b64",
-    "partCount": 12
+    "type": "direct-sql",
+    "path": "supabase/current-state-schema/current-state-schema.sql"
   },
   "plaintext": {
-    "path": "supabase/current-state-schema/generated/current-state-schema.sql",
-    "bytes": 495401,
+    "encoding": "utf-8",
+    "bytes": 496138,
     "sha256": "3b1890376e3cca966b1dce0979dd2ed089f95237e1067febf4f58e8f1bf776f2"
   },
-  "includes": [
-    "tables",
-    "columns",
-    "sequences-with-normalized-start",
-    "functions",
-    "constraints",
-    "indexes",
-    "views",
-    "triggers",
-    "rls-state",
-    "policies",
-    "standard-role-grants"
-  ],
-  "excludes": [
-    "rows",
-    "fixtures",
-    "insert",
-    "copy",
-    "setval",
-    "large-objects",
-    "auth-users",
-    "storage-data",
-    "managed-supabase-schemas",
-    "ownership",
-    "credentials",
-    "tokens",
-    "passwords",
-    "connection-strings",
-    "production-environment-values"
-  ]
+  "containsData": false,
+  "containsSecrets": false,
+  "managedSchemasExcluded": ["auth", "storage", "realtime", "vault"]
 }
