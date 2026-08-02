@@ -1,16 +1,25 @@
 import { test, expect } from "@playwright/test";
-import { action, annotate, cleanupFixture, evidence, initializeFixture } from "./pr99-fixture.mjs";
+import { annotations, fixture, rpc, token } from "./real-runtime-helper.mjs";
 
-test("backup dry-run rejects invalid checksum and limited restore completes", async ({ page, request }, testInfo) => {
-  await initializeFixture(request);
-  expect((await action(request, "backup")).body.state.page.backups).toBe(1);
-  const invalid = await action(request, "dry_run", { checksum: "invalid" });
-  expect(invalid.response.status()).toBe(422);
-  expect(invalid.body.code).toBe("invalid_checksum");
-  expect((await action(request, "dry_run", { checksum: "valid-fixture-checksum" })).body.state.activity).toContain("backup_dry_run_valid");
-  expect((await action(request, "fixture_restore")).body.state.activity).toContain("fixture_restore_completed");
-  await page.goto("/pr99-e2e", { waitUntil: "domcontentloaded" });
-  await page.screenshot({ path: evidence(testInfo, "backup-restore", "dry-run-limited-restore"), fullPage: true, animations: "disabled" });
-  await cleanupFixture(request);
-  await annotate(testInfo, 7);
+test("real backup payload validates checksum, performs dry run, and limited restore", async ({ request }, testInfo) => {
+  const f = fixture();
+  const admin = await token(request, f.accounts.employee);
+  const scope = ["pages", "sections"];
+
+  const payload = await rpc(request, admin, "pr99_build_backup_payload", { p_scope: scope });
+  expect(payload.project_ref).toBe("fvaurkfnsvsfohpzguho");
+  expect(payload.backup_code).toBeTruthy();
+  expect(payload.checksum).toMatch(/^[a-f0-9]{64}$/i);
+  expect(payload.entities.pages).toBeTruthy();
+
+  const dryRun = await rpc(request, admin, "pr99_backup_dry_run", { p_backup: payload, p_scope: scope });
+  expect(dryRun.valid).toBe(true);
+
+  const invalid = { ...payload, checksum: "0".repeat(64) };
+  await rpc(request, admin, "pr99_backup_dry_run", { p_backup: invalid, p_scope: scope }, [400, 409]);
+
+  const restored = await rpc(request, admin, "pr99_restore_backup", { p_backup: payload, p_scope: scope });
+  expect(restored).toBeTruthy();
+  expect(JSON.stringify(restored)).toMatch(/completed|results|validation/i);
+  annotations(testInfo, 11);
 });

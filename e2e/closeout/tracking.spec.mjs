@@ -1,26 +1,44 @@
 import { test, expect } from "@playwright/test";
-import { action, annotate, cleanupFixture, evidence, initializeFixture } from "./pr99-fixture.mjs";
+import { annotations, fixture, rpc } from "./real-runtime-helper.mjs";
 
-test("application and service submissions are isolated, deduplicated, and cleaned", async ({ page, request }, testInfo) => {
-  await initializeFixture(request);
-  expect((await action(request, "submit", { kind: "application", key: "application-1" })).response.ok()).toBe(true);
-  const service = await action(request, "submit", { kind: "service_request", key: "service-1" });
-  expect(service.body.state.submissions).toEqual(["application", "service_request"]);
-  const duplicate = await action(request, "submit", { kind: "application", key: "application-1" });
-  expect(duplicate.response.status()).toBe(429);
-  expect(duplicate.body.code).toBe("duplicate");
-  await page.goto("/pr99-e2e", { waitUntil: "domcontentloaded" });
-  await expect(page.locator("body")).not.toContainText(/whatsapp|authorization:|service_role/i);
-  await page.screenshot({ path: evidence(testInfo, "tracking", "submit-dedupe"), fullPage: true, animations: "disabled" });
-  await cleanupFixture(request);
-  await annotate(testInfo, 7);
+const fingerprint = "a".repeat(64);
+
+test("real application and service tracking read current-state database rows without PII leakage", async ({ request }, testInfo) => {
+  const f = fixture();
+  const anon = process.env.ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  expect(anon).toBeTruthy();
+
+  const application = await rpc(request, anon, "pr100_lookup_public_agency_application_by_code", {
+    p_tracking_code: f.core.applicationCode,
+    p_request_fingerprint: fingerprint,
+  });
+  expect(application.allowed).toBe(true);
+  expect(application.found).toBe(true);
+  expect(application.record.tracking_code).toBe(f.core.applicationCode);
+  expect(application.record.status).toBeTruthy();
+  expect(JSON.stringify(application)).not.toMatch(/whatsapp|email|full_name|\+900000/i);
+
+  const service = await rpc(request, anon, "pr100_lookup_public_service_request", {
+    p_request_code: f.core.serviceCode,
+    p_request_fingerprint: "b".repeat(64),
+  });
+  expect(service.allowed).toBe(true);
+  expect(service.found).toBe(true);
+  expect(service.record.request_code).toBe(f.core.serviceCode);
+  expect(JSON.stringify(service)).not.toMatch(/whatsapp|email|full_name|\+900000/i);
+  annotations(testInfo, 12);
 });
 
-test("public tracking endpoints reject malformed codes without exposing lookup details", async ({ request }, testInfo) => {
-  for (const endpoint of ["/api/application-status", "/api/service-status", "/api/track"]) {
-    const response = await request.post(endpoint, { data: { trackingCode: "invalid", code: "invalid" } });
-    expect([400, 404, 405, 429]).toContain(response.status());
-    expect(await response.text()).not.toMatch(/whatsapp|email|stack|service_role|authorization/i);
+test("real tracking RPCs fail closed for malformed codes and never expose internals", async ({ request }, testInfo) => {
+  const anon = process.env.ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  for (const [name, body] of [
+    ["pr100_lookup_public_agency_application_by_code", { p_tracking_code: "invalid", p_request_fingerprint: "c".repeat(64) }],
+    ["pr100_lookup_public_service_request", { p_request_code: "invalid", p_request_fingerprint: "d".repeat(64) }],
+  ]) {
+    const result = await rpc(request, anon, name, body);
+    expect(result.allowed).toBe(false);
+    expect(result.code).toBe("invalid_request");
+    expect(JSON.stringify(result)).not.toMatch(/stack|service_role|authorization|whatsapp|email/i);
   }
-  await annotate(testInfo, 6);
+  annotations(testInfo, 8);
 });

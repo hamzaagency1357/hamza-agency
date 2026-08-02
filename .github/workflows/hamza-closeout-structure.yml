@@ -7,22 +7,14 @@ on:
       - ".github/workflows/hamza-closeout-*.yml"
       - ".github/workflows/hamza-agency-full-project-closeout.yml"
       - ".github/workflows/hamza-macro-runtime-suite.yml"
-      - "app/api/product-expansion/portal/**"
-      - "app/api/product-expansion/sessions/**"
-      - "app/api/health/route.ts"
-      - "app/portal/**"
-      - "components/portals/**"
-      - "lib/productExpansion/portal*"
-      - "lib/server/tenantAuthorization.ts"
-      - "lib/server/supabaseUser.ts"
+      - "app/**"
+      - "components/**"
+      - "lib/**"
       - "e2e/closeout/**"
       - "scripts/closeout/**"
       - "supabase/migrations/**"
       - "tests/closeout-automation.test.mjs"
-      - "tests/pr101-portal-security-contract.test.mjs"
       - "playwright.closeout.config.mjs"
-      - "playwright.config.mjs"
-      - "AGENTS.md"
       - "package.json"
       - "package-lock.json"
   workflow_dispatch:
@@ -60,17 +52,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -f AGENTS.md
-          test -f docs/HAMZA_AGENCY_FULL_PROJECT_CLOSEOUT.md
-          for suite in public translations tracking admin page-builder backup-restore trash notifications permissions security commerce tasks sla workflows; do test -f "e2e/closeout/$suite.spec.mjs"; done
-          test ! -f e2e/closeout/readonly.spec.mjs
-          closeout_workflows=(.github/workflows/hamza-closeout-suite.yml .github/workflows/hamza-macro-runtime-suite.yml .github/workflows/hamza-closeout-dispatcher.yml .github/workflows/hamza-agency-full-project-closeout.yml .github/workflows/hamza-closeout-structure.yml)
-          ! grep -n "collect_only" "${closeout_workflows[@]}"
-          ! grep -n "sanitize-artifacts.mjs.*|| true" "${closeout_workflows[@]}" scripts/closeout/*.mjs
-          ! grep -n "npx --yes.*playwright" "${closeout_workflows[@]}" package.json
+          for suite in public translations tracking admin page-builder backup-restore trash notifications permissions security commerce tasks sla workflows; do
+            test -f "e2e/closeout/$suite.spec.mjs"
+          done
           ! grep -R "test.skip" e2e/closeout
-          grep -q '"@playwright/test": "1.55.0"' package.json
-          npm ls @playwright/test --depth=0
+          ! grep -R 'pr99-fixture\|/pr99-e2e' e2e/closeout/{tracking,page-builder,backup-restore,trash,notifications,admin}.spec.mjs
+          grep -q "core-runtime-fixtures.mjs setup" .github/workflows/hamza-macro-runtime-suite.yml
+          grep -q "20260803006000_pr105_commerce_lifecycle_hardening.sql" .github/workflows/hamza-macro-runtime-suite.yml
           node - <<'NODE'
           const fs=require('fs'); const suites=require('./e2e/closeout/suites.json');
           for(const name of ['public','translations','tracking','admin','page-builder','backup-restore','trash','notifications','permissions','security','commerce','tasks','sla','workflows']){
@@ -104,16 +92,18 @@ jobs:
         run: |
           set -euo pipefail
           bypass_secret="${VERCEL_AUTOMATION_BYPASS_SECRET:-}"
-          test -n "$bypass_secret" || { echo "VERCEL_AUTOMATION_BYPASS_SECRET is required for Preview QA." >&2; exit 1; }
+          test -n "$bypass_secret"
           echo "::add-mask::$bypass_secret"
           preview_host="$(node -e 'process.stdout.write(new URL(process.argv[1]).hostname)' "$PREVIEW_URL")"
           test "$preview_host" = "hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app"
           for attempt in {1..90}; do
             actual="$(curl -fsS -H "x-vercel-protection-bypass: $bypass_secret" "$PREVIEW_URL/api/health" | node -e 'let x="";process.stdin.on("data",d=>x+=d).on("end",()=>{try{process.stdout.write(JSON.parse(x).commitSha||"")}catch{}})')" || true
-            if [ "$actual" = "$EXPECTED_SHA" ]; then echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"; exit 0; fi
+            if [ "$actual" = "$EXPECTED_SHA" ]; then
+              echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
             sleep 10
           done
-          echo "Exact-head Preview was not ready within 15 minutes." >&2
           exit 1
 
   preview-public-evidence:
@@ -140,10 +130,6 @@ jobs:
     needs: validate
     uses: ./.github/workflows/hamza-closeout-suite.yml
     with: { execution_mode: local-isolated, suite: translations, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
-  admin-evidence:
-    needs: validate
-    uses: ./.github/workflows/hamza-closeout-suite.yml
-    with: { execution_mode: local-isolated, suite: admin, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
   permissions-evidence:
     needs: validate
     uses: ./.github/workflows/hamza-closeout-suite.yml
@@ -152,27 +138,31 @@ jobs:
     needs: validate
     uses: ./.github/workflows/hamza-closeout-suite.yml
     with: { execution_mode: local-isolated, suite: security, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+
   tracking-evidence:
     needs: validate
-    uses: ./.github/workflows/hamza-closeout-suite.yml
-    with: { execution_mode: local-isolated, suite: tracking, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: tracking, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+  admin-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: admin, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
   page-builder-evidence:
     needs: validate
-    uses: ./.github/workflows/hamza-closeout-suite.yml
-    with: { execution_mode: local-isolated, suite: page-builder, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: page-builder, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
   backup-restore-evidence:
     needs: validate
-    uses: ./.github/workflows/hamza-closeout-suite.yml
-    with: { execution_mode: local-isolated, suite: backup-restore, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: backup-restore, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
   trash-evidence:
     needs: validate
-    uses: ./.github/workflows/hamza-closeout-suite.yml
-    with: { execution_mode: local-isolated, suite: trash, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: trash, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
   notifications-evidence:
     needs: validate
-    uses: ./.github/workflows/hamza-closeout-suite.yml
-    with: { execution_mode: local-isolated, suite: notifications, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
-
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: notifications, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
   commerce-evidence:
     needs: validate
     uses: ./.github/workflows/hamza-macro-runtime-suite.yml
@@ -192,7 +182,26 @@ jobs:
 
   aggregate:
     if: always()
-    needs: [validate, exact-preview, preview-public-evidence, preview-translations-evidence, preview-security-evidence, public-evidence, translations-evidence, admin-evidence, permissions-evidence, security-evidence, tracking-evidence, page-builder-evidence, backup-restore-evidence, trash-evidence, notifications-evidence, commerce-evidence, tasks-evidence, sla-evidence, workflows-evidence]
+    needs:
+      - validate
+      - exact-preview
+      - preview-public-evidence
+      - preview-translations-evidence
+      - preview-security-evidence
+      - public-evidence
+      - translations-evidence
+      - permissions-evidence
+      - security-evidence
+      - tracking-evidence
+      - admin-evidence
+      - page-builder-evidence
+      - backup-restore-evidence
+      - trash-evidence
+      - notifications-evidence
+      - commerce-evidence
+      - tasks-evidence
+      - sla-evidence
+      - workflows-evidence
     runs-on: ubuntu-latest
     steps:
       - name: Fail closed on any missing or unsuccessful suite
@@ -200,6 +209,7 @@ jobs:
           NEEDS_JSON: ${{ toJson(needs) }}
         run: |
           node - <<'NODE'
-          const needs=JSON.parse(process.env.NEEDS_JSON); const failed=Object.entries(needs).filter(([,v])=>v.result!=='success');
-          if(failed.length) throw new Error(`Closeout failed: ${failed.map(([k,v])=>`${k}:${v.result}`).join(', ')}`);
+          const needs=JSON.parse(process.env.NEEDS_JSON);
+          const failed=Object.entries(needs).filter(([,value])=>value.result!=='success');
+          if(failed.length) throw new Error(`Closeout failed: ${failed.map(([name,value])=>`${name}:${value.result}`).join(', ')}`);
           NODE

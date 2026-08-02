@@ -51,7 +51,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = '${{ inputs.expected_sha }}'
-          case '${{ inputs.suite }}' in commerce|tasks|sla|workflows) ;; *) exit 2 ;; esac
+          case '${{ inputs.suite }}' in tracking|admin|page-builder|backup-restore|trash|notifications|commerce|tasks|sla|workflows) ;; *) exit 2 ;; esac
           test ! -f supabase/.temp/project-ref
           test -z "${SUPABASE_ACCESS_TOKEN:-}"
           test -z "${HAMZA_PRODUCTION_READONLY_URL:-}"
@@ -131,6 +131,7 @@ jobs:
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803006000_pr105_commerce_lifecycle_hardening.sql
           node scripts/closeout/macro-auth-fixtures.mjs setup
           node scripts/closeout/macro-runtime-fixtures.mjs setup
+          node scripts/closeout/core-runtime-fixtures.mjs setup
 
       - name: Build and start local HTTPS application
         shell: bash

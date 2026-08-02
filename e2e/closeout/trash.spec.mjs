@@ -1,17 +1,29 @@
 import { test, expect } from "@playwright/test";
-import { action, annotate, cleanupFixture, evidence, initializeFixture } from "./pr99-fixture.mjs";
+import { annotations, fixture, rest, rpc, token } from "./real-runtime-helper.mjs";
 
-test("trash supports restore and requires exact permanent-delete confirmation", async ({ page, request }, testInfo) => {
-  await initializeFixture(request);
-  await action(request, "trash");
-  const protectedDelete = await action(request, "permanent_delete", { confirmation: "WRONG" });
-  expect(protectedDelete.response.status()).toBe(409);
-  expect(protectedDelete.body.code).toBe("protected");
-  expect((await action(request, "restore_trash")).body.state.page.trash).toBe("restored");
-  await action(request, "trash");
-  expect((await action(request, "permanent_delete", { confirmation: "DELETE PERMANENTLY" })).body.state.page.trash).toBe("deleted");
-  await page.goto("/pr99-e2e", { waitUntil: "domcontentloaded" });
-  await page.screenshot({ path: evidence(testInfo, "trash", "restore-delete"), fullPage: true, animations: "disabled" });
-  await cleanupFixture(request);
-  await annotate(testInfo, 7);
+test("real trash restore and two-step permanent deletion are enforced", async ({ request }, testInfo) => {
+  const f = fixture();
+  const admin = await token(request, f.accounts.employee);
+
+  const restored = await rpc(request, admin, "pr99_restore_trash", { p_trash_id: f.core.trashRestore });
+  expect(JSON.stringify(restored)).toMatch(/restored|pages/i);
+  const page = await rest(request, admin, `pages?id=eq.${f.core.trashRestorePage}&select=id,title`);
+  expect(page).toHaveLength(1);
+
+  await rpc(request, admin, "pr99_permanent_delete_trash", {
+    p_trash_id: f.core.trashDelete,
+    p_confirmation: "DELETE",
+  }, [400, 403]);
+
+  const deleted = await rpc(request, admin, "pr99_permanent_delete_trash", {
+    p_trash_id: f.core.trashDelete,
+    p_confirmation: "DELETE PERMANENTLY",
+  });
+  expect(JSON.stringify(deleted)).toMatch(/permanently_deleted|deleted/i);
+
+  const trashRow = await rest(request, admin, `trash_items?id=eq.${f.core.trashDelete}&select=restore_status,data,item_data`);
+  expect(trashRow[0].restore_status).toBe("permanently_deleted");
+  expect(trashRow[0].data).toEqual({});
+  expect(trashRow[0].item_data).toBeNull();
+  annotations(testInfo, 12);
 });

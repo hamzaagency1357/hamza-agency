@@ -1,23 +1,49 @@
 import { test, expect } from "@playwright/test";
-import { action, annotate, cleanupFixture, evidence, initializeFixture } from "./pr99-fixture.mjs";
+import { annotations, fixture, rpc, token } from "./real-runtime-helper.mjs";
 
-test("multilingual page lifecycle publishes, versions, restores, and unpublishes", async ({ page, request }, testInfo) => {
-  await initializeFixture(request);
-  let state;
-  for (const actionName of ["draft", "translations", "sections", "publish"]) state = (await action(request, actionName)).body.state;
-  expect(state.page.status).toBe("published");
-  expect(state.page.sections.some((section) => section.visible === false)).toBe(true);
-  for (const [url, copy] of [["/fixture-page", "محتوى عربي تجريبي"], ["/en/fixture-page", "Isolated English fixture content"], ["/tr/fixture-page", "Yalıtılmış Türkçe test içeriği"]]) {
+test.describe.configure({ mode: "serial" });
+
+test("real page builder publishes AR EN TR, versions, restores, republishes, and unpublishes", async ({ request }, testInfo) => {
+  const f = fixture();
+  const admin = await token(request, f.accounts.employee);
+  const versions = [];
+
+  for (const language of ["ar", "en", "tr"]) {
+    const result = await rpc(request, admin, "publish_page_builder_page", {
+      p_page_id: f.core.page,
+      p_language: language,
+      p_notes: `closeout-${language}`,
+    });
+    expect(result.sections).toBe(1);
+    expect(result.version_id).toBeTruthy();
+    versions.push(result.version_id);
+  }
+
+  for (const [url, copy] of [
+    ["/fixture-page", "محتوى عربي حقيقي من قاعدة البيانات"],
+    ["/en/fixture-page", "Real English database content"],
+    ["/tr/fixture-page", "Gerçek Türkçe veritabanı içeriği"],
+  ]) {
     const response = await request.get(url);
     expect(response.status()).toBe(200);
     expect(await response.text()).toContain(copy);
   }
-  expect((await action(request, "restore")).body.state.page.status).toBe("draft");
-  await action(request, "publish");
-  expect((await action(request, "unpublish")).body.state.page.status).toBe("unpublished");
-  for (const url of ["/fixture-page", "/en/fixture-page", "/tr/fixture-page"]) expect((await request.get(url)).status()).toBe(404);
-  await page.goto("/pr99-e2e", { waitUntil: "domcontentloaded" });
-  await page.screenshot({ path: evidence(testInfo, "page-builder", "lifecycle"), fullPage: true, animations: "disabled" });
-  await cleanupFixture(request);
-  await annotate(testInfo, 15);
+
+  const restored = await rpc(request, admin, "restore_page_version", { p_version_id: versions[0] });
+  expect(restored.status).toBe("draft");
+  const republished = await rpc(request, admin, "publish_page_builder_page", {
+    p_page_id: f.core.page,
+    p_language: "ar",
+    p_notes: "republish-after-restore",
+  });
+  expect(republished.sections).toBe(1);
+
+  for (const language of ["ar", "en", "tr"]) {
+    const result = await rpc(request, admin, "pr99_unpublish_page", {
+      p_page_id: f.core.page,
+      p_language: language,
+    });
+    expect(result.status).toBe("unpublished");
+  }
+  annotations(testInfo, 18);
 });
