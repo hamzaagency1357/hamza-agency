@@ -116,7 +116,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base64 -d scripts/closeout/build-current-state-apply.mjs.gz.b64 | gzip -d > /tmp/build-current-state-apply.mjs
+          cat scripts/closeout/build-current-state-apply.part{00,01,02,03} | base64 -d | gzip -d > /tmp/build-current-state-apply.mjs
           node --check /tmp/build-current-state-apply.mjs
           node /tmp/build-current-state-apply.mjs --self-test /tmp/parser-regression.generated.sql
           {
