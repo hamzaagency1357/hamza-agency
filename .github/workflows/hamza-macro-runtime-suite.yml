@@ -129,6 +129,7 @@ jobs:
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803004000_pr105_macro_runtime_hardening.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803005000_pr105_macro_runtime_fixture_contract.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803006000_pr105_commerce_lifecycle_hardening.sql
+          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803007000_pr105_operational_depth_completion.sql
           node scripts/closeout/macro-auth-fixtures.mjs setup
           node scripts/closeout/macro-runtime-fixtures.mjs setup
           node scripts/closeout/core-runtime-fixtures.mjs setup
@@ -202,6 +203,7 @@ jobs:
             set -a
             . "$CLOSEOUT_SUPABASE_ENV_FILE"
             set +a
+            node scripts/closeout/core-runtime-fixtures.mjs cleanup || status=1
             node scripts/closeout/macro-runtime-fixtures.mjs cleanup || status=1
             node scripts/closeout/macro-auth-fixtures.mjs cleanup || status=1
           else
