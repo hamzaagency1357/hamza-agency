@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/hamza-closeout-*.yml"
       - ".github/workflows/hamza-agency-full-project-closeout.yml"
+      - ".github/workflows/hamza-macro-runtime-suite.yml"
       - "app/api/product-expansion/portal/**"
       - "app/api/product-expansion/sessions/**"
       - "app/api/health/route.ts"
@@ -16,6 +17,7 @@ on:
       - "lib/server/supabaseUser.ts"
       - "e2e/closeout/**"
       - "scripts/closeout/**"
+      - "supabase/migrations/**"
       - "tests/closeout-automation.test.mjs"
       - "tests/pr101-portal-security-contract.test.mjs"
       - "playwright.closeout.config.mjs"
@@ -60,15 +62,22 @@ jobs:
           set -euo pipefail
           test -f AGENTS.md
           test -f docs/HAMZA_AGENCY_FULL_PROJECT_CLOSEOUT.md
-          for suite in public translations tracking admin page-builder backup-restore trash notifications permissions security; do test -f "e2e/closeout/$suite.spec.mjs"; done
+          for suite in public translations tracking admin page-builder backup-restore trash notifications permissions security commerce tasks sla workflows; do test -f "e2e/closeout/$suite.spec.mjs"; done
           test ! -f e2e/closeout/readonly.spec.mjs
-          closeout_workflows=(.github/workflows/hamza-closeout-suite.yml .github/workflows/hamza-closeout-dispatcher.yml .github/workflows/hamza-agency-full-project-closeout.yml)
+          closeout_workflows=(.github/workflows/hamza-closeout-suite.yml .github/workflows/hamza-macro-runtime-suite.yml .github/workflows/hamza-closeout-dispatcher.yml .github/workflows/hamza-agency-full-project-closeout.yml .github/workflows/hamza-closeout-structure.yml)
           ! grep -n "collect_only" "${closeout_workflows[@]}"
           ! grep -n "sanitize-artifacts.mjs.*|| true" "${closeout_workflows[@]}" scripts/closeout/*.mjs
           ! grep -n "npx --yes.*playwright" "${closeout_workflows[@]}" package.json
           ! grep -R "test.skip" e2e/closeout
           grep -q '"@playwright/test": "1.55.0"' package.json
           npm ls @playwright/test --depth=0
+          node - <<'NODE'
+          const fs=require('fs'); const suites=require('./e2e/closeout/suites.json');
+          for(const name of ['public','translations','tracking','admin','page-builder','backup-restore','trash','notifications','permissions','security','commerce','tasks','sla','workflows']){
+            if(suites[name]?.status!=='implemented') throw new Error(`${name}:not-implemented`);
+            if(!fs.existsSync(`e2e/closeout/${suites[name].spec}`)) throw new Error(`${name}:missing-spec`);
+          }
+          NODE
       - name: Run closeout contract tests
         run: node --test tests/closeout-automation.test.mjs
       - name: Lint
@@ -101,10 +110,7 @@ jobs:
           test "$preview_host" = "hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app"
           for attempt in {1..90}; do
             actual="$(curl -fsS -H "x-vercel-protection-bypass: $bypass_secret" "$PREVIEW_URL/api/health" | node -e 'let x="";process.stdin.on("data",d=>x+=d).on("end",()=>{try{process.stdout.write(JSON.parse(x).commitSha||"")}catch{}})')" || true
-            if [ "$actual" = "$EXPECTED_SHA" ]; then
-              echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
+            if [ "$actual" = "$EXPECTED_SHA" ]; then echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"; exit 0; fi
             sleep 10
           done
           echo "Exact-head Preview was not ready within 15 minutes." >&2
@@ -113,125 +119,87 @@ jobs:
   preview-public-evidence:
     needs: exact-preview
     uses: ./.github/workflows/hamza-closeout-suite.yml
-    with:
-      execution_mode: preview-readonly
-      suite: public
-      target_url: ${{ needs.exact-preview.outputs.preview_url }}
-      preview_host: hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app
-      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-    secrets:
-      vercel_automation_bypass_secret: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-
+    with: { execution_mode: preview-readonly, suite: public, target_url: "${{ needs.exact-preview.outputs.preview_url }}", preview_host: hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+    secrets: { vercel_automation_bypass_secret: "${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}" }
   preview-translations-evidence:
     needs: exact-preview
     uses: ./.github/workflows/hamza-closeout-suite.yml
-    with:
-      execution_mode: preview-readonly
-      suite: translations
-      target_url: ${{ needs.exact-preview.outputs.preview_url }}
-      preview_host: hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app
-      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-    secrets:
-      vercel_automation_bypass_secret: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-
+    with: { execution_mode: preview-readonly, suite: translations, target_url: "${{ needs.exact-preview.outputs.preview_url }}", preview_host: hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+    secrets: { vercel_automation_bypass_secret: "${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}" }
   preview-security-evidence:
     needs: exact-preview
     uses: ./.github/workflows/hamza-closeout-suite.yml
-    with:
-      execution_mode: preview-readonly
-      suite: security
-      target_url: ${{ needs.exact-preview.outputs.preview_url }}
-      preview_host: hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app
-      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-    secrets:
-      vercel_automation_bypass_secret: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    with: { execution_mode: preview-readonly, suite: security, target_url: "${{ needs.exact-preview.outputs.preview_url }}", preview_host: hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+    secrets: { vercel_automation_bypass_secret: "${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}" }
 
   public-evidence:
     needs: validate
     uses: ./.github/workflows/hamza-closeout-suite.yml
-    with:
-      execution_mode: local-isolated
-      suite: public
-      target_url: https://127.0.0.1:3443
-      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
+    with: { execution_mode: local-isolated, suite: public, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
   translations-evidence:
     needs: validate
     uses: ./.github/workflows/hamza-closeout-suite.yml
-    with:
-      execution_mode: local-isolated
-      suite: translations
-      target_url: https://127.0.0.1:3443
-      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
+    with: { execution_mode: local-isolated, suite: translations, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
   admin-evidence:
     needs: validate
     uses: ./.github/workflows/hamza-closeout-suite.yml
-    with:
-      execution_mode: local-isolated
-      suite: admin
-      target_url: https://127.0.0.1:3443
-      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
+    with: { execution_mode: local-isolated, suite: admin, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
   permissions-evidence:
     needs: validate
     uses: ./.github/workflows/hamza-closeout-suite.yml
-    with:
-      execution_mode: local-isolated
-      suite: permissions
-      target_url: https://127.0.0.1:3443
-      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
+    with: { execution_mode: local-isolated, suite: permissions, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
   security-evidence:
     needs: validate
     uses: ./.github/workflows/hamza-closeout-suite.yml
-    with:
-      execution_mode: local-isolated
-      suite: security
-      target_url: https://127.0.0.1:3443
-      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
+    with: { execution_mode: local-isolated, suite: security, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
   tracking-evidence:
     needs: validate
     uses: ./.github/workflows/hamza-closeout-suite.yml
-    with:
-      execution_mode: local-isolated
-      suite: tracking
-      target_url: https://127.0.0.1:3443
-      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
+    with: { execution_mode: local-isolated, suite: tracking, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
   page-builder-evidence:
     needs: validate
     uses: ./.github/workflows/hamza-closeout-suite.yml
-    with:
-      execution_mode: local-isolated
-      suite: page-builder
-      target_url: https://127.0.0.1:3443
-      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
+    with: { execution_mode: local-isolated, suite: page-builder, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
   backup-restore-evidence:
     needs: validate
     uses: ./.github/workflows/hamza-closeout-suite.yml
-    with:
-      execution_mode: local-isolated
-      suite: backup-restore
-      target_url: https://127.0.0.1:3443
-      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
+    with: { execution_mode: local-isolated, suite: backup-restore, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
   trash-evidence:
     needs: validate
     uses: ./.github/workflows/hamza-closeout-suite.yml
-    with:
-      execution_mode: local-isolated
-      suite: trash
-      target_url: https://127.0.0.1:3443
-      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
+    with: { execution_mode: local-isolated, suite: trash, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
   notifications-evidence:
     needs: validate
     uses: ./.github/workflows/hamza-closeout-suite.yml
-    with:
-      execution_mode: local-isolated
-      suite: notifications
-      target_url: https://127.0.0.1:3443
-      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+    with: { execution_mode: local-isolated, suite: notifications, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+
+  commerce-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: commerce, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+  tasks-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: tasks, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+  sla-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: sla, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+  workflows-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: workflows, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+
+  aggregate:
+    if: always()
+    needs: [validate, exact-preview, preview-public-evidence, preview-translations-evidence, preview-security-evidence, public-evidence, translations-evidence, admin-evidence, permissions-evidence, security-evidence, tracking-evidence, page-builder-evidence, backup-restore-evidence, trash-evidence, notifications-evidence, commerce-evidence, tasks-evidence, sla-evidence, workflows-evidence]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail closed on any missing or unsuccessful suite
+        env:
+          NEEDS_JSON: ${{ toJson(needs) }}
+        run: |
+          node - <<'NODE'
+          const needs=JSON.parse(process.env.NEEDS_JSON); const failed=Object.entries(needs).filter(([,v])=>v.result!=='success');
+          if(failed.length) throw new Error(`Closeout failed: ${failed.map(([k,v])=>`${k}:${v.result}`).join(', ')}`);
+          NODE
