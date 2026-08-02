@@ -9,7 +9,7 @@ export default defineConfig({
   testMatch: suiteFile,
   timeout: 45_000,
   expect: { timeout: 10_000 },
-  retries: process.env.CI ? 1 : 0,
+  retries: process.env.CLOSEOUT_DISABLE_RETRIES === "1" ? 0 : process.env.CI ? 1 : 0,
   workers: guard.mode === "local-isolated" ? 1 : undefined,
   forbidOnly: true,
   fullyParallel: guard.mode !== "local-isolated",
