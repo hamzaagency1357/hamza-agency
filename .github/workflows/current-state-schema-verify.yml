@@ -79,7 +79,6 @@ jobs:
           mkdir -p "$SCHEMA_WORKDIR/supabase/migrations"
           cp supabase/config.toml "$SCHEMA_WORKDIR/supabase/config.toml"
           printf '%s\n' '-- No fixtures: zero-row schema verification only.' > "$SCHEMA_WORKDIR/supabase/seed.sql"
-          cp supabase/current-state-schema/current-state-schema.sql "$SCHEMA_WORKDIR/current-state-schema.sql"
           "$SUPABASE_BIN" start --help > /tmp/current-state-start-help.txt
 
       - name: Start fresh Supabase Local
@@ -161,11 +160,75 @@ jobs:
           printf 'DB_URL=%s\n' "$DB_URL" >> "$GITHUB_ENV"
           unset DB_URL
 
-      - name: Apply direct snapshot to isolated local database
+      - name: Build and regression-test temporary apply snapshot
         shell: bash
         run: |
           set -euo pipefail
-          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f "$SCHEMA_WORKDIR/current-state-schema.sql"
+          cat > /tmp/repair-current-state-routines.mjs <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync,writeFileSync} from 'node:fs';
+          const ws=/\s/, first=/[A-Za-z_]/, rest=/[A-Za-z0-9_$]/;
+          const cont=new Set('LANGUAGE TRANSFORM WINDOW IMMUTABLE STABLE VOLATILE NOT LEAKPROOF CALLED RETURNS STRICT EXTERNAL SECURITY PARALLEL COST ROWS SUPPORT SET'.split(' '));
+          function word(s,i){if(!first.test(s[i]??''))return null;let j=i+1;while(rest.test(s[j]??''))j++;return [s.slice(i,j).toUpperCase(),j]}
+          function tag(s,i){if(s[i]!=='$')return null;if(s[i+1]==='$')return '$$';if(!first.test(s[i+1]??''))return null;let j=i+2;while(/[A-Za-z0-9_]/.test(s[j]??''))j++;return s[j]==='$'?s.slice(i,j+1):null}
+          function sq(s,i){for(let j=i+1;j<s.length;j++){if(s[j]==="'"){if(s[j+1]==="'"){j++;continue}return j+1}if(s[j]==='\\'&&j+1<s.length)j++}throw Error(`unterminated quote at ${i}`)}
+          function dq(s,i){for(let j=i+1;j<s.length;j++)if(s[j]==='"'){if(s[j+1]==='"'){j++;continue}return j+1}throw Error(`unterminated identifier at ${i}`)}
+          function lc(s,i){const j=s.indexOf('\n',i+2);return j<0?s.length:j+1}
+          function bc(s,i){let j=i+2,d=1;while(j<s.length&&d){if(s.startsWith('/*',j)){d++;j+=2}else if(s.startsWith('*/',j)){d--;j+=2}else j++}if(d)throw Error(`unterminated comment at ${i}`);return j}
+          function trivia(s,i){while(i<s.length){if(ws.test(s[i]))i++;else if(s.startsWith('--',i))i=lc(s,i);else if(s.startsWith('/*',i))i=bc(s,i);else break}return i}
+          function close(s,i,t){const j=s.indexOf(t,i+t.length);if(j<0)throw Error(`unterminated ${t} at ${i}`);return j+t.length}
+          function routine(s,i){let w=word(s,i);if(!w||w[0]!=='CREATE')return null;i=trivia(s,w[1]);w=word(s,i);if(w?.[0]==='OR'){i=trivia(s,w[1]);w=word(s,i);if(w?.[0]!=='REPLACE')return null;i=trivia(s,w[1]);w=word(s,i)}return w&&['FUNCTION','PROCEDURE'].includes(w[0])?w[1]:null}
+          export function repair(s){const edits=[];let i=0,start=true;while(i<s.length){if(ws.test(s[i])){i++;continue}if(s.startsWith('--',i)){i=lc(s,i);continue}if(s.startsWith('/*',i)){i=bc(s,i);continue}if(start){const r=routine(s,i);if(r!==null){let j=r,as=false,done=false;while(j<s.length){if(ws.test(s[j])){j++;continue}if(s.startsWith('--',j)){j=lc(s,j);continue}if(s.startsWith('/*',j)){j=bc(s,j);continue}if(s[j]==="'"){j=sq(s,j);continue}if(s[j]==='"'){j=dq(s,j);continue}const w=word(s,j);if(w){if(w[0]==='AS')as=true;j=w[1];continue}const t=tag(s,j);if(t){const e=close(s,j,t);if(as){const n=trivia(s,e),nw=word(s,n);if(s[n]===';'){i=n+1;start=true;done=true;break}if(nw&&cont.has(nw[0])){j=e;as=false;continue}edits.push(e);i=e;start=true;done=true;break}j=e;continue}if(s[j]===';'){i=j+1;start=true;done=true;break}j++}if(!done)i=j;continue}start=false}if(s[i]==="'")i=sq(s,i);else if(s[i]==='"')i=dq(s,i);else if(s.startsWith('--',i))i=lc(s,i);else if(s.startsWith('/*',i))i=bc(s,i);else{const t=tag(s,i);if(t)i=close(s,i,t);else if(s[i]===';'){i++;start=true}else i++}}for(let k=edits.length-1;k>=0;k--)s=s.slice(0,edits[k])+';'+s.slice(edits[k]);return {sql:s,repairs:edits.length}}
+          function self(out){const src=String.raw`BEGIN;
+          CREATE SCHEMA parser_regression;
+          CREATE TABLE parser_regression.sink(value text NOT NULL);
+          CREATE OR REPLACE FUNCTION parser_regression.tagged(v text) RETURNS void LANGUAGE plpgsql AS $function$
+          BEGIN
+           INSERT INTO parser_regression.sink VALUES (v || ' $other$ text');
+          END;
+          $function$
+          CREATE OR REPLACE FUNCTION parser_regression.untagged(v text) RETURNS void LANGUAGE plpgsql AS $$
+          BEGIN
+           INSERT INTO parser_regression.sink VALUES (v || ' $function$ text');
+          END;
+          $$
+          CREATE OR REPLACE FUNCTION parser_regression.done(v text) RETURNS void LANGUAGE plpgsql AS $$
+          BEGIN
+           INSERT INTO parser_regression.sink VALUES (v);
+          END;
+          $$;
+          CREATE OR REPLACE PROCEDURE parser_regression.proc(v text) LANGUAGE plpgsql AS $procedure$
+          BEGIN
+           INSERT INTO parser_regression.sink VALUES (v);
+          END;
+          $procedure$
+          SELECT parser_regression.tagged('tagged');
+          SELECT parser_regression.untagged('untagged');
+          SELECT parser_regression.done('done');
+          CALL parser_regression.proc('proc');
+          DO $assert$ BEGIN IF (SELECT count(*) FROM parser_regression.sink) <> 4 THEN RAISE EXCEPTION 'bad count'; END IF; END; $assert$;
+          ROLLBACK;
+          `;const r=repair(src);assert.equal(r.repairs,3);assert.doesNotMatch(r.sql,/\$\$;;/);assert.match(r.sql,/\$function\$;/);assert.match(r.sql,/\$procedure\$;/);assert.match(r.sql,/\$other\$ text/);assert.match(r.sql,/\$function\$ text/);writeFileSync(out,r.sql)}
+          const [a,b]=process.argv.slice(2);if(a==='--self-test')self(b);else{const r=repair(readFileSync(a,'utf8'));assert.ok(r.repairs>0);writeFileSync(b,r.sql);console.log(`[current-state-schema] temporary apply repairs=${r.repairs}`)}
+          NODE
+
+          node --check /tmp/repair-current-state-routines.mjs
+          node /tmp/repair-current-state-routines.mjs --self-test /tmp/current-state-schema-parser-regression.apply.sql
+          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f /tmp/current-state-schema-parser-regression.apply.sql
+
+          snapshot="$GITHUB_WORKSPACE/supabase/current-state-schema/current-state-schema.sql"
+          test "$(wc -c < "$snapshot" | tr -d '[:space:]')" = "496138"
+          printf '%s  %s\n' '3b1890376e3cca966b1dce0979dd2ed089f95237e1067febf4f58e8f1bf776f2' "$snapshot" | sha256sum -c -
+          test "$(git hash-object "$snapshot")" = "65f45c04f7bd50e7751eb5f802f3ad0550c52bfc"
+
+          node /tmp/repair-current-state-routines.mjs "$snapshot" /tmp/current-state-schema.apply.sql
+          test -s /tmp/current-state-schema.apply.sql
+
+      - name: Apply temporary snapshot to isolated local database
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f /tmp/current-state-schema.apply.sql
 
       - name: Prove zero rows before fixtures
         shell: bash
@@ -211,11 +274,15 @@ jobs:
           grep -qx 'functions=74' /tmp/current-state-inventory.txt
           grep -qx 'policies=50' /tmp/current-state-inventory.txt
 
-      - name: Prove repository remains clean
+      - name: Prove repository and snapshot remain unchanged
         shell: bash
         run: |
           set -euo pipefail
+          snapshot="$GITHUB_WORKSPACE/supabase/current-state-schema/current-state-schema.sql"
           node scripts/closeout/materialize-current-state-schema.mjs
+          test "$(wc -c < "$snapshot" | tr -d '[:space:]')" = "496138"
+          printf '%s  %s\n' '3b1890376e3cca966b1dce0979dd2ed089f95237e1067febf4f58e8f1bf776f2' "$snapshot" | sha256sum -c -
+          test "$(git hash-object "$snapshot")" = "65f45c04f7bd50e7751eb5f802f3ad0550c52bfc"
           test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Always destroy local stack and temporary values
@@ -229,3 +296,4 @@ jobs:
           fi
           rm -rf "$SCHEMA_WORKDIR"
           rm -f /tmp/current-state-start-help.txt /tmp/current-state-supabase-start.log /tmp/current-state-supabase.env /tmp/current-state-inventory.txt
+          rm -f /tmp/repair-current-state-routines.mjs /tmp/current-state-schema-parser-regression.apply.sql /tmp/current-state-schema.apply.sql
