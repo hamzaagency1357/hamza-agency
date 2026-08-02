@@ -91,7 +91,6 @@ jobs:
             case "$key" in
               API_URL) echo "API_URL=$value" >> "$GITHUB_ENV"; echo "NEXT_PUBLIC_SUPABASE_URL=https://127.0.0.1:3443/__closeout_supabase" >> "$GITHUB_ENV" ;;
               ANON_KEY) echo "ANON_KEY=$value" >> "$GITHUB_ENV"; echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$value" >> "$GITHUB_ENV" ;;
-              SERVICE_ROLE_KEY) echo "SERVICE_ROLE_KEY=$value" >> "$GITHUB_ENV" ;;
               DB_URL) echo "DB_URL=$value" >> "$GITHUB_ENV" ;;
             esac
           done < /tmp/macro-supabase.env
