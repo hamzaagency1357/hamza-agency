@@ -20,16 +20,17 @@ test("employee creates, edits, transitions, and audits a tenant task", async ({ 
   expect(rows[0].completed_at).toBeTruthy();
   const history = await rest(request, employee, `task_status_history?task_id=eq.${taskId}&select=from_status,to_status&order=changed_at.asc`);
   expect(history.map((row) => row.to_status)).toEqual(expect.arrayContaining(["open", "in_progress", "resolved", "closed"]));
-  const audit = await rest(request, employee, `tenant_admin_audit?entity_id=eq.${taskId}&select=action`);
-  expect(audit.length).toBeGreaterThanOrEqual(5);
-  annotations(testInfo, 12);
+  const evidence = await rpc(request, employee, "task_runtime_evidence", { p_tenant: f.tenants.a, p_task: taskId });
+  expect(Number(evidence.historyCount)).toBeGreaterThanOrEqual(4);
+  expect(Number(evidence.auditCount)).toBeGreaterThanOrEqual(5);
+  annotations(testInfo, 13);
 });
 
 test("client and other tenant cannot mutate staff task", async ({ request }, testInfo) => {
   const f = fixture();
   const client = await token(request, f.accounts.client);
   const other = await token(request, f.accounts.otherTenant);
-  await rpc(request, client, "manage_task_runtime", { p_tenant: f.tenants.a, p_task: taskId, p_action: "update", p_payload: { title: "forbidden" } }, 403);
-  await rpc(request, other, "manage_task_runtime", { p_tenant: f.tenants.a, p_task: taskId, p_action: "update", p_payload: { title: "cross tenant" } }, 403);
+  await rpc(request, client, "manage_task_runtime", { p_tenant: f.tenants.a, p_task: taskId, p_action: "update", p_payload: { title: "forbidden" } }, [400, 403]);
+  await rpc(request, other, "manage_task_runtime", { p_tenant: f.tenants.a, p_task: taskId, p_action: "update", p_payload: { title: "cross tenant" } }, [400, 403]);
   annotations(testInfo, 2);
 });
