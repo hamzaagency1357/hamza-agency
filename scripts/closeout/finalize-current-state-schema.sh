@@ -4,8 +4,10 @@ set +x
 umask 077
 
 EXPECTED_BRANCH='feat/pr101-complete-product-expansion'
+REMOTE_REF="refs/remotes/origin/$EXPECTED_BRANCH"
 SNAPSHOT_PATH='supabase/current-state-schema/current-state-schema.sql'
 MANIFEST_PATH='supabase/current-state-schema/manifest.json'
+README_PATH='supabase/current-state-schema/README.md'
 MATERIALIZER_PATH='scripts/closeout/materialize-current-state-schema.mjs'
 WORKFLOW_PATH='.github/workflows/current-state-schema-verify.yml'
 COMMIT_MESSAGE='chore(closeout): finalize current-state schema snapshot'
@@ -24,6 +26,9 @@ cd "$REPO_ROOT"
 
 CURRENT_BRANCH="$(git branch --show-current)"
 [ "$CURRENT_BRANCH" = "$EXPECTED_BRANCH" ] || fail "refusing branch $CURRENT_BRANCH; expected $EXPECTED_BRANCH"
+[ -n "${HAMZA_SCHEMA_START_HEAD:-}" ] || fail 'HAMZA_SCHEMA_START_HEAD is required; use the owner runner'
+[[ "$HAMZA_SCHEMA_START_HEAD" =~ ^[0-9a-f]{40}$ ]] || fail 'HAMZA_SCHEMA_START_HEAD must be a full lowercase commit SHA'
+[ "$(git rev-parse HEAD)" = "$HAMZA_SCHEMA_START_HEAD" ] || fail 'local HEAD changed since the owner runner started'
 [ -f "$SNAPSHOT_PATH" ] || fail "missing verified owner snapshot: $SNAPSHOT_PATH"
 
 bash scripts/closeout/export-current-state-schema.sh --verify-only
@@ -143,6 +148,8 @@ on:
       - "supabase/current-state-schema/**"
       - "scripts/closeout/export-current-state-schema.sh"
       - "scripts/closeout/export-current-state-schema.sql"
+      - "scripts/closeout/verify-current-state-schema.mjs"
+      - "scripts/closeout/run-current-state-schema-owner.sh"
       - "scripts/closeout/finalize-current-state-schema.sh"
       - "scripts/closeout/materialize-current-state-schema.mjs"
       - ".github/workflows/current-state-schema-verify.yml"
@@ -310,7 +317,8 @@ jobs:
           rm -f /tmp/current-state-start-help.txt /tmp/current-state-supabase-start.log /tmp/current-state-supabase.env /tmp/current-state-inventory.txt
 YAML
 
-bash -n scripts/closeout/export-current-state-schema.sh scripts/closeout/finalize-current-state-schema.sh
+bash -n scripts/closeout/export-current-state-schema.sh scripts/closeout/run-current-state-schema-owner.sh scripts/closeout/finalize-current-state-schema.sh
+node --check scripts/closeout/verify-current-state-schema.mjs
 node --check "$MATERIALIZER_PATH"
 node "$MATERIALIZER_PATH"
 
@@ -324,12 +332,18 @@ npm test
 
 git diff --check
 
-git add -- "$SNAPSHOT_PATH" "$MANIFEST_PATH" "$MATERIALIZER_PATH" "$WORKFLOW_PATH"
+[ "$(git rev-parse HEAD)" = "$HAMZA_SCHEMA_START_HEAD" ] || fail 'local HEAD changed before the final commit'
+git fetch --no-tags --quiet origin "refs/heads/$EXPECTED_BRANCH:$REMOTE_REF"
+REMOTE_HEAD="$(git rev-parse "$REMOTE_REF")"
+[ "$REMOTE_HEAD" = "$HAMZA_SCHEMA_START_HEAD" ] || fail 'remote branch HEAD changed since the owner runner started'
+[ "$(git merge-base "$HAMZA_SCHEMA_START_HEAD" "$REMOTE_HEAD")" = "$HAMZA_SCHEMA_START_HEAD" ] || fail 'remote branch diverged from the recorded start head'
+
+git add -- "$SNAPSHOT_PATH" "$MANIFEST_PATH" "$README_PATH" "$MATERIALIZER_PATH" "$WORKFLOW_PATH"
 git add -A -- supabase/current-state-schema/parts supabase/current-state-schema/generated
 
 while IFS= read -r path; do
   case "$path" in
-    "$SNAPSHOT_PATH"|"$MANIFEST_PATH"|"$MATERIALIZER_PATH"|"$WORKFLOW_PATH"|supabase/current-state-schema/parts/*|supabase/current-state-schema/generated/*)
+    "$SNAPSHOT_PATH"|"$MANIFEST_PATH"|"$README_PATH"|"$MATERIALIZER_PATH"|"$WORKFLOW_PATH"|supabase/current-state-schema/parts/*|supabase/current-state-schema/generated/*)
       ;;
     *)
       fail "refusing unrelated staged path: $path"

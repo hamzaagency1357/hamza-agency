@@ -6,6 +6,8 @@ on:
     paths:
       - "supabase/current-state-schema/**"
       - "scripts/closeout/materialize-current-state-schema.mjs"
+      - "scripts/closeout/verify-current-state-schema.mjs"
+      - "scripts/closeout/run-current-state-schema-owner.sh"
       - ".github/workflows/current-state-schema-verify.yml"
   workflow_dispatch:
 
