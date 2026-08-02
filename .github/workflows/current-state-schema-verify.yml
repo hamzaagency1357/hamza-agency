@@ -103,33 +103,19 @@ jobs:
           parse_db_url_line() {
             local line="$1"
             local value authority hostport
-
-            case "$line" in
-              DB_URL=*) ;;
-              *) return 1 ;;
-            esac
-
+            case "$line" in DB_URL=*) ;; *) return 1 ;; esac
             value="${line#DB_URL=}"
-            if [[ "$value" == \"* || "$value" == *\" ]]; then
-              [[ "$value" == \"*\" ]] || return 1
+            if [[ "${value:0:1}" == '"' || "${value: -1}" == '"' ]]; then
+              [[ "${value:0:1}" == '"' && "${value: -1}" == '"' ]] || return 1
               [[ ${#value} -ge 2 ]] || return 1
               value="${value:1:${#value}-2}"
             fi
-
             [[ -n "$value" ]] || return 1
-            case "$value" in
-              postgresql://*|postgres://*) ;;
-              *) return 1 ;;
-            esac
-
+            case "$value" in postgresql://*|postgres://*) ;; *) return 1 ;; esac
             authority="${value#*://}"
             authority="${authority%%/*}"
             hostport="${authority##*@}"
-            case "$hostport" in
-              127.0.0.1:54322|localhost:54322) ;;
-              *) return 1 ;;
-            esac
-
+            case "$hostport" in 127.0.0.1:54322|localhost:54322) ;; *) return 1 ;; esac
             printf '%s' "$value"
           }
 
@@ -146,74 +132,45 @@ jobs:
           unset expected_quoted expected_unquoted parsed_quoted parsed_unquoted
 
           "$SUPABASE_BIN" status -o env > /tmp/current-state-supabase.env
-          DB_URL_LINE="$(grep -m1 '^DB_URL=' /tmp/current-state-supabase.env)" || {
-            echo "Supabase Local did not report DB_URL" >&2
-            exit 1
-          }
-          DB_URL="$(parse_db_url_line "$DB_URL_LINE")" || {
-            echo "Supabase Local DB_URL is empty or outside the expected local endpoint" >&2
-            exit 1
-          }
+          DB_URL_LINE="$(grep -m1 '^DB_URL=' /tmp/current-state-supabase.env)" || { echo "Supabase Local did not report DB_URL" >&2; exit 1; }
+          DB_URL="$(parse_db_url_line "$DB_URL_LINE")" || { echo "Supabase Local DB_URL is empty or outside the expected local endpoint" >&2; exit 1; }
           unset DB_URL_LINE
-
           printf '::add-mask::%s\n' "$DB_URL"
           printf 'DB_URL=%s\n' "$DB_URL" >> "$GITHUB_ENV"
           unset DB_URL
 
-      - name: Build and regression-test temporary apply snapshot
+      - name: Build and regression-test dependency-safe temporary snapshot
         shell: bash
         run: |
           set -euo pipefail
-          cat > /tmp/repair-current-state-routines.mjs <<'NODE'
-          import assert from 'node:assert/strict';
-          import {readFileSync,writeFileSync} from 'node:fs';
-          const ws=/\s/, first=/[A-Za-z_]/, rest=/[A-Za-z0-9_$]/;
-          const cont=new Set('LANGUAGE TRANSFORM WINDOW IMMUTABLE STABLE VOLATILE NOT LEAKPROOF CALLED RETURNS STRICT EXTERNAL SECURITY PARALLEL COST ROWS SUPPORT SET'.split(' '));
-          function word(s,i){if(!first.test(s[i]??''))return null;let j=i+1;while(rest.test(s[j]??''))j++;return [s.slice(i,j).toUpperCase(),j]}
-          function tag(s,i){if(s[i]!=='$')return null;if(s[i+1]==='$')return '$$';if(!first.test(s[i+1]??''))return null;let j=i+2;while(/[A-Za-z0-9_]/.test(s[j]??''))j++;return s[j]==='$'?s.slice(i,j+1):null}
-          function sq(s,i){for(let j=i+1;j<s.length;j++){if(s[j]==="'"){if(s[j+1]==="'"){j++;continue}return j+1}if(s[j]==='\\'&&j+1<s.length)j++}throw Error(`unterminated quote at ${i}`)}
-          function dq(s,i){for(let j=i+1;j<s.length;j++)if(s[j]==='"'){if(s[j+1]==='"'){j++;continue}return j+1}throw Error(`unterminated identifier at ${i}`)}
-          function lc(s,i){const j=s.indexOf('\n',i+2);return j<0?s.length:j+1}
-          function bc(s,i){let j=i+2,d=1;while(j<s.length&&d){if(s.startsWith('/*',j)){d++;j+=2}else if(s.startsWith('*/',j)){d--;j+=2}else j++}if(d)throw Error(`unterminated comment at ${i}`);return j}
-          function trivia(s,i){while(i<s.length){if(ws.test(s[i]))i++;else if(s.startsWith('--',i))i=lc(s,i);else if(s.startsWith('/*',i))i=bc(s,i);else break}return i}
-          function close(s,i,t){const j=s.indexOf(t,i+t.length);if(j<0)throw Error(`unterminated ${t} at ${i}`);return j+t.length}
-          function routine(s,i){let w=word(s,i);if(!w||w[0]!=='CREATE')return null;i=trivia(s,w[1]);w=word(s,i);if(w?.[0]==='OR'){i=trivia(s,w[1]);w=word(s,i);if(w?.[0]!=='REPLACE')return null;i=trivia(s,w[1]);w=word(s,i)}return w&&['FUNCTION','PROCEDURE'].includes(w[0])?w[1]:null}
-          export function repair(s){const edits=[];let i=0,start=true;while(i<s.length){if(ws.test(s[i])){i++;continue}if(s.startsWith('--',i)){i=lc(s,i);continue}if(s.startsWith('/*',i)){i=bc(s,i);continue}if(start){const r=routine(s,i);if(r!==null){let j=r,as=false,done=false;while(j<s.length){if(ws.test(s[j])){j++;continue}if(s.startsWith('--',j)){j=lc(s,j);continue}if(s.startsWith('/*',j)){j=bc(s,j);continue}if(s[j]==="'"){j=sq(s,j);continue}if(s[j]==='"'){j=dq(s,j);continue}const w=word(s,j);if(w){if(w[0]==='AS')as=true;j=w[1];continue}const t=tag(s,j);if(t){const e=close(s,j,t);if(as){const n=trivia(s,e),nw=word(s,n);if(s[n]===';'){i=n+1;start=true;done=true;break}if(nw&&cont.has(nw[0])){j=e;as=false;continue}edits.push(e);i=e;start=true;done=true;break}j=e;continue}if(s[j]===';'){i=j+1;start=true;done=true;break}j++}if(!done)i=j;continue}start=false}if(s[i]==="'")i=sq(s,i);else if(s[i]==='"')i=dq(s,i);else if(s.startsWith('--',i))i=lc(s,i);else if(s.startsWith('/*',i))i=bc(s,i);else{const t=tag(s,i);if(t)i=close(s,i,t);else if(s[i]===';'){i++;start=true}else i++}}for(let k=edits.length-1;k>=0;k--)s=s.slice(0,edits[k])+';'+s.slice(edits[k]);return {sql:s,repairs:edits.length}}
-          function self(out){const src=String.raw`BEGIN;
-          CREATE SCHEMA parser_regression;
-          CREATE TABLE parser_regression.sink(value text NOT NULL);
-          CREATE OR REPLACE FUNCTION parser_regression.tagged(v text) RETURNS void LANGUAGE plpgsql AS $function$
-          BEGIN
-           INSERT INTO parser_regression.sink VALUES (v || ' $other$ text');
-          END;
-          $function$
-          CREATE OR REPLACE FUNCTION parser_regression.untagged(v text) RETURNS void LANGUAGE plpgsql AS $$
-          BEGIN
-           INSERT INTO parser_regression.sink VALUES (v || ' $function$ text');
-          END;
-          $$
-          CREATE OR REPLACE FUNCTION parser_regression.done(v text) RETURNS void LANGUAGE plpgsql AS $$
-          BEGIN
-           INSERT INTO parser_regression.sink VALUES (v);
-          END;
-          $$;
-          CREATE OR REPLACE PROCEDURE parser_regression.proc(v text) LANGUAGE plpgsql AS $procedure$
-          BEGIN
-           INSERT INTO parser_regression.sink VALUES (v);
-          END;
-          $procedure$
-          SELECT parser_regression.tagged('tagged');
-          SELECT parser_regression.untagged('untagged');
-          SELECT parser_regression.done('done');
-          CALL parser_regression.proc('proc');
-          DO $assert$ BEGIN IF (SELECT count(*) FROM parser_regression.sink) <> 4 THEN RAISE EXCEPTION 'bad count'; END IF; END; $assert$;
-          ROLLBACK;
-          `;const r=repair(src);assert.equal(r.repairs,3);assert.doesNotMatch(r.sql,/\$\$;;/);assert.match(r.sql,/\$function\$;/);assert.match(r.sql,/\$procedure\$;/);assert.match(r.sql,/\$other\$ text/);assert.match(r.sql,/\$function\$ text/);writeFileSync(out,r.sql)}
-          const [a,b]=process.argv.slice(2);if(a==='--self-test')self(b);else{const r=repair(readFileSync(a,'utf8'));assert.ok(r.repairs>0);writeFileSync(b,r.sql);console.log(`[current-state-schema] temporary apply repairs=${r.repairs}`)}
-          NODE
+          base64 -d <<'GZIP' | gzip -d > /tmp/build-current-state-apply.mjs
+          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
+          GZIP
 
-          node --check /tmp/repair-current-state-routines.mjs
-          node /tmp/repair-current-state-routines.mjs --self-test /tmp/current-state-schema-parser-regression.apply.sql
+          node --check /tmp/build-current-state-apply.mjs
+          node /tmp/build-current-state-apply.mjs --self-test /tmp/current-state-schema-parser-regression.generated.sql
+          {
+            printf '%s\n' 'BEGIN;'
+            cat /tmp/current-state-schema-parser-regression.generated.sql
+            cat <<'SQL'
+          INSERT INTO parser_regression.items DEFAULT VALUES;
+          SELECT parser_regression.table_dependent('manual');
+          DO $assert$
+          BEGIN
+            IF (SELECT count(*) FROM parser_regression.items) <> 2 THEN
+              RAISE EXCEPTION 'dependency-order regression row count failed';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM parser_regression.items WHERE code = 'bootstrap $function$ text') THEN
+              RAISE EXCEPTION 'bootstrap default did not execute';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM parser_regression.items WHERE code = 'manual $other$ text') THEN
+              RAISE EXCEPTION 'table-dependent function did not execute';
+            END IF;
+          END
+          $assert$;
+          SQL
+            printf '%s\n' 'ROLLBACK;'
+          } > /tmp/current-state-schema-parser-regression.apply.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f /tmp/current-state-schema-parser-regression.apply.sql
 
           snapshot="$GITHUB_WORKSPACE/supabase/current-state-schema/current-state-schema.sql"
@@ -221,10 +178,16 @@ jobs:
           printf '%s  %s\n' '3b1890376e3cca966b1dce0979dd2ed089f95237e1067febf4f58e8f1bf776f2' "$snapshot" | sha256sum -c -
           test "$(git hash-object "$snapshot")" = "65f45c04f7bd50e7751eb5f802f3ad0550c52bfc"
 
-          node /tmp/repair-current-state-routines.mjs "$snapshot" /tmp/current-state-schema.apply.sql
+          node /tmp/build-current-state-apply.mjs "$snapshot" /tmp/current-state-schema.apply.sql
           test -s /tmp/current-state-schema.apply.sql
+          grep -q '^-- Phase 1:' /tmp/current-state-schema.apply.sql
+          grep -q '^-- Phase 2:' /tmp/current-state-schema.apply.sql
+          grep -q '^-- Phase 3:' /tmp/current-state-schema.apply.sql
+          grep -q '^-- Phase 4:' /tmp/current-state-schema.apply.sql
+          grep -q '^-- Phase 5:' /tmp/current-state-schema.apply.sql
+          grep -q '^-- Phase 6:' /tmp/current-state-schema.apply.sql
 
-      - name: Apply temporary snapshot to isolated local database
+      - name: Apply dependency-safe temporary snapshot to isolated local database
         shell: bash
         run: |
           set -euo pipefail
@@ -296,4 +259,5 @@ jobs:
           fi
           rm -rf "$SCHEMA_WORKDIR"
           rm -f /tmp/current-state-start-help.txt /tmp/current-state-supabase-start.log /tmp/current-state-supabase.env /tmp/current-state-inventory.txt
-          rm -f /tmp/repair-current-state-routines.mjs /tmp/current-state-schema-parser-regression.apply.sql /tmp/current-state-schema.apply.sql
+          rm -f /tmp/build-current-state-apply.mjs /tmp/current-state-schema-parser-regression.generated.sql
+          rm -f /tmp/current-state-schema-parser-regression.apply.sql /tmp/current-state-schema.apply.sql
