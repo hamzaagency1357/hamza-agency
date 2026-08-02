@@ -6,10 +6,12 @@ export const SUPPORTED_MODES = new Set(["preview-readonly", "local-isolated", "p
 export const SUPPORTED_SUITES = new Set([
   "public", "translations", "tracking", "admin", "page-builder",
   "backup-restore", "trash", "notifications", "permissions", "security",
+  "commerce", "tasks", "sla", "workflows",
 ]);
 export const WRITE_SUITES = new Set([
   "tracking", "admin", "page-builder", "backup-restore", "trash",
-  "notifications", "permissions", "security-stateful",
+  "notifications", "permissions", "security-stateful", "commerce", "tasks",
+  "sla", "workflows",
 ]);
 
 function fail(message) {
