@@ -29,10 +29,23 @@ function scalar(sql) {
 }
 
 if (action === "cleanup") {
-  psql(`delete from public.tenants where id in (${q(fixture.tenants.a)}::uuid,${q(fixture.tenants.b)}::uuid);`);
-  const remaining = scalar(`select count(*) from public.tenants where slug like ${q(`${fixture.prefix}-%`)}`);
+  psql(`
+    do $cleanup$
+    declare table_list text;
+    begin
+      select string_agg(format('%I.%I', schemaname, tablename), ',')
+      into table_list
+      from pg_tables
+      where schemaname='public';
+      if table_list is not null then
+        execute 'truncate table ' || table_list || ' restart identity cascade';
+      end if;
+    end
+    $cleanup$;
+  `);
+  const remaining = scalar(`select count(*) from public.tenants where id in (${q(fixture.tenants.a)}::uuid,${q(fixture.tenants.b)}::uuid)`);
   if (remaining !== "0") throw new Error(`macro_fixture_cleanup_failed:${remaining}`);
-  console.log(JSON.stringify({ ok: true, remaining: 0 }));
+  console.log(JSON.stringify({ ok: true, tenantRowsRemaining: 0 }));
   process.exit(0);
 }
 
@@ -89,32 +102,22 @@ begin
     select 1 from public.marketplace_listings
     where id=${q(ids.listing)}::uuid and tenant_id=${q(fixture.tenants.a)}::uuid
       and partner_user_id=${q(fixture.accounts.partner.id)}::uuid and status='published'
-  ) then
-    raise exception 'macro_listing_tenant_contract_invalid';
-  end if;
+  ) then raise exception 'macro_listing_tenant_contract_invalid'; end if;
   if not exists (
     select 1 from public.marketplace_listings
     where id=${q(ids.otherListing)}::uuid and tenant_id=${q(fixture.tenants.b)}::uuid
       and partner_user_id=${q(fixture.accounts.otherTenant.id)}::uuid and status='published'
-  ) then
-    raise exception 'macro_cross_tenant_listing_contract_invalid';
-  end if;
+  ) then raise exception 'macro_cross_tenant_listing_contract_invalid'; end if;
   if not exists (
     select 1 from public.sla_policies
     where id=${q(ids.sla)}::uuid and tenant_id=${q(fixture.tenants.a)}::uuid and active=true
-  ) then
-    raise exception 'macro_sla_tenant_contract_invalid';
-  end if;
+  ) then raise exception 'macro_sla_tenant_contract_invalid'; end if;
   if not exists (
     select 1 from public.workflow_definitions
     where id=${q(ids.workflow)}::uuid and tenant_id=${q(fixture.tenants.a)}::uuid
       and status='published' and coalesce((definition->>'arbitraryCode')::boolean,false)=false
-  ) then
-    raise exception 'macro_workflow_tenant_contract_invalid';
-  end if;
-  if (select count(*) from public.workflow_steps where workflow_id=${q(ids.workflow)}::uuid and tenant_id=${q(fixture.tenants.a)}::uuid) <> 2 then
-    raise exception 'macro_workflow_steps_contract_invalid';
-  end if;
+  ) then raise exception 'macro_workflow_tenant_contract_invalid'; end if;
+  if (select count(*) from public.workflow_steps where workflow_id=${q(ids.workflow)}::uuid and tenant_id=${q(fixture.tenants.a)}::uuid) <> 2 then raise exception 'macro_workflow_steps_contract_invalid'; end if;
 end
 $runtime_contract$;
 commit;

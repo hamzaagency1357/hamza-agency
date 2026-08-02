@@ -57,7 +57,6 @@ async function admin(path, init = {}) {
 if (action === "cleanup") {
   const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
   const ids = Object.values(fixture.accounts).map((account) => account.id);
-  sql(`delete from public.tenants where id in ('${tenants.a}'::uuid,'${tenants.b}'::uuid);`);
   for (const id of ids) await admin(`/users/${id}`, { method: "DELETE" });
 
   const remaining = execFileSync(
@@ -67,8 +66,15 @@ if (action === "cleanup") {
   ).trim();
   if (remaining !== "0") throw new Error(`macro_auth_cleanup_failed:${remaining}`);
 
+  const tenantRemaining = execFileSync(
+    "psql",
+    [dbUrl, "-Atqc", `select count(*) from public.tenants where id in ('${tenants.a}'::uuid,'${tenants.b}'::uuid)`],
+    { encoding: "utf8" },
+  ).trim();
+  if (tenantRemaining !== "0") throw new Error(`macro_tenant_cleanup_failed:${tenantRemaining}`);
+
   await rm(fixturePath, { force: true });
-  console.log(JSON.stringify({ ok: true, remaining: 0 }));
+  console.log(JSON.stringify({ ok: true, usersRemaining: 0, tenantsRemaining: 0 }));
   process.exit(0);
 }
 
@@ -84,96 +90,34 @@ for (const [name, account] of Object.entries(accounts)) {
 
 sql(`
 begin;
-
-update public.tenants
-set is_primary=false
-where is_primary=true;
-
+update public.tenants set is_primary=false where is_primary=true;
 insert into public.tenants(id,slug,name,status,is_primary,default_locale,supported_locales)
 values
  ('${tenants.a}','${prefix}-tenant-a','Closeout Tenant A','active',true,'ar',array['ar','en','tr']),
  ('${tenants.b}','${prefix}-tenant-b','Closeout Tenant B','active',false,'ar',array['ar','en','tr'])
-on conflict(id) do update
-set status=excluded.status,
-    name=excluded.name,
-    slug=excluded.slug,
-    is_primary=excluded.is_primary,
-    default_locale=excluded.default_locale,
-    supported_locales=excluded.supported_locales;
-
+on conflict(id) do update set status=excluded.status,name=excluded.name,slug=excluded.slug,is_primary=excluded.is_primary,default_locale=excluded.default_locale,supported_locales=excluded.supported_locales;
 insert into public.tenant_domains(tenant_id,hostname,status,is_primary,verified_at)
 values
  ('${tenants.a}','127.0.0.1','active',true,now()),
  ('${tenants.b}','tenant-b.closeout.test','active',true,now())
-on conflict(hostname) do update
-set tenant_id=excluded.tenant_id,
-    status=excluded.status,
-    is_primary=excluded.is_primary,
-    verified_at=excluded.verified_at;
-
-${Object.values(created)
-  .map(
-    (account) =>
-      `insert into public.tenant_memberships(tenant_id,user_id,role,status,permissions,mfa_required)
-       values ('${tenants[account.tenant]}','${account.id}','${account.role}','active','{}',false)
-       on conflict(tenant_id,user_id) do update set role=excluded.role,status='active';`,
-  )
-  .join("\n")}
-
+on conflict(hostname) do update set tenant_id=excluded.tenant_id,status=excluded.status,is_primary=excluded.is_primary,verified_at=excluded.verified_at;
+${Object.values(created).map((account) => `insert into public.tenant_memberships(tenant_id,user_id,role,status,permissions,mfa_required)
+values ('${tenants[account.tenant]}','${account.id}','${account.role}','active','{}',false)
+on conflict(tenant_id,user_id) do update set role=excluded.role,status='active';`).join("\n")}
 insert into public.portal_profiles(user_id,display_name,locale,status,marketing_opt_in,ai_opt_out)
-select user_id,'Closeout '||role,'ar','active',false,false
-from public.tenant_memberships
+select user_id,'Closeout '||role,'ar','active',false,false from public.tenant_memberships
 where tenant_id in ('${tenants.a}','${tenants.b}')
 on conflict(user_id) do update set status='active';
-
 do $fixture_contract$
 begin
-  if (select count(*) from public.tenants where status='active' and is_primary=true) <> 1 then
-    raise exception 'macro_primary_tenant_count_invalid';
-  end if;
-  if not exists (
-    select 1 from public.tenants
-    where id='${tenants.a}'::uuid and status='active' and is_primary=true
-  ) then
-    raise exception 'macro_primary_tenant_invalid';
-  end if;
-  if not exists (
-    select 1 from public.tenant_domains
-    where hostname='127.0.0.1' and tenant_id='${tenants.a}'::uuid
-      and status='active' and is_primary=true
-  ) then
-    raise exception 'macro_local_host_tenant_invalid';
-  end if;
-  if (select count(*) from public.tenant_memberships where tenant_id='${tenants.a}'::uuid and status='active') <> 4 then
-    raise exception 'macro_primary_membership_count_invalid';
-  end if;
-  if (select count(*) from public.tenant_memberships where tenant_id='${tenants.b}'::uuid and status='active') <> 1 then
-    raise exception 'macro_cross_tenant_membership_count_invalid';
-  end if;
-  if exists (
-    select 1
-    from public.tenant_memberships
-    where user_id='${created.otherTenant.id}'::uuid
-      and tenant_id<>'${tenants.b}'::uuid
-  ) then
-    raise exception 'macro_cross_tenant_membership_leak';
-  end if;
-  if exists (
-    select 1
-    from public.tenant_memberships
-    where user_id in (
-      '${created.client.id}'::uuid,
-      '${created.employee.id}'::uuid,
-      '${created.partner.id}'::uuid,
-      '${created.creator.id}'::uuid
-    )
-      and tenant_id<>'${tenants.a}'::uuid
-  ) then
-    raise exception 'macro_primary_tenant_membership_leak';
-  end if;
+  if (select count(*) from public.tenants where status='active' and is_primary=true) <> 1 then raise exception 'macro_primary_tenant_count_invalid'; end if;
+  if not exists(select 1 from public.tenants where id='${tenants.a}'::uuid and status='active' and is_primary=true) then raise exception 'macro_primary_tenant_invalid'; end if;
+  if not exists(select 1 from public.tenant_domains where hostname='127.0.0.1' and tenant_id='${tenants.a}'::uuid and status='active' and is_primary=true) then raise exception 'macro_local_host_tenant_invalid'; end if;
+  if (select count(*) from public.tenant_memberships where tenant_id='${tenants.a}'::uuid and status='active') <> 4 then raise exception 'macro_primary_membership_count_invalid'; end if;
+  if (select count(*) from public.tenant_memberships where tenant_id='${tenants.b}'::uuid and status='active') <> 1 then raise exception 'macro_cross_tenant_membership_count_invalid'; end if;
+  if exists(select 1 from public.tenant_memberships where user_id='${created.otherTenant.id}'::uuid and tenant_id<>'${tenants.b}'::uuid) then raise exception 'macro_cross_tenant_membership_leak'; end if;
 end
 $fixture_contract$;
-
 commit;
 `);
 

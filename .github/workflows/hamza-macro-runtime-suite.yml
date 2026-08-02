@@ -128,6 +128,7 @@ jobs:
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803003000_pr105_macro_runtime_completion.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803004000_pr105_macro_runtime_hardening.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803005000_pr105_macro_runtime_fixture_contract.sql
+          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803006000_pr105_commerce_lifecycle_hardening.sql
           node scripts/closeout/macro-auth-fixtures.mjs setup
           node scripts/closeout/macro-runtime-fixtures.mjs setup
 
@@ -194,19 +195,22 @@ jobs:
         if: always()
         shell: bash
         run: |
+          status=0
           set +e
           if [ -f "$CLOSEOUT_SUPABASE_ENV_FILE" ] && [ -f "$CLOSEOUT_PORTAL_FIXTURE_FILE" ]; then
             set -a
             . "$CLOSEOUT_SUPABASE_ENV_FILE"
             set +a
-            node scripts/closeout/macro-runtime-fixtures.mjs cleanup
-            node scripts/closeout/macro-auth-fixtures.mjs cleanup
+            node scripts/closeout/macro-runtime-fixtures.mjs cleanup || status=1
+            node scripts/closeout/macro-auth-fixtures.mjs cleanup || status=1
+          else
+            status=1
           fi
           [ -f "$CLOSEOUT_NEXT_PID" ] && kill "$(cat "$CLOSEOUT_NEXT_PID")" 2>/dev/null
           [ -f "$CLOSEOUT_PROXY_PID" ] && kill "$(cat "$CLOSEOUT_PROXY_PID")" 2>/dev/null
           if [ -d "$CLOSEOUT_WORKDIR" ] && [ -n "${SUPABASE_BIN:-}" ]; then
             cd "$CLOSEOUT_WORKDIR"
-            "$SUPABASE_BIN" stop --no-backup >/dev/null 2>&1
+            "$SUPABASE_BIN" stop --no-backup >/dev/null 2>&1 || status=1
           fi
           cd "$GITHUB_WORKSPACE"
           rm -rf \
@@ -223,7 +227,8 @@ jobs:
             "$CLOSEOUT_PROXY_PID" \
             artifacts/raw \
             supabase/.temp
-          test -z "$(git status --porcelain --untracked-files=all)"
+          test -z "$(git status --porcelain --untracked-files=all)" || status=1
+          exit "$status"
 
       - name: Preserve conclusion
         if: always()
