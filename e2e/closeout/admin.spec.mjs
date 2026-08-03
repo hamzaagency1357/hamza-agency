@@ -8,18 +8,22 @@ async function login(page, account) {
   const response = await page.goto("/admin/login", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
   expect(new URL(page.url()).pathname).toBe("/admin/login");
-  await expect(page.locator('main[dir="rtl"]')).toHaveCount(1);
-  await expect(page.locator('main[dir="rtl"]')).toBeVisible();
-  await expect(page.getByRole("heading", { name: "تسجيل دخول الإدارة" })).toBeVisible();
   await resolveNecessaryCookieConsent(page);
+
+  const main = page.locator('main[dir="rtl"]');
+  await expect(main).toHaveCount(1);
+  await expect(main).toBeVisible();
+  await expect(page.getByRole("heading", { name: "تسجيل دخول الإدارة" })).toBeVisible();
 
   const email = page.locator('input[type="email"][name="email"]');
   const password = page.locator('input[type="password"][name="password"]');
+  const loginButton = page.getByRole("button", { name: "تسجيل الدخول" });
   await expect(email).toBeVisible();
   await expect(password).toBeVisible();
+  await expect(loginButton).toBeVisible();
   await email.fill(account.email);
   await password.fill(account.password);
-  await page.getByRole("button", { name: "تسجيل الدخول" }).click();
+  await loginButton.click();
   await page.waitForURL((url) => url.pathname === "/admin");
 }
 
