@@ -130,7 +130,64 @@ begin
   return v_id;
 end $$;
 
+create or replace function public.pr105_list_commerce_events(p_tenant uuid,p_order uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path='pg_catalog','public','private'
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_role text;
+begin
+  if v_user is null then
+    raise exception 'authentication_required' using errcode='42501';
+  end if;
+
+  select tm.role::text
+  into v_role
+  from public.tenant_memberships tm
+  where tm.tenant_id=p_tenant
+    and tm.user_id=v_user
+    and tm.status='active';
+
+  if v_role is null or v_role not in ('partner','employee','tenant_admin','super_admin') then
+    raise exception 'commerce_events_forbidden' using errcode='42501';
+  end if;
+
+  if not exists(
+    select 1 from public.marketplace_orders o
+    where o.id=p_order and o.tenant_id=p_tenant
+  ) then
+    raise exception 'commerce_order_forbidden' using errcode='42501';
+  end if;
+
+  if v_role='partner' and not exists(
+    select 1
+    from public.marketplace_order_items oi
+    join public.marketplace_listings l on l.id=oi.listing_id
+    where oi.order_id=p_order
+      and oi.tenant_id=p_tenant
+      and l.tenant_id=p_tenant
+      and l.partner_user_id=v_user
+  ) then
+    raise exception 'commerce_order_forbidden' using errcode='42501';
+  end if;
+
+  return coalesce((
+    select jsonb_agg(
+      jsonb_build_object('eventType',e.event_type,'createdAt',e.created_at)
+      order by e.created_at,e.id
+    )
+    from public.commerce_events e
+    where e.tenant_id=p_tenant and e.order_id=p_order
+  ),'[]'::jsonb);
+end $$;
+
 revoke all on function public.checkout_marketplace_cart(uuid,text) from public;
 revoke all on function public.open_marketplace_dispute(uuid,uuid,text) from public;
+revoke all on function public.pr105_list_commerce_events(uuid,uuid) from public;
+revoke all on function public.pr105_list_commerce_events(uuid,uuid) from anon;
 grant execute on function public.checkout_marketplace_cart(uuid,text) to authenticated;
 grant execute on function public.open_marketplace_dispute(uuid,uuid,text) to authenticated;
+grant execute on function public.pr105_list_commerce_events(uuid,uuid) to authenticated;
