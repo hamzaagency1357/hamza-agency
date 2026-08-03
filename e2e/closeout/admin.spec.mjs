@@ -26,7 +26,9 @@ test("authenticated super admin opens real operational pages and persists a data
     await expect(page.locator("body")).not.toContainText(/جارٍ التحقق|جاري التحقق/);
     expect(new URL(page.url()).pathname).toBe(route);
     await expect(page.locator("body")).not.toContainText(/pr99-e2e|fixture-only|Supabase غير متصل|Application error|Internal Server Error/);
-    await expect(page.locator("main, body")).toBeVisible();
+    const main = page.locator("main");
+    await expect(main).toHaveCount(1);
+    await expect(main).toBeVisible();
   }
 
   await page.getByPlaceholder("بحث").fill(project.notificationTitle);
