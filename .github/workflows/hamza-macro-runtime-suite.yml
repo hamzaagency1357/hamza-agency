@@ -179,14 +179,19 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          node scripts/closeout/validate-results.mjs artifacts/raw/results.json '${{ inputs.suite }}'
+          set +e
+          status=0
+          node scripts/closeout/validate-results.mjs artifacts/raw/results.json '${{ inputs.suite }}' || status=1
           mkdir -p artifacts/raw
-          printf '# Macro runtime\n- Suite: `%s`\n- Head: `%s`\n- Retries: `0`\n' '${{ inputs.suite }}' '${{ inputs.expected_sha }}' > artifacts/raw/failure-summary.md
-          node scripts/closeout/sanitize-artifacts.mjs artifacts/raw artifacts/safe/reports
-          node scripts/closeout/scan-safe-artifacts.mjs artifacts/safe
+          printf '# Macro runtime\n- Suite: `%s`\n- Head: `%s`\n- Retries: `0`\n- Playwright outcome: `%s`\n' '${{ inputs.suite }}' '${{ inputs.expected_sha }}' '${{ steps.playwright.outcome }}' > artifacts/raw/failure-summary.md
+          node scripts/closeout/sanitize-artifacts.mjs artifacts/raw artifacts/safe/reports || status=1
+          node scripts/closeout/scan-safe-artifacts.mjs artifacts/safe || status=1
+          exit "$status"
 
       - name: Upload sanitized evidence
-        if: always() && steps.validate.outcome == 'success'
+        id: upload
+        if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: macro-${{ inputs.suite }}-${{ inputs.expected_sha }}
@@ -195,48 +200,107 @@ jobs:
           retention-days: 14
 
       - name: Always cleanup and prove zero fixtures
+        id: cleanup
         if: always()
+        continue-on-error: true
         shell: bash
         run: |
-          status=0
           set +e
+          status=0
+
+          run_cleanup() {
+            local name="$1"
+            shift
+            echo "::group::cleanup:${name}"
+            "$@"
+            local rc=$?
+            if [ "$rc" -ne 0 ]; then
+              echo "::error title=Cleanup failed::${name}"
+              status=1
+            fi
+            echo "::endgroup::"
+          }
+
+          stop_process() {
+            local pid_file="$1"
+            if [ ! -f "$pid_file" ]; then
+              return 0
+            fi
+            local pid
+            pid="$(cat "$pid_file")"
+            if kill -0 "$pid" 2>/dev/null; then
+              kill "$pid"
+            fi
+          }
+
+          stop_supabase() {
+            if [ ! -d "$CLOSEOUT_WORKDIR" ] || [ -z "${SUPABASE_BIN:-}" ]; then
+              return 1
+            fi
+            cd "$CLOSEOUT_WORKDIR" || return 1
+            "$SUPABASE_BIN" stop --no-backup
+          }
+
+          remove_generated() {
+            cd "$GITHUB_WORKSPACE" || return 1
+            rm -rf \
+              "$CLOSEOUT_WORKDIR" \
+              "$CLOSEOUT_PORTAL_FIXTURE_FILE" \
+              "$CLOSEOUT_SUPABASE_ENV_FILE" \
+              "$CLOSEOUT_BUILDER_FILE" \
+              "$CLOSEOUT_APPLY_FILE" \
+              "$CLOSEOUT_SUPABASE_LOG" \
+              "$CLOSEOUT_TLS_DIR" \
+              "$CLOSEOUT_NEXT_LOG" \
+              "$CLOSEOUT_NEXT_PID" \
+              "$CLOSEOUT_PROXY_LOG" \
+              "$CLOSEOUT_PROXY_PID" \
+              artifacts/raw \
+              artifacts/safe \
+              supabase/.temp
+          }
+
+          prove_repository_clean() {
+            cd "$GITHUB_WORKSPACE" || return 1
+            local dirty
+            dirty="$(git status --porcelain --untracked-files=all)"
+            if [ -n "$dirty" ]; then
+              echo "::error title=Repository clean proof failed::Generated paths remain"
+              printf '%s\n' "$dirty" | sed -E 's/^.. //'
+              return 1
+            fi
+          }
+
           if [ -f "$CLOSEOUT_SUPABASE_ENV_FILE" ] && [ -f "$CLOSEOUT_PORTAL_FIXTURE_FILE" ]; then
             set -a
             . "$CLOSEOUT_SUPABASE_ENV_FILE"
             set +a
-            node scripts/closeout/core-runtime-fixtures.mjs cleanup || status=1
-            node scripts/closeout/macro-runtime-fixtures.mjs cleanup || status=1
-            node scripts/closeout/macro-auth-fixtures.mjs cleanup || status=1
+            run_cleanup "core runtime fixtures" node scripts/closeout/core-runtime-fixtures.mjs cleanup
+            run_cleanup "macro runtime fixtures" node scripts/closeout/macro-runtime-fixtures.mjs cleanup
+            run_cleanup "macro auth fixtures" node scripts/closeout/macro-auth-fixtures.mjs cleanup
           else
+            echo "::error title=Cleanup failed::fixture environment unavailable"
             status=1
           fi
-          [ -f "$CLOSEOUT_NEXT_PID" ] && kill "$(cat "$CLOSEOUT_NEXT_PID")" 2>/dev/null
-          [ -f "$CLOSEOUT_PROXY_PID" ] && kill "$(cat "$CLOSEOUT_PROXY_PID")" 2>/dev/null
-          if [ -d "$CLOSEOUT_WORKDIR" ] && [ -n "${SUPABASE_BIN:-}" ]; then
-            cd "$CLOSEOUT_WORKDIR"
-            "$SUPABASE_BIN" stop --no-backup >/dev/null 2>&1 || status=1
-          fi
-          cd "$GITHUB_WORKSPACE"
-          rm -rf \
-            "$CLOSEOUT_WORKDIR" \
-            "$CLOSEOUT_PORTAL_FIXTURE_FILE" \
-            "$CLOSEOUT_SUPABASE_ENV_FILE" \
-            "$CLOSEOUT_BUILDER_FILE" \
-            "$CLOSEOUT_APPLY_FILE" \
-            "$CLOSEOUT_SUPABASE_LOG" \
-            "$CLOSEOUT_TLS_DIR" \
-            "$CLOSEOUT_NEXT_LOG" \
-            "$CLOSEOUT_NEXT_PID" \
-            "$CLOSEOUT_PROXY_LOG" \
-            "$CLOSEOUT_PROXY_PID" \
-            artifacts/raw \
-            supabase/.temp
-          test -z "$(git status --porcelain --untracked-files=all)" || status=1
+
+          run_cleanup "Next process" stop_process "$CLOSEOUT_NEXT_PID"
+          run_cleanup "HTTPS proxy process" stop_process "$CLOSEOUT_PROXY_PID"
+          run_cleanup "Supabase stop" stop_supabase
+          run_cleanup "generated report and runtime paths" remove_generated
+          run_cleanup "repository clean proof" prove_repository_clean
           exit "$status"
 
       - name: Preserve conclusion
         if: always()
         shell: bash
         run: |
+          set -euo pipefail
+          printf 'playwright=%s validate=%s upload=%s cleanup=%s\n' \
+            '${{ steps.playwright.outcome }}' \
+            '${{ steps.validate.outcome }}' \
+            '${{ steps.upload.outcome }}' \
+            '${{ steps.cleanup.outcome }}'
           test '${{ steps.playwright.outcome }}' = success
           test '${{ steps.validate.outcome }}' = success
+          test '${{ steps.upload.outcome }}' = success
+          test '${{ steps.cleanup.outcome }}' = success
