@@ -1,5 +1,6 @@
 import path from "node:path";
 import { test, expect } from "@playwright/test";
+import { resolveNecessaryCookieConsent } from "./cookie-consent-helper.mjs";
 import { installPreviewBypass } from "./preview-bypass.mjs";
 
 const expectedHost = new URL(process.env.CLOSEOUT_TARGET_URL).hostname.toLowerCase();
@@ -27,6 +28,7 @@ for (const [locale, data] of Object.entries(cases)) {
     const response = await page.goto(data.route, { waitUntil: "networkidle" });
     expect(response?.ok()).toBeTruthy();
     expect(new URL(page.url()).hostname.toLowerCase()).toBe(expectedHost);
+    await resolveNecessaryCookieConsent(page);
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
     await expect(page.locator('meta[property="og:title"]')).toHaveCount(1);
@@ -37,7 +39,7 @@ for (const [locale, data] of Object.entries(cases)) {
     await page.screenshot({ path: screenshotName("translations", locale, testInfo.project.name), fullPage: true, animations: "disabled" });
   });
 
-  test(`${locale} cookie settings use URL locale without language leakage`, async ({ page }, testInfo) => {
+  test(`${locale} privacy settings use URL locale without language leakage`, async ({ page }, testInfo) => {
     await freshConsent(page, data.route);
     await page.getByTestId("cookie-settings-toggle").click();
     const dialog = page.getByTestId("cookie-dialog");
@@ -49,17 +51,20 @@ for (const [locale, data] of Object.entries(cases)) {
     for (const forbidden of data.forbidden) expect(text).not.toContain(forbidden);
     const next = locale === "ar" ? "en" : locale === "en" ? "tr" : "ar";
     await page.evaluate(() => { window.cookieClientNavigationProof = "preserved"; });
-    await page.getByTestId(`cookie-locale-${next}`).click();
+    const localeLink = dialog.getByTestId(`cookie-locale-${next}`);
+    await localeLink.focus();
+    await expect(localeLink).toBeFocused();
+    await localeLink.press("Enter");
     await page.waitForURL((url) => url.pathname === cases[next].route);
     expect(await page.evaluate(() => window.cookieClientNavigationProof)).toBe("preserved");
     await expect(dialog).toHaveAttribute("data-cookie-locale", next);
     await expect(dialog.getByRole("heading", { name: cases[next].title })).toBeVisible();
-    recordAssertions(testInfo, 18);
-    await page.screenshot({ path: screenshotName("cookie-localization", next, testInfo.project.name), fullPage: false, animations: "disabled" });
+    recordAssertions(testInfo, 19);
+    await page.screenshot({ path: screenshotName("privacy-localization", next, testInfo.project.name), fullPage: false, animations: "disabled" });
   });
 }
 
-test("cookie decisions persist and localized policy remains reachable", async ({ page }, testInfo) => {
+test("privacy decisions persist and localized policy remains reachable", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("mobile"), "mobile regression");
   await freshConsent(page, "/tr");
   await page.getByTestId("cookie-necessary-only").click();
@@ -80,7 +85,7 @@ test("cookie decisions persist and localized policy remains reachable", async ({
   recordAssertions(testInfo, 12);
 });
 
-test("Android viewport geometry keeps dialog, install card, and final content above dock", async ({ page }, testInfo) => {
+test("Android viewport geometry keeps privacy dialog, install card, and final content above dock", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("mobile"), "mobile regression");
   for (const viewport of [{ width: 360, height: 640 }, { width: 390, height: 700 }, { width: 412, height: 732 }]) {
     await page.setViewportSize(viewport);
@@ -92,7 +97,7 @@ test("Android viewport geometry keeps dialog, install card, and final content ab
     const geometry = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, client: document.documentElement.clientWidth, top: document.querySelector('[data-testid="cookie-dialog-scroll"]')?.scrollTop || 0 }));
     expect(geometry.width).toBeLessThanOrEqual(geometry.client + 1);
     expect(geometry.top).toBe(0);
-    await page.screenshot({ path: screenshotName("cookie-mobile-geometry", "tr", testInfo.project.name, String(viewport.width)), fullPage: false, animations: "disabled" });
+    await page.screenshot({ path: screenshotName("privacy-mobile-geometry", "tr", testInfo.project.name, String(viewport.width)), fullPage: false, animations: "disabled" });
     await page.getByTestId("cookie-necessary-only").click();
     await page.evaluate(() => { const event = new Event("beforeinstallprompt"); Object.defineProperty(event, "prompt", { value: async () => undefined }); Object.defineProperty(event, "userChoice", { value: Promise.resolve({ outcome: "accepted", platform: "web" }) }); window.dispatchEvent(event); });
     const card = await page.getByTestId("pwa-install-card").boundingBox();
