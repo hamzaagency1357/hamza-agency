@@ -295,12 +295,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          outcomes='${{ steps.playwright.outcome }}:${{ steps.validate.outcome }}:${{ steps.upload.outcome }}:${{ steps.cleanup.outcome }}'
           printf 'playwright=%s validate=%s upload=%s cleanup=%s\n' \
             '${{ steps.playwright.outcome }}' \
             '${{ steps.validate.outcome }}' \
             '${{ steps.upload.outcome }}' \
             '${{ steps.cleanup.outcome }}'
-          test '${{ steps.playwright.outcome }}' = success
-          test '${{ steps.validate.outcome }}' = success
-          test '${{ steps.upload.outcome }}' = success
-          test '${{ steps.cleanup.outcome }}' = success
+          case "$outcomes" in
+            success:success:success:success) ;;
+            *)
+              echo "::error title=Macro runtime conclusion failed::${outcomes}"
+              exit 1
+              ;;
+          esac
