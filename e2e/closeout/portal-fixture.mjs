@@ -1,21 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect } from "@playwright/test";
+import { resolveNecessaryCookieConsent } from "./cookie-consent-helper.mjs";
 
 const fixturePath = process.env.CLOSEOUT_PORTAL_FIXTURE_FILE || "/tmp/hamza-portal-fixtures.json";
 export function portalFixture() {
   if (!fs.existsSync(fixturePath)) throw new Error("portal_fixture_missing");
   return JSON.parse(fs.readFileSync(fixturePath, "utf8"));
 }
-async function dismissCookieConsent(page) {
-  const dialog = page.locator("section[role='dialog'][aria-labelledby='cookie-consent-title']");
-  if (await dialog.isVisible().catch(() => false)) {
-    await dialog.getByRole("button", { name: /الضرورية فقط|Necessary only|Yalnızca gerekli/ }).click();
-    await expect(dialog).toBeHidden();
-  }
-}
 export async function login(page, account) {
   await page.goto("/portal/login", { waitUntil: "domcontentloaded" });
+  await resolveNecessaryCookieConsent(page);
   const email = page.locator("#email");
   const password = page.locator("#password");
   await expect(email).toBeVisible();
@@ -41,7 +36,6 @@ export async function login(page, account) {
       }
       return false;
     }, null, { timeout: 10000 });
-    await dismissCookieConsent(page);
   }
 }
 export async function browserPortalCredentials(page) {
