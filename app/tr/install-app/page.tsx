@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function TurkishInstallAppPage() {
-  return <InstallAppPage language="tr" />;
+  return <InstallAppPage />;
 }

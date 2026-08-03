@@ -1,7 +1,7 @@
 import { isSiteLanguage, type SiteLanguage } from "@/lib/i18n/locale";
 
 export const SITE_URL = "https://hamza-agency.com";
-export const PUBLIC_ROUTE_PATHS = ["/","/about","/ai-policy","/ai-support","/apply","/application-status","/contact","/cookie-policy","/digital-services","/faq","/gallery","/install-app","/jobs","/knowledge-center","/partners","/privacy-policy","/programs","/reviews","/service-request","/service-status","/services","/success-stories","/terms-and-conditions","/track"] as const;
+export const PUBLIC_ROUTE_PATHS = ["/","/about","/ai-policy","/ai-support","/apply","/application-status","/contact","/cookie-policy","/cookie-settings","/digital-services","/faq","/gallery","/install-app","/jobs","/knowledge-center","/partners","/privacy-policy","/programs","/reviews","/service-request","/service-status","/services","/success-stories","/terms-and-conditions","/track"] as const;
 export const PROGRAM_SLUGS = ["tiktok","bigo-live","yaahlan","xena","catchii"] as const;
 export type PublicRoutePath = (typeof PUBLIC_ROUTE_PATHS)[number];
 const publicRouteSet = new Set<string>(PUBLIC_ROUTE_PATHS);

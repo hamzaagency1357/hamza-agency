@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function EnglishInstallAppPage() {
-  return <InstallAppPage language="en" />;
+  return <InstallAppPage />;
 }

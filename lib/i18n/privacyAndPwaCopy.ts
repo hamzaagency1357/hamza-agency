@@ -4,17 +4,22 @@ export type CookieConsentCopy = {
   title: string;
   body: string;
   necessary: string;
+  necessaryDescription: string;
   analytics: string;
+  analyticsDescription: string;
   preferences: string;
+  preferencesDescription: string;
   marketing: string;
-  acceptSelected: string;
+  marketingDescription: string;
   acceptAll: string;
   necessaryOnly: string;
   settings: string;
+  pageDescription: string;
   managePreferences: string;
-  savePreferences: string;
+  saveSelected: string;
+  savedConfirmation: string;
+  backToWebsite: string;
   policy: string;
-  close: string;
 };
 
 export type PwaRuntimeCopy = {
@@ -45,51 +50,66 @@ export type PwaRuntimeCopy = {
 const cookieConsentCopy: Record<SiteLanguage, CookieConsentCopy> = {
   ar: {
     title: "الخصوصية وملفات الارتباط",
-    body: "نستخدم الملفات الضرورية لتشغيل الموقع. تبقى التحليلات والتفضيلات والتسويق معطلة حتى تختار السماح بها.",
+    body: "نستخدم الملفات الضرورية لتشغيل الموقع. يمكنك التحكم بالتحليلات والتفضيلات والتسويق.",
     necessary: "ضرورية",
+    necessaryDescription: "تدعم الأمان والوظائف الأساسية وحفظ قرار الخصوصية، وتعمل دائمًا ولا يمكن تعطيلها.",
     analytics: "تحليلات",
+    analyticsDescription: "تساعدنا على فهم أداء الموقع واستخدامه بصورة مجمعة لتحسين التجربة.",
     preferences: "تفضيلات",
+    preferencesDescription: "تحفظ الخيارات التي تحددها، مثل إعدادات العرض وتجربة الاستخدام.",
     marketing: "تسويق",
-    acceptSelected: "قبول المحدد",
+    marketingDescription: "تسمح بقياس الحملات وتقديم رسائل تسويقية عند موافقتك الصريحة فقط.",
     acceptAll: "قبول الكل",
     necessaryOnly: "الضرورية فقط",
     settings: "إعدادات ملفات الارتباط",
+    pageDescription: "تعمل ملفات الارتباط الضرورية دائمًا لتشغيل الموقع بأمان. يمكنك هنا اختيار السماح بالتحليلات والتفضيلات والتسويق أو إيقافها.",
     managePreferences: "إدارة التفضيلات",
-    savePreferences: "حفظ التفضيلات",
+    saveSelected: "حفظ الاختيارات",
+    savedConfirmation: "تم حفظ اختيارات ملفات الارتباط.",
+    backToWebsite: "العودة إلى الموقع",
     policy: "سياسة ملفات الارتباط",
-    close: "إغلاق إعدادات ملفات الارتباط",
   },
   en: {
     title: "Privacy and cookies",
-    body: "Necessary storage keeps the website working. Analytics, preferences, and marketing stay disabled until you allow them.",
+    body: "Necessary storage keeps the website working. You can control analytics, preferences, and marketing.",
     necessary: "Necessary",
+    necessaryDescription: "Supports security, core functions, and your privacy decision. It is always active and cannot be disabled.",
     analytics: "Analytics",
+    analyticsDescription: "Helps us understand aggregated website performance and usage so we can improve the experience.",
     preferences: "Preferences",
+    preferencesDescription: "Remembers options you choose, including display settings and experience preferences.",
     marketing: "Marketing",
-    acceptSelected: "Accept selected",
+    marketingDescription: "Allows campaign measurement and marketing messages only when you give explicit consent.",
     acceptAll: "Accept all",
     necessaryOnly: "Necessary only",
     settings: "Cookie settings",
+    pageDescription: "Necessary cookies always operate to keep the website secure and functional. You can choose whether to allow analytics, preferences, and marketing.",
     managePreferences: "Manage preferences",
-    savePreferences: "Save preferences",
+    saveSelected: "Save selected",
+    savedConfirmation: "Your cookie choices have been saved.",
+    backToWebsite: "Back to website",
     policy: "Cookie policy",
-    close: "Close cookie settings",
   },
   tr: {
     title: "Gizlilik ve çerezler",
-    body: "Gerekli depolama web sitesinin çalışmasını sağlar. Analiz, tercihler ve pazarlama siz izin verene kadar kapalı kalır.",
+    body: "Gerekli depolama web sitesini çalıştırır. Analiz, tercihler ve pazarlamayı kontrol edebilirsiniz.",
     necessary: "Gerekli",
+    necessaryDescription: "Güvenliği, temel işlevleri ve gizlilik kararınızı destekler. Her zaman etkindir ve kapatılamaz.",
     analytics: "Analiz",
+    analyticsDescription: "Deneyimi geliştirmek için toplu web sitesi performansını ve kullanımını anlamamıza yardımcı olur.",
     preferences: "Tercihler",
+    preferencesDescription: "Görünüm ayarları ve kullanım tercihleri dahil olmak üzere seçtiğiniz seçenekleri hatırlar.",
     marketing: "Pazarlama",
-    acceptSelected: "Seçilenleri kabul et",
+    marketingDescription: "Yalnızca açık onay verdiğinizde kampanya ölçümüne ve pazarlama mesajlarına izin verir.",
     acceptAll: "Tümünü kabul et",
     necessaryOnly: "Yalnızca gerekli",
     settings: "Çerez ayarları",
+    pageDescription: "Gerekli çerezler web sitesini güvenli ve çalışır durumda tutmak için her zaman etkindir. Analiz, tercihler ve pazarlamaya izin verip vermeyeceğinizi seçebilirsiniz.",
     managePreferences: "Tercihleri yönet",
-    savePreferences: "Tercihleri kaydet",
+    saveSelected: "Seçimleri kaydet",
+    savedConfirmation: "Çerez seçimleriniz kaydedildi.",
+    backToWebsite: "Siteye dön",
     policy: "Çerez politikası",
-    close: "Çerez ayarlarını kapat",
   },
 };
 
@@ -168,10 +188,14 @@ const pwaRuntimeCopy: Record<SiteLanguage, PwaRuntimeCopy> = {
   },
 };
 
-export function getCookieConsentCopy(language: SiteLanguage): CookieConsentCopy {
+export function getCookieConsentCopy(
+  language: SiteLanguage
+): CookieConsentCopy {
   return cookieConsentCopy[language] || cookieConsentCopy.ar;
 }
 
-export function getPwaRuntimeCopy(language: SiteLanguage): PwaRuntimeCopy {
+export function getPwaRuntimeCopy(
+  language: SiteLanguage
+): PwaRuntimeCopy {
   return pwaRuntimeCopy[language] || pwaRuntimeCopy.ar;
 }

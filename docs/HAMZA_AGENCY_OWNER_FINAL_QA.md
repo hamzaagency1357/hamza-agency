@@ -2,90 +2,64 @@
 
 This record is for **manual Preview QA only**. It does not authorize Production writes, migrations, Post-deploy actions, Merge, or conversion to Ready for Review.
 
-## Current round — 3 August 2026 — Android round 2
+## Current round — 4 August 2026 — fixes prepared, manual retest pending
 
 | Field | Value |
 | --- | --- |
 | Repository | `hamzaagency1357/hamza-agency` |
 | Pull request | `#105` |
 | Branch | `feat/pr101-complete-product-expansion` |
-| Tested surface | Exact Vercel Preview on Android inside a Chrome Custom Tab opened by an external application |
 | Owner Final QA | **Needs fixes** |
 | Ready for Review | **No** |
 | Merge authorized | **No** |
 | Production authorized | **No** |
 
-### Actual findings from the second manual round
+## Status before the new manual retest
 
-| ID | Area | Result | Finding |
-| --- | --- | --- | --- |
-| `QA2-001` | Cookie localization | **Pass** | Arabic renders in Arabic and RTL; English renders in English and LTR; Turkish renders in Turkish and LTR; switching locale while the dialog is open works. This behavior must remain unchanged. |
-| `QA2-002` | Cookie modal isolation | **Fail** | The public Header remained visible above the Backdrop and the background was not fully isolated inside the Android Chrome Custom Tab. |
-| `QA2-003` | Cookie dialog geometry | **Fail** | The title/top content was clipped or hidden, locale controls consumed excessive height, content was cut near the Footer, and the dialog did not reliably fit the smaller visual viewport. |
-| `QA2-004` | Install-app layout | **Fail** | The install prompt overlapped the Hero description and CTA instead of occupying an independent in-flow mobile card. |
-| `QA2-005` | Bottom Dock clearance | **Fail** | The fixed Dock covered content, including the beginning of the “Available programs” section, and the page did not reserve clearance based on the Dock’s measured wrapped height. |
+| Area | Status | Evidence / required next check |
+| --- | --- | --- |
+| Floating install prompt removed | **Pass** | The PWA runtime remains silent and no automatic floating install UI is mounted. |
+| Install App layout | **Pass** | The installation experience remains a standalone page in normal document flow. |
+| Install App AR localization | **Pass** | `/install-app` displays Arabic and RTL. |
+| Install App EN localization | **Fail — pending fix verification** | The previous Android round showed Arabic Install App content under `/en/install-app`. The implementation now derives the page language from the URL-owned site language and requires a new exact-Preview retest. |
+| Install App TR localization | **Fail — pending fix verification** | The previous Android round showed Arabic Install App content under `/tr/install-app`. The implementation now derives the page language from the URL-owned site language and requires a new exact-Preview retest. |
+| Bottom Dock three actions | **Pass** | Mobile Dock remains limited to WhatsApp, AI Support, and Quick Navigation. |
+| Cookie Banner localization | **Pass** | First-visit banner copy follows AR / EN / TR URL locale. |
+| Cookie Banner compact spacing | **Needs final retest** | The banner has a primary Accept all action, quieter Necessary only action, text Manage preferences link, and measured clearance above the Dock. |
+| Cookie Preferences Dialog | **Fail and removed** | The broken Dialog, Portal, Backdrop, focus trap, background inerting, and body scroll lock have been removed. |
+| Cookie Settings pages | **Pending final retest** | New normal-flow pages are available at `/cookie-settings`, `/en/cookie-settings`, and `/tr/cookie-settings`. |
+| Owner Final QA | **Needs fixes** | Do not record Pass until the owner completes the final real-device round against the new exact Preview. |
 
-**Owner Final QA status remains `Needs fixes`. Cookie localization alone is Pass; the complete Owner Final QA must not be recorded as Pass until the owner repeats Android and Chrome Custom Tab QA against the new exact Preview.**
+## Engineering correction in this round
 
-## Engineering correction prepared for the next exact Preview
+- Replaced the Cookie Preferences overlay with a shared normal-flow Cookie Settings page.
+- Preserved the existing `hamza_agency_cookie_consent` key, consent version, stored shape, Necessary-always-true rule, cookie mirror, and existing consent audit delivery.
+- Added translated category descriptions and Save selected, Accept all, Necessary only, and Back to website actions.
+- Added an inline semantic `role=status` confirmation instead of a floating toast.
+- Changed the Cookie Banner Manage preferences action and Footer Cookie settings action into locale-aware links.
+- Kept the first-visit Cookie Banner compact, scroll-safe, and clear of the measured Bottom Dock.
+- Removed all Preferences Dialog Portal, Backdrop, focus trap, body scroll lock, inert, `aria-hidden`, dialog state, and old dialog test IDs.
+- Corrected the Install App root cause: locale-prefixed URLs are internally rewritten to the base route, so the old base page forced Arabic. Install App now consumes the URL-owned site-language provider instead of hard-coded route props.
+- Removed optimistic language selection. The active AR / EN / TR state now follows the actual pathname after navigation.
+- Added direct-navigation, in-app switching, consent persistence, normal-flow geometry, overflow, Footer, Dock clearance, Chrome Custom Tab, and user-gesture installation regression coverage with retries disabled.
 
-- Cookie consent is mounted through a dedicated `document.body` Portal above centralized public UI layers.
-- Background body children are made inert and pointer-inactive while consent is open; focus trap, focus restoration, body scroll lock, and conditional dismissal remain enforced.
-- Cookie geometry tracks `visualViewport` resize/scroll, keeps a fixed header and actions, and gives the content area internal scrolling.
-- Mobile locale controls are a compact horizontal row and changing locale resets dialog scroll to the top.
-- The PWA prompt is in normal document flow on Mobile and Desktop.
-- The mobile Dock publishes its measured height to `--public-mobile-dock-height`, listens to ResizeObserver, language/width/font/visual viewport changes, and adds a real in-flow clearance element after public content.
-- Regression assertions cover geometry, top-layer hit testing, background isolation, PWA/Hero intersections, Dock measurement, final content clearance, and horizontal overflow.
+## Final manual Owner QA scope
 
-## Fix verification required on the next exact Preview
+Use the new immutable exact-Head Preview on Android Chrome and a Chrome Custom Tab. The next manual round is intentionally limited to:
 
-### Mandatory preflight
+1. Cookie Banner on Mobile.
+2. Cookie Settings page in Arabic.
+3. Cookie Settings page in English.
+4. Cookie Settings page in Turkish.
+5. Install App switching AR → EN → TR → AR, checking URL and all page content together.
+6. Footer Install App and Cookie settings links.
+7. Bottom Dock clearance above the last page action and Footer.
 
-- [ ] PR is Open, Draft, and unmerged.
-- [ ] PR Current Head equals the SHA recorded for the QA round.
-- [ ] Exact Preview `/api/health` reports the same SHA.
-- [ ] Vercel deployment and all required exact-head checks are successful.
-- [ ] No Production URL is used for stateful testing.
+Test at minimum at `360×640`, `390×700`, and `412×732`, plus the owner’s real Chrome Custom Tab viewport. Confirm there is no horizontal overflow, word-by-word heading wrapping, overlay, Backdrop, Portal, body scroll lock, Footer overlap, or Dock overlap.
 
-### Cookie localization and behavior
+## Release guard
 
-For AR, EN, and TR:
-
-- [ ] Reconfirm the existing localization Pass: title, description, categories, actions, settings label, and policy link use only the URL-owned active language.
-- [ ] Arabic is RTL; English and Turkish are LTR.
-- [ ] Switch language while the dialog is open; content updates without a full page reload and scroll returns to the top.
-- [ ] Necessary only closes the dialog and remains stored after reload.
-- [ ] Accept selected stores only selected categories.
-- [ ] Accept all stores all optional categories.
-- [ ] Settings can be reopened from the unified Bottom Dock.
-- [ ] Cookie policy keeps the active locale.
-
-### Android and Chrome Custom Tab geometry
-
-Test at minimum at `360×640`, `360×740`, `390×700`, `390×780`, and `412×732`, plus the owner’s real Android Chrome Custom Tab:
-
-- [ ] Backdrop starts at the visible top edge and covers the complete visible viewport, including the public Header.
-- [ ] Header and background cannot receive clicks, pointer events, focus, or page scroll while the dialog is open.
-- [ ] Dialog title, horizontal locale row, scrollable body, policy link, and all Footer actions remain reachable.
-- [ ] Turkish long copy does not introduce horizontal overflow.
-- [ ] Install-app copy and button are in an independent in-flow card and do not overlap the Hero description or CTA.
-- [ ] Install card does not overlap the Bottom Dock.
-- [ ] “Available programs”, the Footer, the final card, and the final action can scroll fully above the Bottom Dock and Android safe area.
-- [ ] Dock measurement updates after locale, width, text wrapping, and visual viewport changes.
-
-## Broader Owner Final QA continuation
-
-After the four remaining blocking findings pass, continue the existing project checklist for public AR/EN/TR pages, forms and tracking, authentication and Admin, Page Builder, Commerce, portals, tasks/SLA/workflows, backup/restore, Trash, notifications, security, and mobile navigation. Record exact Preview URL, exact SHA, device/browser, screenshots, and any new blocking issue.
-
-## Final decision
-
-- Cookie localization: **Pass — manual round 2**
-- Cookie modal isolation: **Fail — pending retest after fix**
-- Cookie dialog geometry: **Fail — pending retest after fix**
-- Install-app layout: **Fail — pending retest after fix**
-- Bottom Dock clearance: **Fail — pending retest after fix**
-- Owner Final QA: **Needs fixes**
-- Approved for Ready for Review: **No**
-- Merge authorized: **No**
-- Production migrations authorized: **No**
-- Post-deploy/session revocation authorized: **No**
+- Keep PR `#105` Open, Draft, and unmerged.
+- Do not convert to Ready for Review or Merge without explicit owner approval after the final manual round.
+- Do not execute Production migrations, Post-deploy actions, Billing changes, or stateful Production tests.
+- Do not mark Owner Final QA as Pass based only on automated checks.
