@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { getLanguageDirection, type SiteLanguage } from "@/lib/i18n/locale";
 import { localizePublicHref } from "@/lib/i18n/publicLocales";
 import { getPwaRuntimeCopy } from "@/lib/i18n/privacyAndPwaCopy";
@@ -42,11 +42,9 @@ export default function InstallAppPage({ language }: { language: SiteLanguage })
     return () => window.removeEventListener(STATE_EVENT, update);
   }, []);
 
-  const chromeIntent = useMemo(() => {
-    if (typeof window === "undefined") return "#";
-    const path = `${window.location.host}${window.location.pathname}${window.location.search}${window.location.hash}`;
-    return `intent://${path}#Intent;scheme=https;package=com.android.chrome;end`;
-  }, [context]);
+  const chromeIntent = typeof window === "undefined"
+    ? "#"
+    : `intent://${window.location.host}${window.location.pathname}${window.location.search}${window.location.hash}#Intent;scheme=https;package=com.android.chrome;end`;
 
   const installed = context === "standalone" || installState.installed;
   const ready = context === "browser" && installState.available && !installed;
