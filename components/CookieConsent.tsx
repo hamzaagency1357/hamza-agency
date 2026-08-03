@@ -18,7 +18,7 @@ type Consent = {
 };
 
 type Choices = Pick<Consent, "analytics" | "preferences" | "marketing">;
-type ViewportMetrics = { top: number; left: number; width: number; height: number };
+type Surface = "loading" | "closed" | "banner" | "preferences";
 type InertSnapshot = { element: HTMLElement; inert: boolean; ariaHidden: string | null };
 
 const VERSION = "1.0";
@@ -44,32 +44,24 @@ function anonymousId() {
   return value;
 }
 
-function focusable(container: HTMLElement) {
-  return Array.from(container.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])'));
+function applyConsentToDocument(consent: Pick<Consent, "analytics" | "preferences" | "marketing">) {
+  document.documentElement.dataset.consentAnalytics = String(consent.analytics);
+  document.documentElement.dataset.consentPreferences = String(consent.preferences);
+  document.documentElement.dataset.consentMarketing = String(consent.marketing);
 }
 
-function readVisualViewport(): ViewportMetrics {
-  const viewport = window.visualViewport;
-  return {
-    top: Math.max(0, Math.round(viewport?.offsetTop ?? 0)),
-    left: Math.max(0, Math.round(viewport?.offsetLeft ?? 0)),
-    width: Math.max(1, Math.round(viewport?.width ?? window.innerWidth)),
-    height: Math.max(1, Math.round(viewport?.height ?? window.innerHeight)),
-  };
+function focusable(container: HTMLElement) {
+  return Array.from(container.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])'));
 }
 
 export default function CookieConsent() {
   const pathname = usePathname();
   const locale = getPathLanguage(pathname || "/");
   const strings = getCookieConsentCopy(locale);
-  const [open, setOpen] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [canDismiss, setCanDismiss] = useState(false);
+  const [surface, setSurface] = useState<Surface>("loading");
   const [choices, setChoices] = useState<Choices>(emptyChoices);
   const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
-  const [viewport, setViewport] = useState<ViewportMetrics | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const host = document.createElement("div");
@@ -77,55 +69,34 @@ export default function CookieConsent() {
     host.dataset.cookiePortal = "true";
     document.body.appendChild(host);
     setPortalHost(host);
-    return () => {
-      host.remove();
-    };
+    return () => host.remove();
   }, []);
 
   useEffect(() => {
     const stored = readStoredConsent();
-    if (!stored) {
-      setOpen(true);
+    if (stored) {
+      const storedChoices = { analytics: stored.analytics, preferences: stored.preferences, marketing: stored.marketing };
+      setChoices(storedChoices);
+      applyConsentToDocument(storedChoices);
+      setSurface("closed");
     } else {
-      setChoices({ analytics: stored.analytics, preferences: stored.preferences, marketing: stored.marketing });
-      setCanDismiss(true);
-      document.documentElement.dataset.consentAnalytics = String(stored.analytics);
-      document.documentElement.dataset.consentPreferences = String(stored.preferences);
-      document.documentElement.dataset.consentMarketing = String(stored.marketing);
+      setSurface("banner");
     }
+
     const reopen = () => {
       const current = readStoredConsent();
       if (current) setChoices({ analytics: current.analytics, preferences: current.preferences, marketing: current.marketing });
-      setCanDismiss(Boolean(current));
-      setExpanded(true);
-      setOpen(true);
+      setSurface("preferences");
     };
     window.addEventListener("hamza:cookie-settings", reopen);
     return () => window.removeEventListener("hamza:cookie-settings", reopen);
   }, []);
 
   useEffect(() => {
-    if (!open) return;
-    const updateViewport = () => setViewport(readVisualViewport());
-    updateViewport();
-    window.addEventListener("resize", updateViewport);
-    window.addEventListener("orientationchange", updateViewport);
-    window.visualViewport?.addEventListener("resize", updateViewport);
-    window.visualViewport?.addEventListener("scroll", updateViewport);
-    return () => {
-      window.removeEventListener("resize", updateViewport);
-      window.removeEventListener("orientationchange", updateViewport);
-      window.visualViewport?.removeEventListener("resize", updateViewport);
-      window.visualViewport?.removeEventListener("scroll", updateViewport);
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open || !portalHost || !dialogRef.current) return;
+    if (surface !== "preferences" || !portalHost || !dialogRef.current) return;
     const dialog = dialogRef.current;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
-    const previousOverscroll = document.body.style.overscrollBehavior;
     const inertSnapshots: InertSnapshot[] = [];
 
     for (const child of Array.from(document.body.children)) {
@@ -135,14 +106,13 @@ export default function CookieConsent() {
       child.setAttribute("aria-hidden", "true");
     }
 
-    document.body.classList.add("hamza-cookie-consent-open");
+    document.body.classList.add("hamza-cookie-preferences-open");
     document.body.style.overflow = "hidden";
-    document.body.style.overscrollBehavior = "none";
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && canDismiss) {
+      if (event.key === "Escape") {
         event.preventDefault();
-        setOpen(false);
+        setSurface(readStoredConsent() ? "closed" : "banner");
         return;
       }
       if (event.key !== "Tab") return;
@@ -160,17 +130,13 @@ export default function CookieConsent() {
     };
 
     document.addEventListener("keydown", onKeyDown);
-    const frame = requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ top: 0 });
-      (focusable(dialog)[0] || dialog).focus();
-    });
+    const frame = requestAnimationFrame(() => (focusable(dialog)[0] || dialog).focus());
 
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener("keydown", onKeyDown);
-      document.body.classList.remove("hamza-cookie-consent-open");
+      document.body.classList.remove("hamza-cookie-preferences-open");
       document.body.style.overflow = previousOverflow;
-      document.body.style.overscrollBehavior = previousOverscroll;
       for (const snapshot of inertSnapshots) {
         snapshot.element.inert = snapshot.inert;
         if (snapshot.ariaHidden === null) snapshot.element.removeAttribute("aria-hidden");
@@ -178,22 +144,15 @@ export default function CookieConsent() {
       }
       previousFocus?.focus();
     };
-  }, [open, canDismiss, portalHost]);
-
-  useEffect(() => {
-    if (open) scrollRef.current?.scrollTo({ top: 0 });
-  }, [locale, open]);
+  }, [surface, portalHost]);
 
   async function save(next: Choices) {
     const record: Consent = { version: VERSION, necessary: true, ...next, recordedAt: new Date().toISOString() };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
     document.cookie = `ha_consent=${encodeURIComponent(JSON.stringify(record))}; Path=/; Max-Age=31536000; SameSite=Lax; Secure`;
-    document.documentElement.dataset.consentAnalytics = String(next.analytics);
-    document.documentElement.dataset.consentPreferences = String(next.preferences);
-    document.documentElement.dataset.consentMarketing = String(next.marketing);
+    applyConsentToDocument(next);
     setChoices(next);
-    setCanDismiss(true);
-    setOpen(false);
+    setSurface("closed");
     void fetch("/api/product-expansion/consent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -202,31 +161,36 @@ export default function CookieConsent() {
     }).catch(() => undefined);
   }
 
-  if (!open) {
+  if (surface === "loading" || surface === "closed") return null;
+
+  if (surface === "banner") {
     return (
-      <button type="button" onClick={() => { setExpanded(true); setOpen(true); }} className="hamza-cookie-settings-desktop fixed bottom-3 left-3 hidden rounded-full border border-white/15 bg-black/80 px-3 py-2 text-xs text-white/80 backdrop-blur hover:text-white md:block" data-testid="cookie-settings-desktop">
-        {strings.settings}
-      </button>
+      <section
+        role="region"
+        aria-labelledby="cookie-banner-title"
+        dir={getLanguageDirection(locale)}
+        data-cookie-locale={locale}
+        data-testid="cookie-banner"
+        className="hamza-cookie-banner rounded-2xl border border-violet-300/25 bg-[#0b0710]/96 p-4 text-white shadow-2xl backdrop-blur-xl"
+      >
+        <div className="min-w-0">
+          <h2 id="cookie-banner-title" className="text-base font-black">{strings.title}</h2>
+          <p className="mt-1 text-sm leading-6 text-white/70">{strings.body}</p>
+          <Link href={localizePublicHref("/cookie-policy", locale)} className="mt-2 inline-flex text-xs font-bold text-violet-200 underline underline-offset-4" data-testid="cookie-policy-link">{strings.policy}</Link>
+        </div>
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <button type="button" onClick={() => void save({ analytics: true, preferences: true, marketing: true })} className="min-h-11 rounded-xl bg-violet-600 px-3 py-2 text-sm font-bold" data-testid="cookie-accept-all">{strings.acceptAll}</button>
+          <button type="button" onClick={() => void save(emptyChoices)} className="min-h-11 rounded-xl border border-white/15 px-3 py-2 text-sm font-bold" data-testid="cookie-necessary-only">{strings.necessaryOnly}</button>
+          <button type="button" onClick={() => setSurface("preferences")} className="min-h-11 rounded-xl border border-violet-300/25 px-3 py-2 text-sm font-bold text-violet-100" data-testid="cookie-manage-preferences">{strings.managePreferences}</button>
+        </div>
+      </section>
     );
   }
 
   if (!portalHost) return null;
-  const activeViewport = viewport ?? readVisualViewport();
 
-  const modal = (
-    <div
-      className="hamza-cookie-backdrop flex items-center justify-center overflow-hidden bg-black/75 px-2 backdrop-blur-sm sm:px-4"
-      style={{
-        top: `${activeViewport.top}px`,
-        left: `${activeViewport.left}px`,
-        width: `${activeViewport.width}px`,
-        height: `${activeViewport.height}px`,
-        paddingTop: "max(.5rem, env(safe-area-inset-top, 0px))",
-        paddingBottom: "max(.5rem, env(safe-area-inset-bottom, 0px))",
-      }}
-      data-testid="cookie-backdrop"
-      onPointerDown={(event) => { if (event.target === event.currentTarget && canDismiss) setOpen(false); }}
-    >
+  return createPortal(
+    <div className="hamza-cookie-backdrop flex items-center justify-center overflow-y-auto bg-black/75 p-3 backdrop-blur-sm sm:p-5" data-testid="cookie-backdrop">
       <section
         ref={dialogRef}
         role="dialog"
@@ -237,44 +201,32 @@ export default function CookieConsent() {
         dir={getLanguageDirection(locale)}
         data-testid="cookie-dialog"
         data-cookie-locale={locale}
-        className="hamza-cookie-dialog flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-violet-300/25 bg-[#0b0710]/98 text-white shadow-2xl"
+        className="hamza-cookie-dialog my-auto w-full max-w-2xl rounded-3xl border border-violet-300/25 bg-[#0b0710] p-5 text-white shadow-2xl sm:p-7"
       >
-        <header className="flex flex-none items-start justify-between gap-3 border-b border-white/10 p-4 sm:p-5">
-          <div className="min-w-0 flex-1">
-            <h2 id="cookie-consent-title" className="text-balance text-lg font-black leading-tight sm:text-xl">{strings.title}</h2>
-            <nav className="mt-3 grid w-fit max-w-full grid-cols-3 gap-2" aria-label={strings.settings} data-testid="cookie-locale-switcher">
-              {(["ar", "en", "tr"] as const).map((candidate) => (
-                <Link key={candidate} href={localizePublicHref(pathname || "/", candidate)} data-testid={`cookie-locale-${candidate}`} aria-current={candidate === locale ? "page" : undefined} className={`flex min-h-9 min-w-12 items-center justify-center rounded-full border px-3 py-1.5 text-xs font-black uppercase ${candidate === locale ? "border-violet-300/60 bg-violet-500/25 text-white" : "border-white/10 text-white/65"}`}>
-                  {candidate}
-                </Link>
-              ))}
-            </nav>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 id="cookie-consent-title" className="text-xl font-black">{strings.settings}</h2>
+            <p id="cookie-consent-description" className="mt-2 text-sm leading-6 text-white/70">{strings.body}</p>
           </div>
-          {canDismiss && <button type="button" onClick={() => setOpen(false)} className="flex h-10 w-10 flex-none items-center justify-center rounded-full border border-white/10 text-xl text-white/70" aria-label={strings.close} data-testid="cookie-close">×</button>}
-        </header>
-
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5" data-testid="cookie-dialog-scroll">
-          <p id="cookie-consent-description" className="text-sm leading-6 text-white/75">{strings.body}</p>
-          {expanded && (
-            <div className="mt-4 grid gap-2 sm:grid-cols-2" data-testid="cookie-categories">
-              <label className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-white/10 px-4 opacity-70"><span>{strings.necessary}</span><input type="checkbox" checked readOnly aria-label={strings.necessary} /></label>
-              {(["analytics", "preferences", "marketing"] as const).map((key) => (
-                <label key={key} className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-white/10 px-4"><span>{strings[key]}</span><input type="checkbox" checked={choices[key]} data-testid={`cookie-choice-${key}`} aria-label={strings[key]} onChange={(event) => setChoices((current) => ({ ...current, [key]: event.target.checked }))} /></label>
-              ))}
-            </div>
-          )}
-          <Link href={localizePublicHref("/cookie-policy", locale)} className="mt-4 inline-flex min-h-11 items-center text-sm font-bold text-violet-200 underline underline-offset-4" data-testid="cookie-policy-link">{strings.policy}</Link>
+          <button type="button" onClick={() => setSurface(readStoredConsent() ? "closed" : "banner")} className="flex h-10 w-10 flex-none items-center justify-center rounded-full border border-white/15 text-xl" aria-label={strings.close} data-testid="cookie-close">×</button>
         </div>
 
-        <footer className="grid flex-none grid-cols-2 gap-2 border-t border-white/10 bg-black/25 p-3 text-xs sm:p-5 sm:text-sm">
-          <button type="button" onClick={() => void save({ analytics: true, preferences: true, marketing: true })} className="min-h-11 rounded-xl bg-violet-600 px-2 py-2 font-bold sm:px-4" data-testid="cookie-accept-all">{strings.acceptAll}</button>
-          <button type="button" onClick={() => void save(choices)} className="min-h-11 rounded-xl border border-violet-300/30 px-2 py-2 font-bold sm:px-4" data-testid="cookie-accept-selected">{strings.acceptSelected}</button>
-          <button type="button" onClick={() => void save(emptyChoices)} className="min-h-11 rounded-xl border border-white/10 px-2 py-2 sm:px-4" data-testid="cookie-necessary-only">{strings.necessaryOnly}</button>
-          <button type="button" onClick={() => { setExpanded((value) => !value); requestAnimationFrame(() => scrollRef.current?.scrollTo({ top: 0 })); }} className="min-h-11 rounded-xl border border-white/10 px-2 py-2 text-white/80 sm:px-4" aria-expanded={expanded} data-testid="cookie-settings-toggle">{strings.settings}</button>
-        </footer>
-      </section>
-    </div>
-  );
+        <div className="mt-5 grid gap-3 sm:grid-cols-2" data-testid="cookie-categories">
+          <label className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-white/10 px-4 opacity-70"><span>{strings.necessary}</span><input type="checkbox" checked readOnly aria-label={strings.necessary} /></label>
+          {(["analytics", "preferences", "marketing"] as const).map((key) => (
+            <label key={key} className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-white/10 px-4"><span>{strings[key]}</span><input type="checkbox" checked={choices[key]} data-testid={`cookie-choice-${key}`} aria-label={strings[key]} onChange={(event) => setChoices((current) => ({ ...current, [key]: event.target.checked }))} /></label>
+          ))}
+        </div>
 
-  return createPortal(modal, portalHost);
+        <Link href={localizePublicHref("/cookie-policy", locale)} className="mt-5 inline-flex min-h-11 items-center text-sm font-bold text-violet-200 underline underline-offset-4" data-testid="cookie-policy-link">{strings.policy}</Link>
+
+        <div className="mt-5 grid gap-2 sm:grid-cols-3">
+          <button type="button" onClick={() => void save({ analytics: true, preferences: true, marketing: true })} className="min-h-11 rounded-xl bg-violet-600 px-4 py-2 font-bold" data-testid="cookie-accept-all">{strings.acceptAll}</button>
+          <button type="button" onClick={() => void save(choices)} className="min-h-11 rounded-xl border border-violet-300/30 px-4 py-2 font-bold" data-testid="cookie-accept-selected">{strings.savePreferences}</button>
+          <button type="button" onClick={() => void save(emptyChoices)} className="min-h-11 rounded-xl border border-white/15 px-4 py-2 font-bold" data-testid="cookie-necessary-only">{strings.necessaryOnly}</button>
+        </div>
+      </section>
+    </div>,
+    portalHost,
+  );
 }

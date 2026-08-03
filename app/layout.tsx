@@ -6,6 +6,7 @@ import PublicMobileDock from "@/components/PublicMobileDock";
 import PublicDesktopEnhancer from "@/components/PublicDesktopEnhancer";
 import PublicHeaderDesktopClickGuard from "@/components/PublicHeaderDesktopClickGuard";
 import PublicGlobalHeader from "@/components/PublicGlobalHeader";
+import PublicFooterLinks from "@/components/PublicFooterLinks";
 import PublicSupportAvailability from "@/components/PublicSupportAvailability";
 import VisualBackgroundPresets from "@/components/VisualBackgroundPresets";
 import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
@@ -76,6 +77,7 @@ export default async function RootLayout({
           <PublicGlobalHeader />
           <PwaRuntime />
           {children}
+          <PublicFooterLinks />
           <PublicSupportAvailability />
           <PublicHeaderDesktopClickGuard />
           <PublicMobileDock />

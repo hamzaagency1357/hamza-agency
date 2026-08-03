@@ -2,85 +2,34 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getLanguageDirection } from "@/lib/i18n/locale";
+import { localizePublicHref } from "@/lib/i18n/publicLocales";
+import { getCookieConsentCopy, getPwaRuntimeCopy } from "@/lib/i18n/privacyAndPwaCopy";
+import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
-const mainLinks = [
-  { label: "البرامج", href: "/programs" },
-  { label: "من نحن", href: "/about" },
-  { label: "الخدمات", href: "/services" },
-  { label: "الخدمات الرقمية", href: "/digital-services" },
-  { label: "طلب خدمة", href: "/service-request" },
-  { label: "الوظائف", href: "/jobs" },
-  { label: "التقييمات", href: "/reviews" },
-  { label: "قصص النجاح", href: "/success-stories" },
-  { label: "شركاؤنا وبرامجنا", href: "/partners" },
-  { label: "المعرض", href: "/gallery" },
-  { label: "مركز المعرفة", href: "/knowledge-center" },
-  { label: "FAQ", href: "/faq" },
-  { label: "اتصل بنا", href: "/contact" },
-];
-
-const legalLinks = [
-  { label: "سياسة الخصوصية", href: "/privacy-policy" },
-  { label: "الشروط والأحكام", href: "/terms-and-conditions" },
-  { label: "AI Policy", href: "/ai-policy" },
-];
+function shouldHideFooter(pathname: string) {
+  return pathname.startsWith("/admin") || pathname.startsWith("/portal") || pathname === "/maintenance" || pathname === "/pr99-e2e";
+}
 
 export default function PublicFooterLinks() {
   const pathname = usePathname();
+  const language = useSiteLanguage();
+  if (shouldHideFooter(pathname)) return null;
 
-  if (pathname.startsWith("/admin")) return null;
+  const cookieCopy = getCookieConsentCopy(language);
+  const installCopy = getPwaRuntimeCopy(language);
 
   return (
-    <footer
-      dir="rtl"
-      className="border-t border-purple-400/15 bg-[#050008] px-5 py-10 text-white"
-    >
-      <div className="mx-auto max-w-6xl">
-        <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-6 shadow-[0_0_70px_rgba(124,58,237,0.12)]">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-xl">
-              <p className="text-xs font-black uppercase tracking-[0.35em] text-yellow-200">
-                HAMZA AGENCY
-              </p>
-              <h2 className="mt-3 text-2xl font-black">وكالة حمزة</h2>
-              <p className="mt-3 text-sm leading-7 text-white/55">
-                روابط سريعة للوصول إلى الصفحات الأساسية والخدمات والبرامج.
-              </p>
-            </div>
-
-            <a
-              href="https://wa.me/905011730377"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-full bg-green-500 px-6 py-3 text-sm font-black text-white shadow-[0_0_28px_rgba(34,197,94,0.22)]"
-            >
-              تواصل واتساب
-            </a>
-          </div>
-
-          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {mainLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm font-bold text-white/75 transition hover:border-purple-300/45 hover:bg-purple-500/10 hover:text-white"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
-
-          <div className="mt-6 flex flex-wrap gap-3 border-t border-white/10 pt-5 text-xs text-white/45">
-            {legalLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="transition hover:text-yellow-100"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
+    <footer dir={getLanguageDirection(language)} className="hamza-public-utility-footer border-t border-white/10 bg-[#050008] px-4 py-6 text-white" data-testid="public-footer-links">
+      <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm font-black" dir="ltr">HAMZA AGENCY</p>
+        <div className="flex flex-wrap gap-2 text-sm">
+          <Link href={localizePublicHref("/install-app", language)} className="inline-flex min-h-11 items-center rounded-full border border-violet-300/25 px-4 py-2 font-bold text-violet-100" data-testid="footer-install-app">
+            {installCopy.installButton}
+          </Link>
+          <button type="button" onClick={() => window.dispatchEvent(new Event("hamza:cookie-settings"))} className="min-h-11 rounded-full border border-white/15 px-4 py-2 font-bold text-white/80" data-testid="footer-cookie-settings">
+            {cookieCopy.settings}
+          </button>
         </div>
       </div>
     </footer>

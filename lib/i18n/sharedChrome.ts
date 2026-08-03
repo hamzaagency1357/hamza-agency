@@ -1,5 +1,6 @@
 import type { PublicNavigationGroup, PublicNavigationLink } from "@/lib/publicNavigation";
 import type { SiteLanguage } from "@/lib/i18n/locale";
+import { getPwaRuntimeCopy } from "@/lib/i18n/privacyAndPwaCopy";
 import { getStaticCopy, type StaticCopyKey } from "@/lib/i18n/staticCopy";
 
 const navigationCopyByHref: Record<string, StaticCopyKey> = {
@@ -45,15 +46,16 @@ function normalizeHref(href: string) {
 }
 
 export function getSharedNavigationLabel(language: SiteLanguage, link: PublicNavigationLink) {
-  const copyKey =
-    (link.key ? navigationCopyByKey[link.key] : undefined) ||
-    navigationCopyByHref[normalizeHref(link.href)];
-
+  const href = normalizeHref(link.href);
+  if (href === "/install-app" || link.key === "install_app") return getPwaRuntimeCopy(language).installButton;
+  const copyKey = (link.key ? navigationCopyByKey[link.key] : undefined) || navigationCopyByHref[href];
   return copyKey ? getStaticCopy(language, copyKey) : link.label;
 }
 
 export function getSharedNavigationLabelByHref(language: SiteLanguage, href: string, fallback: string) {
-  const copyKey = navigationCopyByHref[normalizeHref(href)];
+  const normalized = normalizeHref(href);
+  if (normalized === "/install-app") return getPwaRuntimeCopy(language).installButton;
+  const copyKey = navigationCopyByHref[normalized];
   return copyKey ? getStaticCopy(language, copyKey) : fallback;
 }
 

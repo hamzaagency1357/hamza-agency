@@ -6,7 +6,6 @@ import PublicAiSupport from "@/components/PublicAiSupport";
 import PublicQuickNav from "@/components/PublicQuickNav";
 import { getAiSupportCopy } from "@/lib/i18n/aiSupport";
 import { getLanguageDirection } from "@/lib/i18n/locale";
-import { getCookieConsentCopy } from "@/lib/i18n/privacyAndPwaCopy";
 import { getStaticCopy } from "@/lib/i18n/staticCopy";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -33,7 +32,6 @@ export default function PublicMobileDock() {
   const [openPanel, setOpenPanel] = useState<OpenPanel>(null);
   const [whatsappNumber, setWhatsappNumber] = useState(fallbackWhatsappNumber);
   const aiCopy = getAiSupportCopy(language);
-  const cookieLabel = getCookieConsentCopy(language).settings;
   const quickNavOpenLabel = getStaticCopy(language, "quickNavOpen");
   const quickNavCloseLabel = getStaticCopy(language, "quickNavClose");
   const whatsappLabel = getStaticCopy(language, "whatsapp");
@@ -51,8 +49,7 @@ export default function PublicMobileDock() {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         if (!active) return;
-        const height = Math.ceil(dock.getBoundingClientRect().height);
-        root.style.setProperty("--public-mobile-dock-height", `${height}px`);
+        root.style.setProperty("--public-mobile-dock-height", `${Math.ceil(dock.getBoundingClientRect().height)}px`);
       });
     };
 
@@ -75,7 +72,7 @@ export default function PublicMobileDock() {
       window.visualViewport?.removeEventListener("scroll", updateHeight);
       root.style.removeProperty("--public-mobile-dock-height");
     };
-  }, [openPanel, language, cookieLabel, quickNavOpenLabel, whatsappLabel]);
+  }, [openPanel, language, quickNavOpenLabel, whatsappLabel]);
 
   useEffect(() => {
     let mounted = true;
@@ -123,15 +120,14 @@ export default function PublicMobileDock() {
             )}
           </div>
         )}
-        <div className="hamza-mobile-dock-grid grid grid-cols-4 gap-1.5 rounded-[1.4rem] border border-white/10 bg-[#09000f]/96 p-2 shadow-[0_0_45px_rgba(124,58,237,.32)] backdrop-blur-xl">
+        <div className="hamza-mobile-dock-grid grid grid-cols-3 gap-1.5 rounded-[1.4rem] border border-white/10 bg-[#09000f]/96 p-2 shadow-[0_0_45px_rgba(124,58,237,.32)] backdrop-blur-xl">
           {openPanel ? (
-            <button type="button" onClick={() => setOpenPanel(null)} className="col-span-4 min-h-[44px] rounded-2xl border border-white/15 bg-white/[.07] px-4 py-2 text-sm font-black text-white" aria-label={closeLabel}>{closeLabel}</button>
+            <button type="button" onClick={() => setOpenPanel(null)} className="col-span-3 min-h-[44px] rounded-2xl border border-white/15 bg-white/[.07] px-4 py-2 text-sm font-black text-white" aria-label={closeLabel}>{closeLabel}</button>
           ) : (
             <>
-              <a href={whatsappHref} target="_blank" rel="noreferrer" className={`${itemClass} flex items-center justify-center border border-green-300/30 bg-green-500/15 text-center text-green-100 focus-visible:ring-green-300/70`}><span className="min-w-0 text-balance break-words">{whatsappLabel}</span></a>
-              <button type="button" onClick={() => setOpenPanel("ai")} className={`${itemClass} border border-fuchsia-300/30 bg-fuchsia-500/12 text-fuchsia-100 focus-visible:ring-fuchsia-300/70`} aria-label={aiCopy.widgetOpenAria} aria-controls="hamza-mobile-ai-support-panel" aria-expanded={false}><span className="text-balance break-words">{aiCopy.widgetOpen}</span></button>
-              <button type="button" onClick={() => setOpenPanel("quick-nav")} className={`${itemClass} border border-yellow-300/30 bg-yellow-500/12 text-yellow-100 focus-visible:ring-yellow-300/70`} aria-label={quickNavOpenLabel} aria-controls="hamza-mobile-quick-nav-panel" aria-expanded={false}><span className="text-balance break-words">{quickNavOpenLabel}</span></button>
-              <button type="button" onClick={() => window.dispatchEvent(new Event("hamza:cookie-settings"))} className={`${itemClass} border border-violet-300/30 bg-violet-500/12 text-violet-100 focus-visible:ring-violet-300/70`} aria-label={cookieLabel} data-testid="mobile-cookie-settings"><span className="text-balance break-words">{cookieLabel}</span></button>
+              <a href={whatsappHref} target="_blank" rel="noreferrer" className={`${itemClass} flex items-center justify-center border border-green-300/30 bg-green-500/15 text-center text-green-100 focus-visible:ring-green-300/70`} data-testid="mobile-whatsapp"><span className="min-w-0 text-balance break-words">{whatsappLabel}</span></a>
+              <button type="button" onClick={() => setOpenPanel("ai")} className={`${itemClass} border border-fuchsia-300/30 bg-fuchsia-500/12 text-fuchsia-100 focus-visible:ring-fuchsia-300/70`} aria-label={aiCopy.widgetOpenAria} aria-controls="hamza-mobile-ai-support-panel" aria-expanded={false} data-testid="mobile-ai-support"><span className="text-balance break-words">{aiCopy.widgetOpen}</span></button>
+              <button type="button" onClick={() => setOpenPanel("quick-nav")} className={`${itemClass} border border-yellow-300/30 bg-yellow-500/12 text-yellow-100 focus-visible:ring-yellow-300/70`} aria-label={quickNavOpenLabel} aria-controls="hamza-mobile-quick-nav-panel" aria-expanded={false} data-testid="mobile-quick-navigation"><span className="text-balance break-words">{quickNavOpenLabel}</span></button>
             </>
           )}
         </div>

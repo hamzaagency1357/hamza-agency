@@ -1,9 +1,11 @@
 import { expect } from "@playwright/test";
 
 async function waitForConsentHydration(page) {
-  const backdrop = page.getByTestId("cookie-backdrop");
+  const banner = page.getByTestId("cookie-banner");
+  const dialog = page.getByTestId("cookie-dialog");
   await expect.poll(async () => {
-    if (await backdrop.isVisible().catch(() => false)) return "dialog";
+    if (await banner.isVisible().catch(() => false)) return "banner";
+    if (await dialog.isVisible().catch(() => false)) return "dialog";
     return page.evaluate(() => {
       const root = document.documentElement;
       const hydratedFromStoredDecision =
@@ -17,31 +19,38 @@ async function waitForConsentHydration(page) {
 
 async function expectBodyScrollRestored(page) {
   await expect.poll(() => page.evaluate(() => document.body.style.overflow)).not.toBe("hidden");
-  await expect.poll(() => page.evaluate(() => document.body.style.overscrollBehavior)).not.toBe("none");
 }
 
 export async function resolveNecessaryCookieConsent(page, { verifyPersistence = false } = {}) {
-  const backdrop = page.getByTestId("cookie-backdrop");
+  const banner = page.getByTestId("cookie-banner");
   const dialog = page.getByTestId("cookie-dialog");
+  const backdrop = page.getByTestId("cookie-backdrop");
 
   await waitForConsentHydration(page);
+  const bannerWasVisible = await banner.isVisible().catch(() => false);
+  const dialogWasVisible = await dialog.isVisible().catch(() => false);
 
-  const dialogWasVisible = await backdrop.isVisible().catch(() => false);
-  if (dialogWasVisible) {
-    await expect(dialog).toBeVisible();
-    await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe("hidden");
-    await page.getByTestId("cookie-necessary-only").click();
-    await expect(backdrop).toBeHidden();
-    await expect(dialog).toBeHidden();
+  if (bannerWasVisible) {
+    await expect(backdrop).toHaveCount(0);
     await expectBodyScrollRestored(page);
+    await page.getByTestId("cookie-necessary-only").click();
+    await expect(banner).toBeHidden();
+  } else if (dialogWasVisible) {
+    await page.getByTestId("cookie-necessary-only").click();
+    await expect(dialog).toBeHidden();
+    await expect(backdrop).toBeHidden();
   }
+
+  await expectBodyScrollRestored(page);
 
   if (verifyPersistence) {
     await page.reload({ waitUntil: "domcontentloaded" });
     await waitForConsentHydration(page);
+    await expect(banner).toBeHidden();
+    await expect(dialog).toBeHidden();
     await expect(backdrop).toBeHidden();
     await expectBodyScrollRestored(page);
   }
 
-  return dialogWasVisible;
+  return bannerWasVisible || dialogWasVisible;
 }
