@@ -128,7 +128,7 @@ test("unpublish all locales and prove final database and public state", async ({
   await test.step("prove final unpublished database state", async () => {
     const finalPage = await rest(request, admin, `pages?id=eq.${project.page}&select=is_published,publishing_status`);
     expect(finalPage).toHaveLength(1);
-    expect(finalPage[0]).toEqual({ is_published: false, publishing_status: "draft" });
+    expect(finalPage[0]).toEqual({ is_published: false, publishing_status: "unpublished" });
   });
 
   annotations(testInfo, 10);
