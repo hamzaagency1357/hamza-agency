@@ -1,7 +1,7 @@
 /* Owner-approved PR #98 visual QA overrides. */
 
 :root {
-  --public-mobile-dock-height: 4.75rem;
+  --public-mobile-dock-height: 0px;
   --public-mobile-dock-gap: 0.65rem;
   --public-mobile-dock-clearance: calc(
     var(--public-mobile-dock-height) +
@@ -12,148 +12,46 @@
 }
 
 .hamza-global-header + main > nav,
-.hamza-global-header + main > nav + div[class*="lg:hidden"] {
-  display: none !important;
-}
-
-.hamza-global-header {
-  position: sticky;
-  top: 0;
-}
-
-.hamza-language-segmented button {
-  touch-action: manipulation;
-}
-
-body.public-site-page section:first-of-type h1 {
-  overflow: visible;
-  word-break: normal;
-  text-wrap: balance;
-}
-
-body.public-site-page main > section:nth-of-type(2) > div > div:first-child {
-  direction: ltr !important;
-  unicode-bidi: isolate !important;
-}
-
+.hamza-global-header + main > nav + div[class*="lg:hidden"] { display: none !important; }
+.hamza-global-header { position: sticky; top: 0; }
+.hamza-language-segmented button { touch-action: manipulation; }
+body.public-site-page section:first-of-type h1 { overflow: visible; word-break: normal; text-wrap: balance; }
+body.public-site-page main > section:nth-of-type(2) > div > div:first-child { direction: ltr !important; unicode-bidi: isolate !important; }
 body.public-site-page footer p,
 body.public-site-page footer a,
-body.public-site-page footer span {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-}
-
-body.public-site-page footer p.break-all {
-  word-break: break-word !important;
-  overflow-wrap: anywhere !important;
-  white-space: normal !important;
-  overflow-x: visible !important;
-}
-
-body.public-site-page footer h3 + p + p + p {
-  display: none !important;
-}
-
-.hamza-approved-support-copy {
-  position: relative;
-  z-index: 20;
-  padding-bottom: 1rem;
-}
+body.public-site-page footer span { max-width: 100%; overflow-wrap: anywhere; }
+body.public-site-page footer p.break-all { word-break: break-word !important; overflow-wrap: anywhere !important; white-space: normal !important; overflow-x: visible !important; }
+body.public-site-page footer h3 + p + p + p { display: none !important; }
+.hamza-approved-support-copy { position: relative; z-index: 20; padding-bottom: 1rem; }
 
 @media (max-width: 1024px), (hover: none) and (pointer: coarse) {
   html,
   body,
   body.public-site-page,
-  body.public-site-page main {
-    width: 100%;
-    max-width: 100vw;
-    overflow-x: clip !important;
-  }
-
-  body.public-site-page section:first-of-type h1 {
-    width: min(100%, 58rem);
-    max-width: calc(100vw - 2rem) !important;
-    margin-inline: auto;
-    font-size: clamp(2rem, 7.2vw, 4.6rem) !important;
-    line-height: 1.12 !important;
-    overflow-wrap: anywhere !important;
-  }
-
-  body.public-site-page section:first-of-type p {
-    width: min(100%, 48rem);
-    max-width: calc(100vw - 2rem) !important;
-    margin-inline: auto;
-  }
-
+  body.public-site-page main { width: 100%; max-width: 100vw; overflow-x: clip !important; }
+  body.public-site-page section:first-of-type h1 { width: min(100%, 58rem); max-width: calc(100vw - 2rem) !important; margin-inline: auto; font-size: clamp(2rem, 7.2vw, 4.6rem) !important; line-height: 1.12 !important; overflow-wrap: anywhere !important; }
+  body.public-site-page section:first-of-type p { width: min(100%, 48rem); max-width: calc(100vw - 2rem) !important; margin-inline: auto; }
   body.public-site-page section,
   body.public-site-page section > div,
-  body.public-site-page footer > div {
-    min-width: 0;
-    max-width: 100%;
-  }
+  body.public-site-page footer > div { min-width: 0; max-width: 100%; }
 }
 
 @media (max-width: 768px) {
+  html { scroll-padding-bottom: var(--public-mobile-dock-clearance); }
   body.public-site-page main,
-  body.public-site-page footer {
-    padding-bottom: var(--public-mobile-dock-clearance) !important;
-    scroll-padding-bottom: var(--public-mobile-dock-clearance);
-  }
-
-  .hamza-approved-support-copy {
-    margin-bottom: 0;
-    padding-bottom: var(--public-mobile-dock-clearance) !important;
-  }
-
-  .hamza-global-header {
-    max-height: none;
-  }
-
+  body.public-site-page footer { padding-bottom: var(--public-mobile-dock-clearance) !important; scroll-padding-bottom: var(--public-mobile-dock-clearance); }
+  .hamza-approved-support-copy { margin-bottom: 0; padding-bottom: var(--public-mobile-dock-clearance) !important; }
+  .hamza-global-header { max-height: none; }
   .hamza-global-header + main > nav,
-  .hamza-global-header + main > nav + div[class*="lg:hidden"] {
-    display: none !important;
-  }
-
-  body.public-site-page footer {
-    padding-top: 1.75rem !important;
-  }
-
-  body.public-site-page footer > div:first-child {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 1.25rem 0.9rem !important;
-  }
-
-  body.public-site-page footer p {
-    line-height: 1.6 !important;
-  }
-
+  .hamza-global-header + main > nav + div[class*="lg:hidden"] { display: none !important; }
+  body.public-site-page footer { padding-top: 1.75rem !important; }
+  body.public-site-page footer > div:first-child { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 1.25rem 0.9rem !important; }
+  body.public-site-page footer p { line-height: 1.6 !important; }
   .hamza-floating-whatsapp,
   .hamza-ai-support,
-  .hamza-quick-nav {
-    display: none !important;
-  }
-
-  .hamza-mobile-dock-shell {
-    bottom: env(safe-area-inset-bottom, 0px);
-    height: var(--public-mobile-dock-height);
-  }
-
-  .hamza-mobile-dock-panel {
-    bottom: calc(
-      var(--public-mobile-dock-height) + var(--public-mobile-dock-gap)
-    );
-  }
-
-  .hamza-mobile-dock-grid {
-    min-height: var(--public-mobile-dock-height);
-  }
-
+  .hamza-quick-nav { display: none !important; }
+  .hamza-mobile-dock-shell { bottom: env(safe-area-inset-bottom, 0px); height: auto; }
+  .hamza-mobile-dock-panel { bottom: calc(var(--public-mobile-dock-height) + var(--public-mobile-dock-gap)); }
   .hamza-mobile-dock-panel .hamza-ai-support-panel,
-  .hamza-mobile-dock-panel .hamza-quick-nav-panel {
-    position: static !important;
-    inset: auto !important;
-    width: 100% !important;
-    max-width: none !important;
-    margin: 0 !important;
-  }
+  .hamza-mobile-dock-panel .hamza-quick-nav-panel { position: static !important; inset: auto !important; width: 100% !important; max-width: none !important; margin: 0 !important; }
 }
