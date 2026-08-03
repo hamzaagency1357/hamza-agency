@@ -316,7 +316,10 @@ test("cookie settings mobile layouts remain in flow and clear of the Bottom Dock
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
 
     const back = page.getByTestId("cookie-settings-back");
-    await back.evaluate((element) => element.scrollIntoView({ block: "center" }));
+    await back.evaluate((element) =>
+      element.scrollIntoView({ block: "center", behavior: "instant" })
+    );
+    await page.evaluate(() => new Promise(requestAnimationFrame));
     await expect(back).toBeInViewport();
     const dock = page.getByTestId("public-mobile-dock");
     if (await dock.isVisible().catch(() => false)) {
