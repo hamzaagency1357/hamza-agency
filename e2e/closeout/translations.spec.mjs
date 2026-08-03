@@ -15,6 +15,7 @@ const cases = {
 function recordAssertions(testInfo, count) { testInfo.annotations.push({ type: "closeout-assertions", description: String(count) }); }
 function screenshotName(prefix, locale, projectName, suffix = "") { const device = projectName.startsWith("mobile") ? "mobile" : "desktop"; return path.join("artifacts", "safe", "screenshots", `${prefix}-${locale}-${device}-${shortSha}${suffix ? `-${suffix}` : ""}.png`); }
 async function freshConsent(page, route) { await page.goto(route, { waitUntil: "networkidle" }); await page.evaluate((key) => localStorage.removeItem(key), storageKey); await page.reload({ waitUntil: "networkidle" }); await expect(page.getByTestId("cookie-dialog")).toBeVisible(); }
+function settingsButton(page, testInfo) { return page.getByTestId(testInfo.project.name.startsWith("mobile") ? "mobile-cookie-settings" : "cookie-settings-desktop"); }
 function inside(box, viewport) { expect(box).toBeTruthy(); expect(box.x).toBeGreaterThanOrEqual(0); expect(box.y).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1); expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 1); }
 function intersects(a, b) { return !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y); }
 
@@ -65,20 +66,19 @@ for (const [locale, data] of Object.entries(cases)) {
 }
 
 test("privacy decisions persist and localized policy remains reachable", async ({ page }, testInfo) => {
-  test.skip(!testInfo.project.name.startsWith("mobile"), "mobile regression");
   await freshConsent(page, "/tr");
   await page.getByTestId("cookie-necessary-only").click();
   await expect(page.getByTestId("cookie-dialog")).toBeHidden();
   await page.reload({ waitUntil: "networkidle" });
   await expect(page.getByTestId("cookie-dialog")).toBeHidden();
-  await page.getByTestId("mobile-cookie-settings").click();
+  await settingsButton(page, testInfo).click();
   await page.getByTestId("cookie-choice-analytics").check();
   await page.getByTestId("cookie-accept-selected").click();
   expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), storageKey)).toMatchObject({ analytics: true, preferences: false, marketing: false });
-  await page.getByTestId("mobile-cookie-settings").click();
+  await settingsButton(page, testInfo).click();
   await page.getByTestId("cookie-accept-all").click();
   expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), storageKey)).toMatchObject({ analytics: true, preferences: true, marketing: true });
-  await page.getByTestId("mobile-cookie-settings").click();
+  await settingsButton(page, testInfo).click();
   await page.getByTestId("cookie-policy-link").click();
   await page.waitForURL((url) => url.pathname === "/tr/cookie-policy");
   await expect(page.getByRole("heading", { name: "Çerez politikası" })).toBeVisible();
@@ -86,7 +86,6 @@ test("privacy decisions persist and localized policy remains reachable", async (
 });
 
 test("Android viewport geometry keeps privacy dialog, install card, and final content above dock", async ({ page }, testInfo) => {
-  test.skip(!testInfo.project.name.startsWith("mobile"), "mobile regression");
   for (const viewport of [{ width: 360, height: 640 }, { width: 390, height: 700 }, { width: 412, height: 732 }]) {
     await page.setViewportSize(viewport);
     await freshConsent(page, "/tr");
