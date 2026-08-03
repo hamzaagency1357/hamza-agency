@@ -9,18 +9,19 @@ async function resolveCookieConsent(page) {
 }
 
 test.describe("PR101 public product expansion", () => {
-  test("cookie consent is versioned and reopenable", async ({ page }) => {
+  test("cookie consent is versioned and manageable from the settings page", async ({ page }) => {
     await page.goto("/");
     const banner = page.getByTestId("cookie-banner");
-    const dialog = page.getByRole("dialog", { name: /إعدادات ملفات الارتباط|Cookie settings|Çerez ayarları/i });
     await expect(banner).toBeVisible();
-    await expect(dialog).toHaveCount(0);
+    await expect(page.locator('[role="dialog"][aria-modal="true"]')).toHaveCount(0);
     await page.getByTestId("cookie-necessary-only").click();
     await expect(banner).toBeHidden();
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("hamza_agency_cookie_consent") || "null"));
     expect(stored).toMatchObject({ version: "1.0", necessary: true, analytics: false, preferences: false, marketing: false });
     await page.getByTestId("footer-cookie-settings").click();
-    await expect(dialog).toBeVisible();
+    await expect(page).toHaveURL(/\/cookie-settings$/);
+    await expect(page.getByTestId("cookie-settings-page")).toBeVisible();
+    await expect(page.locator('[role="dialog"][aria-modal="true"]')).toHaveCount(0);
   });
 
   test("marketplace and status routes render without leaking private data", async ({ page }) => {
