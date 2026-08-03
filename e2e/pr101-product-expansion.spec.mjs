@@ -1,5 +1,13 @@
 import { test, expect } from "@playwright/test";
 
+async function resolveCookieConsent(page) {
+  const dialog = page.getByRole("dialog", { name: /إعدادات الخصوصية|Privacy and cookie|Gizlilik ve çerez/i });
+  if (await dialog.isVisible().catch(() => false)) {
+    await dialog.getByRole("button", { name: /الضرورية فقط|Necessary only|Yalnızca gerekli/i }).click();
+    await expect(dialog).toBeHidden();
+  }
+}
+
 test.describe("PR101 public product expansion", () => {
   test("cookie consent is versioned and reopenable", async ({ page }) => {
     await page.goto("/");
@@ -17,6 +25,7 @@ test.describe("PR101 public product expansion", () => {
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto("/marketplace");
+    await resolveCookieConsent(page);
     await expect(page.getByRole("heading", { name: /سوق HAMZA AGENCY|HAMZA AGENCY Marketplace|HAMZA AGENCY Pazaryeri/i })).toBeVisible();
     await page.goto("/status");
     await expect(page.getByRole("heading", { name: /حالة المنصة والخدمات/i })).toBeVisible();
@@ -26,6 +35,7 @@ test.describe("PR101 public product expansion", () => {
 
   test("offline shell explicitly excludes authenticated data", async ({ page }) => {
     await page.goto("/offline");
+    await resolveCookieConsent(page);
     await expect(page.getByRole("heading", { name: /غير متصل/i })).toBeVisible();
     await expect(page.locator("main")).toContainText(/لا تُخزّن|never cached|önbelleğe alınmaz/i);
   });
