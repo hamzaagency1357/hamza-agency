@@ -19,6 +19,13 @@ export async function token(request, account) {
   expect(body.access_token).toBeTruthy();
   return body.access_token;
 }
+async function decode(response, expected) {
+  const text = await response.text();
+  const allowed = Array.isArray(expected) ? expected : [expected];
+  expect(allowed, text).toContain(response.status());
+  if (!response.ok() || response.status() === 204 || text.length === 0) return null;
+  return JSON.parse(text);
+}
 export async function rpc(request, accessToken, name, body, expected = 200) {
   const f = fixture();
   const anon = process.env.ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -26,17 +33,19 @@ export async function rpc(request, accessToken, name, body, expected = 200) {
     headers: { apikey: anon, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     data: body,
   });
-  const allowed = Array.isArray(expected) ? expected : [expected];
-  expect(allowed, await response.text()).toContain(response.status());
-  return response.ok() ? response.json() : null;
+  return decode(response, expected);
 }
 export async function rest(request, accessToken, path, expected = 200) {
   const f = fixture();
   const anon = process.env.ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const response = await request.get(`${f.apiUrl}/rest/v1/${path}`, { headers: { apikey: anon, Authorization: `Bearer ${accessToken}` } });
-  const allowed = Array.isArray(expected) ? expected : [expected];
-  expect(allowed, await response.text()).toContain(response.status());
-  return response.ok() ? response.json() : null;
+  return decode(response, expected);
+}
+export function projectFixture(f, testInfo) {
+  const key = testInfo.project.name === "mobile-chromium" ? "mobileChromium" : "desktopChromium";
+  const value = f.core?.projects?.[key];
+  expect(value, `missing fixture for ${key}`).toBeTruthy();
+  return value;
 }
 export function annotations(testInfo, count) {
   expect(count).toBeGreaterThan(0);
