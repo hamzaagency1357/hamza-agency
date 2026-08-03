@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { resolveNecessaryCookieConsent } from "./cookie-consent-helper.mjs";
 import { annotations, fixture, projectFixture } from "./real-runtime-helper.mjs";
 
 test.describe.configure({ mode: "serial" });
@@ -10,6 +11,7 @@ async function login(page, account) {
   await expect(page.locator('main[dir="rtl"]')).toHaveCount(1);
   await expect(page.locator('main[dir="rtl"]')).toBeVisible();
   await expect(page.getByRole("heading", { name: "تسجيل دخول الإدارة" })).toBeVisible();
+  await resolveNecessaryCookieConsent(page);
 
   const email = page.locator('input[type="email"][name="email"]');
   const password = page.locator('input[type="password"][name="password"]');
