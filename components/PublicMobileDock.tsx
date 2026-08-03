@@ -43,20 +43,39 @@ export default function PublicMobileDock() {
   useEffect(() => {
     const dock = dockRef.current;
     if (!dock) return;
+    let frame = 0;
+    let active = true;
+    const root = document.documentElement;
+
     const updateHeight = () => {
-      const height = Math.ceil(dock.getBoundingClientRect().height);
-      document.documentElement.style.setProperty("--public-mobile-dock-height", `${height}px`);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!active) return;
+        const height = Math.ceil(dock.getBoundingClientRect().height);
+        root.style.setProperty("--public-mobile-dock-height", `${height}px`);
+      });
     };
+
     updateHeight();
     const observer = new ResizeObserver(updateHeight);
     observer.observe(dock);
     window.addEventListener("resize", updateHeight);
+    window.addEventListener("orientationchange", updateHeight);
+    window.visualViewport?.addEventListener("resize", updateHeight);
+    window.visualViewport?.addEventListener("scroll", updateHeight);
+    void document.fonts?.ready.then(updateHeight).catch(() => undefined);
+
     return () => {
+      active = false;
+      cancelAnimationFrame(frame);
       observer.disconnect();
       window.removeEventListener("resize", updateHeight);
-      document.documentElement.style.removeProperty("--public-mobile-dock-height");
+      window.removeEventListener("orientationchange", updateHeight);
+      window.visualViewport?.removeEventListener("resize", updateHeight);
+      window.visualViewport?.removeEventListener("scroll", updateHeight);
+      root.style.removeProperty("--public-mobile-dock-height");
     };
-  }, [openPanel, language]);
+  }, [openPanel, language, cookieLabel, quickNavOpenLabel, whatsappLabel]);
 
   useEffect(() => {
     let mounted = true;
@@ -92,28 +111,31 @@ export default function PublicMobileDock() {
   const itemClass = "min-h-[44px] min-w-0 rounded-2xl px-1.5 py-2 text-[clamp(.58rem,2.45vw,.76rem)] font-black leading-tight focus-visible:outline-none focus-visible:ring-2";
 
   return (
-    <div ref={dockRef} dir={getLanguageDirection(language)} className="hamza-mobile-dock-shell fixed inset-x-2 z-[180] print:hidden md:hidden" data-mobile-dock="public" data-testid="public-mobile-dock">
-      {openPanel && (
-        <div className="hamza-mobile-dock-panel absolute inset-x-0">
-          {openPanel === "ai" ? (
-            <PublicAiSupport open onOpenChange={(open) => setOpenPanel(open ? "ai" : null)} mobileDockMode panelId="hamza-mobile-ai-support-panel" />
+    <>
+      <div className="hamza-mobile-dock-clearance print:hidden md:hidden" aria-hidden="true" data-testid="public-mobile-dock-clearance" />
+      <div ref={dockRef} dir={getLanguageDirection(language)} className="hamza-mobile-dock-shell fixed inset-x-2 print:hidden md:hidden" data-mobile-dock="public" data-testid="public-mobile-dock">
+        {openPanel && (
+          <div className="hamza-mobile-dock-panel absolute inset-x-0">
+            {openPanel === "ai" ? (
+              <PublicAiSupport open onOpenChange={(open) => setOpenPanel(open ? "ai" : null)} mobileDockMode panelId="hamza-mobile-ai-support-panel" />
+            ) : (
+              <PublicQuickNav open onOpenChange={(open) => setOpenPanel(open ? "quick-nav" : null)} mobileDockMode panelId="hamza-mobile-quick-nav-panel" />
+            )}
+          </div>
+        )}
+        <div className="hamza-mobile-dock-grid grid grid-cols-4 gap-1.5 rounded-[1.4rem] border border-white/10 bg-[#09000f]/96 p-2 shadow-[0_0_45px_rgba(124,58,237,.32)] backdrop-blur-xl">
+          {openPanel ? (
+            <button type="button" onClick={() => setOpenPanel(null)} className="col-span-4 min-h-[44px] rounded-2xl border border-white/15 bg-white/[.07] px-4 py-2 text-sm font-black text-white" aria-label={closeLabel}>{closeLabel}</button>
           ) : (
-            <PublicQuickNav open onOpenChange={(open) => setOpenPanel(open ? "quick-nav" : null)} mobileDockMode panelId="hamza-mobile-quick-nav-panel" />
+            <>
+              <a href={whatsappHref} target="_blank" rel="noreferrer" className={`${itemClass} flex items-center justify-center border border-green-300/30 bg-green-500/15 text-center text-green-100 focus-visible:ring-green-300/70`}><span className="min-w-0 text-balance break-words">{whatsappLabel}</span></a>
+              <button type="button" onClick={() => setOpenPanel("ai")} className={`${itemClass} border border-fuchsia-300/30 bg-fuchsia-500/12 text-fuchsia-100 focus-visible:ring-fuchsia-300/70`} aria-label={aiCopy.widgetOpenAria} aria-controls="hamza-mobile-ai-support-panel" aria-expanded={false}><span className="text-balance break-words">{aiCopy.widgetOpen}</span></button>
+              <button type="button" onClick={() => setOpenPanel("quick-nav")} className={`${itemClass} border border-yellow-300/30 bg-yellow-500/12 text-yellow-100 focus-visible:ring-yellow-300/70`} aria-label={quickNavOpenLabel} aria-controls="hamza-mobile-quick-nav-panel" aria-expanded={false}><span className="text-balance break-words">{quickNavOpenLabel}</span></button>
+              <button type="button" onClick={() => window.dispatchEvent(new Event("hamza:cookie-settings"))} className={`${itemClass} border border-violet-300/30 bg-violet-500/12 text-violet-100 focus-visible:ring-violet-300/70`} aria-label={cookieLabel} data-testid="mobile-cookie-settings"><span className="text-balance break-words">{cookieLabel}</span></button>
+            </>
           )}
         </div>
-      )}
-      <div className="hamza-mobile-dock-grid grid grid-cols-4 gap-1.5 rounded-[1.4rem] border border-white/10 bg-[#09000f]/96 p-2 shadow-[0_0_45px_rgba(124,58,237,.32)] backdrop-blur-xl">
-        {openPanel ? (
-          <button type="button" onClick={() => setOpenPanel(null)} className="col-span-4 min-h-[44px] rounded-2xl border border-white/15 bg-white/[.07] px-4 py-2 text-sm font-black text-white" aria-label={closeLabel}>{closeLabel}</button>
-        ) : (
-          <>
-            <a href={whatsappHref} target="_blank" rel="noreferrer" className={`${itemClass} flex items-center justify-center border border-green-300/30 bg-green-500/15 text-center text-green-100 focus-visible:ring-green-300/70`}><span className="min-w-0 text-balance break-words">{whatsappLabel}</span></a>
-            <button type="button" onClick={() => setOpenPanel("ai")} className={`${itemClass} border border-fuchsia-300/30 bg-fuchsia-500/12 text-fuchsia-100 focus-visible:ring-fuchsia-300/70`} aria-label={aiCopy.widgetOpenAria} aria-controls="hamza-mobile-ai-support-panel" aria-expanded={false}><span className="text-balance break-words">{aiCopy.widgetOpen}</span></button>
-            <button type="button" onClick={() => setOpenPanel("quick-nav")} className={`${itemClass} border border-yellow-300/30 bg-yellow-500/12 text-yellow-100 focus-visible:ring-yellow-300/70`} aria-label={quickNavOpenLabel} aria-controls="hamza-mobile-quick-nav-panel" aria-expanded={false}><span className="text-balance break-words">{quickNavOpenLabel}</span></button>
-            <button type="button" onClick={() => window.dispatchEvent(new Event("hamza:cookie-settings"))} className={`${itemClass} border border-violet-300/30 bg-violet-500/12 text-violet-100 focus-visible:ring-violet-300/70`} aria-label={cookieLabel} data-testid="mobile-cookie-settings"><span className="text-balance break-words">{cookieLabel}</span></button>
-          </>
-        )}
       </div>
-    </div>
+    </>
   );
 }

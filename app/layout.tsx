@@ -71,10 +71,10 @@ export default async function RootLayout({
           <AuthRecoveryRedirect />
           <SiteLanguageDocumentSync />
           <PublicSiteRuntimeTranslator />
-          <PwaRuntime />
           <PublicDesktopEnhancer />
           <VisualBackgroundPresets />
           <PublicGlobalHeader />
+          <PwaRuntime />
           {children}
           <PublicSupportAvailability />
           <PublicHeaderDesktopClickGuard />

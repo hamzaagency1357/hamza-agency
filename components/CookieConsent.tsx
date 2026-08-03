@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { getLanguageDirection } from "@/lib/i18n/locale";
 import { getPathLanguage, localizePublicHref } from "@/lib/i18n/publicLocales";
 import { getCookieConsentCopy } from "@/lib/i18n/privacyAndPwaCopy";
@@ -17,9 +18,12 @@ type Consent = {
 };
 
 type Choices = Pick<Consent, "analytics" | "preferences" | "marketing">;
+type ViewportMetrics = { top: number; left: number; width: number; height: number };
+type InertSnapshot = { element: HTMLElement; inert: boolean; ariaHidden: string | null };
 
 const VERSION = "1.0";
 const STORAGE_KEY = "hamza_agency_cookie_consent";
+const PORTAL_ID = "hamza-cookie-consent-portal";
 const emptyChoices: Choices = { analytics: false, preferences: false, marketing: false };
 
 function readStoredConsent(): Consent | null {
@@ -44,6 +48,16 @@ function focusable(container: HTMLElement) {
   return Array.from(container.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])'));
 }
 
+function readVisualViewport(): ViewportMetrics {
+  const viewport = window.visualViewport;
+  return {
+    top: Math.max(0, Math.round(viewport?.offsetTop ?? 0)),
+    left: Math.max(0, Math.round(viewport?.offsetLeft ?? 0)),
+    width: Math.max(1, Math.round(viewport?.width ?? window.innerWidth)),
+    height: Math.max(1, Math.round(viewport?.height ?? window.innerHeight)),
+  };
+}
+
 export default function CookieConsent() {
   const pathname = usePathname();
   const locale = getPathLanguage(pathname || "/");
@@ -52,8 +66,21 @@ export default function CookieConsent() {
   const [expanded, setExpanded] = useState(false);
   const [canDismiss, setCanDismiss] = useState(false);
   const [choices, setChoices] = useState<Choices>(emptyChoices);
+  const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
+  const [viewport, setViewport] = useState<ViewportMetrics | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const host = document.createElement("div");
+    host.id = PORTAL_ID;
+    host.dataset.cookiePortal = "true";
+    document.body.appendChild(host);
+    setPortalHost(host);
+    return () => {
+      host.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const stored = readStoredConsent();
@@ -78,13 +105,40 @@ export default function CookieConsent() {
   }, []);
 
   useEffect(() => {
-    if (!open || !dialogRef.current) return;
+    if (!open) return;
+    const updateViewport = () => setViewport(readVisualViewport());
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    window.addEventListener("orientationchange", updateViewport);
+    window.visualViewport?.addEventListener("resize", updateViewport);
+    window.visualViewport?.addEventListener("scroll", updateViewport);
+    return () => {
+      window.removeEventListener("resize", updateViewport);
+      window.removeEventListener("orientationchange", updateViewport);
+      window.visualViewport?.removeEventListener("resize", updateViewport);
+      window.visualViewport?.removeEventListener("scroll", updateViewport);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !portalHost || !dialogRef.current) return;
     const dialog = dialogRef.current;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     const previousOverscroll = document.body.style.overscrollBehavior;
+    const inertSnapshots: InertSnapshot[] = [];
+
+    for (const child of Array.from(document.body.children)) {
+      if (!(child instanceof HTMLElement) || child === portalHost) continue;
+      inertSnapshots.push({ element: child, inert: child.inert, ariaHidden: child.getAttribute("aria-hidden") });
+      child.inert = true;
+      child.setAttribute("aria-hidden", "true");
+    }
+
+    document.body.classList.add("hamza-cookie-consent-open");
     document.body.style.overflow = "hidden";
     document.body.style.overscrollBehavior = "none";
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && canDismiss) {
         event.preventDefault();
@@ -104,19 +158,27 @@ export default function CookieConsent() {
         first.focus();
       }
     };
+
     document.addEventListener("keydown", onKeyDown);
     const frame = requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({ top: 0 });
       (focusable(dialog)[0] || dialog).focus();
     });
+
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener("keydown", onKeyDown);
+      document.body.classList.remove("hamza-cookie-consent-open");
       document.body.style.overflow = previousOverflow;
       document.body.style.overscrollBehavior = previousOverscroll;
+      for (const snapshot of inertSnapshots) {
+        snapshot.element.inert = snapshot.inert;
+        if (snapshot.ariaHidden === null) snapshot.element.removeAttribute("aria-hidden");
+        else snapshot.element.setAttribute("aria-hidden", snapshot.ariaHidden);
+      }
       previousFocus?.focus();
     };
-  }, [open, canDismiss]);
+  }, [open, canDismiss, portalHost]);
 
   useEffect(() => {
     if (open) scrollRef.current?.scrollTo({ top: 0 });
@@ -142,18 +204,28 @@ export default function CookieConsent() {
 
   if (!open) {
     return (
-      <button type="button" onClick={() => { setExpanded(true); setOpen(true); }} className="fixed bottom-3 left-3 z-[105] hidden rounded-full border border-white/15 bg-black/80 px-3 py-2 text-xs text-white/80 backdrop-blur hover:text-white md:block" data-testid="cookie-settings-desktop">
+      <button type="button" onClick={() => { setExpanded(true); setOpen(true); }} className="hamza-cookie-settings-desktop fixed bottom-3 left-3 hidden rounded-full border border-white/15 bg-black/80 px-3 py-2 text-xs text-white/80 backdrop-blur hover:text-white md:block" data-testid="cookie-settings-desktop">
         {strings.settings}
       </button>
     );
   }
 
-  return (
+  if (!portalHost) return null;
+  const activeViewport = viewport ?? readVisualViewport();
+
+  const modal = (
     <div
-      className="fixed inset-0 z-[220] flex items-start justify-center overflow-hidden bg-black/70 px-2 backdrop-blur-sm sm:px-4"
-      style={{ paddingTop: "max(.5rem, env(safe-area-inset-top, 0px))", paddingBottom: "max(.5rem, env(safe-area-inset-bottom, 0px))" }}
+      className="hamza-cookie-backdrop flex items-center justify-center overflow-hidden bg-black/75 px-2 backdrop-blur-sm sm:px-4"
+      style={{
+        top: `${activeViewport.top}px`,
+        left: `${activeViewport.left}px`,
+        width: `${activeViewport.width}px`,
+        height: `${activeViewport.height}px`,
+        paddingTop: "max(.5rem, env(safe-area-inset-top, 0px))",
+        paddingBottom: "max(.5rem, env(safe-area-inset-bottom, 0px))",
+      }}
       data-testid="cookie-backdrop"
-      onMouseDown={(event) => { if (event.target === event.currentTarget && canDismiss) setOpen(false); }}
+      onPointerDown={(event) => { if (event.target === event.currentTarget && canDismiss) setOpen(false); }}
     >
       <section
         ref={dialogRef}
@@ -165,15 +237,14 @@ export default function CookieConsent() {
         dir={getLanguageDirection(locale)}
         data-testid="cookie-dialog"
         data-cookie-locale={locale}
-        className="flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-violet-300/25 bg-[#0b0710]/98 text-white shadow-2xl"
-        style={{ maxHeight: "calc(100dvh - max(.5rem, env(safe-area-inset-top, 0px)) - max(.5rem, env(safe-area-inset-bottom, 0px)))" }}
+        className="hamza-cookie-dialog flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-violet-300/25 bg-[#0b0710]/98 text-white shadow-2xl"
       >
         <header className="flex flex-none items-start justify-between gap-3 border-b border-white/10 p-4 sm:p-5">
-          <div className="min-w-0">
-            <h2 id="cookie-consent-title" className="text-balance text-lg font-black sm:text-xl">{strings.title}</h2>
-            <nav className="mt-3 flex flex-wrap gap-2" aria-label={strings.settings}>
+          <div className="min-w-0 flex-1">
+            <h2 id="cookie-consent-title" className="text-balance text-lg font-black leading-tight sm:text-xl">{strings.title}</h2>
+            <nav className="mt-3 grid w-fit max-w-full grid-cols-3 gap-2" aria-label={strings.settings} data-testid="cookie-locale-switcher">
               {(["ar", "en", "tr"] as const).map((candidate) => (
-                <Link key={candidate} href={localizePublicHref(pathname || "/", candidate)} data-testid={`cookie-locale-${candidate}`} aria-current={candidate === locale ? "page" : undefined} className={`rounded-full border px-3 py-1.5 text-xs font-black uppercase ${candidate === locale ? "border-violet-300/60 bg-violet-500/25 text-white" : "border-white/10 text-white/65"}`}>
+                <Link key={candidate} href={localizePublicHref(pathname || "/", candidate)} data-testid={`cookie-locale-${candidate}`} aria-current={candidate === locale ? "page" : undefined} className={`flex min-h-9 min-w-12 items-center justify-center rounded-full border px-3 py-1.5 text-xs font-black uppercase ${candidate === locale ? "border-violet-300/60 bg-violet-500/25 text-white" : "border-white/10 text-white/65"}`}>
                   {candidate}
                 </Link>
               ))}
@@ -195,13 +266,15 @@ export default function CookieConsent() {
           <Link href={localizePublicHref("/cookie-policy", locale)} className="mt-4 inline-flex min-h-11 items-center text-sm font-bold text-violet-200 underline underline-offset-4" data-testid="cookie-policy-link">{strings.policy}</Link>
         </div>
 
-        <footer className="grid flex-none grid-cols-1 gap-2 border-t border-white/10 bg-black/25 p-4 sm:grid-cols-2 sm:p-5">
-          <button type="button" onClick={() => void save({ analytics: true, preferences: true, marketing: true })} className="min-h-11 rounded-xl bg-violet-600 px-4 font-bold" data-testid="cookie-accept-all">{strings.acceptAll}</button>
-          <button type="button" onClick={() => void save(choices)} className="min-h-11 rounded-xl border border-violet-300/30 px-4 font-bold" data-testid="cookie-accept-selected">{strings.acceptSelected}</button>
-          <button type="button" onClick={() => void save(emptyChoices)} className="min-h-11 rounded-xl border border-white/10 px-4" data-testid="cookie-necessary-only">{strings.necessaryOnly}</button>
-          <button type="button" onClick={() => { setExpanded((value) => !value); requestAnimationFrame(() => scrollRef.current?.scrollTo({ top: 0 })); }} className="min-h-11 rounded-xl border border-white/10 px-4 text-white/80" aria-expanded={expanded} data-testid="cookie-settings-toggle">{strings.settings}</button>
+        <footer className="grid flex-none grid-cols-2 gap-2 border-t border-white/10 bg-black/25 p-3 text-xs sm:p-5 sm:text-sm">
+          <button type="button" onClick={() => void save({ analytics: true, preferences: true, marketing: true })} className="min-h-11 rounded-xl bg-violet-600 px-2 py-2 font-bold sm:px-4" data-testid="cookie-accept-all">{strings.acceptAll}</button>
+          <button type="button" onClick={() => void save(choices)} className="min-h-11 rounded-xl border border-violet-300/30 px-2 py-2 font-bold sm:px-4" data-testid="cookie-accept-selected">{strings.acceptSelected}</button>
+          <button type="button" onClick={() => void save(emptyChoices)} className="min-h-11 rounded-xl border border-white/10 px-2 py-2 sm:px-4" data-testid="cookie-necessary-only">{strings.necessaryOnly}</button>
+          <button type="button" onClick={() => { setExpanded((value) => !value); requestAnimationFrame(() => scrollRef.current?.scrollTo({ top: 0 })); }} className="min-h-11 rounded-xl border border-white/10 px-2 py-2 text-white/80 sm:px-4" aria-expanded={expanded} data-testid="cookie-settings-toggle">{strings.settings}</button>
         </footer>
       </section>
     </div>
   );
+
+  return createPortal(modal, portalHost);
 }

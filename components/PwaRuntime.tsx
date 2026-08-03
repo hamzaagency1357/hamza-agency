@@ -80,26 +80,25 @@ export default function PwaRuntime() {
   if (!updateWorker && (!installPrompt || installed)) return null;
 
   return (
-    <div
+    <aside
       role="status"
       dir={getLanguageDirection(language)}
       data-testid="pwa-install-card"
-      className="fixed left-3 right-3 z-[120] mx-auto max-w-[440px] overflow-hidden rounded-2xl border border-violet-300/30 bg-black/95 p-4 text-sm text-white shadow-2xl sm:left-1/2 sm:right-auto sm:w-[min(92vw,440px)] sm:-translate-x-1/2"
-      style={{ bottom: "calc(var(--public-mobile-dock-clearance, 6rem) + 0.5rem)" }}
+      className="hamza-pwa-runtime-card mx-auto w-full max-w-[440px] overflow-hidden rounded-2xl border border-violet-300/30 bg-black/95 p-4 text-sm text-white shadow-2xl"
     >
-      <div className="flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <span className="min-w-0 break-words leading-6 text-balance" data-testid="pwa-install-copy">
+      <div className="flex min-w-0 flex-col items-stretch gap-3 md:flex-row md:items-center md:justify-between">
+        <span className="min-w-0 break-words text-balance leading-6" data-testid="pwa-install-copy">
           {updateWorker ? strings.updateAvailable : strings.installAvailable}
         </span>
         <button
           type="button"
-          className="min-h-11 w-full flex-none rounded-xl bg-violet-600 px-4 font-bold sm:w-auto"
+          className="min-h-11 w-full flex-none rounded-xl bg-violet-600 px-4 py-2 font-bold md:w-auto"
           onClick={updateWorker ? update : () => void install()}
           data-testid="pwa-install-action"
         >
           {updateWorker ? strings.updateButton : strings.installButton}
         </button>
       </div>
-    </div>
+    </aside>
   );
 }

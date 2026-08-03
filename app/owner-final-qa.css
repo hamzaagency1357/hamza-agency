@@ -1,6 +1,11 @@
-/* Owner-approved PR #98 visual QA overrides. */
+/* Owner Final QA layout safeguards for public mobile surfaces. */
 
 :root {
+  --layer-public-header: 190;
+  --layer-pwa-runtime: 210;
+  --layer-public-mobile-dock: 300;
+  --layer-cookie-settings: 900;
+  --layer-cookie-consent: 1000;
   --public-mobile-dock-height: 0px;
   --public-mobile-dock-gap: 0.65rem;
   --public-mobile-dock-clearance: calc(
@@ -13,7 +18,7 @@
 
 .hamza-global-header + main > nav,
 .hamza-global-header + main > nav + div[class*="lg:hidden"] { display: none !important; }
-.hamza-global-header { position: sticky; top: 0; }
+.hamza-global-header { position: sticky; top: 0; z-index: var(--layer-public-header) !important; }
 .hamza-language-segmented button { touch-action: manipulation; }
 body.public-site-page section:first-of-type h1 { overflow: visible; word-break: normal; text-wrap: balance; }
 body.public-site-page main > section:nth-of-type(2) > div > div:first-child { direction: ltr !important; unicode-bidi: isolate !important; }
@@ -23,6 +28,34 @@ body.public-site-page footer span { max-width: 100%; overflow-wrap: anywhere; }
 body.public-site-page footer p.break-all { word-break: break-word !important; overflow-wrap: anywhere !important; white-space: normal !important; overflow-x: visible !important; }
 body.public-site-page footer h3 + p + p + p { display: none !important; }
 .hamza-approved-support-copy { position: relative; z-index: 20; padding-bottom: 1rem; }
+
+.hamza-cookie-settings-desktop { z-index: var(--layer-cookie-settings); }
+.hamza-cookie-backdrop {
+  position: fixed;
+  z-index: var(--layer-cookie-consent);
+  isolation: isolate;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+.hamza-cookie-dialog {
+  max-height: 100%;
+  touch-action: pan-y;
+}
+body.hamza-cookie-consent-open > :not(#hamza-cookie-consent-portal) {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+#hamza-cookie-consent-portal { pointer-events: auto; }
+
+.hamza-pwa-runtime-card {
+  position: relative;
+  z-index: var(--layer-pwa-runtime);
+  width: min(calc(100% - 1.5rem), 440px);
+  margin: 0.75rem auto 0;
+}
+
+.hamza-mobile-dock-shell { z-index: var(--layer-public-mobile-dock); }
+.hamza-mobile-dock-clearance { height: var(--public-mobile-dock-clearance); min-height: var(--public-mobile-dock-clearance); }
 
 @media (max-width: 1024px), (hover: none) and (pointer: coarse) {
   html,
@@ -37,10 +70,9 @@ body.public-site-page footer h3 + p + p + p { display: none !important; }
 }
 
 @media (max-width: 768px) {
-  html { scroll-padding-bottom: var(--public-mobile-dock-clearance); }
-  body.public-site-page main,
-  body.public-site-page footer { padding-bottom: var(--public-mobile-dock-clearance) !important; scroll-padding-bottom: var(--public-mobile-dock-clearance); }
-  .hamza-approved-support-copy { margin-bottom: 0; padding-bottom: var(--public-mobile-dock-clearance) !important; }
+  html,
+  body { scroll-padding-bottom: var(--public-mobile-dock-clearance); }
+  .hamza-approved-support-copy { margin-bottom: 0; }
   .hamza-global-header { max-height: none; }
   .hamza-global-header + main > nav,
   .hamza-global-header + main > nav + div[class*="lg:hidden"] { display: none !important; }
