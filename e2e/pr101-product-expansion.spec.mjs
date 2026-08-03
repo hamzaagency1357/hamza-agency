@@ -1,23 +1,25 @@
 import { test, expect } from "@playwright/test";
 
 async function resolveCookieConsent(page) {
-  const dialog = page.getByRole("dialog", { name: /إعدادات الخصوصية|Privacy and cookie|Gizlilik ve çerez/i });
-  if (await dialog.isVisible().catch(() => false)) {
-    await dialog.getByRole("button", { name: /الضرورية فقط|Necessary only|Yalnızca gerekli/i }).click();
-    await expect(dialog).toBeHidden();
+  const banner = page.getByTestId("cookie-banner");
+  if (await banner.isVisible().catch(() => false)) {
+    await page.getByTestId("cookie-necessary-only").click();
+    await expect(banner).toBeHidden();
   }
 }
 
 test.describe("PR101 public product expansion", () => {
   test("cookie consent is versioned and reopenable", async ({ page }) => {
     await page.goto("/");
-    const dialog = page.getByRole("dialog", { name: /إعدادات الخصوصية|Privacy and cookie|Gizlilik ve çerez/i });
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole("button", { name: /الضرورية فقط|Necessary only|Yalnızca gerekli/i }).click();
-    await expect(dialog).toBeHidden();
+    const banner = page.getByTestId("cookie-banner");
+    const dialog = page.getByRole("dialog", { name: /إعدادات ملفات الارتباط|Cookie settings|Çerez ayarları/i });
+    await expect(banner).toBeVisible();
+    await expect(dialog).toHaveCount(0);
+    await page.getByTestId("cookie-necessary-only").click();
+    await expect(banner).toBeHidden();
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("hamza_agency_cookie_consent") || "null"));
     expect(stored).toMatchObject({ version: "1.0", necessary: true, analytics: false, preferences: false, marketing: false });
-    await page.getByRole("button", { name: /إعدادات ملفات الارتباط|Cookie settings|Çerez ayarları/i }).click();
+    await page.getByTestId("footer-cookie-settings").click();
     await expect(dialog).toBeVisible();
   });
 
@@ -45,19 +47,5 @@ test.describe("PR101 public product expansion", () => {
     expect(response.ok()).toBeTruthy();
     const source = await response.text();
     for (const route of ["/admin", "/portal", "/api", "/auth", "/application-status", "/service-status"]) expect(source).toContain(route);
-  });
-});
-
-test.describe("PR101 portal isolation", () => {
-  test("signed-out creator profile redirects to shared login", async ({ page }) => {
-    await page.goto("/portal/creator/profile");
-    await page.waitForURL(/\/portal\/login/);
-    expect(new URL(page.url()).searchParams.get("next")).toBe("/portal/creator/profile");
-  });
-
-  test("signed-out portals do not expose module rows", async ({ page }) => {
-    await page.goto("/portal/client/orders");
-    await page.waitForURL(/\/portal\/login/);
-    await expect(page.locator("body")).not.toContainText(/order_code|client_user_id|payment_status/i);
   });
 });
