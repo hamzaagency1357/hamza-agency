@@ -76,6 +76,9 @@ body.public-site-page [data-testid="install-app-page"] section:first-of-type h1 
   body.public-site-page footer { padding-top: 1.75rem !important; }
   body.public-site-page footer > div:first-child { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 1.25rem 0.9rem !important; }
   body.public-site-page footer p { line-height: 1.6 !important; }
+  body.public-site-page [data-testid="cookie-settings-page"] {
+    padding-bottom: calc(var(--public-mobile-dock-clearance) + 1.5rem) !important;
+  }
   .hamza-floating-whatsapp,
   .hamza-ai-support,
   .hamza-quick-nav { display: none !important; }
@@ -85,16 +88,56 @@ body.public-site-page [data-testid="install-app-page"] section:first-of-type h1 
   .hamza-mobile-dock-panel .hamza-quick-nav-panel { position: static !important; inset: auto !important; width: 100% !important; max-width: none !important; margin: 0 !important; }
   .hamza-cookie-banner {
     bottom: calc(var(--public-mobile-dock-height) + var(--public-mobile-dock-gap) + env(safe-area-inset-bottom, 0px));
-    max-height: min(40svh, 22rem);
+    width: calc(100% - 0.75rem);
+    max-height: min(30svh, 13rem);
     overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 0.8rem !important;
+    padding: 0.65rem 0.75rem !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.34) !important;
+  }
+  .hamza-cookie-banner-content h2 {
+    font-size: 0.82rem !important;
+    line-height: 1.1rem !important;
+  }
+  .hamza-cookie-banner-content p {
+    margin-top: 0.15rem !important;
+    font-size: 0.72rem !important;
+    line-height: 1.05rem !important;
+  }
+  .hamza-cookie-banner-content a {
+    min-height: 0 !important;
+    margin-top: 0.15rem !important;
+    font-size: 0.68rem !important;
+    line-height: 1rem !important;
   }
   .hamza-cookie-banner-actions {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.3rem;
+    margin-top: 0.45rem !important;
   }
-  .hamza-cookie-banner-primary { width: 100%; }
-  .hamza-cookie-banner-secondary { white-space: nowrap; }
+  .hamza-cookie-banner-primary,
+  .hamza-cookie-banner-secondary {
+    width: 100%;
+    min-height: 2.25rem !important;
+    border-radius: 0.65rem !important;
+    padding: 0.35rem 0.55rem !important;
+    font-size: 0.72rem !important;
+    line-height: 1rem !important;
+  }
+  .hamza-cookie-banner-secondary { white-space: normal; }
+  .hamza-cookie-banner-manage {
+    min-height: 1.75rem !important;
+    justify-self: center;
+    padding: 0.1rem 0.25rem !important;
+    font-size: 0.72rem !important;
+    line-height: 1rem !important;
+  }
 }
 
 @media (max-width: 380px) {
-  .hamza-cookie-banner { width: calc(100% - 1rem); padding: 0.8rem; }
+  .hamza-cookie-banner {
+    width: calc(100% - 0.5rem);
+    padding: 0.55rem 0.6rem !important;
+  }
 }
