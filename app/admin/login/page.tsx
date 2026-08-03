@@ -69,32 +69,38 @@ export default function AdminLoginPage() {
           لوحة إدارة وكالة حمزة
         </p>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-4" aria-label="نموذج تسجيل دخول الإدارة">
           <div>
-            <label className="block mb-2 text-sm text-zinc-300">
+            <label htmlFor="admin-email" className="block mb-2 text-sm text-zinc-300">
               البريد الإلكتروني
             </label>
             <input
+              id="admin-email"
+              name="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-xl border border-purple-500/20 bg-black/50 px-4 py-3 outline-none focus:border-purple-400"
               placeholder="admin@example.com"
               autoComplete="email"
+              required
             />
           </div>
 
           <div>
-            <label className="block mb-2 text-sm text-zinc-300">
+            <label htmlFor="admin-password" className="block mb-2 text-sm text-zinc-300">
               كلمة المرور
             </label>
             <input
+              id="admin-password"
+              name="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-xl border border-purple-500/20 bg-black/50 px-4 py-3 outline-none focus:border-purple-400"
               placeholder="••••••••"
               autoComplete="current-password"
+              required
             />
           </div>
 
