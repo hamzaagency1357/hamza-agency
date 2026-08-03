@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getLanguageDirection } from "@/lib/i18n/locale";
+import { getPwaRuntimeCopy } from "@/lib/i18n/privacyAndPwaCopy";
+import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -8,6 +11,8 @@ type InstallPromptEvent = Event & {
 };
 
 export default function PwaRuntime() {
+  const language = useSiteLanguage();
+  const strings = getPwaRuntimeCopy(language);
   const [updateWorker, setUpdateWorker] = useState<ServiceWorker | null>(null);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
@@ -18,7 +23,10 @@ export default function PwaRuntime() {
       event.preventDefault();
       setInstallPrompt(event as InstallPromptEvent);
     };
-    const markInstalled = () => { setInstalled(true); setInstallPrompt(null); };
+    const markInstalled = () => {
+      setInstalled(true);
+      setInstallPrompt(null);
+    };
     window.addEventListener("beforeinstallprompt", captureInstall);
     window.addEventListener("appinstalled", markInstalled);
 
@@ -70,15 +78,27 @@ export default function PwaRuntime() {
   }
 
   if (!updateWorker && (!installPrompt || installed)) return null;
+
   return (
-    <div role="status" className="fixed bottom-24 left-1/2 z-[120] w-[min(92vw,440px)] -translate-x-1/2 rounded-2xl border border-violet-300/30 bg-black/95 p-4 text-sm text-white shadow-2xl" dir="rtl">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <span>{updateWorker ? "يتوفر تحديث جديد وآمن للمنصة." : "يمكن تثبيت HAMZA AGENCY كتطبيق على جهازك."}</span>
-        {updateWorker ? (
-          <button type="button" className="min-h-11 rounded-xl bg-violet-600 px-4 font-bold" onClick={update}>تحديث الآن</button>
-        ) : (
-          <button type="button" className="min-h-11 rounded-xl bg-violet-600 px-4 font-bold" onClick={() => void install()}>تثبيت التطبيق</button>
-        )}
+    <div
+      role="status"
+      dir={getLanguageDirection(language)}
+      data-testid="pwa-install-card"
+      className="fixed left-3 right-3 z-[120] mx-auto max-w-[440px] overflow-hidden rounded-2xl border border-violet-300/30 bg-black/95 p-4 text-sm text-white shadow-2xl sm:left-1/2 sm:right-auto sm:w-[min(92vw,440px)] sm:-translate-x-1/2"
+      style={{ bottom: "calc(var(--public-mobile-dock-clearance, 6rem) + 0.5rem)" }}
+    >
+      <div className="flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <span className="min-w-0 break-words leading-6 text-balance" data-testid="pwa-install-copy">
+          {updateWorker ? strings.updateAvailable : strings.installAvailable}
+        </span>
+        <button
+          type="button"
+          className="min-h-11 w-full flex-none rounded-xl bg-violet-600 px-4 font-bold sm:w-auto"
+          onClick={updateWorker ? update : () => void install()}
+          data-testid="pwa-install-action"
+        >
+          {updateWorker ? strings.updateButton : strings.installButton}
+        </button>
       </div>
     </div>
   );
