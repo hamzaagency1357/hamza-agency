@@ -27,10 +27,13 @@ test("client favorites, carts, checks out idempotently, and cannot cross tenants
   annotations(testInfo, 10);
 });
 
-test("staff enforces order lifecycle and client completes review refund and dispute journeys", async ({ request }, testInfo) => {
+test("staff and the related partner see only safe same-tenant order events", async ({ request }, testInfo) => {
   const f = fixture();
   const employee = await token(request, f.accounts.employee);
+  const partner = await token(request, f.accounts.partner);
   const client = await token(request, f.accounts.client);
+  const otherTenant = await token(request, f.accounts.otherTenant);
+
   await rpc(request, employee, "transition_marketplace_order", { p_tenant: f.tenants.a, p_order: orderId, p_status: "confirmed" });
   await rpc(request, employee, "transition_marketplace_order", { p_tenant: f.tenants.a, p_order: orderId, p_status: "in_progress" });
   await rpc(request, employee, "transition_marketplace_order", { p_tenant: f.tenants.a, p_order: orderId, p_status: "fulfilled" });
@@ -44,8 +47,15 @@ test("staff enforces order lifecycle and client completes review refund and disp
   const messageId = await rpc(request, client, "add_marketplace_dispute_message", { p_tenant: f.tenants.a, p_dispute: disputeId, p_body: "Client evidence" });
   expect(messageId).toMatch(/^[0-9a-f-]{36}$/i);
   expect(await rpc(request, employee, "resolve_marketplace_dispute", { p_tenant: f.tenants.a, p_dispute: disputeId, p_status: "resolved", p_resolution: "Resolved manually" })).toBe("resolved");
-  const events = await rest(request, employee, `commerce_events?order_id=eq.${orderId}&select=event_type`);
-  expect(events.map((row) => row.event_type)).toContain("order.created");
-  expect(events.map((row) => row.event_type)).toContain("order.status_changed");
-  annotations(testInfo, 13);
+
+  const employeeEvents = await rpc(request, employee, "pr105_list_commerce_events", { p_tenant: f.tenants.a, p_order: orderId });
+  expect(employeeEvents.map((row) => row.eventType)).toContain("order.created");
+  expect(employeeEvents.map((row) => row.eventType)).toContain("order.status_changed");
+  const partnerEvents = await rpc(request, partner, "pr105_list_commerce_events", { p_tenant: f.tenants.a, p_order: orderId });
+  expect(partnerEvents).toEqual(employeeEvents);
+
+  await rpc(request, client, "pr105_list_commerce_events", { p_tenant: f.tenants.a, p_order: orderId }, [400, 403]);
+  await rpc(request, otherTenant, "pr105_list_commerce_events", { p_tenant: f.tenants.a, p_order: orderId }, [400, 403]);
+  await rest(request, employee, `commerce_events?order_id=eq.${orderId}&select=event_type`, [401, 403]);
+  annotations(testInfo, 20);
 });
