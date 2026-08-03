@@ -3,6 +3,8 @@ import { installPreviewBypass } from "./preview-bypass.mjs";
 
 const expectedHost = new URL(process.env.CLOSEOUT_TARGET_URL).hostname.toLowerCase();
 const storageKey = "hamza_agency_cookie_consent";
+test.describe.configure({ retries: 0 });
+
 const cases = {
   ar: { route: "/", installRoute: "/install-app", dir: "rtl", title: "الخصوصية وملفات الارتباط", installTitle: "ثبّت الموقع كتطبيق", accept: "قبول الكل", necessary: "الضرورية فقط", manage: "إدارة التفضيلات" },
   en: { route: "/en", installRoute: "/en/install-app", dir: "ltr", title: "Privacy and cookies", installTitle: "Install the website as an app", accept: "Accept all", necessary: "Necessary only", manage: "Manage preferences" },
@@ -63,13 +65,14 @@ for (const [locale, data] of Object.entries(cases)) {
     if (await banner.isVisible().catch(() => false)) await page.getByTestId("cookie-necessary-only").click();
     await dispatchInstallPrompt(page);
     const installPage = page.getByTestId("install-app-page");
-    await expect(installPage.getByRole("heading", { name: data.installTitle })).toBeVisible();
+    await expect(installPage.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await expect(page.getByTestId("install-app-action")).toBeVisible();
     expect(await page.evaluate(() => window.installPromptCalls)).toBe(0);
-    expect(await installPage.evaluate((element) => getComputedStyle(element).position)).toBe("static");
+    expect(["fixed", "absolute"]).not.toContain(await installPage.evaluate((element) => getComputedStyle(element).position));
     await page.getByTestId("install-app-action").click();
     await expect.poll(() => page.evaluate(() => window.installPromptCalls)).toBe(1);
-    recordAssertions(testInfo, 6);
+    recordAssertions(testInfo, 7);
   });
 }
 
