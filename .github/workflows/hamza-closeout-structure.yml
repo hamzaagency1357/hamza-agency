@@ -24,6 +24,9 @@ on:
 permissions:
   contents: read
   deployments: read
+  statuses: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: hamza-closeout-structure-${{ github.event.pull_request.number }}
@@ -98,6 +101,8 @@ jobs:
     outputs:
       preview_url: ${{ steps.preview.outputs.preview_url }}
       preview_host: ${{ steps.preview.outputs.preview_host }}
+      preview_source: ${{ steps.preview.outputs.preview_source }}
+      preview_inspector: ${{ steps.preview.outputs.preview_inspector }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -105,7 +110,9 @@ jobs:
           fetch-depth: 1
       - id: preview
         env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         shell: bash
@@ -118,7 +125,7 @@ jobs:
           node scripts/closeout/discover-vercel-preview.mjs
           preview_url="$(grep '^preview_url=' "$GITHUB_OUTPUT" | tail -n1 | cut -d= -f2-)"
           test -n "$preview_url"
-          actual="$(curl -fsS -H "x-vercel-protection-bypass: $bypass_secret" "$preview_url/api/health" | node -e 'let x="";process.stdin.on("data",d=>x+=d).on("end",()=>{try{process.stdout.write(JSON.parse(x).commitSha||"")}catch{}})')"
+          actual="$(curl -fsS -H "x-vercel-protection-bypass: $bypass_secret" "$preview_url/api/health" | node -e 'let x="";process.stdin.on("data",d=>x+=d).on("end",()=>{try{const p=JSON.parse(x);if(p.status==="ok")process.stdout.write(p.commitSha||"")}catch{}})')"
           if [ "$actual" = "$EXPECTED_SHA" ]; then
             exit 0
           fi
