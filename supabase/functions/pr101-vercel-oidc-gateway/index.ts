@@ -12,6 +12,7 @@ const ALLOWED_ACTIONS = new Set([
   "payment_webhook_record",
   "provider_event_enqueue",
   "provider_health_record",
+  "health_probe",
 ]);
 const JWKS = createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks`));
 const encoder = new TextEncoder();
@@ -95,29 +96,32 @@ Deno.serve(async (request: Request) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceRoleKey) return json(503, { allowed: false, code: "gateway_unavailable" });
 
-  const rpcResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/pr101_oidc_gateway`, {
+  const rpcName = action === "health_probe" ? "pr101_oidc_health_probe" : "pr101_oidc_gateway";
+  const rpcBody = action === "health_probe" ? {} : {
+    p_action: action,
+    p_timestamp: timestamp,
+    p_nonce: nonce,
+    p_body: body,
+    p_body_digest: bodyDigest,
+    p_oidc_issuer: payload.iss,
+    p_oidc_subject: payload.sub,
+    p_oidc_audience: AUDIENCE,
+    p_oidc_team_id: claim(payload, "owner_id"),
+    p_oidc_project_id: claim(payload, "project_id"),
+    p_oidc_project: claim(payload, "project"),
+    p_oidc_environment: environment,
+    p_oidc_issued_at: payload.iat,
+    p_oidc_expires_at: payload.exp,
+  };
+
+  const rpcResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/${rpcName}`, {
     method: "POST",
     headers: {
       apikey: serviceRoleKey,
       Authorization: `Bearer ${serviceRoleKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      p_action: action,
-      p_timestamp: timestamp,
-      p_nonce: nonce,
-      p_body: body,
-      p_body_digest: bodyDigest,
-      p_oidc_issuer: payload.iss,
-      p_oidc_subject: payload.sub,
-      p_oidc_audience: AUDIENCE,
-      p_oidc_team_id: claim(payload, "owner_id"),
-      p_oidc_project_id: claim(payload, "project_id"),
-      p_oidc_project: claim(payload, "project"),
-      p_oidc_environment: environment,
-      p_oidc_issued_at: payload.iat,
-      p_oidc_expires_at: payload.exp,
-    }),
+    body: JSON.stringify(rpcBody),
   });
   const text = await rpcResponse.text();
   if (!rpcResponse.ok) return json(502, { allowed: false, code: "database_gateway_rejected" });
