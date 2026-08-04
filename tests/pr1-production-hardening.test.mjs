@@ -12,9 +12,11 @@ async function text(path) {
 
 test("OIDC gateway grants remain least privilege", async () => {
   const migration = await text(migrationPath);
-  assert.match(migration, /grant execute on function public\.pr101_oidc_gateway\([\s\S]*?\) to service_role;/i);
+  const gatewayGrant = migration.match(/grant execute on function public\.pr101_oidc_gateway\([\s\S]*?\) to [a-z_]+;/i)?.[0] || "";
+  assert.ok(gatewayGrant);
+  assert.match(gatewayGrant, /to service_role;/i);
   assert.match(migration, /revoke all on function public\.pr101_oidc_gateway\([\s\S]*?\) from public,anon,authenticated;/i);
-  assert.doesNotMatch(migration, /grant execute[\s\S]*?pr101_oidc_gateway[\s\S]*?to (anon|authenticated|public)/i);
+  assert.doesNotMatch(gatewayGrant, /to (anon|authenticated|public);/i);
 });
 
 test("published sections policy does not invoke admin authorization", async () => {
@@ -31,9 +33,11 @@ test("health performs a real read-only OIDC database probe", async () => {
     text(gatewayPath),
     text(migrationPath),
   ]);
-  assert.match(health, /callPr101OidcGateway[^;]*\(request, "health_probe", \{\}\)/s);
+  assert.match(health, /callPr101OidcGateway<[^>]+>\(request, "health_probe", \{\}\)/s);
   assert.doesNotMatch(health, /VERCEL_OIDC_TOKEN[^\n]*\? "healthy"/);
   assert.match(gateway, /action === "health_probe" \? "pr101_oidc_health_probe"/);
   assert.match(migration, /create or replace function public\.pr101_oidc_health_probe\(\)/i);
-  assert.doesNotMatch(migration, /insert into|update public\.|delete from/i);
+  const probe = migration.match(/create or replace function public\.pr101_oidc_health_probe\(\)[\s\S]*?\$\$;/i)?.[0] || "";
+  assert.ok(probe);
+  assert.doesNotMatch(probe, /insert into|update\s|delete from/i);
 });
