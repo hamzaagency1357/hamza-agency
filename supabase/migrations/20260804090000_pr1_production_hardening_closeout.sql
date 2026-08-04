@@ -3,20 +3,41 @@
 
 create or replace function public.pr101_oidc_health_probe()
 returns jsonb
-language sql
+language plpgsql
 stable
 security invoker
 set search_path=pg_catalog
-as $$
-  select jsonb_build_object('ok',true,'status','healthy');
-$$;
+as $function$
+declare
+  gateway_signature constant text := 'public.pr101_oidc_gateway(text,bigint,text,text,text,text,text,text,text,text,text,text,bigint,bigint)';
+  gateway_oid oid := to_regprocedure(gateway_signature);
+begin
+  if current_user <> 'service_role' then
+    return jsonb_build_object('ok',false,'status','degraded','reason','executor_not_authorized');
+  end if;
+  if gateway_oid is null then
+    return jsonb_build_object('ok',false,'status','degraded','reason','gateway_missing');
+  end if;
+  if not has_function_privilege(current_user,gateway_oid,'EXECUTE')
+     or not has_function_privilege('service_role',gateway_oid,'EXECUTE') then
+    return jsonb_build_object('ok',false,'status','degraded','reason','service_role_execute_missing');
+  end if;
+  if has_function_privilege('anon',gateway_oid,'EXECUTE')
+     or has_function_privilege('authenticated',gateway_oid,'EXECUTE') then
+    return jsonb_build_object('ok',false,'status','degraded','reason','public_execute_exposed');
+  end if;
+  if not has_function_privilege('service_role','public.pr101_oidc_health_probe()','EXECUTE')
+     or has_function_privilege('anon','public.pr101_oidc_health_probe()','EXECUTE')
+     or has_function_privilege('authenticated','public.pr101_oidc_health_probe()','EXECUTE') then
+    return jsonb_build_object('ok',false,'status','degraded','reason','probe_execute_contract_invalid');
+  end if;
+  return jsonb_build_object('ok',true,'status','healthy');
+end
+$function$;
 
 revoke all on function public.pr101_oidc_health_probe() from public,anon,authenticated;
 grant execute on function public.pr101_oidc_health_probe() to service_role;
 
--- The Edge Function authenticates the Vercel OIDC token and invokes this RPC
--- with the Supabase service role. Production currently has no EXECUTE grant,
--- which causes the observed database_gateway_rejected / HTTP 502 response.
 revoke all on function public.pr101_oidc_gateway(
   text,bigint,text,text,text,text,text,text,text,text,text,text,bigint,bigint
 ) from public,anon,authenticated;
@@ -24,9 +45,6 @@ grant execute on function public.pr101_oidc_gateway(
   text,bigint,text,text,text,text,text,text,text,text,text,text,bigint,bigint
 ) to service_role;
 
--- Public visitors must not evaluate an admin-only helper while reading published
--- content. Administrative access remains covered by the separate authenticated
--- admin policies already present on public.sections.
 alter policy "public reads published visible sections" on public.sections
   to anon,authenticated
   using (
@@ -38,7 +56,7 @@ alter policy "public reads published visible sections" on public.sections
   );
 
 comment on function public.pr101_oidc_health_probe() is
-  'Read-only service-role probe used after Vercel OIDC verification; never writes application data.';
+  'Read-only service-role runtime verification after Vercel OIDC validation; never writes application data.';
 
 do $contract$
 declare gateway_oid oid;

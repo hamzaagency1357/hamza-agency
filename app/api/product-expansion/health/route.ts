@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { getServerTenantRuntime } from "@/lib/productExpansion/serverTenantRuntime";
+import { classifyOidcFailure, computeOverallHealth, passiveProviderStatus } from "@/lib/server/productExpansionHealthStatus.mjs";
 import {
   callPr101OidcGateway,
   Pr101OidcGatewayError,
@@ -12,7 +13,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type ProviderStatus = "healthy" | "degraded" | "unavailable" | "disabled" | "configured" | "rules_fallback";
+type ProviderStatus = "healthy" | "degraded" | "unavailable" | "disabled";
 
 async function databaseHealth() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
@@ -41,14 +42,18 @@ function safeOidcReason(reason: Pr101OidcGatewayFailure) {
 async function oidcHealth(request: NextRequest) {
   const started = Date.now();
   try {
-    const result = await callPr101OidcGateway<{ ok?: boolean; status?: string }>(request, "health_probe", {});
+    const result = await callPr101OidcGateway<{ ok?: boolean; status?: string; reason?: string }>(request, "health_probe", {});
     if (result.ok === true && result.status === "healthy") {
       return { status: "healthy" as const, latencyMs: Date.now() - started };
     }
-    return { status: "degraded" as const, latencyMs: Date.now() - started, reason: "invalid_response" };
+    return {
+      status: "degraded" as const,
+      latencyMs: Date.now() - started,
+      reason: typeof result.reason === "string" ? result.reason : "database_contract_rejected",
+    };
   } catch (error) {
     const reason = error instanceof Pr101OidcGatewayError ? safeOidcReason(error.reason) : "gateway_unavailable";
-    const status: ProviderStatus = reason === "unconfigured" ? "disabled" : reason === "timeout" ? "degraded" : "unavailable";
+    const status = classifyOidcFailure(reason) as ProviderStatus;
     return { status, latencyMs: Date.now() - started, reason };
   }
 }
@@ -63,15 +68,13 @@ export async function GET(request: NextRequest) {
 
   const providers = {
     oidc,
-    payment: { status: process.env.PAYMENT_PROVIDER_MODE === "live" || process.env.PAYMENT_PROVIDER_MODE === "sandbox" ? "configured" : "disabled" },
-    whatsapp: { status: process.env.WHATSAPP_PROVIDER_MODE === "live" || process.env.WHATSAPP_PROVIDER_MODE === "sandbox" ? "configured" : "disabled" },
-    ai: { status: process.env.AI_PROVIDER_MODE === "live" || process.env.AI_PROVIDER_MODE === "sandbox" ? "configured" : "rules_fallback" },
-    push: { status: process.env.PUSH_PROVIDER_MODE === "live" || process.env.PUSH_PROVIDER_MODE === "sandbox" ? "configured" : "disabled" },
+    payment: { status: passiveProviderStatus(process.env.PAYMENT_PROVIDER_MODE, "unverified") },
+    whatsapp: { status: passiveProviderStatus(process.env.WHATSAPP_PROVIDER_MODE, "unverified") },
+    ai: { status: passiveProviderStatus(process.env.AI_PROVIDER_MODE, "rules_fallback") },
+    push: { status: passiveProviderStatus(process.env.PUSH_PROVIDER_MODE, "unverified") },
   };
 
-  const unavailable = database.status === "unavailable" || oidc.status === "unavailable";
-  const degraded = database.status === "degraded" || oidc.status === "degraded" || oidc.status === "disabled";
-  const overall = unavailable ? "unavailable" : degraded ? "degraded" : "healthy";
+  const overall = computeOverallHealth(database.status, oidc.status);
 
   return NextResponse.json(
     {

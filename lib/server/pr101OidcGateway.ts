@@ -18,6 +18,10 @@ export type Pr101OidcGatewayFailure =
   | "timeout"
   | "unauthorized"
   | "forbidden"
+  | "database_authentication_failed"
+  | "database_function_missing"
+  | "database_permission_rejected"
+  | "database_contract_rejected"
   | "database_unavailable"
   | "gateway_unavailable"
   | "invalid_response";
@@ -30,6 +34,21 @@ export class Pr101OidcGatewayError extends Error {
 
 function getRuntimeOidcToken(request: Request) {
   return request.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
+}
+
+function safeFailureCode(value: unknown): Pr101OidcGatewayFailure | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const code = (value as { code?: unknown }).code;
+  switch (code) {
+    case "database_authentication_failed":
+    case "database_function_missing":
+    case "database_permission_rejected":
+    case "database_contract_rejected":
+    case "database_unavailable":
+      return code;
+    default:
+      return null;
+  }
 }
 
 export async function callPr101OidcGateway<T = JsonObject>(
@@ -60,18 +79,18 @@ export async function callPr101OidcGateway<T = JsonObject>(
       signal: AbortSignal.timeout(5_000),
     });
   } catch (error) {
-    if (error instanceof Error && error.name === "TimeoutError") {
+    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
       throw new Pr101OidcGatewayError("timeout");
     }
     throw new Pr101OidcGatewayError("gateway_unavailable");
   }
 
+  const data = (await response.json().catch(() => null)) as unknown;
   if (response.status === 401) throw new Pr101OidcGatewayError("unauthorized");
   if (response.status === 403) throw new Pr101OidcGatewayError("forbidden");
-  if (response.status === 502) throw new Pr101OidcGatewayError("database_unavailable");
-  if (!response.ok) throw new Pr101OidcGatewayError("gateway_unavailable");
-
-  const data = (await response.json().catch(() => null)) as unknown;
+  if (!response.ok) {
+    throw new Pr101OidcGatewayError(safeFailureCode(data) || (response.status >= 500 ? "gateway_unavailable" : "invalid_response"));
+  }
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     throw new Pr101OidcGatewayError("invalid_response");
   }
