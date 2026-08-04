@@ -172,7 +172,7 @@ try {
   assert.ok(managementPolicies >= 3, "section administration policies must remain separate from public reads");
 
   const metadata = psql(`
-    select p.provolatile||':'||p.prosecdef::text
+    select p.provolatile::text||':'||p.prosecdef::text
     from pg_proc p
     where p.oid=to_regprocedure('public.pr101_oidc_health_probe()');
   `);
