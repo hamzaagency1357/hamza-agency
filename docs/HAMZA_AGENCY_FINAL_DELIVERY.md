@@ -1,169 +1,113 @@
-# HAMZA AGENCY — Final Project Delivery Record
+# HAMZA AGENCY — Final Delivery Record
 
-Updated: 2026-07-30
+## Current release state
 
-Repository: `hamzaagency1357/hamza-agency`
+- Repository: `hamzaagency1357/hamza-agency`
+- Pull request: `#105`
+- Branch: `feat/pr101-complete-product-expansion`
+- PR state: **Open / Draft / unmerged**
+- Development: **Complete**
+- Automated closeout: **Complete**
+- Preview and CI: **Successful on the automated closeout baseline and required again on the documentation Head**
+- Ready for Owner Final QA: **Yes**
+- Owner Final QA: **Not executed yet**
+- Ready for Review: **Not authorized**
+- Merge: **Not performed and not authorized**
+- Production updated by this documentation/closeout batch: **No**
+- Production post-deploy: **Not executed**
+- Fully launched: **No**
 
-Production domain: `https://hamza-agency.com`
+A successful PR, Preview, CI run, or local-isolated migration test does not by itself prove that Production is running the PR or that the project is fully launched.
 
-Supabase project: `fvaurkfnsvsfohpzguho`
+## Delivered platform scope
 
-## Delivery status
+The delivered system includes:
 
-The repository contains the completed public multilingual experience, administration and CMS operations, unified tracking, security hardening, database migrations, automated verification, and release documentation.
+- multilingual AR/EN/TR public experience;
+- Programs, Applications, Services, Jobs, Knowledge, FAQ, Gallery, Partners, Contact, Legal, Tracking, AI support, and responsive mobile navigation;
+- Admin operations, Page Builder, versioning, multilingual publication, restore, unpublish, backups, trash, notifications, activity evidence, and system health;
+- Creator, Client, Employee, and Partner portals;
+- tenant memberships, invitations, permissions, sessions, RLS isolation, and audit;
+- Commerce with Favorites, Cart, Orders, Reviews, Refunds, and Disputes;
+- Tasks, comments, watchers, assignees, attachment metadata, SLA, and Workflows;
+- privacy, legal, PWA/mobile, monitoring, provider-neutral integrations, and disabled-by-default paid providers.
 
-The final owner-only manual checks are deliberately separated into `docs/PRELAUNCH_MANUAL_CHECKLIST.md` and are required before public launch. They require real administrator accounts, MFA recovery material, real file uploads, and exact Production deployment access.
+The full automated evidence record is maintained in `HAMZA_AGENCY_FULL_PROJECT_CLOSEOUT.md`.
 
-## Public website
+## Current automated evidence
 
-- Arabic-first design with English and Turkish URL-owned locales.
-- Responsive desktop and mobile navigation.
-- Programs, services, service request, jobs, reviews, success stories, partners, gallery, knowledge, contact, FAQ, privacy, terms, and AI policy.
-- Segmented AR/EN/TR switcher using Next Router navigation.
-- Mobile dock for WhatsApp, AI support, and quick navigation.
-- Locale-correct ticker direction and localized links.
-- SEO metadata, canonical URLs, alternates, sitemap, robots, OpenGraph, and JSON-LD.
-- Tracking pages intentionally excluded from indexing.
+The automated closeout baseline Head is:
 
-## Unified request tracking
+`d8de9da6ad738aaa6bca6d37779c40e48d7fd2ff`
 
-All public request families issue a unique code:
+It passed:
 
-- `APP` — agency application;
-- `SR` — service request;
-- `JOB` — job application;
-- `CNT` — contact request.
+- HAMZA AGENCY Full Project Closeout `#188`;
+- fail-closed Aggregate;
+- HAMZA Current-State Schema Verify `#68`;
+- HAMZA AGENCY Quality Gate `#648`;
+- PR99 Management Quality Gate `#672`;
+- PR101 Mobile Readiness `#325`;
+- PR101 Checkpoint 1B Local E2E `#234`;
+- Vercel Preview verification.
 
-The format is `<PREFIX>-YYYY-XXXXXXXXXX`.
+The documentation commit must receive a fresh exact-head pass for the same checks before Owner Final QA begins. The current exact Head is pinned in the PR body.
 
-Users track by code only. They are not required to search by WhatsApp number, platform, or program. The localized receipt supports copying, opening the correct tracking route, and printing.
+## Exact Preview
 
-Public tracking returns only approved status information and does not expose applicant PII.
+Owner Final QA must use only the Preview attached to the current PR Head:
 
-## Administration and CMS
+`https://hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app`
 
-The administration platform includes:
+Before testing, verify that `/api/health` reports the same commit SHA shown as **Current Head** in PR #105. Do not continue QA against an older deployment.
 
-- programs and localized program pages;
-- pages, sections, Page Builder, drafts, publish/unpublish, scheduling, versions, and restore;
-- settings, announcements, media, header/footer/global content, and SEO controls;
-- jobs, reviews, success stories, partners, gallery, and knowledge base;
-- applications, service requests, job applications, contact messages, and unified request operations;
-- search, filters, status updates, internal notes, pagination, and controlled exports;
-- translation workbench and revision history;
-- notifications, analytics, activity logs, trash, backups, permissions, launch checklist, and system health.
+## Snapshot proof
 
-## Authorization model
+- Bytes: `496138`
+- SHA-256: `3b1890376e3cca966b1dce0979dd2ed089f95237e1067febf4f58e8f1bf776f2`
+- Git blob: `65f45c04f7bd50e7751eb5f802f3ad0550c52bfc`
 
-Administrator identity uses Supabase Auth `user_id` first. Email fallback exists only for historical rows whose `user_id` is null.
+The snapshot is schema-only and data-free. It is used for isolated local reconstruction and does not authorize a Production migration.
 
-Supported roles:
+## Production status and boundaries
 
-- `super_admin`;
-- `deputy_super_admin`;
-- `program_admin`.
+Production is **not declared ready or matched to this PR** at the current stage.
 
-Unknown roles fail closed.
+- PR #105 has not been merged.
+- The documentation/closeout batch has not updated Production.
+- Additive closeout migrations tested locally are not authorized for Production by this record.
+- Production smoke checks for the future merge commit have not been completed.
+- Post-deploy or session-revocation actions have not been authorized.
+- Real paid providers, billing, trials, and cards remain outside this closeout.
 
-Module actions are controlled by permissions such as:
+Historical Production changes that received earlier separate approval must remain distinguished from the current unmerged PR and its current migration set.
 
-- `can_view`;
-- `can_edit`;
-- `can_export`.
+## Remaining release steps — mandatory order
 
-Applications additionally enforce assigned-program scope at database RLS level for `program_admin` accounts.
+1. Execute Owner Final QA on the exact current Preview and exact current PR Head.
+2. Record the Owner QA result, blocking issues, screenshots, and notes in `HAMZA_AGENCY_OWNER_FINAL_QA.md` or the approved QA record.
+3. Obtain separate explicit approval to convert PR #105 to Ready for Review.
+4. Obtain separate explicit approval to merge PR #105.
+5. Verify that the exact merge commit reaches Production and that the Production deployment matches that merge commit.
+6. Obtain separate explicit approval for each required Production migration or approved migration batch.
+7. Run Production smoke and read-only checks against the exact deployed merge commit.
+8. Record the required launch backup, restore dry-run, checksum, and limited-restore evidence without unapproved Production business-row changes.
+9. Obtain separate explicit approval for any post-deploy action or session revocation.
+10. Declare **Fully Launched** only after every preceding step succeeds and the owner approves the launch declaration.
 
-## Server and database security
+The order is fail-closed. A failure or missing approval stops the release sequence at that point.
 
-- Vercel OIDC is used for trusted server-to-server actions.
-- No manually shared RPC HMAC secret is required.
-- OIDC tokens remain server-side.
-- Issuer, audience, subject, project, environment, timestamps, digest, and nonce are validated.
-- Service Role secrets are not exposed to browser code.
-- Public submission and lookup functions include abuse guards and approved response envelopes.
-- Media upload validation checks size, MIME type, and magic bytes.
-- Backups use the stable active top-administrator predicate.
-- Unknown roles are never normalized to elevated access.
+## Owner and account actions
 
-## Database migrations
+During Owner Final QA and prelaunch review:
 
-The live project records the PR #100 migration chain, including:
+- confirm administrator access and password-reset recovery;
+- confirm MFA for the owner account when available and store recovery codes outside GitHub, Vercel, Supabase, and chat;
+- review final public, legal, contact, and privacy content;
+- confirm ownership of required domains and external accounts;
+- keep real payment, WhatsApp, push, and AI providers disabled until separately approved and configured with server-only credentials;
+- do not expose secrets through `NEXT_PUBLIC_*`, screenshots, documentation, or QA notes.
 
-- `20260729091443_pr100_security_data_integrity_closeout`
-- `20260729093232_pr100_public_rpc_abuse_hardening`
-- `20260729103239_pr100_application_tracking_codes`
-- `20260729112619_pr100_signed_gateway_least_privilege`
-- `20260729135538_pr100_vercel_oidc_gateway`
-- `20260729140425_pr100_oidc_gateway_role_check`
-- `20260729141852_pr100_oidc_gateway_claim_role_compatibility`
-- `20260729181851_pr100_final_completion`
-- `20260729182032_pr100_enable_documented_schedules`
-- `20260730185634_pr100_comprehensive_audit_hardening`
-- `20260730185730_pr100_comprehensive_audit_hardening`
-- `20260730185735_pr100_comprehensive_audit_hardening`
+## Final delivery decision
 
-The three final audit versions are intentionally retained because Supabase recorded the same additive statement under those exact versions. Repository tests require them to remain byte-identical.
-
-## Automated quality gate
-
-Every release head must pass:
-
-- ESLint with zero warnings;
-- TypeScript type checking;
-- public translation verification;
-- migration safety verification;
-- client-secret scanning;
-- Node regression tests;
-- Next.js production build;
-- runtime route smoke;
-- authenticated isolated Playwright E2E;
-- URL-owned locale runtime verification;
-- runtime-error rejection;
-- matching Vercel Preview readiness.
-
-The exact final evidence is recorded in PR #100 and `docs/PR100_FINAL_CLOSEOUT.md`.
-
-## Supabase advisor review
-
-Security and performance advisors were reviewed. Not every warning should be removed mechanically:
-
-- anonymous security-definer functions that intentionally serve guarded public forms/lookup routes must remain callable until the replacement Production routes are verified and guarded revocation is run;
-- authenticated security-definer functions enforce administrator checks internally;
-- the nonce table intentionally has no direct client policy;
-- unused-index findings are informational on a new/low-traffic system;
-- policy consolidation and auth init-plan performance cleanup require a separately staged database migration rather than a risky final-day rewrite;
-- leaked-password protection is an owner-controlled Auth setting included in the pre-launch checklist.
-
-## Backup and recovery
-
-The system includes private backup creation, metadata/checksum validation, dry-run support, limited restore paths, restore operation records, and scheduled backup support within the selected platform constraints.
-
-Before public launch, create and verify a fresh backup and test a limited restore using disposable fixture data only.
-
-## Release process
-
-1. Complete automated verification on the exact PR head.
-2. Ensure the exact Vercel Preview is `READY` and clean.
-3. Commit complete repository documentation.
-4. Merge PR #100 into `main` using the verified exact head.
-5. Confirm the exact merge commit is deployed to Production.
-6. Perform `docs/PRELAUNCH_MANUAL_CHECKLIST.md`.
-7. Verify APP/SR/JOB/CNT submission and tracking on Production.
-8. Run `supabase/postdeploy/pr100_revoke_legacy_public_rpcs.sql` only after the replacements pass.
-9. Re-test Production and record final owner launch approval.
-
-## Important safety boundaries
-
-- Never store MFA recovery codes in the repository or chat.
-- Never commit `.env` files, private backups, Service Role keys, OIDC tokens, or private user data.
-- Never run the guarded post-deploy revocation before replacement routes pass in Production.
-- Merging the repository and approving public launch are separate decisions.
-
-## Final documents
-
-- `README.md`
-- `docs/HAMZA_AGENCY_FINAL_DELIVERY.md`
-- `docs/PR100_FINAL_CLOSEOUT.md`
-- `docs/PRELAUNCH_MANUAL_CHECKLIST.md`
-- `.env.example`
-- `supabase/postdeploy/pr100_revoke_legacy_public_rpcs.sql`
+**The software-development scope and automated closeout are complete. The only next step in the current authorization is Owner Final QA on Preview. The project remains Draft, unmerged, not Production-updated by this batch, and not fully launched.**

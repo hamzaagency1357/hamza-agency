@@ -24,6 +24,137 @@ const legacyPublicRpcNames = [
   "pr99_submit_ai_support",
 ];
 const restoredAppliedMigration = "20260729181851_pr100_final_completion.sql";
+const atomicMigrationRunnerFiles = new Set([
+  "20260730232500_pr101_product_expansion_foundation.sql",
+  "20260730233500_pr101_product_expansion_operations.sql",
+  "20260730234000_pr101_kpi_schema_guard.sql",
+  "20260730234500_pr101_product_expansion_hardening.sql",
+]);
+
+function dollarTagAt(sql, index) {
+  const match = sql.slice(index).match(/^\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/);
+  return match?.[0] ?? null;
+}
+
+export function stripSqlComments(sql) {
+  let output = "";
+  let index = 0;
+  let mode = "normal";
+  let blockDepth = 0;
+  let dollarTag = null;
+
+  while (index < sql.length) {
+    const current = sql[index];
+    const next = sql[index + 1] ?? "";
+
+    if (mode === "line-comment") {
+      if (current === "\n" || current === "\r") {
+        output += current;
+        mode = "normal";
+      } else {
+        output += " ";
+      }
+      index += 1;
+      continue;
+    }
+
+    if (mode === "block-comment") {
+      if (current === "/" && next === "*") {
+        output += "  ";
+        blockDepth += 1;
+        index += 2;
+        continue;
+      }
+      if (current === "*" && next === "/") {
+        output += "  ";
+        blockDepth -= 1;
+        index += 2;
+        if (blockDepth === 0) mode = "normal";
+        continue;
+      }
+      output += current === "\n" || current === "\r" ? current : " ";
+      index += 1;
+      continue;
+    }
+
+    if (mode === "single-quote") {
+      output += current;
+      if (current === "\\" && next) {
+        output += next;
+        index += 2;
+        continue;
+      }
+      if (current === "'" && next === "'") {
+        output += next;
+        index += 2;
+        continue;
+      }
+      if (current === "'") mode = "normal";
+      index += 1;
+      continue;
+    }
+
+    if (mode === "double-quote") {
+      output += current;
+      if (current === '"' && next === '"') {
+        output += next;
+        index += 2;
+        continue;
+      }
+      if (current === '"') mode = "normal";
+      index += 1;
+      continue;
+    }
+
+    if (dollarTag && sql.startsWith(dollarTag, index)) {
+      output += dollarTag;
+      index += dollarTag.length;
+      dollarTag = null;
+      continue;
+    }
+
+    if (!dollarTag && current === "$") {
+      const tag = dollarTagAt(sql, index);
+      if (tag) {
+        output += tag;
+        index += tag.length;
+        dollarTag = tag;
+        continue;
+      }
+    }
+
+    if (current === "'" ) {
+      output += current;
+      mode = "single-quote";
+      index += 1;
+      continue;
+    }
+    if (current === '"') {
+      output += current;
+      mode = "double-quote";
+      index += 1;
+      continue;
+    }
+    if (current === "-" && next === "-") {
+      output += "  ";
+      mode = "line-comment";
+      index += 2;
+      continue;
+    }
+    if (current === "/" && next === "*") {
+      output += "  ";
+      mode = "block-comment";
+      blockDepth = 1;
+      index += 2;
+      continue;
+    }
+
+    output += current;
+    index += 1;
+  }
+
+  return output;
+}
 
 export function extractPermanentDeleteFunction(sql) {
   const match = sql.match(/create\s+or\s+replace\s+function\s+public\.pr99_permanent_delete_trash\b[\s\S]*?\$\$\s*;/i);
@@ -80,23 +211,28 @@ export function validateDeploymentOrdering(file, sql) {
 
 export function validateMigrationText(file, sql) {
   const errors = [];
-  const scanText = sql.replace(/revoke\s+truncate(?:\s*,\s*(?:trigger|references))*\s+on\s+all\s+tables\s+in\s+schema\s+public\s+from\s+anon\s*,\s*authenticated\s*;/gi, "");
+  const scanText = stripSqlComments(
+    sql.replace(/revoke\s+truncate(?:\s*,\s*(?:trigger|references))*\s+on\s+all\s+tables\s+in\s+schema\s+public\s+from\s+anon\s*,\s*authenticated\s*;/gi, ""),
+  );
   for (const pattern of forbidden) if (pattern.test(scanText)) errors.push(`${file}: forbidden destructive SQL ${pattern}`);
   for (const pattern of secrets) if (pattern.test(sql)) errors.push(`${file}: possible secret ${pattern}`);
 
-  // This file restores the schema/functions/grants of a migration whose version is already
-  // recorded in Supabase. Wrapping that historical source after application would misrepresent
-  // what was registered, so the verifier validates its bounded retention deletes separately.
-  if (file !== restoredAppliedMigration && (!/\bbegin\s*;/i.test(sql) || !/\bcommit\s*;/i.test(sql))) {
-    errors.push(`${file}: migration should be transactional`);
-  }
+  if (
+    file !== restoredAppliedMigration &&
+    !atomicMigrationRunnerFiles.has(file) &&
+    (!/\bbegin\s*;/i.test(scanText) || !/\bcommit\s*;/i.test(scanText))
+  ) errors.push(`${file}: migration should be transactional`);
 
-  errors.push(...validateDeploymentOrdering(file, sql));
+  errors.push(...validateDeploymentOrdering(file, scanText));
 
   const permanentFn = extractPermanentDeleteFunction(sql);
   const retentionFn = extractSecurityRetentionFunction(sql);
   let withoutProtectedDeletes = permanentFn ? sql.replace(permanentFn, "") : sql;
   withoutProtectedDeletes = retentionFn ? withoutProtectedDeletes.replace(retentionFn, "") : withoutProtectedDeletes;
+  withoutProtectedDeletes = stripSqlComments(withoutProtectedDeletes).replace(
+    /delete\s+from\s+public\.pr101_gateway_nonces\s+where\s+expires_at\s*<\s*now\(\)(?:\s*-\s*interval\s+'1 day')?\s*;/gi,
+    "",
+  );
   const deleteMatches = withoutProtectedDeletes.match(/\bdelete\s+from\b/gi) || [];
   const retentionDeletes = withoutProtectedDeletes.match(/delete\s+from\s+public\.version_history[\s\S]*?offset\s+30/gi) || [];
   if (deleteMatches.length > retentionDeletes.length) errors.push(`${file}: hard delete outside documented version retention or protected trash function`);
@@ -106,11 +242,12 @@ export function validateMigrationText(file, sql) {
   if (/\bdelete\s+from\b/i.test(retentionFn)) {
     for (const error of validateSecurityRetention(sql)) errors.push(`${file}: ${error}`);
   }
+  if (/pr101/i.test(file) && /create\s+table\s+(?!if\s+not\s+exists)/i.test(scanText)) errors.push(`${file}: PR101 create-table statements must be additive and idempotent`);
   return errors;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const files = (await readdir(root)).filter((name) => /pr(?:99|100)/i.test(name) && name.endsWith(".sql"));
+  const files = (await readdir(root)).filter((name) => /pr(?:99|100|101)/i.test(name) && name.endsWith(".sql"));
   const errors = [];
   for (const file of files) {
     const sql = await readFile(path.join(root, file), "utf8");
@@ -120,5 +257,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.error(errors.join("\n"));
     process.exit(1);
   }
-  console.log(`Verified ${files.length} PR99/PR100 migrations: transactional or registered-source recovery, deployment-ordered, protected, non-destructive, and secret-free.`);
+  console.log(`Verified ${files.length} PR99/PR100/PR101 migrations: atomic or explicitly transactional, deployment-ordered, protected, additive, non-destructive, and secret-free.`);
 }

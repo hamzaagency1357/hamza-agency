@@ -7,6 +7,7 @@ export function GET() {
     {
       status: "ok",
       service: "HAMZA AGENCY",
+      commitSha: process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || null,
       timestamp: new Date().toISOString(),
     },
     {

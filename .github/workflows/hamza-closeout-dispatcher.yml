@@ -1,0 +1,74 @@
+name: HAMZA AGENCY Closeout Dispatcher
+
+on:
+  workflow_dispatch:
+    inputs:
+      execution_mode:
+        description: Safe execution mode
+        required: true
+        type: choice
+        options: [preview-readonly, local-isolated, production-readonly]
+      suite:
+        description: Independent suite
+        required: true
+        type: choice
+        options: [public, translations, tracking, admin, page-builder, backup-restore, trash, notifications, permissions, security]
+      target_url:
+        description: Exact target URL
+        required: true
+        type: string
+      expected_sha:
+        description: Full 40-character PR Head SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate-inputs:
+    runs-on: ubuntu-latest
+    outputs:
+      allowed: ${{ steps.guard.outputs.allowed }}
+      preview_host: ${{ steps.guard.outputs.preview_host }}
+    steps:
+      - id: guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha='${{ inputs.expected_sha }}'
+          [[ "$sha" =~ ^[0-9a-fA-F]{40}$ ]]
+          mode='${{ inputs.execution_mode }}'
+          suite='${{ inputs.suite }}'
+          url='${{ inputs.target_url }}'
+          case "$mode" in
+            preview-readonly)
+              [[ "$url" == https://* ]]
+              [[ "$url" != https://hamza-agency.com* && "$url" != https://www.hamza-agency.com* ]]
+              host="$(node -e 'process.stdout.write(new URL(process.argv[1]).hostname)' "$url")"
+              echo "preview_host=$host" >> "$GITHUB_OUTPUT"
+              ;;
+            production-readonly)
+              [[ "$url" == https://hamza-agency.com* || "$url" == https://www.hamza-agency.com* ]]
+              ;;
+            local-isolated)
+              [[ "$url" == http://127.0.0.1:* || "$url" == http://localhost:* ]]
+              ;;
+            *) exit 1 ;;
+          esac
+          case "$suite" in
+            tracking|admin|page-builder|backup-restore|trash|notifications|permissions)
+              test "$mode" = local-isolated ;;
+          esac
+          echo "allowed=true" >> "$GITHUB_OUTPUT"
+
+  run-suite:
+    needs: validate-inputs
+    if: needs.validate-inputs.outputs.allowed == 'true'
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with:
+      execution_mode: ${{ inputs.execution_mode }}
+      suite: ${{ inputs.suite }}
+      target_url: ${{ inputs.target_url }}
+      expected_sha: ${{ inputs.expected_sha }}
+      preview_host: ${{ needs.validate-inputs.outputs.preview_host }}

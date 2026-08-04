@@ -1,0 +1,144 @@
+name: HAMZA AGENCY Closeout Manual Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Final pinned 40-character Head SHA
+        required: true
+        type: string
+      preview_url:
+        description: Exact Vercel Preview URL for the same Head
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  pull-requests: read
+
+jobs:
+  validate-preview:
+    runs-on: ubuntu-latest
+    outputs:
+      preview_host: ${{ steps.url.outputs.preview_host }}
+    steps:
+      - id: url
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='${{ inputs.preview_url }}'
+          [[ "$url" == https://* ]]
+          [[ "$url" != https://hamza-agency.com* && "$url" != https://www.hamza-agency.com* ]]
+          host="$(node -e 'process.stdout.write(new URL(process.argv[1]).hostname)' "$url")"
+          test -n "$host"
+          echo "preview_host=$host" >> "$GITHUB_OUTPUT"
+
+  exact-head-and-existing-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 1
+      - name: Assert exact final Head
+        run: |
+          [[ '${{ inputs.expected_sha }}' =~ ^[0-9a-fA-F]{40}$ ]]
+          test "$(git rev-parse HEAD)" = '${{ inputs.expected_sha }}'
+      - name: Require every registered suite and spec
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const suites = require('./e2e/closeout/suites.json');
+          const required = ['public','translations','security','permissions','tracking','admin','page-builder','backup-restore','trash','notifications','commerce','tasks','sla','workflows'];
+          const failures = [];
+          for (const name of required) {
+            const suite = suites[name];
+            if (!suite || suite.status !== 'implemented') failures.push(`${name}:not-implemented`);
+            else if (!fs.existsSync(`e2e/closeout/${suite.spec}`)) failures.push(`${name}:missing-spec`);
+          }
+          if (failures.length) throw new Error(`Full closeout blocked: ${failures.join(',')}`);
+          NODE
+      - name: Verify required existing workflow conclusions for this Head
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = '${{ inputs.expected_sha }}';
+            const required = new Set([
+              'HAMZA AGENCY Quality Gate',
+              'PR99 Management Quality Gate',
+              'PR101 Checkpoint 1B Local E2E',
+              'PR101 Mobile Readiness',
+              'HAMZA AGENCY Closeout Structure',
+              'HAMZA Current-State Schema Verify'
+            ]);
+            const { data } = await github.rest.actions.listWorkflowRunsForRepo({ owner: context.repo.owner, repo: context.repo.repo, head_sha: sha, per_page: 100 });
+            const successful = new Set(data.workflow_runs.filter(r => r.status === 'completed' && r.conclusion === 'success').map(r => r.name));
+            const missing = [...required].filter(name => !successful.has(name));
+            if (missing.length) core.setFailed(`Missing successful exact-head gates: ${missing.join(', ')}`);
+
+  preview-public:
+    needs: validate-preview
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: preview-readonly, suite: public, target_url: "${{ inputs.preview_url }}", expected_sha: "${{ inputs.expected_sha }}", preview_host: "${{ needs.validate-preview.outputs.preview_host }}" }
+
+  preview-translations:
+    needs: validate-preview
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: preview-readonly, suite: translations, target_url: "${{ inputs.preview_url }}", expected_sha: "${{ inputs.expected_sha }}", preview_host: "${{ needs.validate-preview.outputs.preview_host }}" }
+
+  preview-security:
+    needs: validate-preview
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: preview-readonly, suite: security, target_url: "${{ inputs.preview_url }}", expected_sha: "${{ inputs.expected_sha }}", preview_host: "${{ needs.validate-preview.outputs.preview_host }}" }
+
+  local-tracking:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: local-isolated, suite: tracking, target_url: "https://127.0.0.1:3443", expected_sha: "${{ inputs.expected_sha }}" }
+  local-admin:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: local-isolated, suite: admin, target_url: "https://127.0.0.1:3443", expected_sha: "${{ inputs.expected_sha }}" }
+  local-page-builder:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: local-isolated, suite: page-builder, target_url: "https://127.0.0.1:3443", expected_sha: "${{ inputs.expected_sha }}" }
+  local-backup-restore:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: local-isolated, suite: backup-restore, target_url: "https://127.0.0.1:3443", expected_sha: "${{ inputs.expected_sha }}" }
+  local-trash:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: local-isolated, suite: trash, target_url: "https://127.0.0.1:3443", expected_sha: "${{ inputs.expected_sha }}" }
+  local-notifications:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: local-isolated, suite: notifications, target_url: "https://127.0.0.1:3443", expected_sha: "${{ inputs.expected_sha }}" }
+  local-permissions:
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: local-isolated, suite: permissions, target_url: "https://127.0.0.1:3443", expected_sha: "${{ inputs.expected_sha }}" }
+
+  local-commerce:
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: commerce, expected_sha: "${{ inputs.expected_sha }}" }
+  local-tasks:
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: tasks, expected_sha: "${{ inputs.expected_sha }}" }
+  local-sla:
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: sla, expected_sha: "${{ inputs.expected_sha }}" }
+  local-workflows:
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: workflows, expected_sha: "${{ inputs.expected_sha }}" }
+
+  closeout-summary:
+    needs: [validate-preview, exact-head-and-existing-gates, preview-public, preview-translations, preview-security, local-tracking, local-admin, local-page-builder, local-backup-restore, local-trash, local-notifications, local-permissions, local-commerce, local-tasks, local-sla, local-workflows]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          # HAMZA AGENCY Full Project Closeout
+          - Head: \`${{ inputs.expected_sha }}\`
+          - Preview suites: public, translations, security
+          - Local isolated suites: tracking, admin, page-builder, backup-restore, trash, notifications, permissions, commerce, tasks, sla, workflows
+          - Macro database baseline: authoritative frozen current-state snapshot plus additive PR105 migrations
+          - Production writes: none
+          - Result: every registered mandatory gate passed on the exact Head
+          EOF

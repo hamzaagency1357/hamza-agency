@@ -2,23 +2,19 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { SITE_LANGUAGES, type SiteLanguage } from "@/lib/i18n/locale";
 import {
-  setStoredSiteLanguage,
-  SITE_LANGUAGES,
-  type SiteLanguage,
-} from "@/lib/i18n/locale";
-import { localizePublicPath } from "@/lib/i18n/publicLocales";
-import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
+  getPathLanguage,
+  localizePublicPath,
+} from "@/lib/i18n/publicLocales";
 
 export default function LanguageSwitcher() {
   const pathname = usePathname();
   const router = useRouter();
-  const language = useSiteLanguage();
-  const [activeLanguage, setActiveLanguage] = useState<SiteLanguage>(language);
+  const activeLanguage = getPathLanguage(pathname || "/");
   const [locationSuffix, setLocationSuffix] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => setActiveLanguage(language), [language]);
   useEffect(() => {
     setLocationSuffix(`${window.location.search}${window.location.hash}`);
   }, [pathname]);
@@ -35,13 +31,14 @@ export default function LanguageSwitcher() {
   );
 
   useEffect(() => {
-    for (const target of Object.values(localizedTargets)) router.prefetch(target);
+    for (const target of Object.values(localizedTargets)) {
+      router.prefetch(target);
+    }
   }, [localizedTargets, router]);
 
   function changeLanguage(nextLanguage: SiteLanguage) {
     if (isPending || nextLanguage === activeLanguage) return;
-    setActiveLanguage(nextLanguage);
-    setStoredSiteLanguage(nextLanguage);
+
     startTransition(() => {
       router.replace(localizedTargets[nextLanguage], { scroll: false });
     });

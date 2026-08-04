@@ -1,0 +1,215 @@
+name: HAMZA AGENCY Full Project Closeout
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/hamza-closeout-*.yml"
+      - ".github/workflows/hamza-agency-full-project-closeout.yml"
+      - ".github/workflows/hamza-macro-runtime-suite.yml"
+      - "app/**"
+      - "components/**"
+      - "lib/**"
+      - "e2e/closeout/**"
+      - "scripts/closeout/**"
+      - "supabase/migrations/**"
+      - "tests/closeout-automation.test.mjs"
+      - "playwright.closeout.config.mjs"
+      - "package.json"
+      - "package-lock.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hamza-closeout-structure-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feat/pr101-complete-product-expansion'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Assert exact event Head
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='${{ github.event.pull_request.head.sha || github.sha }}'
+          test "$(git rev-parse HEAD)" = "$expected"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Validate closeout structure contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for suite in public translations tracking admin page-builder backup-restore trash notifications permissions security commerce tasks sla workflows; do
+            test -f "e2e/closeout/$suite.spec.mjs"
+          done
+          ! grep -R "test.skip" e2e/closeout
+          ! grep -R 'pr99-fixture\|/pr99-e2e' e2e/closeout/{tracking,page-builder,backup-restore,trash,notifications,admin}.spec.mjs
+          grep -q "core-runtime-fixtures.mjs setup" .github/workflows/hamza-macro-runtime-suite.yml
+          grep -q "20260803006000_pr105_commerce_lifecycle_hardening.sql" .github/workflows/hamza-macro-runtime-suite.yml
+          node - <<'NODE'
+          const fs=require('fs'); const suites=require('./e2e/closeout/suites.json');
+          for(const name of ['public','translations','tracking','admin','page-builder','backup-restore','trash','notifications','permissions','security','commerce','tasks','sla','workflows']){
+            if(suites[name]?.status!=='implemented') throw new Error(`${name}:not-implemented`);
+            if(!fs.existsSync(`e2e/closeout/${suites[name].spec}`)) throw new Error(`${name}:missing-spec`);
+          }
+          NODE
+      - name: Run closeout contract tests
+        run: node --test tests/closeout-automation.test.mjs
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit and integration tests
+        run: npm test
+      - name: Build
+        run: npm run build
+
+  exact-preview:
+    needs: validate
+    runs-on: ubuntu-latest
+    outputs:
+      preview_url: ${{ steps.preview.outputs.preview_url }}
+    steps:
+      - id: preview
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PREVIEW_URL: https://hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bypass_secret="${VERCEL_AUTOMATION_BYPASS_SECRET:-}"
+          test -n "$bypass_secret"
+          echo "::add-mask::$bypass_secret"
+          preview_host="$(node -e 'process.stdout.write(new URL(process.argv[1]).hostname)' "$PREVIEW_URL")"
+          test "$preview_host" = "hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app"
+          for attempt in {1..90}; do
+            actual="$(curl -fsS -H "x-vercel-protection-bypass: $bypass_secret" "$PREVIEW_URL/api/health" | node -e 'let x="";process.stdin.on("data",d=>x+=d).on("end",()=>{try{process.stdout.write(JSON.parse(x).commitSha||"")}catch{}})')" || true
+            if [ "$actual" = "$EXPECTED_SHA" ]; then
+              echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 10
+          done
+          exit 1
+
+  preview-public-evidence:
+    needs: exact-preview
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: preview-readonly, suite: public, target_url: "${{ needs.exact-preview.outputs.preview_url }}", preview_host: hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+    secrets: { vercel_automation_bypass_secret: "${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}" }
+  preview-translations-evidence:
+    needs: exact-preview
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: preview-readonly, suite: translations, target_url: "${{ needs.exact-preview.outputs.preview_url }}", preview_host: hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+    secrets: { vercel_automation_bypass_secret: "${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}" }
+  preview-security-evidence:
+    needs: exact-preview
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: preview-readonly, suite: security, target_url: "${{ needs.exact-preview.outputs.preview_url }}", preview_host: hamza-agency-git-feat-pr101-0c5675-hamzaagencysy-3009s-projects.vercel.app, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+    secrets: { vercel_automation_bypass_secret: "${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}" }
+
+  public-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: local-isolated, suite: public, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+  translations-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: local-isolated, suite: translations, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+  permissions-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: local-isolated, suite: permissions, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+  security-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-closeout-suite.yml
+    with: { execution_mode: local-isolated, suite: security, target_url: "https://127.0.0.1:3443", expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+
+  tracking-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: tracking, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+  admin-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: admin, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+  page-builder-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: page-builder, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+  backup-restore-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: backup-restore, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+  trash-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: trash, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+  notifications-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: notifications, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+  commerce-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: commerce, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+  tasks-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: tasks, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+  sla-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: sla, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+  workflows-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-macro-runtime-suite.yml
+    with: { suite: workflows, expected_sha: "${{ github.event.pull_request.head.sha || github.sha }}" }
+
+  aggregate:
+    if: always()
+    needs:
+      - validate
+      - exact-preview
+      - preview-public-evidence
+      - preview-translations-evidence
+      - preview-security-evidence
+      - public-evidence
+      - translations-evidence
+      - permissions-evidence
+      - security-evidence
+      - tracking-evidence
+      - admin-evidence
+      - page-builder-evidence
+      - backup-restore-evidence
+      - trash-evidence
+      - notifications-evidence
+      - commerce-evidence
+      - tasks-evidence
+      - sla-evidence
+      - workflows-evidence
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail closed on any missing or unsuccessful suite
+        env:
+          NEEDS_JSON: ${{ toJson(needs) }}
+        run: |
+          node - <<'NODE'
+          const needs=JSON.parse(process.env.NEEDS_JSON);
+          const failed=Object.entries(needs).filter(([,value])=>value.result!=='success');
+          if(failed.length) throw new Error(`Closeout failed: ${failed.map(([name,value])=>`${name}:${value.result}`).join(', ')}`);
+          NODE

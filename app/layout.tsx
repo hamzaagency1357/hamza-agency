@@ -6,12 +6,16 @@ import PublicMobileDock from "@/components/PublicMobileDock";
 import PublicDesktopEnhancer from "@/components/PublicDesktopEnhancer";
 import PublicHeaderDesktopClickGuard from "@/components/PublicHeaderDesktopClickGuard";
 import PublicGlobalHeader from "@/components/PublicGlobalHeader";
+import PublicFooterLinks from "@/components/PublicFooterLinks";
 import PublicSupportAvailability from "@/components/PublicSupportAvailability";
 import VisualBackgroundPresets from "@/components/VisualBackgroundPresets";
 import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
 import StructuredData from "@/components/StructuredData";
 import SiteLanguageDocumentSync from "@/components/SiteLanguageDocumentSync";
 import PublicSiteRuntimeTranslator from "@/components/PublicSiteRuntimeTranslator";
+import PwaRuntime from "@/components/PwaRuntime";
+import CookieConsent from "@/components/CookieConsent";
+import { getServerTenantRuntime } from "@/lib/productExpansion/serverTenantRuntime";
 import { SiteLanguageProvider } from "@/lib/i18n/useSiteLanguage";
 import {
   generatePublicMetadataForRequest,
@@ -39,12 +43,23 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const siteContext = await getRequestSiteContext();
+  const [siteContext, tenant] = await Promise.all([
+    getRequestSiteContext(),
+    getServerTenantRuntime(),
+  ]);
+  const tenantStyle = {
+    "--tenant-primary": tenant.branding.primary_color,
+    "--tenant-secondary": tenant.branding.secondary_color,
+    "--tenant-accent": tenant.branding.accent_color,
+  } as React.CSSProperties;
 
   return (
     <html
       lang={siteContext.language}
       dir={siteContext.direction}
+      data-tenant={tenant.slug}
+      data-tenant-id={tenant.id ?? "fallback"}
+      style={tenantStyle}
       suppressHydrationWarning
     >
       <body
@@ -60,13 +75,16 @@ export default async function RootLayout({
           <PublicDesktopEnhancer />
           <VisualBackgroundPresets />
           <PublicGlobalHeader />
+          <PwaRuntime />
           {children}
+          <PublicFooterLinks />
           <PublicSupportAvailability />
           <PublicHeaderDesktopClickGuard />
           <PublicMobileDock />
           <PublicAiSupport />
           <PublicQuickNav />
           <AdminQuickNav />
+          <CookieConsent />
         </SiteLanguageProvider>
       </body>
     </html>

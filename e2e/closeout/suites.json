@@ -1,0 +1,16 @@
+{
+  "public": { "mode": "preview-readonly", "status": "implemented", "spec": "public.spec.mjs" },
+  "translations": { "mode": "preview-readonly", "status": "implemented", "spec": "translations.spec.mjs" },
+  "tracking": { "mode": "local-isolated", "status": "implemented", "spec": "tracking.spec.mjs" },
+  "admin": { "mode": "local-isolated", "status": "implemented", "spec": "admin.spec.mjs" },
+  "page-builder": { "mode": "local-isolated", "status": "implemented", "spec": "page-builder.spec.mjs" },
+  "backup-restore": { "mode": "local-isolated", "status": "implemented", "spec": "backup-restore.spec.mjs" },
+  "trash": { "mode": "local-isolated", "status": "implemented", "spec": "trash.spec.mjs" },
+  "notifications": { "mode": "local-isolated", "status": "implemented", "spec": "notifications.spec.mjs" },
+  "permissions": { "mode": "local-isolated", "status": "implemented", "spec": "permissions.spec.mjs" },
+  "security": { "mode": "preview-readonly", "status": "implemented", "spec": "security.spec.mjs", "stateful_extension": "implemented" },
+  "commerce": { "mode": "local-isolated", "status": "implemented", "spec": "commerce.spec.mjs", "database": "current-state-snapshot" },
+  "tasks": { "mode": "local-isolated", "status": "implemented", "spec": "tasks.spec.mjs", "database": "current-state-snapshot" },
+  "sla": { "mode": "local-isolated", "status": "implemented", "spec": "sla.spec.mjs", "database": "current-state-snapshot" },
+  "workflows": { "mode": "local-isolated", "status": "implemented", "spec": "workflows.spec.mjs", "database": "current-state-snapshot" }
+}

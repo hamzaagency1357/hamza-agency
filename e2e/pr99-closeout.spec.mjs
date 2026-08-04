@@ -13,6 +13,8 @@ test("PR99 isolated authenticated operations closeout", async ({ page, request }
   await expect(page).toHaveURL(/\/admin\/login|\/admin$/);
 
   await page.goto("/pr99-e2e");
+  const necessaryOnly = page.getByTestId("cookie-necessary-only");
+  if (await necessaryOnly.isVisible()) await necessaryOnly.click();
   await page.getByTestId("token").fill(token);
   await page.getByTestId("login").click();
   await expect(page.getByTestId("state")).toContainText("admin_login");

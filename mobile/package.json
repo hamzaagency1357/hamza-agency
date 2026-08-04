@@ -1,0 +1,16 @@
+{
+  "name": "hamza-agency-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "engines": { "node": "24.x" },
+  "dependencies": {
+    "@capacitor/android": "7.4.3",
+    "@capacitor/cli": "7.4.3",
+    "@capacitor/core": "7.4.3"
+  },
+  "scripts": {
+    "native:add:android": "cap add android",
+    "native:sync": "cap sync android",
+    "native:configure": "node configure-native.mjs"
+  }
+}

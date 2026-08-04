@@ -1,0 +1,17 @@
+{
+  "formatVersion": 3,
+  "kind": "sanitized-current-state-schema",
+  "sourceSchemas": ["public", "private"],
+  "transport": {
+    "type": "direct-sql",
+    "path": "supabase/current-state-schema/current-state-schema.sql"
+  },
+  "plaintext": {
+    "encoding": "utf-8",
+    "bytes": 496138,
+    "sha256": "3b1890376e3cca966b1dce0979dd2ed089f95237e1067febf4f58e8f1bf776f2"
+  },
+  "containsData": false,
+  "containsSecrets": false,
+  "managedSchemasExcluded": ["auth", "storage", "realtime", "vault"]
+}

@@ -25,11 +25,7 @@ export type PublicNavigationConfig = {
   ctaLinks: PublicNavigationLink[];
 };
 
-type SettingRow = {
-  setting_key: string | null;
-  setting_value: string | null;
-};
-
+type SettingRow = { setting_key: string | null; setting_value: string | null };
 type UnknownRecord = Record<string, unknown>;
 
 const navigationSettingKeys = [
@@ -38,6 +34,15 @@ const navigationSettingKeys = [
   "public_quick_nav_groups_json",
   "public_cta_links_json",
 ] as const;
+
+const installLink: PublicNavigationLink = {
+  key: "install_app",
+  label: "تثبيت التطبيق",
+  href: "/install-app",
+  type: "utility",
+  isVisible: true,
+  sortOrder: 90,
+};
 
 const defaultHeaderLinks: PublicNavigationLink[] = [
   { label: "الرئيسية", href: "/", type: "internal", isVisible: true, sortOrder: 1 },
@@ -56,6 +61,7 @@ const defaultFooterLinks: PublicNavigationLink[] = [
   { label: "سياسة الخصوصية", href: "/privacy-policy", type: "legal", isVisible: true, sortOrder: 1 },
   { label: "الشروط والأحكام", href: "/terms-and-conditions", type: "legal", isVisible: true, sortOrder: 2 },
   { label: "سياسة الذكاء الاصطناعي", href: "/ai-policy", type: "legal", isVisible: true, sortOrder: 3 },
+  installLink,
 ];
 
 const defaultQuickNavGroups: PublicNavigationGroup[] = [
@@ -70,6 +76,7 @@ const defaultQuickNavGroups: PublicNavigationGroup[] = [
       { label: "الخدمات", href: "/services", type: "internal", isVisible: true, sortOrder: 4 },
       { label: "الخدمات الرقمية", href: "/digital-services", type: "internal", isVisible: true, sortOrder: 5 },
       { label: "تواصل معنا", href: "/contact", type: "internal", isVisible: true, sortOrder: 6 },
+      { ...installLink, sortOrder: 7 },
     ],
   },
   {
@@ -113,7 +120,7 @@ const defaultQuickNavGroups: PublicNavigationGroup[] = [
     title: "معلومات قانونية",
     isVisible: true,
     sortOrder: 5,
-    links: defaultFooterLinks,
+    links: defaultFooterLinks.filter((link) => link.type === "legal"),
   },
 ];
 
@@ -131,9 +138,7 @@ export const defaultPublicNavigationConfig: PublicNavigationConfig = {
 };
 
 export async function getPublicNavigationConfig(): Promise<PublicNavigationConfig> {
-  if (!isSupabaseConfigured || !supabase) {
-    return defaultPublicNavigationConfig;
-  }
+  if (!isSupabaseConfigured || !supabase) return defaultPublicNavigationConfig;
 
   const { data, error } = await supabase
     .from("settings")
@@ -141,118 +146,103 @@ export async function getPublicNavigationConfig(): Promise<PublicNavigationConfi
     .in("setting_key", [...navigationSettingKeys])
     .eq("is_public", true);
 
-  if (error || !data) {
-    return defaultPublicNavigationConfig;
-  }
-
+  if (error || !data) return defaultPublicNavigationConfig;
   const settings = buildSettingsMap(data as SettingRow[]);
-
-  return {
+  return ensureRequiredNavigation({
     headerLinks: readLinksSetting(settings, "public_header_links_json", defaultHeaderLinks),
     footerLinks: readLinksSetting(settings, "public_footer_links_json", defaultFooterLinks),
     quickNavGroups: readGroupsSetting(settings, "public_quick_nav_groups_json", defaultQuickNavGroups),
     ctaLinks: readLinksSetting(settings, "public_cta_links_json", defaultCtaLinks),
-  };
+  });
 }
 
 export function normalizePublicNavigationConfig(input: Partial<PublicNavigationConfig> | null | undefined): PublicNavigationConfig {
-  return {
+  return ensureRequiredNavigation({
     headerLinks: sanitizeLinks(input?.headerLinks, defaultHeaderLinks),
     footerLinks: sanitizeLinks(input?.footerLinks, defaultFooterLinks),
     quickNavGroups: sanitizeGroups(input?.quickNavGroups, defaultQuickNavGroups),
     ctaLinks: sanitizeLinks(input?.ctaLinks, defaultCtaLinks),
-  };
+  });
 }
 
 export function getCtaLink(config: PublicNavigationConfig, key: string, fallback: PublicNavigationLink) {
   return config.ctaLinks.find((link) => link.key === key && link.isVisible !== false) || fallback;
 }
 
+function ensureRequiredNavigation(config: PublicNavigationConfig): PublicNavigationConfig {
+  const footerLinks = ensureLink(config.footerLinks, installLink);
+  const quickNavGroups = config.quickNavGroups.map((group) => ({ ...group, links: [...group.links] }));
+  const alreadyInQuickNav = quickNavGroups.some((group) => group.links.some((link) => normalizeHref(link.href) === installLink.href));
+  if (!alreadyInQuickNav) {
+    if (quickNavGroups.length === 0) quickNavGroups.push({ title: "أساسيات الوكالة", isVisible: true, sortOrder: 1, links: [installLink] });
+    else quickNavGroups[0] = { ...quickNavGroups[0], links: ensureLink(quickNavGroups[0].links, { ...installLink, sortOrder: 999 }) };
+  }
+  return { ...config, footerLinks, quickNavGroups };
+}
+
+function ensureLink(links: PublicNavigationLink[], required: PublicNavigationLink) {
+  return links.some((link) => normalizeHref(link.href) === normalizeHref(required.href)) ? links : [...links, required].sort(sortByOrderThenLabel);
+}
+
 function buildSettingsMap(rows: SettingRow[]) {
   return rows.reduce<Record<string, string>>((map, row) => {
     const key = row.setting_key?.trim();
-    if (!key) return map;
-    map[key] = row.setting_value || "";
+    if (key) map[key] = row.setting_value || "";
     return map;
   }, {});
 }
 
 function readLinksSetting(settings: Record<string, string>, key: string, fallback: PublicNavigationLink[]) {
-  const parsed = parseJson(settings[key]);
-  return sanitizeLinks(parsed, fallback);
+  return sanitizeLinks(parseJson(settings[key]), fallback);
 }
 
 function readGroupsSetting(settings: Record<string, string>, key: string, fallback: PublicNavigationGroup[]) {
-  const parsed = parseJson(settings[key]);
-  return sanitizeGroups(parsed, fallback);
+  return sanitizeGroups(parseJson(settings[key]), fallback);
 }
 
 function parseJson(value: string | undefined): unknown {
   if (!value?.trim()) return null;
-
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(value); } catch { return null; }
 }
 
 function sanitizeGroups(value: unknown, fallback: PublicNavigationGroup[]) {
   if (!Array.isArray(value)) return fallback;
-
   const groups = value
     .map((item, index) => sanitizeGroup(item, index))
     .filter((group): group is PublicNavigationGroup => Boolean(group))
     .filter((group) => group.isVisible !== false && group.links.length > 0)
     .sort(sortByOrderThenTitle);
-
   return groups.length ? groups : fallback;
 }
 
 function sanitizeGroup(value: unknown, index: number): PublicNavigationGroup | null {
   if (!isRecord(value)) return null;
-
   const title = toSafeText(value.title);
-  if (!title) return null;
-
   const links = sanitizeLinks(value.links, []);
-  if (!links.length) return null;
-
-  return {
-    title,
-    isVisible: value.isVisible !== false,
-    sortOrder: toSafeNumber(value.sortOrder, index + 1),
-    links,
-  };
+  if (!title || !links.length) return null;
+  return { title, isVisible: value.isVisible !== false, sortOrder: toSafeNumber(value.sortOrder, index + 1), links };
 }
 
 function sanitizeLinks(value: unknown, fallback: PublicNavigationLink[]) {
   if (!Array.isArray(value)) return fallback;
-
   const links = value
     .map((item, index) => sanitizeLink(item, index))
     .filter((link): link is PublicNavigationLink => Boolean(link))
     .filter((link) => link.isVisible !== false)
     .sort(sortByOrderThenLabel);
-
   return links.length ? links : fallback;
 }
 
 function sanitizeLink(value: unknown, index: number): PublicNavigationLink | null {
   if (!isRecord(value)) return null;
-
   const label = toSafeText(value.label);
   const href = normalizeHref(toSafeText(value.href));
-
   if (!label || !href) return null;
-
   const target = normalizeTarget(value.target);
-  const type = toSafeText(value.type) || (href.startsWith("http") ? "external" : "internal");
-
   return {
     label,
     href,
-    type,
+    type: toSafeText(value.type) || (href.startsWith("http") ? "external" : "internal"),
     isVisible: value.isVisible !== false,
     sortOrder: toSafeNumber(value.sortOrder, index + 1),
     target,
@@ -264,18 +254,13 @@ function sanitizeLink(value: unknown, index: number): PublicNavigationLink | nul
 function normalizeHref(value: string) {
   const href = value.trim();
   if (!href) return "";
-
   if (href.startsWith("/") || href.startsWith("#")) return href;
-  if (href.startsWith("https://") || href.startsWith("http://") || href.startsWith("mailto:") || href.startsWith("tel:")) {
-    return href;
-  }
-
+  if (href.startsWith("https://") || href.startsWith("http://") || href.startsWith("mailto:") || href.startsWith("tel:")) return href;
   return "";
 }
 
 function normalizeTarget(value: unknown): "_self" | "_blank" | undefined {
-  if (value === "_blank") return "_blank";
-  if (value === "_self") return "_self";
+  if (value === "_blank" || value === "_self") return value;
   return undefined;
 }
 
@@ -291,10 +276,7 @@ function isRecord(value: unknown): value is UnknownRecord {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function toSafeText(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
+function toSafeText(value: unknown) { return typeof value === "string" ? value.trim() : ""; }
 function toSafeNumber(value: unknown, fallback: number) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
