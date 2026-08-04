@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { assertExactPreviewUrl, isTrustedVercelDeployment } from "../scripts/closeout/discover-vercel-preview.mjs";
+import {
+  assertExactPreviewUrl,
+  isTrustedVercelDeployment,
+  selectPreviewCandidate,
+} from "../scripts/closeout/discover-vercel-preview.mjs";
 
 const migrationPath = "supabase/migrations/20260804090000_pr1_production_hardening_closeout.sql";
 const healthPath = "app/api/product-expansion/health/route.ts";
@@ -91,20 +95,33 @@ test("full closeout is branch-agnostic, exact-head, trusted, and fail-closed", a
   assert.match(runtimeWorkflow, /pr1-runtime-verify\.mjs/);
 });
 
-test("Preview discovery accepts only exact-SHA transient Vercel deployments", () => {
+test("Preview discovery accepts exact-head non-Production Vercel deployments without relying on transient_environment", () => {
   const sha = "a".repeat(40);
   const trusted = {
+    id: 107,
     sha,
+    environment: "Preview",
     production_environment: false,
-    transient_environment: true,
+    transient_environment: false,
     performed_via_github_app: { slug: "vercel" },
   };
   assert.equal(isTrustedVercelDeployment(trusted, sha), true);
   assert.equal(isTrustedVercelDeployment({ ...trusted, sha: "b".repeat(40) }, sha), false);
+  assert.equal(isTrustedVercelDeployment({ ...trusted, environment: "Production" }, sha), false);
   assert.equal(isTrustedVercelDeployment({ ...trusted, production_environment: true }, sha), false);
   assert.equal(isTrustedVercelDeployment({ ...trusted, performed_via_github_app: { slug: "other" } }, sha), false);
+
+  const selected = selectPreviewCandidate([{
+    deployment: trusted,
+    statuses: [{
+      id: 1,
+      state: "success",
+      updated_at: "2026-08-04T10:00:00Z",
+      environment_url: "https://hamza-agency-abc123.vercel.app/path?x=1",
+    }],
+  }], sha);
   assert.deepEqual(
-    assertExactPreviewUrl("https://hamza-agency-abc123.vercel.app/path?x=1"),
+    { url: selected.url, host: selected.host },
     { url: "https://hamza-agency-abc123.vercel.app", host: "hamza-agency-abc123.vercel.app" }
   );
   assert.throws(() => assertExactPreviewUrl("https://hamza-agency.com"), /Vercel deployment host|Production host/);

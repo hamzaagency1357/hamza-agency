@@ -1,23 +1,37 @@
 import assert from "node:assert/strict";
-import { createHmac } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { execFileSync } from "node:child_process";
 
-const required = ["DB_URL", "API_URL", "ANON_KEY", "SERVICE_ROLE_KEY", "JWT_SECRET"];
-for (const key of required) assert.ok(process.env[key], `${key} is required`);
+const REQUIRED_ENV_NAMES = ["DB_URL", "API_URL", "ANON_KEY", "SERVICE_ROLE_KEY", "JWT_SECRET"];
+assert.equal(REQUIRED_ENV_NAMES[3], "SERVICE_ROLE_KEY");
+assert.ok(REQUIRED_ENV_NAMES.every((name) => !name.startsWith("NEXT_PUBLIC_")), "runtime credentials must be server-only");
+for (const name of REQUIRED_ENV_NAMES) assert.ok(process.env[name], `${name} is required`);
 
-const DB_URL = process.env.DB_URL;
-const API_URL = process.env.API_URL.replace(/\/+$/, "");
-const ANON_KEY = process.env.ANON_KEY;
-const SERVICE_ROLE_KEY = process.env.SERVICE_ROLE_KEY;
-const JWT_SECRET = process.env.JWT_SECRET;
+const runtime = Object.freeze({
+  dbUrl: process.env[REQUIRED_ENV_NAMES[0]],
+  apiUrl: process.env[REQUIRED_ENV_NAMES[1]].replace(/\/+$/, ""),
+  anonymousCredential: process.env[REQUIRED_ENV_NAMES[2]],
+  serviceCredential: process.env[REQUIRED_ENV_NAMES[3]],
+  jwtSecret: process.env[REQUIRED_ENV_NAMES[4]],
+});
+assert.ok(runtime.serviceCredential, "isolated service credential is required");
+
 const TENANT_ID = "00000000-0000-4000-8000-000000000107";
+const AUTH_USER_ID = "00000000-0000-4000-8000-000000000108";
 const GATEWAY_SIGNATURE =
   "public.pr101_oidc_gateway(text,bigint,text,text,text,text,text,text,text,text,text,text,bigint,bigint)";
+const WRITE_SENSITIVE_TABLES = [
+  "activity_logs",
+  "consent_records",
+  "payment_webhook_events",
+  "provider_health_checks",
+  "provider_message_events",
+];
 
 function psql(sql) {
   return execFileSync(
     "psql",
-    [DB_URL, "--no-psqlrc", "-X", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-c", sql],
+    [runtime.dbUrl, "--no-psqlrc", "-X", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-c", sql],
     { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
   ).trim();
 }
@@ -45,15 +59,15 @@ function authenticatedJwt() {
     iat: now,
     iss: "supabase-local",
     role: "authenticated",
-    sub: "00000000-0000-4000-8000-000000000108",
+    sub: AUTH_USER_ID,
   }));
   const signingInput = `${header}.${payload}`;
-  const signature = createHmac("sha256", JWT_SECRET).update(signingInput).digest("base64url");
+  const signature = createHmac("sha256", runtime.jwtSecret).update(signingInput).digest("base64url");
   return `${signingInput}.${signature}`;
 }
 
 async function dataApi(path, { key, bearer = key, method = "GET", body } = {}) {
-  return fetch(`${API_URL}${path}`, {
+  return fetch(`${runtime.apiUrl}${path}`, {
     method,
     headers: {
       apikey: key,
@@ -69,25 +83,49 @@ async function dataApi(path, { key, bearer = key, method = "GET", body } = {}) {
 
 async function responseJson(response) {
   const text = await response.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(text); } catch { return null; }
 }
 
-function forceStats() {
-  psql("select pg_stat_force_next_flush();");
-  return psql(
-    "select coalesce(sum(n_tup_ins+n_tup_upd+n_tup_del),0)::text from pg_stat_user_tables where schemaname='public';"
-  );
+function listBusinessTables() {
+  const rows = psql(`
+    select quote_ident(n.nspname)||'.'||quote_ident(c.relname)
+    from pg_class c
+    join pg_namespace n on n.oid=c.relnamespace
+    where n.nspname in ('public','private') and c.relkind in ('r','p')
+    order by n.nspname,c.relname;
+  `);
+  return rows ? rows.split("\n") : [];
+}
+
+function countRows(tableName) {
+  return psql(`select count(*)::text from ${tableName};`);
+}
+
+function allTableCountFingerprint() {
+  const material = listBusinessTables().map((tableName) => `${tableName}:${countRows(tableName)}`).join("\n");
+  return createHash("sha256").update(material).digest("hex");
+}
+
+function tableContentFingerprint(tableName) {
+  return psql(`
+    select md5(coalesce(string_agg(row_value,'|' order by row_value),''))
+    from (select row_to_json(t)::text as row_value from public.${tableName} t) rows;
+  `);
+}
+
+function writeSensitiveFingerprint() {
+  const material = WRITE_SENSITIVE_TABLES
+    .map((tableName) => `${tableName}:${countRows(`public.${tableName}`)}:${tableContentFingerprint(tableName)}`)
+    .join("\n");
+  return createHash("sha256").update(material).digest("hex");
 }
 
 const fixtureSql = `
   delete from public.sections where tenant_id='${TENANT_ID}'::uuid;
+  delete from public.activity_logs where tenant_id='${TENANT_ID}'::uuid;
   delete from public.tenants where id='${TENANT_ID}'::uuid;
   insert into public.tenants(id,slug,name,status,is_primary)
-  values('${TENANT_ID}'::uuid,'pr1-runtime','PR 1 Runtime','active',false);
+  values('${TENANT_ID}'::uuid,'pr1-runtime','PR 1 Runtime','active',true);
   insert into public.sections(
     tenant_id,section_key,page_slug,language,content,is_visible,is_published,publishing_status,
     scheduled_publish_at,scheduled_unpublish_at
@@ -123,6 +161,16 @@ try {
   assert.match(policy, /scheduled_unpublish_at/);
   assert.doesNotMatch(policy, /current_user_is_admin|current_admin_is_super_admin/);
 
+  const managementPolicies = Number(psql(`
+    select count(*)
+    from pg_policy
+    where polrelid='public.sections'::regclass
+      and polroles @> array[(select oid from pg_roles where rolname='authenticated')]
+      and polname <> 'public reads published visible sections'
+      and (polcmd in ('a','w','d') or polcmd='*');
+  `));
+  assert.ok(managementPolicies >= 3, "section administration policies must remain separate from public reads");
+
   const metadata = psql(`
     select p.provolatile||':'||p.prosecdef::text
     from pg_proc p
@@ -143,7 +191,7 @@ try {
 
   const sectionResponse = await dataApi(
     `/rest/v1/sections?select=section_key&tenant_id=eq.${TENANT_ID}&order=section_key.asc`,
-    { key: ANON_KEY }
+    { key: runtime.anonymousCredential }
   );
   assert.equal(sectionResponse.status, 200);
   assert.deepEqual(await responseJson(sectionResponse), [{ section_key: "pr1-published" }]);
@@ -151,25 +199,35 @@ try {
   const authenticatedToken = authenticatedJwt();
   const authenticatedSections = await dataApi(
     `/rest/v1/sections?select=section_key&tenant_id=eq.${TENANT_ID}&order=section_key.asc`,
-    { key: ANON_KEY, bearer: authenticatedToken }
+    { key: runtime.anonymousCredential, bearer: authenticatedToken }
   );
   assert.equal(authenticatedSections.status, 200);
   assert.deepEqual(await responseJson(authenticatedSections), [{ section_key: "pr1-published" }]);
 
-  const anonProbe = await dataApi("/rest/v1/rpc/pr101_oidc_health_probe", {
-    key: ANON_KEY,
-    method: "POST",
-    body: {},
-  });
-  assert.ok(!anonProbe.ok, "anon must not execute the OIDC health probe through Data API");
-
-  const authenticatedProbe = await dataApi("/rest/v1/rpc/pr101_oidc_health_probe", {
-    key: ANON_KEY,
+  const unauthorizedInsert = await dataApi("/rest/v1/sections", {
+    key: runtime.anonymousCredential,
     bearer: authenticatedToken,
     method: "POST",
-    body: {},
+    body: {
+      tenant_id: TENANT_ID,
+      section_key: "pr1-forbidden",
+      page_slug: "pr1-runtime",
+      language: "ar",
+      content: {},
+      is_visible: true,
+      is_published: true,
+      publishing_status: "published",
+    },
   });
-  assert.ok(!authenticatedProbe.ok, "authenticated must not execute the OIDC health probe through Data API");
+  assert.ok(!unauthorizedInsert.ok, "authenticated without admin membership must not manage sections");
+
+  for (const [path, bearer] of [
+    ["/rest/v1/rpc/pr101_oidc_health_probe", runtime.anonymousCredential],
+    ["/rest/v1/rpc/pr101_oidc_health_probe", authenticatedToken],
+  ]) {
+    const denied = await dataApi(path, { key: runtime.anonymousCredential, bearer, method: "POST", body: {} });
+    assert.ok(!denied.ok, "public roles must not execute the OIDC health probe through Data API");
+  }
 
   const gatewayBody = {
     p_action: "consent_record",
@@ -187,47 +245,48 @@ try {
     p_oidc_issued_at: Math.floor(Date.now() / 1000),
     p_oidc_expires_at: Math.floor(Date.now() / 1000) + 60,
   };
-  const anonGateway = await dataApi("/rest/v1/rpc/pr101_oidc_gateway", {
-    key: ANON_KEY,
-    method: "POST",
-    body: gatewayBody,
-  });
-  assert.ok(!anonGateway.ok, "anon must not execute the OIDC gateway through Data API");
-  const authenticatedGateway = await dataApi("/rest/v1/rpc/pr101_oidc_gateway", {
-    key: ANON_KEY,
-    bearer: authenticatedToken,
-    method: "POST",
-    body: gatewayBody,
-  });
-  assert.ok(!authenticatedGateway.ok, "authenticated must not execute the OIDC gateway through Data API");
+  for (const bearer of [runtime.anonymousCredential, authenticatedToken]) {
+    const denied = await dataApi("/rest/v1/rpc/pr101_oidc_gateway", {
+      key: runtime.anonymousCredential,
+      bearer,
+      method: "POST",
+      body: gatewayBody,
+    });
+    assert.ok(!denied.ok, "public roles must not execute the OIDC gateway through Data API");
+  }
 
   const readOnlyProbe = psql("begin read only; set local role service_role; select public.pr101_oidc_health_probe(); rollback;");
   assert.match(readOnlyProbe, /healthy/);
 
-  forceStats();
-  const mutationCountBefore = forceStats();
+  const tableCountsBefore = allTableCountFingerprint();
+  const sensitiveBefore = writeSensitiveFingerprint();
   const serviceProbe = await dataApi("/rest/v1/rpc/pr101_oidc_health_probe", {
-    key: SERVICE_ROLE_KEY,
+    key: runtime.serviceCredential,
     method: "POST",
     body: {},
   });
   assert.equal(serviceProbe.status, 200);
   const probePayload = await responseJson(serviceProbe);
   assert.deepEqual(probePayload, { ok: true, status: "healthy" });
-  assert.doesNotMatch(JSON.stringify(probePayload), /service_role|authenticated|anon|acl|grant/i);
-  const mutationCountAfter = forceStats();
-  assert.equal(mutationCountAfter, mutationCountBefore, "health probe must not mutate public data");
+  assert.doesNotMatch(JSON.stringify(probePayload), /service_role|authenticated|anon|acl|grant|secret/i);
+  const tableCountsAfter = allTableCountFingerprint();
+  const sensitiveAfter = writeSensitiveFingerprint();
+  assert.equal(tableCountsAfter, tableCountsBefore, "health probe must not alter any business-table row count");
+  assert.equal(sensitiveAfter, sensitiveBefore, "health probe must not alter gateway-write or audit table contents");
 
   console.log(JSON.stringify({
     schema: "snapshot_plus_six_migrations_plus_pr1",
+    tenantFixture: "primary_contract",
     oidcProbe: "healthy_as_service_role",
     oidcPublicExecution: "denied",
     sectionsRls: "published_only",
+    unauthorizedManagement: "denied",
     healthProbeWrites: 0,
   }));
 } finally {
   psql(`
     delete from public.sections where tenant_id='${TENANT_ID}'::uuid;
+    delete from public.activity_logs where tenant_id='${TENANT_ID}'::uuid;
     delete from public.tenants where id='${TENANT_ID}'::uuid;
   `);
 }
