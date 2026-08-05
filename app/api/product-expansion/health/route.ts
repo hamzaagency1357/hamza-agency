@@ -18,20 +18,36 @@ type ProviderStatus = "healthy" | "degraded" | "unavailable" | "disabled";
 async function databaseHealth() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return { status: "unavailable" as const, latencyMs: null, reason: "unconfigured" };
+  if (!url || !key) return { status: "disabled" as const, latencyMs: null, reason: "unconfigured" };
+
   const started = Date.now();
   try {
-    const response = await fetch(`${url}/rest/v1/`, {
-      method: "HEAD",
+    const response = await fetch(`${url}/rest/v1/marketplace_categories?select=id&limit=1`, {
+      method: "GET",
       cache: "no-store",
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Accept: "application/json",
+      },
       signal: AbortSignal.timeout(2_500),
     });
-    return response.ok || response.status === 404
-      ? { status: "healthy" as const, latencyMs: Date.now() - started }
-      : { status: "degraded" as const, latencyMs: Date.now() - started, reason: "data_api_rejected" };
+
+    if (response.ok) {
+      return { status: "healthy" as const, latencyMs: Date.now() - started, reason: "data_api_ok" };
+    }
+    if (response.status === 401 || response.status === 403) {
+      return { status: "degraded" as const, latencyMs: Date.now() - started, reason: "data_api_auth_rejected" };
+    }
+    if (response.status === 404) {
+      return { status: "degraded" as const, latencyMs: Date.now() - started, reason: "data_api_route_rejected" };
+    }
+    if (response.status >= 500) {
+      return { status: "unavailable" as const, latencyMs: Date.now() - started, reason: "data_api_unavailable" };
+    }
+    return { status: "degraded" as const, latencyMs: Date.now() - started, reason: "data_api_rejected" };
   } catch {
-    return { status: "unavailable" as const, latencyMs: Date.now() - started, reason: "connection_failed" };
+    return { status: "unavailable" as const, latencyMs: Date.now() - started, reason: "data_api_unavailable" };
   }
 }
 
