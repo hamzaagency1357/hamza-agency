@@ -145,12 +145,67 @@ test("rejects pending or failed Vercel statuses and non-Vercel contexts", () => 
   assert.equal(selectStatusCommentCandidate([commitStatus({ context: "Other CI" })], [vercelComment()]), null);
 });
 
-test("rejects Production and non-vercel.app Preview links", () => {
-  const production = vercelComment({ body: vercelComment().body.replace(PREVIEW, "https://hamza-agency.com") });
-  assert.equal(selectStatusCommentCandidate([commitStatus()], [production]), null);
-  const outside = vercelComment({ body: vercelComment().body.replace(PREVIEW, "https://preview.example.com") });
-  assert.equal(selectStatusCommentCandidate([commitStatus()], [outside]), null);
-  assert.throws(() => assertExactPreviewUrl("https://hamza-agency.com"), /preview_host_rejected/);
+test("accepts only a valid HTTPS vercel.app Preview candidate", () => {
+  assert.deepEqual(assertExactPreviewUrl(`${PREVIEW}/path?x=1#fragment`), {
+    url: PREVIEW,
+    host: new URL(PREVIEW).hostname,
+  });
+  assert.equal(selectStatusCommentCandidate([commitStatus()], [vercelComment()]).url, PREVIEW);
+});
+
+test("rejects Production, external, and HTTP links explicitly labeled as Preview", () => {
+  for (const rejected of [
+    "https://hamza-agency.com",
+    "https://preview.example.com",
+    "http://preview.vercel.app",
+  ]) {
+    const comment = vercelComment({ body: vercelComment().body.replace(PREVIEW, rejected) });
+    assert.throws(
+      () => selectStatusCommentCandidate([commitStatus()], [comment]),
+      /preview_host_rejected/
+    );
+    assert.throws(() => assertExactPreviewUrl(rejected), /preview_host_rejected/);
+  }
+});
+
+test("returns preview_url_missing when a matching Inspector has no Preview link", () => {
+  const withoutPreview = vercelComment({
+    body: `[vc]: ignored\n[Ready](${INSPECTOR})`,
+  });
+  assert.throws(
+    () => selectStatusCommentCandidate([commitStatus()], [withoutPreview]),
+    /preview_url_missing/
+  );
+});
+
+test("does not treat a side external link as a Preview candidate", () => {
+  const sideLinkOnly = vercelComment({
+    body: `[Ready](${INSPECTOR})\n[Documentation](https://preview.example.com)`,
+  });
+  assert.throws(
+    () => selectStatusCommentCandidate([commitStatus()], [sideLinkOnly]),
+    /preview_url_missing/
+  );
+});
+
+test("keeps Inspector evidence separate from Preview host validation", () => {
+  assert.equal(normalizeInspectorUrl(INSPECTOR), INSPECTOR);
+  const inspectorOnly = vercelComment({ body: `[Ready](${INSPECTOR})` });
+  assert.equal(isTrustedVercelComment(inspectorOnly, INSPECTOR), true);
+  assert.throws(
+    () => selectStatusCommentCandidate([commitStatus()], [inspectorOnly]),
+    /preview_url_missing/
+  );
+});
+
+test("never decodes or trusts the opaque vc payload as Preview evidence", () => {
+  const opaqueOnly = vercelComment({
+    body: `[vc]: [Preview](https://preview.example.com)\n[Ready](${INSPECTOR})`,
+  });
+  assert.throws(
+    () => selectStatusCommentCandidate([commitStatus()], [opaqueOnly]),
+    /preview_url_missing/
+  );
 });
 
 test("rejects conflicting Preview URLs for one exact Inspector", () => {

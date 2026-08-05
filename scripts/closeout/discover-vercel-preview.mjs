@@ -139,13 +139,26 @@ export function selectPreviewCandidate(records, expectedSha) {
   return candidates[0] || null;
 }
 
-function visibleMarkdownLinks(body) {
+function visibleMarkdownLinkEntries(body) {
   if (typeof body !== "string") return [];
   const visible = body
     .split(/\r?\n/)
     .filter((line) => !line.trimStart().startsWith("[vc]:"))
     .join("\n");
-  return [...visible.matchAll(/(?<!!)\[[^\]]*\]\((https:\/\/[^)\s]+)\)/g)].map((match) => match[1]);
+  return [...visible.matchAll(/(?<!!)\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/g)].map((match) => ({
+    label: match[1].trim(),
+    url: match[2],
+  }));
+}
+
+function visibleMarkdownLinks(body) {
+  return visibleMarkdownLinkEntries(body).map((entry) => entry.url);
+}
+
+function previewMarkdownLinks(body) {
+  return visibleMarkdownLinkEntries(body)
+    .filter((entry) => /^preview(?:\s+\d+)?$/i.test(entry.label))
+    .map((entry) => entry.url);
 }
 
 function hasTrustedVercelAuthor(comment) {
@@ -180,19 +193,12 @@ export function selectStatusCommentCandidate(statuses, comments) {
 
   const candidates = [];
   let inspectorMatched = false;
-  let rejectedPreviewHost = false;
   for (const comment of comments || []) {
     if (!hasTrustedVercelAuthor(comment)) continue;
     if (!isTrustedVercelComment(comment, inspectorUrl)) continue;
     inspectorMatched = true;
-    for (const link of visibleMarkdownLinks(comment.body)) {
-      let preview;
-      try {
-        preview = assertExactPreviewUrl(link);
-      } catch {
-        if (/\.vercel\.app|hamza-agency\.com/i.test(link)) rejectedPreviewHost = true;
-        continue;
-      }
+    for (const link of previewMarkdownLinks(comment.body)) {
+      const preview = assertExactPreviewUrl(link);
       candidates.push({
         ...preview,
         source: "vercel-status-comment",
@@ -208,7 +214,6 @@ export function selectStatusCommentCandidate(statuses, comments) {
   const distinct = new Map(candidates.map((candidate) => [candidate.url, candidate]));
   if (distinct.size > 1) throw new Error("ambiguous_candidates");
   const candidate = distinct.values().next().value || null;
-  if (!candidate && rejectedPreviewHost) throw new Error("preview_host_rejected");
   if (!candidate && inspectorMatched) throw new Error("preview_url_missing");
   return candidate;
 }

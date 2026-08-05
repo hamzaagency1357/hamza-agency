@@ -124,6 +124,6 @@ test("Preview discovery accepts exact-head non-Production Vercel deployments wit
     { url: selected.url, host: selected.host },
     { url: "https://hamza-agency-abc123.vercel.app", host: "hamza-agency-abc123.vercel.app" }
   );
-  assert.throws(() => assertExactPreviewUrl("https://hamza-agency.com"), /Vercel deployment host|Production host/);
-  assert.throws(() => assertExactPreviewUrl("http://preview.vercel.app"), /HTTPS/);
+  assert.throws(() => assertExactPreviewUrl("https://hamza-agency.com"), /preview_host_rejected/);
+  assert.throws(() => assertExactPreviewUrl("http://preview.vercel.app"), /preview_host_rejected/);
 });
