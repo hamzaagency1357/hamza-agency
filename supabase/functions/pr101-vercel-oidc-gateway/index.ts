@@ -12,6 +12,7 @@ const ALLOWED_ACTIONS = new Set([
   "payment_webhook_record",
   "provider_event_enqueue",
   "provider_health_record",
+  "health_probe",
 ]);
 const JWKS = createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks`));
 const encoder = new TextEncoder();
@@ -22,18 +23,48 @@ function json(status: number, body: Record<string, unknown>) {
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 }
-
 function claim(payload: JWTPayload, name: string) {
   const value = payload[name];
   return typeof value === "string" ? value : "";
 }
-
 function hex(bytes: ArrayBuffer) {
   return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
-
 async function sha256(value: string) {
   return hex(await crypto.subtle.digest("SHA-256", encoder.encode(value)));
+}
+function classifyDatabaseError(status: number, raw: string) {
+  let postgresCode = "";
+  try {
+    const parsed = JSON.parse(raw) as { code?: unknown };
+    postgresCode = typeof parsed.code === "string" ? parsed.code : "";
+  } catch {}
+  if (status === 401) return "database_authentication_failed";
+  if (status === 404 || postgresCode === "PGRST202" || postgresCode === "42883") return "database_function_missing";
+  if (status === 403 || postgresCode === "42501") return "database_permission_rejected";
+  if (status >= 500) return "database_unavailable";
+  return "database_contract_rejected";
+}
+
+function sanitizeHealthProbe(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { ok: false, status: "degraded", reason: "database_contract_rejected" };
+  }
+  const result = value as { ok?: unknown; status?: unknown; reason?: unknown };
+  if (result.ok === true && result.status === "healthy") return { ok: true, status: "healthy" };
+  const internalReason = typeof result.reason === "string" ? result.reason : "";
+  if (internalReason === "gateway_missing") {
+    return { ok: false, status: "degraded", reason: "database_function_missing" };
+  }
+  if ([
+    "executor_not_authorized",
+    "service_role_execute_missing",
+    "public_execute_exposed",
+    "probe_execute_contract_invalid",
+  ].includes(internalReason)) {
+    return { ok: false, status: "degraded", reason: "database_permission_rejected" };
+  }
+  return { ok: false, status: "degraded", reason: "database_contract_rejected" };
 }
 
 Deno.serve(async (request: Request) => {
@@ -95,35 +126,45 @@ Deno.serve(async (request: Request) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceRoleKey) return json(503, { allowed: false, code: "gateway_unavailable" });
 
-  const rpcResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/pr101_oidc_gateway`, {
-    method: "POST",
-    headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      p_action: action,
-      p_timestamp: timestamp,
-      p_nonce: nonce,
-      p_body: body,
-      p_body_digest: bodyDigest,
-      p_oidc_issuer: payload.iss,
-      p_oidc_subject: payload.sub,
-      p_oidc_audience: AUDIENCE,
-      p_oidc_team_id: claim(payload, "owner_id"),
-      p_oidc_project_id: claim(payload, "project_id"),
-      p_oidc_project: claim(payload, "project"),
-      p_oidc_environment: environment,
-      p_oidc_issued_at: payload.iat,
-      p_oidc_expires_at: payload.exp,
-    }),
-  });
-  const text = await rpcResponse.text();
-  if (!rpcResponse.ok) return json(502, { allowed: false, code: "database_gateway_rejected" });
+  const rpcName = action === "health_probe" ? "pr101_oidc_health_probe" : "pr101_oidc_gateway";
+  const rpcBody = action === "health_probe" ? {} : {
+    p_action: action,
+    p_timestamp: timestamp,
+    p_nonce: nonce,
+    p_body: body,
+    p_body_digest: bodyDigest,
+    p_oidc_issuer: payload.iss,
+    p_oidc_subject: payload.sub,
+    p_oidc_audience: AUDIENCE,
+    p_oidc_team_id: claim(payload, "owner_id"),
+    p_oidc_project_id: claim(payload, "project_id"),
+    p_oidc_project: claim(payload, "project"),
+    p_oidc_environment: environment,
+    p_oidc_issued_at: payload.iat,
+    p_oidc_expires_at: payload.exp,
+  };
+
+  let rpcResponse: Response;
   try {
-    return json(200, JSON.parse(text) as Record<string, unknown>);
+    rpcResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/${rpcName}`, {
+      method: "POST",
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(rpcBody),
+      signal: AbortSignal.timeout(5_000),
+    });
   } catch {
-    return json(502, { allowed: false, code: "invalid_database_response" });
+    return json(502, { allowed: false, code: "database_unavailable" });
+  }
+  const text = await rpcResponse.text();
+  if (!rpcResponse.ok) return json(502, { allowed: false, code: classifyDatabaseError(rpcResponse.status, text) });
+  try {
+    const result = JSON.parse(text) as Record<string, unknown>;
+    return json(200, action === "health_probe" ? sanitizeHealthProbe(result) : result);
+  } catch {
+    return json(502, { allowed: false, code: "database_contract_rejected" });
   }
 });

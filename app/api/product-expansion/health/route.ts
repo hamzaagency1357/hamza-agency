@@ -3,36 +3,92 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { getServerTenantRuntime } from "@/lib/productExpansion/serverTenantRuntime";
-import { callPr101OidcGateway } from "@/lib/server/pr101OidcGateway";
+import { classifyOidcFailure, computeOverallHealth, passiveProviderStatus } from "@/lib/server/productExpansionHealthStatus.mjs";
+import {
+  callPr101OidcGateway,
+  Pr101OidcGatewayError,
+  type Pr101OidcGatewayFailure,
+} from "@/lib/server/pr101OidcGateway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type ProviderStatus = "healthy" | "degraded" | "unavailable" | "disabled";
+
 async function databaseHealth() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return { status: "down" as const, latencyMs: null };
+  if (!url || !key) return { status: "unavailable" as const, latencyMs: null, reason: "unconfigured" };
   const started = Date.now();
   try {
-    const response = await fetch(`${url}/rest/v1/`, { method: "HEAD", cache: "no-store", headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(2500) });
-    return { status: response.ok || response.status === 404 ? "healthy" as const : "degraded" as const, latencyMs: Date.now() - started };
-  } catch { return { status: "down" as const, latencyMs: Date.now() - started }; }
+    const response = await fetch(`${url}/rest/v1/`, {
+      method: "HEAD",
+      cache: "no-store",
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(2_500),
+    });
+    return response.ok || response.status === 404
+      ? { status: "healthy" as const, latencyMs: Date.now() - started }
+      : { status: "degraded" as const, latencyMs: Date.now() - started, reason: "data_api_rejected" };
+  } catch {
+    return { status: "unavailable" as const, latencyMs: Date.now() - started, reason: "connection_failed" };
+  }
+}
+
+function safeOidcReason(reason: Pr101OidcGatewayFailure) {
+  return reason;
+}
+
+async function oidcHealth(request: NextRequest) {
+  const started = Date.now();
+  try {
+    const result = await callPr101OidcGateway<{ ok?: boolean; status?: string; reason?: string }>(request, "health_probe", {});
+    if (result.ok === true && result.status === "healthy") {
+      return { status: "healthy" as const, latencyMs: Date.now() - started };
+    }
+    return {
+      status: "degraded" as const,
+      latencyMs: Date.now() - started,
+      reason: typeof result.reason === "string" ? result.reason : "database_contract_rejected",
+    };
+  } catch (error) {
+    const reason = error instanceof Pr101OidcGatewayError ? safeOidcReason(error.reason) : "gateway_unavailable";
+    const status = classifyOidcFailure(reason) as ProviderStatus;
+    return { status, latencyMs: Date.now() - started, reason };
+  }
 }
 
 export async function GET(request: NextRequest) {
   const correlationId = request.headers.get("x-correlation-id")?.slice(0, 100) || randomUUID();
-  const [tenant, database] = await Promise.all([getServerTenantRuntime(), databaseHealth()]);
+  const [tenant, database, oidc] = await Promise.all([
+    getServerTenantRuntime(),
+    databaseHealth(),
+    oidcHealth(request),
+  ]);
+
   const providers = {
-    oidc: { status: process.env.VERCEL_OIDC_TOKEN || request.headers.get("x-vercel-oidc-token") ? "healthy" : "disabled" },
-    payment: { status: process.env.PAYMENT_PROVIDER_MODE === "live" || process.env.PAYMENT_PROVIDER_MODE === "sandbox" ? "configured" : "disabled" },
-    whatsapp: { status: process.env.WHATSAPP_PROVIDER_MODE === "live" || process.env.WHATSAPP_PROVIDER_MODE === "sandbox" ? "configured" : "disabled" },
-    ai: { status: process.env.AI_PROVIDER_MODE === "live" || process.env.AI_PROVIDER_MODE === "sandbox" ? "configured" : "rules_fallback" },
-    push: { status: process.env.PUSH_PROVIDER_MODE === "live" || process.env.PUSH_PROVIDER_MODE === "sandbox" ? "configured" : "disabled" },
+    oidc,
+    payment: { status: passiveProviderStatus(process.env.PAYMENT_PROVIDER_MODE, "unverified") },
+    whatsapp: { status: passiveProviderStatus(process.env.WHATSAPP_PROVIDER_MODE, "unverified") },
+    ai: { status: passiveProviderStatus(process.env.AI_PROVIDER_MODE, "rules_fallback") },
+    push: { status: passiveProviderStatus(process.env.PUSH_PROVIDER_MODE, "unverified") },
   };
-  const overall = database.status === "down" ? "down" : database.status === "degraded" ? "degraded" : "healthy";
-  const hostname = (request.headers.get("x-forwarded-host") || request.headers.get("host") || "hamza-agency.com").split(",")[0].trim().toLowerCase();
-  if (tenant.id) {
-    void callPr101OidcGateway(request, "provider_health_record", { tenantId: tenant.id, hostname, providerType: "database", providerKey: "supabase", status: database.status, latencyMs: database.latencyMs, detail: { correlationId } }).catch(() => undefined);
-  }
-  return NextResponse.json({ ok: overall !== "down", status: overall, tenant: tenant.slug, database, providers, correlationId, checkedAt: new Date().toISOString() }, { status: overall === "down" ? 503 : 200, headers: { "Cache-Control": "no-store", "X-Correlation-Id": correlationId } });
+
+  const overall = computeOverallHealth(database.status, oidc.status);
+
+  return NextResponse.json(
+    {
+      ok: overall !== "unavailable",
+      status: overall,
+      tenant: tenant.slug,
+      database,
+      providers,
+      correlationId,
+      checkedAt: new Date().toISOString(),
+    },
+    {
+      status: overall === "unavailable" ? 503 : 200,
+      headers: { "Cache-Control": "no-store", "X-Correlation-Id": correlationId },
+    }
+  );
 }

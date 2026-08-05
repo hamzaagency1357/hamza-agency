@@ -5,38 +5,45 @@ on:
     branches: [main]
     paths:
       - "supabase/current-state-schema/**"
+      - "supabase/migrations/**"
       - "scripts/closeout/**"
+      - "tests/pr1-*.test.mjs"
+      - "tests/pr1-runtime-contract.sql"
       - ".github/workflows/current-state-schema-verify.yml"
-  workflow_dispatch:
+      - ".github/workflows/hamza-closeout-pr1-runtime.yml"
 
 permissions:
   contents: read
 
 concurrency:
-  group: current-state-schema-${{ github.event.pull_request.number || github.ref }}
+  group: current-state-schema-${{ github.event.pull_request.number }}
   cancel-in-progress: true
-
-env:
-  SUPABASE_TELEMETRY_DISABLED: "1"
-  SCHEMA_WORKDIR: /tmp/hamza-current-state-schema-verify
 
 jobs:
   verify-sanitized-snapshot:
-    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feat/pr101-complete-product-expansion'
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - name: Checkout exact PR head
+      - name: Checkout exact trusted PR Head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
 
-      - name: Assert exact PR head and Production isolation
+      - name: Assert exact PR Head and Production isolation
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test '${{ github.event.pull_request.base.ref }}' = main
+          test '${{ github.event.pull_request.head.repo.full_name }}' = '${{ github.repository }}'
+          test '${{ github.actor }}' != 'dependabot[bot]'
           test -z "${HAMZA_PRODUCTION_READONLY_URL:-}"
           test -z "${SUPABASE_ACCESS_TOKEN:-}"
           test -z "${SUPABASE_DB_PASSWORD:-}"
@@ -48,188 +55,39 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Verify tracked direct snapshot
-        run: node scripts/closeout/materialize-current-state-schema.mjs
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
 
-      - name: Install pinned local tools
+      - name: Verify tracked snapshot, manifest, and frozen identity
         shell: bash
         run: |
           set -euo pipefail
-          docker info >/dev/null
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends postgresql-client
-          npm install --prefix tools/pr101-local-e2e --no-audit --no-fund
-          cli="$GITHUB_WORKSPACE/tools/pr101-local-e2e/node_modules/.bin/supabase"
-          test -x "$cli"
-          test "$($cli --version)" = "2.109.1"
-          echo "SUPABASE_BIN=$cli" >> "$GITHUB_ENV"
+          node scripts/closeout/materialize-current-state-schema.mjs
+          snapshot="$GITHUB_WORKSPACE/supabase/current-state-schema/current-state-schema.sql"
+          test "$(wc -c < "$snapshot" | tr -d '[:space:]')" = "496138"
+          printf '%s  %s\n' '3b1890376e3cca966b1dce0979dd2ed089f95237e1067febf4f58e8f1bf776f2' "$snapshot" | sha256sum -c -
+          test "$(git hash-object "$snapshot")" = "65f45c04f7bd50e7751eb5f802f3ad0550c52bfc"
 
-      - name: Start fresh isolated Supabase Local
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf "$SCHEMA_WORKDIR"
-          mkdir -p "$SCHEMA_WORKDIR/supabase/migrations"
-          cp supabase/config.toml "$SCHEMA_WORKDIR/supabase/config.toml"
-          printf '%s\n' '-- No fixtures: zero-row schema verification only.' > "$SCHEMA_WORKDIR/supabase/seed.sql"
-          "$SUPABASE_BIN" start --help > /tmp/current-state-start-help.txt
-          cd "$SCHEMA_WORKDIR"
-          args=()
-          grep -q -- '--exclude' /tmp/current-state-start-help.txt && args+=(--exclude studio,imgproxy)
-          if ! "$SUPABASE_BIN" start "${args[@]}" > /tmp/current-state-supabase-start.log 2>&1; then
-            sed -E 's/(sb_(publishable|secret)_[A-Za-z0-9_-]+)/[REDACTED]/g; s#postgresql?://[^[:space:]]+#[REDACTED_DB_URL]#g' /tmp/current-state-supabase-start.log >&2
-            exit 1
-          fi
-
-      - name: Capture validated local-only database URL
-        shell: bash
-        run: |
-          set -euo pipefail
-          set +x
-          cd "$SCHEMA_WORKDIR"
-          parse_db_url_line() {
-            local line="$1" value authority hostport
-            case "$line" in DB_URL=*) ;; *) return 1 ;; esac
-            value="${line#DB_URL=}"
-            if [[ "${value:0:1}" == '"' || "${value: -1}" == '"' ]]; then
-              [[ "${value:0:1}" == '"' && "${value: -1}" == '"' ]] || return 1
-              value="${value:1:${#value}-2}"
-            fi
-            case "$value" in postgresql://*|postgres://*) ;; *) return 1 ;; esac
-            authority="${value#*://}"; authority="${authority%%/*}"; hostport="${authority##*@}"
-            case "$hostport" in 127.0.0.1:54322|localhost:54322) ;; *) return 1 ;; esac
-            printf '%s' "$value"
-          }
-          q='postgresql://postgres:local-only@127.0.0.1:54322/postgres'
-          u='postgresql://postgres:local-only@localhost:54322/postgres'
-          test "$(parse_db_url_line "DB_URL=\"$q\"")" = "$q"
-          test "$(parse_db_url_line "DB_URL=$u")" = "$u"
-          if parse_db_url_line 'DB_URL="postgresql://postgres:local-only@127.0.0.1:54322/postgres'; then exit 1; fi
-          if parse_db_url_line 'DB_URL=postgresql://postgres:local-only@127.0.0.1:54323/postgres'; then exit 1; fi
-          "$SUPABASE_BIN" status -o env > /tmp/current-state-supabase.env
-          line="$(grep -m1 '^DB_URL=' /tmp/current-state-supabase.env)"
-          DB_URL="$(parse_db_url_line "$line")"
-          printf '::add-mask::%s\n' "$DB_URL"
-          printf 'DB_URL=%s\n' "$DB_URL" >> "$GITHUB_ENV"
-
-      - name: Build and regression-test dependency-safe temporary snapshot
+      - name: Regression-test dependency-safe snapshot parser
         shell: bash
         run: |
           set -euo pipefail
           cat scripts/closeout/build-current-state-apply.part{00,01,02,03} | base64 -d | gzip -d > /tmp/build-current-state-apply.mjs
           node --check /tmp/build-current-state-apply.mjs
           node /tmp/build-current-state-apply.mjs --self-test /tmp/parser-regression.generated.sql
-          {
-            printf '%s\n' 'BEGIN;'
-            cat /tmp/parser-regression.generated.sql
-            cat <<'SQL'
-          INSERT INTO parser_regression.parents(id) VALUES (1);
-          INSERT INTO parser_regression.children(id,parent_id) VALUES (1,1);
-          INSERT INTO parser_regression.items DEFAULT VALUES;
-          SELECT parser_regression.table_dependent('manual');
-          DO $assert$
-          BEGIN
-            IF (SELECT count(*) FROM parser_regression.items) <> 2 THEN RAISE EXCEPTION 'bad item count'; END IF;
-            IF NOT EXISTS (SELECT 1 FROM parser_regression.items WHERE code='bootstrap $function$ text') THEN RAISE EXCEPTION 'bootstrap default failed'; END IF;
-            IF NOT EXISTS (SELECT 1 FROM parser_regression.items WHERE code='manual $other$ text') THEN RAISE EXCEPTION 'dependent function failed'; END IF;
-          END
-          $assert$;
-          SQL
-            printf '%s\n' 'ROLLBACK;'
-          } > /tmp/parser-regression.apply.sql
-          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f /tmp/parser-regression.apply.sql
-          snapshot="$GITHUB_WORKSPACE/supabase/current-state-schema/current-state-schema.sql"
-          test "$(wc -c < "$snapshot" | tr -d '[:space:]')" = "496138"
-          printf '%s  %s\n' '3b1890376e3cca966b1dce0979dd2ed089f95237e1067febf4f58e8f1bf776f2' "$snapshot" | sha256sum -c -
-          test "$(git hash-object "$snapshot")" = "65f45c04f7bd50e7751eb5f802f3ad0550c52bfc"
-          node /tmp/build-current-state-apply.mjs "$snapshot" /tmp/current-state-schema.apply.sql
+          test -s /tmp/parser-regression.generated.sql
+          node /tmp/build-current-state-apply.mjs supabase/current-state-schema/current-state-schema.sql /tmp/current-state-schema.apply.sql
           test -s /tmp/current-state-schema.apply.sql
 
-      - name: Apply dependency-safe temporary snapshot
-        run: psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f /tmp/current-state-schema.apply.sql
-
-      - name: Prove zero rows and inventory
-        shell: bash
+      - name: Verify migration safety and closeout contracts
         run: |
-          set -euo pipefail
-          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 <<'SQL'
-          DO $verify$
-          DECLARE item record; row_total bigint;
-          BEGIN
-            FOR item IN SELECT n.nspname,c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','private') AND c.relkind IN ('r','p') LOOP
-              EXECUTE format('select count(*) from %I.%I',item.nspname,item.relname) INTO row_total;
-              IF row_total<>0 THEN RAISE EXCEPTION 'non-zero business table %.%: % rows',item.nspname,item.relname,row_total; END IF;
-            END LOOP;
-          END
-          $verify$;
-          SQL
-          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -At <<'SQL' > /tmp/current-state-inventory.txt
-          SELECT 'tables='||count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','private') AND c.relkind IN ('r','p');
-          SELECT 'sequences='||count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','private') AND c.relkind='S';
-          SELECT 'views='||count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','private') AND c.relkind='v';
-          SELECT 'functions='||count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname IN ('public','private');
-          SELECT 'policies='||count(*) FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','private');
-          SQL
-
-          read_actual() {
-            local metric="$1"
-            grep -E "^${metric}=[0-9]+$" /tmp/current-state-inventory.txt | cut -d= -f2-
-          }
-
-          tables_actual="$(read_actual tables)"
-          sequences_actual="$(read_actual sequences)"
-          views_actual="$(read_actual views)"
-          functions_actual="$(read_actual functions)"
-          policies_actual="$(read_actual policies)"
-
-          printf 'tables=%s\n' "$tables_actual"
-          printf 'sequences=%s\n' "$sequences_actual"
-          printf 'views=%s\n' "$views_actual"
-          printf 'functions=%s\n' "$functions_actual"
-          printf 'policies=%s\n' "$policies_actual"
-
-          snapshot="$GITHUB_WORKSPACE/supabase/current-state-schema/current-state-schema.sql"
-          tables_expected="$(grep -Ec '^CREATE TABLE (public|private)\.' "$snapshot")"
-          explicit_sequences_expected="$(grep -Ec '^CREATE SEQUENCE (public|private)\.' "$snapshot")"
-          identity_sequences_expected="$(grep -Ec ' GENERATED (ALWAYS|BY DEFAULT) AS IDENTITY' "$snapshot")"
-          sequences_expected="$((explicit_sequences_expected + identity_sequences_expected))"
-          views_expected="$(grep -Ec '^CREATE( OR REPLACE)? VIEW (public|private)\.' "$snapshot")"
-          functions_expected="$(grep -Ec '^CREATE( OR REPLACE)? (FUNCTION|PROCEDURE) (public|private)\.' "$snapshot")"
-          policies_expected="$(grep -Ec '^CREATE POLICY ' "$snapshot")"
-
-          printf 'sequences evidence: explicit=%s identity=%s total=%s\n' "$explicit_sequences_expected" "$identity_sequences_expected" "$sequences_expected"
-
-          mismatch=0
-          compare_count() {
-            local metric="$1" expected="$2" actual="$3"
-            printf '%s expected=%s actual=%s\n' "$metric" "$expected" "$actual"
-            [[ "$expected" =~ ^[0-9]+$ ]] || return 1
-            [[ "$actual" =~ ^[0-9]+$ ]] || return 1
-            [[ "$expected" = "$actual" ]]
-          }
-          compare_count tables "$tables_expected" "$tables_actual" || mismatch=1
-          compare_count sequences "$sequences_expected" "$sequences_actual" || mismatch=1
-          compare_count views "$views_expected" "$views_actual" || mismatch=1
-          compare_count functions "$functions_expected" "$functions_actual" || mismatch=1
-          compare_count policies "$policies_expected" "$policies_actual" || mismatch=1
-          test "$mismatch" -eq 0
+          npm run verify:migrations
+          node --test tests/pr1-production-hardening.test.mjs tests/pr1-closeout-regressions.test.mjs tests/pr1-preview-discovery.test.mjs
 
       - name: Prove repository and snapshot remain unchanged
         shell: bash
         run: |
           set -euo pipefail
-          snapshot="$GITHUB_WORKSPACE/supabase/current-state-schema/current-state-schema.sql"
           node scripts/closeout/materialize-current-state-schema.mjs
-          test "$(wc -c < "$snapshot" | tr -d '[:space:]')" = "496138"
-          printf '%s  %s\n' '3b1890376e3cca966b1dce0979dd2ed089f95237e1067febf4f58e8f1bf776f2' "$snapshot" | sha256sum -c -
-          test "$(git hash-object "$snapshot")" = "65f45c04f7bd50e7751eb5f802f3ad0550c52bfc"
           test -z "$(git status --porcelain --untracked-files=all)"
-
-      - name: Always destroy local stack and temporary files
-        if: always()
-        shell: bash
-        run: |
-          set +e
-          if [ -d "$SCHEMA_WORKDIR" ]; then cd "$SCHEMA_WORKDIR"; "$SUPABASE_BIN" stop --no-backup >/dev/null 2>&1 || true; fi
-          rm -rf "$SCHEMA_WORKDIR"
-          rm -f /tmp/current-state-* /tmp/build-current-state-apply.mjs /tmp/parser-regression.*
+          rm -f /tmp/build-current-state-apply.mjs /tmp/parser-regression.generated.sql /tmp/current-state-schema.apply.sql
