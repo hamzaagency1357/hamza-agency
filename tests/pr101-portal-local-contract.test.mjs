@@ -72,7 +72,6 @@ test("bounded membership, account and uniqueness states cannot drift", () => {
 
 test("bounded RPC signatures and execution modes match real migrations", () => {
   const contracts = [
-    ["resolve_public_tenant_runtime", ["p_hostname text"], /returns jsonb/, "invoker"],
     ["register_platform_session", ["p_tenant uuid", "p_auth_session uuid", "p_device_label text", "p_platform text", "p_browser text", "p_ip_hash text", "p_suspicious boolean"], /returns uuid/, "invoker"],
     ["revoke_own_platform_session", ["p_session uuid", "p_reason text"], /returns boolean/, "invoker"],
     ["revoke_all_own_platform_sessions", ["p_tenant uuid", "p_reason text"], /returns integer/, "invoker"],
@@ -90,6 +89,37 @@ test("bounded RPC signatures and execution modes match real migrations", () => {
     assert.match(privateResolver, /returns jsonb/);
     assert.match(privateResolver, /security definer/);
     assert.match(privateResolver, /set search_path\s*=\s*(?:pg_catalog,\s*)?public/);
+  }
+});
+
+test("private wrapper least-privilege migration pins safe public contracts", () => {
+  const tenantRole = functionBlock(real, "public", "current_user_has_tenant_role");
+  assert.match(tenantRole, /returns boolean/);
+  assert.match(tenantRole, /security definer/);
+  assert.match(tenantRole, /set search_path\s*=\s*pg_catalog,\s*public,\s*auth/);
+  assert.doesNotMatch(tenantRole, /private\.has_tenant_role/);
+
+  const incidentStatus = functionBlock(real, "public", "get_public_incident_status");
+  assert.match(incidentStatus, /returns jsonb/);
+  assert.match(incidentStatus, /security definer/);
+  assert.match(incidentStatus, /set search_path\s*=\s*pg_catalog,\s*public/);
+
+  const tenantRuntime = functionBlock(real, "public", "resolve_public_tenant_runtime");
+  assert.match(tenantRuntime, /p_hostname\s+text/);
+  assert.match(tenantRuntime, /returns jsonb/);
+  assert.match(tenantRuntime, /security definer/);
+  assert.match(tenantRuntime, /set search_path\s*=\s*pg_catalog,\s*public/);
+
+  assert.match(real, /revoke usage on schema private from anon/);
+  assert.match(real, /revoke usage on schema private from authenticated/);
+  for (const name of [
+    "has_tenant_role\\(uuid,text\\[\\]\\)",
+    "get_public_incident_status\\(text\\)",
+    "public_tenant_runtime\\(text\\)",
+    "consume_invitation_rate_limit\\(uuid,text,text\\)",
+    "assign_primary_tenant\\(\\)",
+  ]) {
+    assert.match(real, new RegExp(`revoke all on function private\\.${name} from public, anon, authenticated`));
   }
 });
 
