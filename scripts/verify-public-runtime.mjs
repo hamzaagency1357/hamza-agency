@@ -62,6 +62,11 @@ function assertLocalePage({ path, expectedLanguage, response, html }) {
   for (const copy of localeCopy[expectedLanguage]) assert(html.includes(copy), `${path} is missing stable ${expectedLanguage} homepage copy: ${copy}`);
 }
 
+function assertRedirect({ path, response, expectedLocation }) {
+  assert(response.status === 307, `${path} returned ${response.status} instead of 307.`);
+  assert(response.headers.get("location") === `${baseUrl}${expectedLocation}`, `${path} redirected to ${response.headers.get("location")} instead of ${expectedLocation}.`);
+}
+
 function assertNoMixedLanguage(path, html, language) {
   const foreign = Object.entries(localeCopy).filter(([key]) => key !== language).flatMap(([, copy]) => copy);
   for (const copy of foreign) assert(!html.includes(copy), `${path} mixed ${language} with foreign homepage copy: ${copy}`);
@@ -82,18 +87,20 @@ assertLocalePage({ path: "/tr", expectedLanguage: "tr", ...tr });
 assertNoMixedLanguage("/tr", tr.html, "tr");
 assertLocalizedProgramCards("/tr", tr.html, "tr");
 
-const arAfterTr = await readPage("/", "hamza-agency-language=tr");
-assertLocalePage({ path: "/ with TR cookie", expectedLanguage: "ar", ...arAfterTr });
-assertNoMixedLanguage("/ with TR cookie", arAfterTr.html, "ar");
+const rootWithTr = await readPage("/", "hamza-agency-language=tr");
+assertRedirect({ path: "/ with TR cookie", response: rootWithTr.response, expectedLocation: "/tr" });
 
 const en = await readPage("/en", "hamza-agency-language=tr");
 assertLocalePage({ path: "/en with TR cookie", expectedLanguage: "en", ...en });
 assertNoMixedLanguage("/en with TR cookie", en.html, "en");
 assertLocalizedProgramCards("/en with TR cookie", en.html, "en");
 
-const arAfterEn = await readPage("/", "hamza-agency-language=en");
-assertLocalePage({ path: "/ with EN cookie", expectedLanguage: "ar", ...arAfterEn });
-assertNoMixedLanguage("/ with EN cookie", arAfterEn.html, "ar");
+const rootWithEn = await readPage("/", "hamza-agency-language=en");
+assertRedirect({ path: "/ with EN cookie", response: rootWithEn.response, expectedLocation: "/en" });
+
+const rootWithAr = await readPage("/", "hamza-agency-language=ar");
+assertLocalePage({ path: "/ with AR cookie", expectedLanguage: "ar", ...rootWithAr });
+assertNoMixedLanguage("/ with AR cookie", rootWithAr.html, "ar");
 
 const services = await readPage("/services", "hamza-agency-language=tr");
 assert(services.response.status === 200 && !services.response.headers.get("location"), "Arabic services URL redirected because of a cookie.");
@@ -105,7 +112,7 @@ assert(programs.response.status === 200 && !programs.response.headers.get("locat
 assert(programs.html.includes('<html lang="ar"') && programs.html.includes('data-site-language="ar"'), "Arabic programs URL lost AR ownership.");
 assert(programs.html.includes('href="/services"'), "Arabic programs page does not retain Arabic service links.");
 
-for (const [path, page, language] of [["/", arAfterTr, "ar"], ["/en", en, "en"], ["/tr", tr, "tr"]]) {
+for (const [path, page, language] of [["/ with AR cookie", rootWithAr, "ar"], ["/en", en, "en"], ["/tr", tr, "tr"]]) {
   assert(page.html.includes(`href="${language === "ar" ? "/" : `/${language}`}"`), `${path} is missing its locale-owned home link.`);
   if (!page.html.includes("data-announcement-locale")) continue;
   assert(page.html.includes('data-marquee-mechanics="ltr"'), `${path} ticker is not using mechanical LTR movement.`);
@@ -114,4 +121,4 @@ for (const [path, page, language] of [["/", arAfterTr, "ar"], ["/en", en, "en"],
   assert(groupCount === 2, `${path} ticker rendered ${groupCount} marquee groups instead of 2.`);
 }
 
-console.log("Runtime locale verification passed: URL-owned AR/EN/TR, localized program cards, cookie isolation, clean language boundaries, locale links, no placeholders, and deterministic ticker mechanics.");
+console.log("Runtime locale verification passed: saved root preference, URL-owned deep links, localized program cards, clean language boundaries, locale links, no placeholders, and deterministic ticker mechanics.");
