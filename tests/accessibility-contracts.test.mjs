@@ -11,7 +11,8 @@ test("public navigation and language controls expose accessible labels and targe
   assert.ok(switcher.includes('role="group"'));
   assert.ok(switcher.includes("aria-label"));
   assert.ok(switcher.includes("min-h-11"));
-  assert.ok(footer.includes("<nav"));
+  assert.ok(footer.includes("<footer"));
+  assert.ok(footer.includes('data-testid="public-footer-links"'));
   assert.ok(breadcrumbs.includes('aria-label="Breadcrumb"'));
 });
 

@@ -103,3 +103,7 @@ export function setStoredSiteLanguage(language: SiteLanguage) {
     })
   );
 }
+
+export function rememberLanguagePreference(language: SiteLanguage) {
+  setStoredSiteLanguage(language);
+}

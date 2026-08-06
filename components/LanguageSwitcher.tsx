@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
-  setStoredSiteLanguage,
+  rememberLanguagePreference,
   SITE_LANGUAGES,
   type SiteLanguage,
 } from "@/lib/i18n/locale";
@@ -49,7 +49,7 @@ export default function LanguageSwitcher() {
   function changeLanguage(nextLanguage: SiteLanguage) {
     if (isPending || nextLanguage === activeLanguage) return;
 
-    setStoredSiteLanguage(nextLanguage);
+    rememberLanguagePreference(nextLanguage);
     startTransition(() => {
       router.replace(localizedTargets[nextLanguage], { scroll: false });
     });
