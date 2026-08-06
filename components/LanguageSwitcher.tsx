@@ -72,8 +72,9 @@ export default function LanguageSwitcher() {
             disabled={isPending}
             onClick={() => changeLanguage(code)}
             aria-current={active ? "page" : undefined}
-            aria-label={label}
+            aria-label={shortLabel}
             title={label}
+            data-language-code={code}
             className={`min-h-11 min-w-11 rounded-lg px-2 text-xs font-black transition disabled:cursor-wait ${
               active
                 ? "bg-gradient-to-r from-purple-600 to-yellow-500 text-white"

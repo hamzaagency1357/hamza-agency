@@ -14,7 +14,6 @@ import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
 import StructuredData from "@/components/StructuredData";
 import SiteLanguageDocumentSync from "@/components/SiteLanguageDocumentSync";
 import PublicSiteRuntimeTranslator from "@/components/PublicSiteRuntimeTranslator";
-import FirstVisitLanguageRedirect from "@/components/FirstVisitLanguageRedirect";
 import PwaRuntime from "@/components/PwaRuntime";
 import CookieConsent from "@/components/CookieConsent";
 import { getServerTenantRuntime } from "@/lib/productExpansion/serverTenantRuntime";
@@ -70,7 +69,6 @@ export default async function RootLayout({
         suppressHydrationWarning
       >
         <SiteLanguageProvider initialLanguage={siteContext.language}>
-          <FirstVisitLanguageRedirect />
           <StructuredData />
           <AuthRecoveryRedirect />
           <SiteLanguageDocumentSync />

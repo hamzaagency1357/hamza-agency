@@ -123,9 +123,7 @@ export default function PublicGlobalHeader() {
               </span>
             </span>
           </Link>
-          <div className="lg:hidden">
-            <LanguageSwitcher />
-          </div>
+          <LanguageSwitcher />
         </div>
 
         <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center">
@@ -155,9 +153,6 @@ export default function PublicGlobalHeader() {
               );
             })}
           </nav>
-          <div className="hidden lg:block">
-            <LanguageSwitcher />
-          </div>
         </div>
       </div>
     </header>

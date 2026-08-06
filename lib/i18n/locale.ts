@@ -105,5 +105,8 @@ export function setStoredSiteLanguage(language: SiteLanguage) {
 }
 
 export function rememberLanguagePreference(language: SiteLanguage) {
-  setStoredSiteLanguage(language);
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(SITE_LANGUAGE_STORAGE_KEY, language);
+  document.cookie = `${SITE_LANGUAGE_STORAGE_KEY}=${language}; Path=/; Max-Age=31536000; SameSite=Lax`;
 }
