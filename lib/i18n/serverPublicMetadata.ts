@@ -94,13 +94,13 @@ export function buildPublicMetadata(
     metadataBase: new URL("https://hamza-agency.com"),
     title: copy.title,
     description: copy.description,
-    applicationName: "HAMZA AGENCY",
+    applicationName: "عراب سوريا",
     generator: "Next.js",
-    creator: "HAMZA AGENCY",
-    publisher: "HAMZA AGENCY",
+    creator: "عراب سوريا",
+    publisher: "عراب سوريا",
     authors: [
       {
-        name: "HAMZA AGENCY",
+        name: "عراب سوريا",
         url: "https://hamza-agency.com",
       },
     ],
@@ -120,7 +120,7 @@ export function buildPublicMetadata(
       title: copy.title,
       description: copy.description,
       url: canonical,
-      siteName: "HAMZA AGENCY",
+      siteName: "عراب سوريا",
       locale: ogLocale[language],
       alternateLocale,
       type: "website",
@@ -133,8 +133,8 @@ export function buildPublicMetadata(
             language === "tr"
               ? "HAMZA AGENCY marka görseli"
               : language === "en"
-                ? "HAMZA AGENCY brand image"
-                : "صورة هوية وكالة حمزة",
+                ? "Arab Syria brand image"
+                : "صورة هوية عراب سوريا",
         },
       ],
     },

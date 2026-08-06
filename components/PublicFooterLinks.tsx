@@ -35,7 +35,7 @@ export default function PublicFooterLinks() {
     >
       <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm font-black" dir="ltr">
-          HAMZA AGENCY
+          عراب سوريا
         </p>
         <div className="flex flex-wrap gap-2 text-sm">
           <Link

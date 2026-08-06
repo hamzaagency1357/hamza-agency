@@ -8,9 +8,9 @@ import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 import { localizePublicHref } from "@/lib/i18n/publicLocales";
 
 const identity = {
-  ar: "وكالة حمزة",
-  en: "Content Creator Agency",
-  tr: "İçerik Üreticisi Ajansı",
+  ar: "عراب سوريا",
+  en: "Arab Syria",
+  tr: "Arab Syria",
 } as const;
 
 const links = {
@@ -18,18 +18,21 @@ const links = {
     ["الرئيسية", "/"],
     ["البرامج", "/programs"],
     ["الخدمات", "/services"],
+    ["المدونة", "/blog"],
     ["اتصل بنا", "/contact"],
   ],
   en: [
     ["Home", "/"],
     ["Programs", "/programs"],
     ["Services", "/services"],
+    ["Blog", "/blog"],
     ["Contact", "/contact"],
   ],
   tr: [
     ["Ana sayfa", "/"],
     ["Programlar", "/programs"],
     ["Hizmetler", "/services"],
+    ["Blog", "/blog"],
     ["İletişim", "/contact"],
   ],
 } as const;
@@ -47,21 +50,21 @@ export default function PublicGlobalHeader() {
           <Link href={localizePublicHref("/", language)} className="flex min-w-0 items-center gap-2">
             <Image
               src="/Logo%20hamza%20agency.jpg"
-              alt="HAMZA AGENCY"
+              alt="عراب سوريا"
               width={44}
               height={44}
               unoptimized
               className="h-11 w-11 shrink-0 rounded-xl object-cover"
             />
             <span className="min-w-0">
-              <strong className="block truncate text-sm" dir="ltr">HAMZA AGENCY</strong>
+              <strong className="block truncate text-sm" dir="ltr">عراب سوريا</strong>
               <span className="block truncate text-xs text-yellow-200/80">{identity[language]}</span>
             </span>
           </Link>
           <LanguageSwitcher />
         </div>
 
-        <nav className="mt-2 grid grid-cols-4 gap-1" aria-label="Primary navigation">
+        <nav className="mt-2 grid grid-cols-5 gap-1" aria-label="Primary navigation">
           {links[language].map(([label, href]) => (
             <Link
               key={href}

@@ -20,127 +20,127 @@ export type PublicSeoCopy = RuntimeRouteMetadata & {
 
 const arabicRouteSeo: Record<string, PublicSeoCopy> = {
   "/": {
-    title: "وكالة حمزة | إدارة وتطوير صناع المحتوى",
+    title: "عراب سوريا | إدارة الهوية والSEO للمحتوى",
     description:
-      "وكالة حمزة لإدارة وتطوير صناع المحتوى عبر برامج البث المباشر ومنصات التواصل، مع دعم ومتابعة وفرص نمو متجددة.",
+      "عراب سوريا يقدم إدارة الهوية الرقمية، SEO، والإشراف على المحتوى والبرامج عبر موقع احترافي ومحتوى واضح وموجه.",
     schemaType: "WebPage",
   },
   "/about": {
-    title: "من نحن | وكالة حمزة",
+    title: "من نحن | عراب سوريا",
     description:
-      "تعرف على وكالة حمزة وطريقة عملها في تنظيم البرامج ودعم صناع المحتوى ومتابعة الطلبات باحتراف.",
+      "تعرف على عراب سوريا وطريقة العمل في إدارة الهوية الرقمية، SEO، والبرامج مع المتابعة الاحترافية.",
     schemaType: "AboutPage",
   },
   "/ai-policy": {
-    title: "سياسة الدعم الذكي | وكالة حمزة",
+    title: "سياسة الدعم الذكي | عراب سوريا",
     description:
-      "تعرف على دور الدعم الذكي وحدوده وقواعد الخصوصية والإشراف البشري داخل موقع وكالة حمزة.",
+      "تعرف على دور الدعم الذكي وحدوده وقواعد الخصوصية والإشراف البشري داخل موقع عراب سوريا.",
     schemaType: "WebPage",
   },
   "/ai-support": {
-    title: "الدعم الذكي | وكالة حمزة",
+    title: "الدعم الذكي | عراب سوريا",
     description:
-      "اطرح أسئلتك واحصل على إرشاد منظم، مع تحويل الحالات الخاصة إلى فريق وكالة حمزة عبر القنوات الرسمية.",
+      "اطرح أسئلتك واحصل على إرشاد منظم، مع تحويل الحالات الخاصة إلى فريق عراب سوريا عبر القنوات الرسمية.",
     schemaType: "WebPage",
   },
   "/apply": {
-    title: "طلب الانضمام | وكالة حمزة",
+    title: "طلب الانضمام | عراب سوريا",
     description:
-      "اختر البرنامج المناسب وابدأ طلب الانضمام إلى وكالة حمزة عبر نموذج واضح وآمن.",
+      "اختر البرنامج المناسب وابدأ طلب الانضمام إلى عراب سوريا عبر نموذج واضح وآمن.",
     schemaType: "WebPage",
   },
   "/application-status": {
-    title: "تتبع طلب الانضمام | وكالة حمزة",
+    title: "تتبع طلب الانضمام | عراب سوريا",
     description:
       "تابع آخر حالة مسجلة لطلب الانضمام باستخدام رقم واتساب والبرنامج المحدد.",
     schemaType: "WebPage",
   },
   "/contact": {
-    title: "تواصل معنا | وكالة حمزة",
+    title: "تواصل معنا | عراب سوريا",
     description:
-      "تواصل مع فريق وكالة حمزة عبر قنوات واتساب والبريد الرسمية للاستفسار عن البرامج والخدمات.",
+      "تواصل مع فريق عراب سوريا عبر واتساب والبريد الرسمي للاستفسار عن برامج الهوية الرقمية والـ SEO والخدمات.",
     schemaType: "ContactPage",
   },
   "/digital-services": {
-    title: "الخدمات الرقمية | وكالة حمزة",
+    title: "الخدمات الرقمية | عراب سوريا",
     description:
       "طلبات خدمات رقمية منظمة مع تأكيد التفاصيل والمتابعة عبر قناة واتساب الرسمية قبل التنفيذ.",
     schemaType: "CollectionPage",
   },
   "/faq": {
-    title: "الأسئلة الشائعة | وكالة حمزة",
+    title: "الأسئلة الشائعة | عراب سوريا",
     description:
       "إجابات واضحة حول الانضمام والبرامج والمتابعة والتواصل والخدمات الرقمية.",
     schemaType: "WebPage",
   },
   "/gallery": {
-    title: "المعرض | وكالة حمزة",
+    title: "المعرض | عراب سوريا",
     description:
-      "استعرض الهوية البصرية والبرامج والخدمات وتجربة صناع المحتوى داخل وكالة حمزة.",
+      "استعرض الهوية البصرية والبرامج والخدمات وتجربة صناع المحتوى داخل عراب سوريا.",
     schemaType: "ImageGallery",
   },
   "/jobs": {
-    title: "الوظائف | وكالة حمزة",
+    title: "الوظائف | عراب سوريا",
     description:
-      "استعرض فرص العمل المرنة والتشغيلية والإدارية المتاحة ضمن وكالة حمزة.",
+      "استعرض فرص العمل المرنة والتشغيلية والإدارية المتاحة ضمن عراب سوريا.",
     schemaType: "CollectionPage",
   },
   "/knowledge-center": {
-    title: "مركز المعرفة | وكالة حمزة",
+    title: "مركز المعرفة | عراب سوريا",
     description:
       "إرشادات حول طلبات الانضمام واختيار البرامج والتواصل والخدمات الرقمية.",
     schemaType: "CollectionPage",
   },
   "/partners": {
-    title: "البرامج والمنصات | وكالة حمزة",
+    title: "البرامج والمنصات | عراب سوريا",
     description:
       "استعرض مسارات TikTok وBIGO LIVE وYaahlan وXena وCatchii واختر البرنامج الأنسب لك.",
     schemaType: "CollectionPage",
   },
   "/privacy-policy": {
-    title: "سياسة الخصوصية | وكالة حمزة",
+    title: "سياسة الخصوصية | عراب سوريا",
     description:
       "تعرف على طريقة جمع بيانات المتقدمين والعملاء واستخدامها وحمايتها والاحتفاظ بها.",
     schemaType: "WebPage",
   },
   "/programs": {
-    title: "برامج وكالة حمزة لصناع المحتوى",
+    title: "برامج عراب سوريا لصناع المحتوى",
     description:
-      "استعرض برامج TikTok وBIGO LIVE وYaahlan وXena وCatchii واختر المسار المناسب لك.",
+      "استعرض برامج TikTok وBIGO LIVE وYaahlan وXena وCatchii واختر المسار المناسب لشغلك أو علامتك.",
     schemaType: "CollectionPage",
   },
   "/reviews": {
-    title: "التقييمات | وكالة حمزة",
+    title: "التقييمات | عراب سوريا",
     description:
-      "استعرض تجارب العملاء وصناع المحتوى المنشورة ضمن نظام وكالة حمزة.",
+      "استعرض تجارب العملاء وصناع المحتوى المنشورة ضمن نظام عراب سوريا.",
     schemaType: "CollectionPage",
   },
   "/service-request": {
-    title: "طلب خدمة رقمية | وكالة حمزة",
+    title: "طلب خدمة رقمية | عراب سوريا",
     description:
       "أرسل طلب خدمة رقمية منظماً واحصل على كود مخصص لمتابعة الطلب.",
     schemaType: "WebPage",
   },
   "/service-status": {
-    title: "تتبع طلب الخدمة | وكالة حمزة",
+    title: "تتبع طلب الخدمة | عراب سوريا",
     description:
       "تابع آخر حالة لطلب الخدمة الرقمية باستخدام كود الطلب.",
     schemaType: "WebPage",
   },
   "/services": {
-    title: "خدمات وكالة حمزة",
+    title: "خدمات عراب سوريا",
     description:
       "متابعة طلبات الانضمام ودعم البرامج والإرشاد العملي وتنظيم التواصل لصناع المحتوى.",
     schemaType: "CollectionPage",
   },
   "/success-stories": {
-    title: "مسارات النجاح | وكالة حمزة",
+    title: "قصص النجاح | عراب سوريا",
     description:
-      "استعرض مسارات منظمة لصناع المحتوى والخدمات الرقمية من الطلب حتى المتابعة.",
+      "استعرض مسارات عمل واضحة وأمثلة عملية من إدارة الهوية الرقمية والبرامج والخدمات.",
     schemaType: "CollectionPage",
   },
   "/terms-and-conditions": {
-    title: "الشروط والأحكام | وكالة حمزة",
+    title: "الشروط والأحكام | عراب سوريا",
     description:
       "الشروط العامة لاستخدام الموقع وإرسال الطلبات والتواصل والاستفادة من الخدمات.",
     schemaType: "WebPage",
@@ -149,27 +149,27 @@ const arabicRouteSeo: Record<string, PublicSeoCopy> = {
 
 const arabicProgramSeo: Record<string, RuntimeRouteMetadata> = {
   tiktok: {
-    title: "برنامج TikTok | وكالة حمزة",
+    title: "برنامج TikTok | عراب سوريا",
     description:
       "تعرف على برنامج TikTok لصناع المحتوى وخطوات الانضمام والدعم المتاح لتطوير الحضور والأداء.",
   },
   "bigo-live": {
-    title: "برنامج BIGO LIVE | وكالة حمزة",
+    title: "برنامج BIGO LIVE | عراب سوريا",
     description:
       "تعرف على برنامج BIGO LIVE للبث المباشر وخطوات الانضمام والمتابعة ودعم التفاعل مع الجمهور.",
   },
   yaahlan: {
-    title: "برنامج Yaahlan | وكالة حمزة",
+    title: "برنامج Yaahlan | عراب سوريا",
     description:
       "تعرف على برنامج Yaahlan لبناء الحضور الاجتماعي والتفاعل مع الجمهور ضمن متابعة منظمة.",
   },
   xena: {
-    title: "برنامج Xena | وكالة حمزة",
+    title: "برنامج Xena | عراب سوريا",
     description:
       "تعرف على برنامج Xena لصناع المحتوى وخطوات الانضمام والمتابعة الإدارية ودعم تطوير الحساب.",
   },
   catchii: {
-    title: "برنامج Catchii | وكالة حمزة",
+    title: "برنامج Catchii | عراب سوريا",
     description:
       "تعرف على برنامج Catchii للتواصل والترفيه وبناء حضور اجتماعي ضمن بيئة وكالة منظمة.",
   },
@@ -185,19 +185,19 @@ const schemaTypeByPath: Record<string, PublicSeoCopy["schemaType"]> =
 
 const genericSeo: Record<SiteLanguage, RuntimeRouteMetadata> = {
   ar: {
-    title: "وكالة حمزة",
+    title: "عراب سوريا",
     description:
-      "وكالة احترافية لتنظيم ودعم صناع المحتوى والبرامج والخدمات الرقمية.",
+      "علامة احترافية لإدارة الهوية الرقمية، SEO، وبرامج المحتوى والخدمات الرقمية.",
   },
   en: {
-    title: "HAMZA AGENCY",
+    title: "Arab Syria",
     description:
-      "A professional agency for organizing and supporting content creators, programs, and digital services.",
+      "A professional identity and SEO partner for content creators, programs, and digital services.",
   },
   tr: {
-    title: "HAMZA AGENCY",
+    title: "Arab Syria",
     description:
-      "İçerik üreticilerini, programları ve dijital hizmetleri organize eden ve destekleyen profesyonel ajans.",
+      "İçerik üreticileri, programlar ve dijital hizmetler için profesyonel kimlik ve SEO desteği sağlayan ortak.",
   },
 };
 

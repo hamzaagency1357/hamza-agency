@@ -15,6 +15,8 @@ const excludedPaths = new Set([
   "/track",
 ]);
 
+const blogRoutes = ["/blog", "/blog/seo-identity-arab-syria", "/blog/content-operations-blueprint"];
+
 function getRouteConfig(path: string) {
   if (path === "/") {
     return { priority: 1, changeFrequency: "daily" as const };
@@ -48,6 +50,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const routes = [
     ...PUBLIC_ROUTE_PATHS.filter((path) => !excludedPaths.has(path)),
     ...PROGRAM_SLUGS.map((slug) => `/programs/${slug}`),
+    ...blogRoutes,
   ];
 
   return routes.flatMap((path) => {
