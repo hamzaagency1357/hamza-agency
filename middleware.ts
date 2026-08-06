@@ -1,8 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
   isSiteLanguage,
+  SITE_LANGUAGE_STORAGE_KEY,
   type SiteLanguage,
 } from "@/lib/i18n/locale";
+import {
+  languageHomepage,
+  parseAcceptLanguageHeader,
+  resolveFirstVisitLanguage,
+} from "@/lib/i18n/firstVisitLanguage.mjs";
 import {
   isSupportedPublicPath,
   splitLocalizedPathname,
@@ -39,11 +45,12 @@ export async function middleware(request: NextRequest) {
     forwardedPath !== pathname
   ) {
     return NextResponse.next({
-      request: {
-        headers: new Headers(request.headers),
-      },
+      request: { headers: new Headers(request.headers) },
     });
   }
+
+  const firstVisitResponse = resolveFirstVisitRedirect(request);
+  if (firstVisitResponse) return firstVisitResponse;
 
   const localizedPath = splitLocalizedPathname(pathname);
   const hasLocalePrefix = localizedPath.language !== "ar";
@@ -103,6 +110,34 @@ export async function middleware(request: NextRequest) {
   );
 }
 
+function resolveFirstVisitRedirect(request: NextRequest) {
+  if (request.nextUrl.pathname !== "/") return null;
+
+  const savedLanguage =
+    request.cookies.get(SITE_LANGUAGE_STORAGE_KEY)?.value || null;
+  const language = resolveFirstVisitLanguage({
+    pathname: request.nextUrl.pathname,
+    savedLanguage,
+    navigatorLanguages: parseAcceptLanguageHeader(
+      request.headers.get("accept-language") || ""
+    ),
+    userAgent: request.headers.get("user-agent") || "",
+  });
+
+  if (language !== "en" && language !== "tr") return null;
+
+  const redirectUrl = request.nextUrl.clone();
+  redirectUrl.pathname = languageHomepage(language);
+  const response = NextResponse.redirect(redirectUrl, 307);
+  response.cookies.set(SITE_LANGUAGE_STORAGE_KEY, language, {
+    maxAge: 60 * 60 * 24 * 365,
+    path: "/",
+    sameSite: "lax",
+    secure: request.nextUrl.protocol === "https:",
+  });
+  return response;
+}
+
 function createLocalizedResponse({
   request,
   requestHeaders,
@@ -124,7 +159,7 @@ function createLocalizedResponse({
     : NextResponse.next({ request: { headers: requestHeaders } });
 
   if (isSupportedPublicPath(publicPath)) {
-    response.cookies.set("hamza-agency-language", language, {
+    response.cookies.set(SITE_LANGUAGE_STORAGE_KEY, language, {
       maxAge: 60 * 60 * 24 * 365,
       path: "/",
       sameSite: "lax",
@@ -156,17 +191,18 @@ async function getMaintenanceSettings() {
     message: "الموقع قيد الصيانة حالياً، يرجى المحاولة لاحقاً.",
     whatsapp: "+905011730377",
     showWhatsapp: true,
-    agencyName: "وكالة حمزة",
+    agencyName: "HAMZA AGENCY",
   };
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return fallback;
-  }
+  if (!supabaseUrl || !supabaseAnonKey) return fallback;
 
   try {
     const url = new URL("/rest/v1/settings", supabaseUrl);
     url.searchParams.set("select", "setting_key,setting_value");
-    url.searchParams.set("setting_key", `in.(${maintenanceSettingKeys.join(",")})`);
+    url.searchParams.set(
+      "setting_key",
+      `in.(${maintenanceSettingKeys.join(",")})`
+    );
 
     const response = await fetch(url.toString(), {
       headers: {
@@ -176,28 +212,41 @@ async function getMaintenanceSettings() {
       cache: "no-store",
     });
 
-    if (!response.ok) {
-      return fallback;
-    }
+    if (!response.ok) return fallback;
 
     const settings = (await response.json()) as MaintenanceSetting[];
     const getSetting = (keys: string[], defaultValue: string) => {
       for (const key of keys) {
-        const value = settings.find((item) => item.setting_key === key)?.setting_value;
-        if (value && value.trim()) return value.trim();
+        const value = settings.find(
+          (item) => item.setting_key === key
+        )?.setting_value;
+        if (value?.trim()) return value.trim();
       }
       return defaultValue;
     };
 
     return {
-      enabled: isTruthy(getSetting(["maintenance_mode", "maintenance_mode_enabled"], "false")),
+      enabled: isTruthy(
+        getSetting(
+          ["maintenance_mode", "maintenance_mode_enabled"],
+          "false"
+        )
+      ),
       message: getSetting(
         ["maintenance_message_ar", "maintenance_mode_message"],
         fallback.message
       ),
-      whatsapp: getSetting(["primary_whatsapp", "support_whatsapp"], fallback.whatsapp),
-      showWhatsapp: isTruthy(getSetting(["maintenance_mode_whatsapp_enabled"], "true")),
-      agencyName: getSetting(["agency_name_ar", "site_name", "agency_name_en"], fallback.agencyName),
+      whatsapp: getSetting(
+        ["primary_whatsapp", "support_whatsapp"],
+        fallback.whatsapp
+      ),
+      showWhatsapp: isTruthy(
+        getSetting(["maintenance_mode_whatsapp_enabled"], "true")
+      ),
+      agencyName: getSetting(
+        ["agency_name_ar", "site_name", "agency_name_en"],
+        fallback.agencyName
+      ),
     };
   } catch {
     return fallback;
@@ -205,7 +254,9 @@ async function getMaintenanceSettings() {
 }
 
 function isTruthy(value: string) {
-  return ["true", "1", "yes", "on", "enabled"].includes(value.trim().toLowerCase());
+  return ["true", "1", "yes", "on", "enabled"].includes(
+    value.trim().toLowerCase()
+  );
 }
 
 function renderMaintenanceHtml({
@@ -229,14 +280,13 @@ function renderMaintenanceHtml({
       message: "نعمل حالياً على تحسين الموقع. يرجى المحاولة مرة أخرى قريباً.",
       whatsapp: "تواصل واتساب",
       refresh: "تحديث الصفحة",
-      note: "تتم إدارة وضع الصيانة بأمان من لوحة تحكم وكالة حمزة.",
+      note: "تتم إدارة وضع الصيانة بأمان من لوحة تحكم HAMZA AGENCY.",
     },
     en: {
       title: "Maintenance",
       headingBefore: "The website is under",
       headingHighlight: "maintenance",
-      message:
-        "We are currently improving the website. Please try again shortly.",
+      message: "We are currently improving the website. Please try again shortly.",
       whatsapp: "Contact on WhatsApp",
       refresh: "Refresh page",
       note: "Maintenance mode is managed securely through HAMZA AGENCY.",
@@ -245,8 +295,7 @@ function renderMaintenanceHtml({
       title: "Bakım",
       headingBefore: "Web sitesi şu anda",
       headingHighlight: "bakımda",
-      message:
-        "Web sitesini geliştiriyoruz. Lütfen kısa süre sonra tekrar deneyin.",
+      message: "Web sitesini geliştiriyoruz. Lütfen kısa süre sonra tekrar deneyin.",
       whatsapp: "WhatsApp ile İletişim",
       refresh: "Sayfayı yenile",
       note: "Bakım modu HAMZA AGENCY tarafından güvenli biçimde yönetilir.",
@@ -265,78 +314,16 @@ function renderMaintenanceHtml({
   <title>${escapeHtml(agencyName)} | ${escapeHtml(copy.title)}</title>
   <style>
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: Arial, Tahoma, sans-serif;
-      color: #fff;
-      background:
-        radial-gradient(circle at 50% 0%, rgba(124, 58, 237, 0.42), transparent 48%),
-        radial-gradient(circle at 10% 70%, rgba(212, 175, 55, 0.13), transparent 34%),
-        linear-gradient(180deg, #170726 0%, #070009 62%, #000 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-    }
-    .card {
-      width: min(720px, 100%);
-      border: 1px solid rgba(168, 85, 247, 0.26);
-      background: rgba(0, 0, 0, 0.38);
-      box-shadow: 0 0 90px rgba(124, 58, 237, 0.22);
-      border-radius: 34px;
-      padding: 34px;
-      text-align: center;
-      backdrop-filter: blur(18px);
-    }
-    .badge {
-      display: inline-flex;
-      border: 1px solid rgba(212, 175, 55, 0.34);
-      color: #fde68a;
-      background: rgba(212, 175, 55, 0.10);
-      padding: 10px 18px;
-      border-radius: 999px;
-      font-weight: 700;
-      margin-bottom: 22px;
-    }
-    h1 {
-      margin: 0;
-      font-size: clamp(34px, 8vw, 64px);
-      line-height: 1.25;
-      letter-spacing: -0.03em;
-    }
+    body { margin: 0; min-height: 100vh; font-family: Arial, Tahoma, sans-serif; color: #fff; background: radial-gradient(circle at 50% 0%, rgba(124,58,237,.42), transparent 48%), radial-gradient(circle at 10% 70%, rgba(212,175,55,.13), transparent 34%), linear-gradient(180deg,#170726 0%,#070009 62%,#000 100%); display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .card { width: min(720px,100%); border: 1px solid rgba(168,85,247,.26); background: rgba(0,0,0,.38); box-shadow: 0 0 90px rgba(124,58,237,.22); border-radius: 34px; padding: 34px; text-align: center; backdrop-filter: blur(18px); }
+    .badge { display: inline-flex; border: 1px solid rgba(212,175,55,.34); color: #fde68a; background: rgba(212,175,55,.10); padding: 10px 18px; border-radius: 999px; font-weight: 700; margin-bottom: 22px; }
+    h1 { margin: 0; font-size: clamp(34px,8vw,64px); line-height: 1.25; letter-spacing: -.03em; }
     .highlight { color: #f5d76e; }
-    p {
-      margin: 22px auto 0;
-      max-width: 560px;
-      color: rgba(255, 255, 255, 0.72);
-      line-height: 2;
-      font-size: 18px;
-    }
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      justify-content: center;
-      margin-top: 30px;
-    }
-    a, button {
-      border: 0;
-      text-decoration: none;
-      color: #fff;
-      border-radius: 999px;
-      padding: 14px 24px;
-      font-weight: 800;
-      font-size: 15px;
-      cursor: pointer;
-    }
-    a { background: #22c55e; }
-    button { background: linear-gradient(90deg, #7c3aed, #d946ef); }
-    .note {
-      margin-top: 26px;
-      font-size: 13px;
-      color: rgba(255, 255, 255, 0.42);
-    }
+    p { margin: 22px auto 0; max-width: 560px; color: rgba(255,255,255,.72); line-height: 2; font-size: 18px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 30px; }
+    a, button { border: 0; text-decoration: none; color: #fff; border-radius: 999px; padding: 14px 24px; font-weight: 800; font-size: 15px; cursor: pointer; }
+    a { background: #22c55e; } button { background: linear-gradient(90deg,#7c3aed,#d946ef); }
+    .note { margin-top: 26px; font-size: 13px; color: rgba(255,255,255,.42); }
   </style>
 </head>
 <body>
@@ -364,5 +351,7 @@ function escapeHtml(value: string) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest).*)",
+  ],
 };

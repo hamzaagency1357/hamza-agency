@@ -2,297 +2,35 @@
 
 import { usePathname } from "next/navigation";
 import type { SiteLanguage } from "@/lib/i18n/locale";
-import {
-  getLocalizedAbsoluteUrl,
-  getProgramSlugFromPath,
-  isSupportedPublicPath,
-  localizePublicPath,
-  PROGRAM_SLUGS,
-  SITE_URL,
-  stripLocalePrefix,
-} from "@/lib/i18n/publicLocales";
+import { AGENT_PUBLIC_PATH, getLocalizedAbsoluteUrl, getProgramSlugFromPath, isSupportedPublicPath, PROGRAM_SLUGS, SITE_URL, stripLocalePrefix } from "@/lib/i18n/publicLocales";
 import { getPublicSeoCopy } from "@/lib/i18n/publicSeo";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
 const logoUrl = `${SITE_URL}/Logo%20hamza%20agency.jpg`;
 const organizationId = `${SITE_URL}/#organization`;
-
-const languageName: Record<SiteLanguage, string> = {
-  ar: "العربية",
-  en: "English",
-  tr: "Türkçe",
-};
-
-const homeLabel: Record<SiteLanguage, string> = {
-  ar: "الرئيسية",
-  en: "Home",
-  tr: "Ana Sayfa",
-};
-
-const programsLabel: Record<SiteLanguage, string> = {
-  ar: "البرامج",
-  en: "Programs",
-  tr: "Programlar",
-};
-
-const serviceType: Record<SiteLanguage, string> = {
-  ar: "برنامج إدارة وتطوير صناع المحتوى",
-  en: "Content creator management and development program",
-  tr: "İçerik üreticisi yönetim ve gelişim programı",
-};
-
-function buildOrganizationJsonLd(
-  language: SiteLanguage,
-  description: string
-) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "@id": organizationId,
-    name: "HAMZA AGENCY",
-    alternateName:
-      language === "ar" ? ["وكالة حمزة", "Hamza Agency"] : ["Hamza Agency"],
-    url: SITE_URL,
-    logo: logoUrl,
-    image: logoUrl,
-    description,
-    areaServed: [
-      "TR",
-      "SA",
-      "AE",
-      "KW",
-      "QA",
-      "BH",
-      "OM",
-      "IQ",
-      "SY",
-      "JO",
-      "LB",
-      "EG",
-    ],
-    availableLanguage: ["ar", "en", "tr"],
-    contactPoint: [
-      {
-        "@type": "ContactPoint",
-        contactType: "customer support",
-        availableLanguage: ["Arabic", "English", "Turkish"],
-      },
-    ],
-    knowsAbout: [
-      "Live streaming creator management",
-      "TikTok creator programs",
-      "BIGO LIVE creator programs",
-      "Digital services",
-      "Content creator development",
-    ],
-  };
-}
-
-function buildWebsiteJsonLd(
-  language: SiteLanguage,
-  description: string
-) {
-  const url = getLocalizedAbsoluteUrl("/", language);
-
-  return {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "@id": `${url}#website`,
-    name: "HAMZA AGENCY",
-    alternateName: language === "ar" ? "وكالة حمزة" : "Hamza Agency",
-    url,
-    description,
-    inLanguage: language,
-    publisher: {
-      "@id": organizationId,
-    },
-  };
-}
-
-function buildWebPageJsonLd(
-  publicPath: string,
-  language: SiteLanguage,
-  copy: ReturnType<typeof getPublicSeoCopy>
-) {
-  const url = getLocalizedAbsoluteUrl(publicPath, language);
-
-  return {
-    "@context": "https://schema.org",
-    "@type": copy.schemaType || "WebPage",
-    "@id": `${url}#webpage`,
-    url,
-    name: copy.title,
-    description: copy.description,
-    inLanguage: language,
-    isPartOf: {
-      "@id": `${getLocalizedAbsoluteUrl("/", language)}#website`,
-    },
-    publisher: {
-      "@id": organizationId,
-    },
-  };
-}
-
-function buildBreadcrumbJsonLd(
-  publicPath: string,
-  language: SiteLanguage,
-  copy: ReturnType<typeof getPublicSeoCopy>
-) {
-  const items: Array<Record<string, string | number>> = [
-    {
-      "@type": "ListItem",
-      position: 1,
-      name: homeLabel[language],
-      item: getLocalizedAbsoluteUrl("/", language),
-    },
-  ];
-
-  if (getProgramSlugFromPath(publicPath)) {
-    items.push({
-      "@type": "ListItem",
-      position: 2,
-      name: programsLabel[language],
-      item: getLocalizedAbsoluteUrl("/programs", language),
-    });
-    items.push({
-      "@type": "ListItem",
-      position: 3,
-      name: copy.title,
-      item: getLocalizedAbsoluteUrl(publicPath, language),
-    });
-  } else if (publicPath !== "/") {
-    items.push({
-      "@type": "ListItem",
-      position: 2,
-      name: copy.title,
-      item: getLocalizedAbsoluteUrl(publicPath, language),
-    });
-  }
-
-  return {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: items,
-  };
-}
-
-function buildProgramsItemListJsonLd(language: SiteLanguage) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: programsLabel[language],
-    itemListElement: PROGRAM_SLUGS.map((slug, index) => {
-      const path = `/programs/${slug}`;
-      return {
-        "@type": "ListItem",
-        position: index + 1,
-        url: getLocalizedAbsoluteUrl(path, language),
-        name: getPublicSeoCopy(path, language).title,
-      };
-    }),
-  };
-}
-
-function buildProgramServiceJsonLd(
-  publicPath: string,
-  language: SiteLanguage,
-  copy: ReturnType<typeof getPublicSeoCopy>
-) {
-  const url = getLocalizedAbsoluteUrl(publicPath, language);
-
-  return {
-    "@context": "https://schema.org",
-    "@type": "Service",
-    "@id": `${url}#service`,
-    name: copy.title,
-    description: copy.description,
-    url,
-    provider: {
-      "@id": organizationId,
-    },
-    serviceType: serviceType[language],
-    areaServed: [
-      "TR",
-      "SA",
-      "AE",
-      "KW",
-      "QA",
-      "BH",
-      "OM",
-      "IQ",
-      "SY",
-      "JO",
-      "LB",
-      "EG",
-    ],
-  };
-}
-
-function buildServiceRequestJsonLd(language: SiteLanguage) {
-  const copy = getPublicSeoCopy("/service-request", language);
-  const url = getLocalizedAbsoluteUrl("/service-request", language);
-
-  return {
-    "@context": "https://schema.org",
-    "@type": "Service",
-    "@id": `${url}#service`,
-    name: copy.title,
-    description: copy.description,
-    url,
-    provider: {
-      "@id": organizationId,
-    },
-    serviceType:
-      language === "tr"
-        ? "Dijital hizmet talebi"
-        : language === "en"
-          ? "Digital services request"
-          : "طلب خدمات رقمية",
-  };
-}
+const agentId = `${SITE_URL}${AGENT_PUBLIC_PATH}#person`;
+const homeLabel: Record<SiteLanguage, string> = { ar: "الرئيسية", en: "Home", tr: "Ana Sayfa" };
+function buildOrganization(description: string) { return { "@context": "https://schema.org", "@type": "Organization", "@id": organizationId, name: "HAMZA AGENCY", alternateName: ["وكالة حمزة", "Hamza Agency"], url: SITE_URL, logo: { "@type": "ImageObject", url: logoUrl }, image: logoUrl, description, employee: { "@id": agentId }, areaServed: ["TR", "SY", "SA", "AE", "IQ", "JO", "LB", "EG"], availableLanguage: ["ar", "en", "tr"] }; }
+function buildLocalBusiness(description: string) { return { "@context": "https://schema.org", "@type": "LocalBusiness", "@id": `${SITE_URL}/#localbusiness`, name: "HAMZA AGENCY", alternateName: "وكالة حمزة", url: SITE_URL, logo: logoUrl, image: logoUrl, description, parentOrganization: { "@id": organizationId }, employee: { "@id": agentId }, areaServed: ["TR", "SY", "Middle East"] }; }
+function buildAgent(language: SiteLanguage) { return { "@context": "https://schema.org", "@type": "Person", "@id": agentId, name: "عراب سوريا", alternateName: ["⚔عܓོراب✴سܓོوريا⚔", "Arab Syria"], url: getLocalizedAbsoluteUrl(AGENT_PUBLIC_PATH, language), jobTitle: language === "ar" ? "الوكيل والمدير في HAMZA AGENCY" : language === "tr" ? "HAMZA AGENCY Temsilcisi ve Yöneticisi" : "Agent and Manager at HAMZA AGENCY", worksFor: { "@id": organizationId }, knowsAbout: ["Content creator management", "Live-streaming programs", "Creator support", "Privacy and safety"] }; }
+function buildWebsite(language: SiteLanguage, description: string) { const url = getLocalizedAbsoluteUrl("/", language); return { "@context": "https://schema.org", "@type": "WebSite", "@id": `${url}#website`, name: "HAMZA AGENCY", alternateName: language === "ar" ? "وكالة حمزة" : "Hamza Agency", url, description, inLanguage: language, publisher: { "@id": organizationId }, about: { "@id": agentId } }; }
 
 export default function StructuredData() {
   const pathname = usePathname() || "/";
   const language = useSiteLanguage();
   const publicPath = stripLocalePrefix(pathname);
-  const copy = getPublicSeoCopy(publicPath, language);
-  const jsonLdItems: unknown[] = [
-    buildOrganizationJsonLd(language, copy.description),
-    buildWebsiteJsonLd(
-      language,
-      getPublicSeoCopy("/", language).description
-    ),
-    buildWebPageJsonLd(publicPath, language, copy),
-    buildBreadcrumbJsonLd(publicPath, language, copy),
-  ];
-
-  if (publicPath === "/programs") {
-    jsonLdItems.push(buildProgramsItemListJsonLd(language));
-  }
-
-  if (getProgramSlugFromPath(publicPath)) {
-    jsonLdItems.push(buildProgramServiceJsonLd(publicPath, language, copy));
-  }
-
-  if (publicPath === "/service-request") {
-    jsonLdItems.push(buildServiceRequestJsonLd(language));
-  }
-
   if (!isSupportedPublicPath(publicPath)) return null;
-
-  return (
-    <>
-      {jsonLdItems.map((item, index) => (
-        <script
-          key={`${localizePublicPath(publicPath, language)}-jsonld-${index}`}
-          type="application/ld+json"
-          data-site-language={language}
-          data-language-name={languageName[language]}
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(item).replace(/</g, "\\u003c"),
-          }}
-        />
-      ))}
-    </>
-  );
+  const copy = getPublicSeoCopy(publicPath, language);
+  const url = getLocalizedAbsoluteUrl(publicPath, language);
+  const items: unknown[] = [
+    buildOrganization(copy.description), buildLocalBusiness(copy.description), buildAgent(language), buildWebsite(language, getPublicSeoCopy("/", language).description),
+    { "@context": "https://schema.org", "@type": copy.schemaType || "WebPage", "@id": `${url}#webpage`, url, name: copy.title, description: copy.description, inLanguage: language, isPartOf: { "@id": `${getLocalizedAbsoluteUrl("/", language)}#website` }, publisher: { "@id": organizationId }, about: publicPath === AGENT_PUBLIC_PATH ? { "@id": agentId } : undefined },
+  ];
+  const crumbs = [{ "@type": "ListItem", position: 1, name: homeLabel[language], item: getLocalizedAbsoluteUrl("/", language) }];
+  if (publicPath !== "/") crumbs.push({ "@type": "ListItem", position: 2, name: copy.title, item: url });
+  items.push({ "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: crumbs });
+  if (publicPath === "/programs") items.push({ "@context": "https://schema.org", "@type": "ItemList", itemListElement: PROGRAM_SLUGS.map((slug, index) => ({ "@type": "ListItem", position: index + 1, url: getLocalizedAbsoluteUrl(`/programs/${slug}`, language) })) });
+  if (getProgramSlugFromPath(publicPath) || publicPath === "/service-request") items.push({ "@context": "https://schema.org", "@type": "Service", name: copy.title, description: copy.description, url, provider: { "@id": organizationId } });
+  if (publicPath === "/faq") items.push({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: language === "ar" ? "من هو الوكيل الذي يدير HAMZA AGENCY؟" : language === "tr" ? "HAMZA AGENCY'yi yöneten temsilci kimdir?" : "Who is the agent managing HAMZA AGENCY?", acceptedAnswer: { "@type": "Answer", text: language === "ar" ? "عراب سوريا هو الوكيل والمدير في HAMZA AGENCY." : "Arab Syria is the agent and manager at HAMZA AGENCY." } }] });
+  return <>{items.map((item, index) => <script key={`${publicPath}-${index}`} type="application/ld+json" data-site-language={language} dangerouslySetInnerHTML={{ __html: JSON.stringify(item).replace(/</g, "\\u003c") }} />)}</>;
 }

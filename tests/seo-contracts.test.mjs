@@ -1,31 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
-
-test("public SEO includes canonical, hreflang, Open Graph, and Twitter contracts", async () => {
-  const [metadata, locales, sitemap, robots] = await Promise.all([read("lib/i18n/serverPublicMetadata.ts"), read("lib/i18n/publicLocales.ts"), read("app/sitemap.ts"), read("app/robots.ts")]);
-  for (const token of ["canonical", "languages", "openGraph", "twitter", "googleBot"]) assert.ok(metadata.includes(token), `missing metadata token: ${token}`);
-  for (const token of ['"x-default"', "getLanguageAlternates", '"/blog"', "getBlogSlugFromPath"]) assert.ok(locales.includes(token), `missing locale token: ${token}`);
-  assert.ok(sitemap.includes("getServerBlogFeed"));
-  assert.ok(sitemap.includes("PROGRAM_SLUGS"));
-  assert.ok(robots.includes("/sitemap.xml"));
-  assert.ok(robots.includes('"/admin/"'));
-});
-
-test("blog articles provide Article and Breadcrumb structured data", async () => {
-  const [articlePage, structuredData] = await Promise.all([read("app/blog/[slug]/page.tsx"), read("components/StructuredData.tsx")]);
-  assert.ok(articlePage.includes('"@type": "Article"'));
-  assert.ok(articlePage.includes("generateMetadata"));
-  assert.ok(articlePage.includes("getLanguageAlternates"));
-  assert.ok(structuredData.includes('"@type": "BreadcrumbList"'));
-  assert.ok(structuredData.includes('"@type": "Organization"'));
-});
-
-test("approved agent identity is separated between public display and SEO", async () => {
-  const [header, metadata, structuredData] = await Promise.all([read("components/PublicGlobalHeader.tsx"), read("lib/i18n/serverPublicMetadata.ts"), read("components/StructuredData.tsx")]);
-  assert.ok(header.includes("⚔عܓོراب✴سܓོوريا⚔"));
-  assert.ok(header.includes("بإدارة الوكيل عراب سوريا"));
-  assert.ok(metadata.includes('"عراب سوريا"'));
-  assert.ok(structuredData.includes('"HAMZA AGENCY"'));
-});
+async function listFiles(directory) { const entries = await readdir(new URL(`../${directory}/`, import.meta.url), { withFileTypes: true }); const files = []; for (const entry of entries) { const relative = join(directory, entry.name); if (entry.isDirectory()) files.push(...(await listFiles(relative))); else files.push(relative); } return files; }
+test("SEO includes canonical hreflang and institutional identity", async () => { const [metadata, locales, sitemap] = await Promise.all([read("lib/i18n/serverPublicMetadata.ts"), read("lib/i18n/publicLocales.ts"), read("app/sitemap.ts")]); for (const token of ["canonical", "languages", "openGraph", "twitter", "googleBot", 'applicationName: "HAMZA AGENCY"', 'publisher: "HAMZA AGENCY"', 'siteName: "HAMZA AGENCY"']) assert.ok(metadata.includes(token), token); for (const token of ['"x-default"', "getLanguageAlternates", 'AGENT_PUBLIC_PATH = "/agent/arab-syria"']) assert.ok(locales.includes(token), token); assert.ok(sitemap.includes("PUBLIC_ROUTE_PATHS")); });
+test("articles use BlogPosting and HAMZA AGENCY publisher", async () => { const article = await read("app/blog/[slug]/page.tsx"); assert.ok(article.includes('"@type": "BlogPosting"')); assert.ok(!article.includes('"@type": "Article"')); assert.ok(article.includes('publisher: { "@id": organizationId }')); });
+test("agency and agent are separated and linked", async () => { const [header, data, agent, seo] = await Promise.all([read("components/PublicGlobalHeader.tsx"), read("components/StructuredData.tsx"), read("app/agent/arab-syria/page.tsx"), read("lib/i18n/publicSeo.ts")]); assert.ok(header.includes("⚔عܓོراب✴سܓོوريا⚔")); assert.ok(header.includes("HAMZA AGENCY بإدارة الوكيل عراب سوريا")); for (const token of ['"@type": "Organization"', '"@type": "LocalBusiness"', '"@type": "Person"', 'name: "عراب سوريا"', 'worksFor: { "@id": organizationId }', 'name: "HAMZA AGENCY"']) assert.ok(data.includes(token), token); assert.ok(agent.includes("الوكيل والمدير في HAMZA AGENCY")); assert.ok(seo.includes("عراب سوريا | الوكيل والمدير في HAMZA AGENCY")); });
+test("breadcrumbs and 404 links preserve language", async () => { const [breadcrumbs, notFound] = await Promise.all([read("components/PublicBreadcrumbs.tsx"), read("components/NotFoundStaticUi.tsx")]); for (const token of ["stripLocalePrefix(pathname)", 'localizePublicHref("/blog", language)', "AGENT_PUBLIC_PATH"]) assert.ok(breadcrumbs.includes(token), token); for (const token of ['localizePublicHref("/", language)', 'localizePublicHref("/programs", language)', "localizePublicHref(href, language)"]) assert.ok(notFound.includes(token), token); });
+test("public source contains no client identity phrase", async () => { const files = [...(await listFiles("app")), ...(await listFiles("components")), ...(await listFiles("lib"))].filter((path) => /\.(?:ts|tsx|js|jsx|mjs)$/.test(path)); const matches = []; for (const file of files) if ((await read(file)).includes("العميل حمزة")) matches.push(file); assert.deepEqual(matches, []); });

@@ -1,10 +1,12 @@
 import { isSiteLanguage, type SiteLanguage } from "@/lib/i18n/locale";
 
 export const SITE_URL = "https://hamza-agency.com";
+export const AGENT_PUBLIC_PATH = "/agent/arab-syria";
 
 export const PUBLIC_ROUTE_PATHS = [
   "/",
   "/about",
+  AGENT_PUBLIC_PATH,
   "/ai-policy",
   "/ai-support",
   "/apply",
@@ -54,6 +56,7 @@ const reservedCmsSegments = new Set([
   "en",
   "tr",
   "login",
+  "portal",
   "reset-password",
   "robots.txt",
   "sitemap.xml",

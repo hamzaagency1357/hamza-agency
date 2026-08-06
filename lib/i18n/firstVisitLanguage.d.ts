@@ -10,7 +10,8 @@ export type FirstVisitLanguageInput = {
   alreadyResolved?: boolean;
 };
 
-export function isSearchCrawler(userAgent: string): boolean;
+export function isSearchCrawler(userAgent?: string): boolean;
+export function parseAcceptLanguageHeader(value?: string): string[];
 export function detectDeviceLanguage(
   navigatorLanguages?: readonly string[]
 ): SiteLanguage;
