@@ -1,21 +1,122 @@
 import Link from "next/link";
 import PublicLanguageMain from "@/components/PublicLanguageMain";
 import PublicBreadcrumbs from "@/components/PublicBreadcrumbs";
-import { getBlogPosts, getBlogCategories, getBlogTags } from "@/lib/blog/posts.mjs";
+import {
+  getServerBlogPosts,
+  getServerBlogTaxonomy,
+} from "@/lib/blog/serverPosts";
+import type { BlogLanguage } from "@/lib/blog/posts";
 import { getRequestSiteContext } from "@/lib/i18n/serverPublicMetadata";
-import type { BlogCategory, BlogTag } from "@/lib/blog/posts";
+import { localizePublicHref } from "@/lib/i18n/publicLocales";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function BlogListPage() {
-  const siteContext = await getRequestSiteContext();
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+const copy = {
+  ar: {
+    eyebrow: "مدونة عراب سوريا",
+    intro: "مقالات مهنية حول صناعة المحتوى، البرامج، الهوية الرقمية، وتحسين الظهور.",
+    searchLabel: "ابحث في المدونة",
+    searchPlaceholder: "اكتب كلمة أو موضوعاً",
+    searchButton: "بحث",
+    clear: "مسح الفلاتر",
+    categories: "التصنيفات",
+    tags: "الوسوم",
+    readMore: "اقرأ المقال",
+    previous: "السابق",
+    next: "التالي",
+    page: "الصفحة",
+    of: "من",
+    rss: "خلاصة RSS",
+    published: "نُشر في",
+    emptyHint: "ستظهر المقالات هنا بعد اعتمادها ونشرها من لوحة التحكم.",
+    noResultsHint: "جرّب كلمة مختلفة أو امسح التصنيف والوسم الحاليين.",
+  },
+  en: {
+    eyebrow: "Arab Syria Blog",
+    intro: "Professional articles about content creation, programs, digital identity, and search visibility.",
+    searchLabel: "Search the blog",
+    searchPlaceholder: "Enter a keyword or topic",
+    searchButton: "Search",
+    clear: "Clear filters",
+    categories: "Categories",
+    tags: "Tags",
+    readMore: "Read article",
+    previous: "Previous",
+    next: "Next",
+    page: "Page",
+    of: "of",
+    rss: "RSS feed",
+    published: "Published",
+    emptyHint: "Articles will appear here after they are reviewed and published from the administration area.",
+    noResultsHint: "Try another keyword or clear the current category and tag.",
+  },
+  tr: {
+    eyebrow: "Arab Syria Blogu",
+    intro: "İçerik üretimi, programlar, dijital kimlik ve arama görünürlüğü hakkında profesyonel makaleler.",
+    searchLabel: "Blogda ara",
+    searchPlaceholder: "Bir kelime veya konu yazın",
+    searchButton: "Ara",
+    clear: "Filtreleri temizle",
+    categories: "Kategoriler",
+    tags: "Etiketler",
+    readMore: "Makaleyi oku",
+    previous: "Önceki",
+    next: "Sonraki",
+    page: "Sayfa",
+    of: "/",
+    rss: "RSS akışı",
+    published: "Yayınlandı",
+    emptyHint: "Makaleler yönetim alanında incelenip yayınlandıktan sonra burada görünür.",
+    noResultsHint: "Başka bir kelime deneyin veya kategori ve etiket filtrelerini temizleyin.",
+  },
+} as const;
+
+function firstParam(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value[0] || "" : value || "";
+}
+
+function safePositiveInteger(value: string, fallback = 1) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function buildBlogHref(
+  language: BlogLanguage,
+  values: { page?: number; search?: string; category?: string; tag?: string }
+) {
+  const params = new URLSearchParams();
+  if (values.search) params.set("q", values.search);
+  if (values.category) params.set("category", values.category);
+  if (values.tag) params.set("tag", values.tag);
+  if (values.page && values.page > 1) params.set("page", String(values.page));
+  const query = params.toString();
+  const base = localizePublicHref("/blog", language);
+  return query ? `${base}?${query}` : base;
+}
+
+function safeBackgroundImage(value: string | null) {
+  if (!value || !/^https?:\/\//i.test(value)) return undefined;
+  return `url("${value.replaceAll('"', "%22")}")`;
+}
+
+export default async function BlogListPage({ searchParams }: { searchParams: SearchParams }) {
+  const [siteContext, query] = await Promise.all([getRequestSiteContext(), searchParams]);
   const language = siteContext.language;
-  const result = getBlogPosts({ language, page: 1, perPage: 6 });
-  const categories = getBlogCategories(language) as Record<string, BlogCategory>;
-  const tags = getBlogTags(language) as Record<string, BlogTag>;
+  const t = copy[language];
+  const search = firstParam(query.q).trim();
+  const category = firstParam(query.category).trim();
+  const tag = firstParam(query.tag).trim();
+  const requestedPage = safePositiveInteger(firstParam(query.page));
+  const [result, taxonomy] = await Promise.all([
+    getServerBlogPosts({ language, page: requestedPage, perPage: 6, search, category, tag }),
+    getServerBlogTaxonomy(language),
+  ]);
   const locale = language === "ar" ? "ar-SA" : language === "tr" ? "tr-TR" : "en-US";
-  const ctaLabel = language === "ar" ? "اقرأ المزيد" : language === "tr" ? "Devamını oku" : "Read more";
+  const hasFilters = Boolean(search || category || tag);
+  const canonicalBlog = localizePublicHref("/blog", language);
 
   return (
     <PublicLanguageMain className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
@@ -23,55 +124,72 @@ export default async function BlogListPage() {
         <div className="absolute inset-0 bg-[#070009]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,58,237,0.28)_0%,rgba(7,0,9,0.95)_70%)]" />
       </div>
-      <main className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-5 py-16">
+      <main className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-5 py-12 md:py-16">
         <PublicBreadcrumbs />
         <header className="rounded-[2rem] border border-purple-400/20 bg-black/35 p-7 shadow-[0_0_45px_rgba(168,85,247,0.12)] backdrop-blur md:p-10">
-          <p className="text-sm font-black uppercase tracking-[0.3em] text-purple-200">Blog</p>
-          <h1 className="mt-4 text-4xl font-black md:text-6xl">{result.labels.title}</h1>
-          <p className="mt-5 max-w-3xl text-lg leading-9 text-white/70">
-            {language === "ar"
-              ? "محتوى عملي يشرح العمل الرقمي، إدارة البرامج، والهوية الرقمية بطريقة واضحة ومهنية."
-              : language === "tr"
-                ? "Dijital çalışma, program yönetimi ve marka kimliği hakkında açık ve profesyonel içerikler."
-                : "Practical content about digital operations, programs, and brand identity in a clear professional tone."}
-          </p>
+          <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.25em] text-purple-200">{t.eyebrow}</p>
+              <h1 className="mt-4 text-4xl font-black md:text-6xl">{result.labels.title}</h1>
+              <p className="mt-5 max-w-3xl text-lg leading-9 text-white/70">{t.intro}</p>
+            </div>
+            <a href={localizePublicHref("/blog/rss", language)} className="inline-flex min-h-11 w-fit items-center rounded-full border border-yellow-300/25 bg-yellow-300/10 px-5 py-3 text-sm font-black text-yellow-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300">{t.rss}</a>
+          </div>
         </header>
 
-        <div className="mt-8 flex flex-wrap gap-3">
-          {Object.values(categories).map((category) => (
-            <Link key={category.slug} href={`/blog?category=${category.slug}`} className="rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-bold text-white/80">
-              {category.label}
-            </Link>
-          ))}
-          {Object.values(tags).slice(0, 8).map((tag) => (
-            <Link key={tag.slug} href={`/blog?tag=${tag.slug}`} className="rounded-full border border-purple-400/20 bg-purple-500/10 px-4 py-2 text-sm font-bold text-purple-100">
-              #{tag.label}
-            </Link>
-          ))}
-        </div>
+        <form action={canonicalBlog} method="get" role="search" className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/[0.045] p-4 backdrop-blur">
+          <label htmlFor="blog-search" className="mb-2 block text-sm font-black text-white/80">{t.searchLabel}</label>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input id="blog-search" name="q" type="search" defaultValue={search} placeholder={t.searchPlaceholder} className="min-h-12 flex-1 rounded-xl border border-white/15 bg-black/35 px-4 text-white outline-none placeholder:text-white/40 focus:border-purple-300 focus:ring-2 focus:ring-purple-400/30" />
+            {category ? <input type="hidden" name="category" value={category} /> : null}
+            {tag ? <input type="hidden" name="tag" value={tag} /> : null}
+            <button type="submit" className="min-h-12 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-7 font-black text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300">{t.searchButton}</button>
+          </div>
+        </form>
 
-        {result.posts.length > 0 ? (
-          <section className="mt-10 grid gap-6 lg:grid-cols-2">
-            {result.posts.map((post) => (
-              <article key={post.id} className="rounded-[2rem] border border-white/10 bg-white/[0.05] p-6 backdrop-blur">
-                <div className="flex items-center justify-between text-sm text-white/60">
-                  <span className="rounded-full border border-purple-400/20 bg-purple-500/10 px-3 py-1 text-xs font-black text-purple-100">{categories[post.category]?.label || post.category}</span>
-                  <span>{new Date(post.publishedAt || post.scheduledAt || Date.now()).toLocaleDateString(locale)}</span>
+        <section aria-labelledby="blog-categories-title" className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="blog-categories-title" className="text-lg font-black">{t.categories}</h2>
+            {hasFilters ? <Link href={canonicalBlog} className="inline-flex min-h-11 items-center rounded-full border border-white/15 px-4 py-2 text-sm font-bold text-white/75 hover:text-white">{t.clear}</Link> : null}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {Object.values(taxonomy.categories).map((item) => {
+              const active = category === item.slug;
+              return <Link key={item.slug} href={buildBlogHref(language, { search, category: active ? "" : item.slug, tag })} aria-current={active ? "true" : undefined} className={`inline-flex min-h-11 items-center rounded-full border px-4 py-2 text-sm font-bold transition ${active ? "border-purple-300/50 bg-purple-500/25 text-white" : "border-white/10 bg-white/[0.05] text-white/80 hover:border-purple-300/40"}`}>{item.label}</Link>;
+            })}
+          </div>
+          {Object.keys(taxonomy.tags).length ? <><h2 className="mt-6 text-sm font-black text-white/70">{t.tags}</h2><div className="mt-3 flex flex-wrap gap-2">{Object.values(taxonomy.tags).slice(0, 16).map((item) => { const active = tag === item.slug; return <Link key={item.slug} href={buildBlogHref(language, { search, category, tag: active ? "" : item.slug })} aria-current={active ? "true" : undefined} className={`inline-flex min-h-11 items-center rounded-full border px-4 py-2 text-sm font-bold ${active ? "border-yellow-300/45 bg-yellow-300/15 text-yellow-100" : "border-purple-400/20 bg-purple-500/10 text-purple-100"}`}>#{item.label}</Link>; })}</div></> : null}
+        </section>
+
+        {result.posts.length > 0 ? <>
+          <section aria-label={result.labels.title} className="mt-10 grid gap-6 lg:grid-cols-2">
+            {result.posts.map((post) => {
+              const backgroundImage = safeBackgroundImage(post.featuredImage);
+              const dateValue = post.publishedAt || post.scheduledAt || post.updatedAt;
+              return <article key={post.id} className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.05] backdrop-blur">
+                {backgroundImage ? <div role="img" aria-label={post.copy.title} className="h-56 bg-cover bg-center" style={{ backgroundImage }} /> : <div aria-hidden="true" className="h-28 bg-[radial-gradient(circle_at_20%_20%,rgba(245,215,110,0.25),transparent_38%),linear-gradient(135deg,rgba(124,58,237,0.45),rgba(7,0,9,0.9))]" />}
+                <div className="p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-white/60">
+                    <span className="rounded-full border border-purple-400/20 bg-purple-500/10 px-3 py-1 text-xs font-black text-purple-100">{taxonomy.categories[post.category]?.label || post.category}</span>
+                    {dateValue ? <time dateTime={dateValue}>{t.published} {new Date(dateValue).toLocaleDateString(locale)}</time> : null}
+                  </div>
+                  <h2 className="mt-5 text-2xl font-black leading-9">{post.copy.title}</h2>
+                  <p className="mt-4 leading-8 text-white/70">{post.copy.excerpt}</p>
+                  <Link href={localizePublicHref(`/blog/${post.slug}`, language)} className="mt-6 inline-flex min-h-11 items-center rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-5 py-3 text-sm font-black text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300">{t.readMore}</Link>
                 </div>
-                <h2 className="mt-5 text-2xl font-black leading-9">{post.copy.title}</h2>
-                <p className="mt-4 leading-8 text-white/70">{post.copy.excerpt}</p>
-                <Link href={`/blog/${post.slug}`} className="mt-6 inline-flex rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-5 py-3 text-sm font-black text-white">
-                  {ctaLabel}
-                </Link>
-              </article>
-            ))}
+              </article>;
+            })}
           </section>
-        ) : (
-          <section className="mt-10 rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 text-center backdrop-blur">
-            <h2 className="text-2xl font-black">{result.labels.empty}</h2>
-            <p className="mt-3 text-white/70">{language === "ar" ? "سيظهر المحتوى هنا فور نشره أو تحديثه." : language === "tr" ? "İçerik yayınlandığında veya güncellendiğinde burada görünür." : "Content will appear here as soon as it is published or updated."}</p>
-          </section>
-        )}
+          <nav aria-label={`${t.page} ${result.page} ${t.of} ${result.totalPages}`} className="mt-10 flex flex-wrap items-center justify-center gap-4">
+            {result.page > 1 ? <Link rel="prev" href={buildBlogHref(language, { page: result.page - 1, search, category, tag })} className="inline-flex min-h-11 items-center rounded-full border border-white/15 bg-white/[0.05] px-5 py-3 font-black">{t.previous}</Link> : null}
+            <span className="rounded-full border border-white/10 px-5 py-3 text-sm font-bold text-white/70">{t.page} {result.page} {t.of} {result.totalPages}</span>
+            {result.page < result.totalPages ? <Link rel="next" href={buildBlogHref(language, { page: result.page + 1, search, category, tag })} className="inline-flex min-h-11 items-center rounded-full border border-white/15 bg-white/[0.05] px-5 py-3 font-black">{t.next}</Link> : null}
+          </nav>
+        </> : <section className="mt-10 rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 text-center backdrop-blur">
+          <h2 className="text-2xl font-black">{hasFilters ? result.labels.noResults : result.labels.empty}</h2>
+          <p className="mt-3 leading-8 text-white/70">{hasFilters ? t.noResultsHint : t.emptyHint}</p>
+          {hasFilters ? <Link href={canonicalBlog} className="mt-6 inline-flex min-h-11 items-center rounded-full border border-purple-300/30 bg-purple-500/15 px-5 py-3 font-black">{t.clear}</Link> : null}
+        </section>}
       </main>
     </PublicLanguageMain>
   );

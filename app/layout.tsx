@@ -1,6 +1,7 @@
 import type { Viewport } from "next";
 import PublicQuickNav from "@/components/PublicQuickNav";
 import AdminQuickNav from "@/components/AdminQuickNav";
+import AdminBlogQuickLink from "@/components/AdminBlogQuickLink";
 import PublicAiSupport from "@/components/PublicAiSupport";
 import PublicMobileDock from "@/components/PublicMobileDock";
 import PublicDesktopEnhancer from "@/components/PublicDesktopEnhancer";
@@ -13,6 +14,7 @@ import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
 import StructuredData from "@/components/StructuredData";
 import SiteLanguageDocumentSync from "@/components/SiteLanguageDocumentSync";
 import PublicSiteRuntimeTranslator from "@/components/PublicSiteRuntimeTranslator";
+import FirstVisitLanguageRedirect from "@/components/FirstVisitLanguageRedirect";
 import PwaRuntime from "@/components/PwaRuntime";
 import CookieConsent from "@/components/CookieConsent";
 import { getServerTenantRuntime } from "@/lib/productExpansion/serverTenantRuntime";
@@ -68,6 +70,7 @@ export default async function RootLayout({
         suppressHydrationWarning
       >
         <SiteLanguageProvider initialLanguage={siteContext.language}>
+          <FirstVisitLanguageRedirect />
           <StructuredData />
           <AuthRecoveryRedirect />
           <SiteLanguageDocumentSync />
@@ -83,6 +86,7 @@ export default async function RootLayout({
           <PublicMobileDock />
           <PublicAiSupport />
           <PublicQuickNav />
+          <AdminBlogQuickLink />
           <AdminQuickNav />
           <CookieConsent />
         </SiteLanguageProvider>

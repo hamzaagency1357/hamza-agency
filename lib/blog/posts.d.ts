@@ -1,22 +1,26 @@
 export type BlogLanguage = "ar" | "en" | "tr";
+export type BlogStatus = "draft" | "published" | "scheduled" | "unpublished";
 
 export interface BlogPostContent {
   title: string;
   excerpt: string;
   content: string;
+  seoTitle?: string;
+  seoDescription?: string;
 }
 
 export interface BlogPost {
-  id: number;
+  id: number | string;
   slug: string;
-  status: "draft" | "published";
+  status: BlogStatus;
   publishedAt: string | null;
   scheduledAt: string | null;
+  updatedAt?: string | null;
   category: string;
   tags: string[];
   featuredImage: string | null;
   contentByLanguage: Record<string, BlogPostContent>;
-  copy?: BlogPostContent;
+  copy: BlogPostContent;
 }
 
 export interface BlogListLabels {

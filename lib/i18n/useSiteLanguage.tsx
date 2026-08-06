@@ -9,11 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  applySiteLanguage,
-  setStoredSiteLanguage,
-  type SiteLanguage,
-} from "@/lib/i18n/locale";
+import { applySiteLanguage, type SiteLanguage } from "@/lib/i18n/locale";
 import {
   getPathLanguage,
   isSupportedPublicPath,
@@ -36,7 +32,6 @@ export function SiteLanguageProvider({
 
     const nextLanguage = getPathLanguage(pathname || "/");
     setLanguage(nextLanguage);
-    setStoredSiteLanguage(nextLanguage);
     applySiteLanguage(nextLanguage);
   }, [pathname]);
 

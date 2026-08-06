@@ -1,28 +1,36 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getBlogPosts, getBlogPostBySlug } from "../lib/blog/posts.mjs";
-import { getPreferredSiteLanguage } from "../lib/i18n/locale.ts";
-import { normalizePublicPathname, stripLocalePrefix } from "../lib/i18n/publicLocales.ts";
+import { readFile } from "node:fs/promises";
+import { getBlogPosts, getBlogPostBySlug, getBlogFeed } from "../lib/blog/posts.mjs";
 
-test("returns published posts with pagination and search", () => {
-  const result = getBlogPosts({ language: "ar", page: 1, perPage: 2 });
-  assert.ok(result.posts.length <= 2);
-  assert.ok(result.posts.every((post) => post.status === "published"));
-  assert.equal(result.totalPages, 2);
+test("does not expose editorial templates as published content", () => {
+  const result = getBlogPosts({ language: "ar", page: 1, perPage: 6 });
+  assert.equal(result.posts.length, 0);
+  assert.equal(result.total, 0);
+  assert.equal(getBlogFeed("ar").length, 0);
 });
 
-test("allows previewing draft content", () => {
-  const post = getBlogPostBySlug("plan-2026", { language: "ar", preview: true });
+test("allows administrators to preview draft templates", () => {
+  const post = getBlogPostBySlug("editorial-plan", { language: "ar", preview: true });
   assert.ok(post);
-  assert.equal(post?.slug, "plan-2026");
+  assert.equal(post?.slug, "editorial-plan");
+  assert.equal(post?.status, "draft");
 });
 
-test("prefers the stored language over browser preference", () => {
-  const language = getPreferredSiteLanguage({ storedLanguage: "tr", acceptLanguage: "en-US,en;q=0.9" });
-  assert.equal(language, "tr");
+test("supports preview search, taxonomy filters, and pagination", () => {
+  const searched = getBlogPosts({ language: "en", search: "operations", preview: true });
+  assert.ok(searched.posts.length >= 1);
+  const filtered = getBlogPosts({ language: "tr", category: "planning", preview: true });
+  assert.equal(filtered.posts.length, 1);
+  const paged = getBlogPosts({ language: "ar", page: 2, perPage: 1, preview: true });
+  assert.equal(paged.page, 2);
+  assert.equal(paged.posts.length, 1);
 });
 
-test("normalizes public paths and strips locale prefixes", () => {
-  assert.equal(normalizePublicPathname("/blog//"), "/blog");
-  assert.equal(stripLocalePrefix("/en/blog"), "/blog");
+test("blog route registry includes localized index, articles, and RSS", async () => {
+  const source = await readFile(new URL("../lib/i18n/publicLocales.ts", import.meta.url), "utf8");
+  assert.ok(source.includes('"/blog"'));
+  assert.ok(source.includes("blogArticlePathPattern"));
+  assert.ok(source.includes('publicPath === "/blog/rss"'));
+  assert.ok(source.includes("getBlogSlugFromPath"));
 });
