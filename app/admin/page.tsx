@@ -206,6 +206,33 @@ const operationsLinks: AdminLink[] = [
   },
 ];
 
+const workflowGuides: AdminLink[] = [
+  {
+    title: "الطلبات أولًا",
+    description: "ابدأ بمراجعة الطلبات الجديدة والتواصل مع المتقدمين بسرعة.",
+    href: "/admin/requests",
+    tone: "blue",
+  },
+  {
+    title: "المحتوى والتنسيق",
+    description: "راجع الصفحات والأقسام والبرامج قبل نشر أي تحديث جديد.",
+    href: "/admin/pages",
+    tone: "purple",
+  },
+  {
+    title: "الترجمة قبل النشر",
+    description: "تأكد من اكتمال العربية والإنجليزية والتركية في كل قسم.",
+    href: "/admin/translations",
+    tone: "green",
+  },
+  {
+    title: "الإعدادات العامة",
+    description: "حافظ على هوية الموقع والتواصل والإعدادات التشغيلية جاهزة.",
+    href: "/admin/settings",
+    tone: "cyan",
+  },
+];
+
 function getApplicationSnapshot(app: Application) {
   return {
     id: app.id,
@@ -245,6 +272,7 @@ export default function AdminPage() {
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
 
   const [counts, setCounts] = useState<DashboardCounts>({
     applications: 0,
@@ -281,72 +309,80 @@ export default function AdminPage() {
   }, [router]);
 
   const loadDashboard = useCallback(async () => {
+    setIsLoadingDashboard(true);
+    setError("");
+
     if (!supabase) {
       setError("Supabase غير متصل.");
+      setIsLoadingDashboard(false);
       return;
     }
 
-    const { data, error: applicationsError } = await supabase
-      .from("agency_applications")
-      .select(
-        "id, full_name, country, whatsapp, platform, previous_experience, notes, status, internal_notes, created_at"
-      )
-      .order("created_at", { ascending: false });
+    try {
+      const { data, error: applicationsError } = await supabase
+        .from("agency_applications")
+        .select(
+          "id, full_name, country, whatsapp, platform, previous_experience, notes, status, internal_notes, created_at"
+        )
+        .order("created_at", { ascending: false });
 
-    if (applicationsError) {
-      setError("لا يمكن قراءة طلبات الانضمام حالياً.");
-    } else {
-      setApplications((data || []) as Application[]);
+      if (applicationsError) {
+        setError("لا يمكن قراءة طلبات الانضمام حالياً.");
+      } else {
+        setApplications((data || []) as Application[]);
+      }
+
+      const [
+        applicationsCount,
+        serviceRequestsCount,
+        programsCount,
+        pagesCount,
+        sectionsCount,
+        mediaCount,
+        announcementsCount,
+        settingsCount,
+        notificationsCount,
+        jobsCount,
+        reviewsCount,
+        successStoriesCount,
+        partnersCount,
+        galleryCount,
+      ] = await Promise.all([
+        getCount("agency_applications"),
+        getCount("service_requests"),
+        getCount("programs"),
+        getCount("pages"),
+        getCount("sections"),
+        getCount("media"),
+        getCount("announcements"),
+        getCount("settings"),
+        getCount("notifications"),
+        getCount("jobs"),
+        getCount("reviews"),
+        getCount("success_stories"),
+        getCount("partners"),
+        getCount("gallery_items"),
+      ]);
+
+      setCounts({
+        applications: applicationsCount,
+        serviceRequests: serviceRequestsCount,
+        programs: programsCount,
+        pages: pagesCount,
+        sections: sectionsCount,
+        media: mediaCount,
+        announcements: announcementsCount,
+        settings: settingsCount,
+        notifications: notificationsCount,
+        jobs: jobsCount,
+        reviews: reviewsCount,
+        successStories: successStoriesCount,
+        partners: partnersCount,
+        gallery: galleryCount,
+      });
+    } finally {
+      setIsLoadingDashboard(false);
     }
-
-    const [
-      applicationsCount,
-      serviceRequestsCount,
-      programsCount,
-      pagesCount,
-      sectionsCount,
-      mediaCount,
-      announcementsCount,
-      settingsCount,
-      notificationsCount,
-      jobsCount,
-      reviewsCount,
-      successStoriesCount,
-      partnersCount,
-      galleryCount,
-    ] = await Promise.all([
-      getCount("agency_applications"),
-      getCount("service_requests"),
-      getCount("programs"),
-      getCount("pages"),
-      getCount("sections"),
-      getCount("media"),
-      getCount("announcements"),
-      getCount("settings"),
-      getCount("notifications"),
-      getCount("jobs"),
-      getCount("reviews"),
-      getCount("success_stories"),
-      getCount("partners"),
-      getCount("gallery_items"),
-    ]);
-
-    setCounts({
-      applications: applicationsCount,
-      serviceRequests: serviceRequestsCount,
-      programs: programsCount,
-      pages: pagesCount,
-      sections: sectionsCount,
-      media: mediaCount,
-      announcements: announcementsCount,
-      settings: settingsCount,
-      notifications: notificationsCount,
-      jobs: jobsCount,
-      reviews: reviewsCount,
-      successStories: successStoriesCount,
-      partners: partnersCount,
-      gallery: galleryCount,
-    });
   }, []);
 
   useEffect(() => {
@@ -567,11 +603,35 @@ export default function AdminPage() {
         )}
 
         <div className="mb-6 grid gap-4 lg:grid-cols-4">
-          <FocusStat label="طلبات جديدة" value={newCount} tone="blue" />
-          <FocusStat label="قيد المراجعة" value={underReviewCount} tone="amber" />
-          <FocusStat label="طلبات خدمات" value={counts.serviceRequests} tone="green" />
-          <FocusStat label="تنبيهات" value={counts.notifications} tone="purple" />
+          {isLoadingDashboard ? (
+            Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-24 animate-pulse rounded-3xl border border-white/10 bg-white/[0.03]"
+              />
+            ))
+          ) : (
+            <>
+              <FocusStat label="طلبات جديدة" value={newCount} tone="blue" />
+              <FocusStat label="قيد المراجعة" value={underReviewCount} tone="amber" />
+              <FocusStat label="طلبات خدمات" value={counts.serviceRequests} tone="green" />
+              <FocusStat label="تنبيهات" value={counts.notifications} tone="purple" />
+            </>
+          )}
         </div>
+
+        <DashboardPanel
+          eyebrow="مسار العمل اليومي"
+          title="كيف تسير الإدارة بشكل منظم؟"
+          description="ابدأ بالطلبات ثم تابع المحتوى والترجمة والإعدادات عبر مسارات واضحة ومخصصة لكل مهمة."
+          tone="blue"
+        >
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {workflowGuides.map((link) => (
+              <AdminActionCard key={link.href} item={link} />
+            ))}
+          </div>
+        </DashboardPanel>
 
         <DashboardPanel
           eyebrow="إجراءات سريعة"
@@ -668,9 +728,13 @@ export default function AdminPage() {
             <MiniCount label="مرفوض" value={rejectedCount} tone="red" />
           </div>
 
-          {filteredApplications.length === 0 ? (
+          {isLoadingDashboard ? (
             <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center text-white/55">
-              لا توجد طلبات مطابقة حالياً.
+              جاري تحميل الطلبات والملخصات...
+            </div>
+          ) : filteredApplications.length === 0 ? (
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center text-white/55">
+              لا توجد طلبات مطابقة حالياً. يمكنك مراجعة الطلبات من قسم الطلبات أو إضافة فلتر جديد.
             </div>
           ) : (
             <div className="overflow-hidden rounded-3xl border border-white/10">
