@@ -40,10 +40,13 @@ const localizedProgramSummaries = {
   ],
 };
 
-async function readPage(path, cookie) {
+async function readPage(path, { cookie, acceptLanguage } = {}) {
+  const headers = {};
+  if (cookie) headers.cookie = cookie;
+  if (acceptLanguage) headers["accept-language"] = acceptLanguage;
   const response = await fetch(`${baseUrl}${path}`, {
     redirect: "manual",
-    headers: cookie ? { cookie } : undefined,
+    headers,
   });
   const html = await response.text();
   return { response, html };
@@ -63,8 +66,10 @@ function assertLocalePage({ path, expectedLanguage, response, html }) {
 }
 
 function assertRedirect({ path, response, expectedLocation }) {
+  const location = response.headers.get("location");
+  const redirectedPath = location ? new URL(location, baseUrl).pathname : null;
   assert(response.status === 307, `${path} returned ${response.status} instead of 307.`);
-  assert(response.headers.get("location") === `${baseUrl}${expectedLocation}`, `${path} redirected to ${response.headers.get("location")} instead of ${expectedLocation}.`);
+  assert(redirectedPath === expectedLocation, `${path} redirected to ${location} instead of ${expectedLocation}.`);
 }
 
 function assertNoMixedLanguage(path, html, language) {
@@ -82,32 +87,54 @@ function assertLocalizedProgramCards(path, html, language) {
   }
 }
 
-const tr = await readPage("/tr");
+const tr = await readPage("/tr", {
+  cookie: "hamza-agency-language=tr",
+  acceptLanguage: "tr-TR,tr;q=0.9",
+});
 assertLocalePage({ path: "/tr", expectedLanguage: "tr", ...tr });
 assertNoMixedLanguage("/tr", tr.html, "tr");
 assertLocalizedProgramCards("/tr", tr.html, "tr");
 
-const rootWithTr = await readPage("/", "hamza-agency-language=tr");
+const rootWithTr = await readPage("/", { cookie: "hamza-agency-language=tr" });
 assertRedirect({ path: "/ with TR cookie", response: rootWithTr.response, expectedLocation: "/tr" });
 
-const en = await readPage("/en", "hamza-agency-language=tr");
-assertLocalePage({ path: "/en with TR cookie", expectedLanguage: "en", ...en });
-assertNoMixedLanguage("/en with TR cookie", en.html, "en");
-assertLocalizedProgramCards("/en with TR cookie", en.html, "en");
+const en = await readPage("/en", {
+  cookie: "hamza-agency-language=en",
+  acceptLanguage: "en-US,en;q=0.9",
+});
+assertLocalePage({ path: "/en", expectedLanguage: "en", ...en });
+assertNoMixedLanguage("/en", en.html, "en");
+assertLocalizedProgramCards("/en", en.html, "en");
 
-const rootWithEn = await readPage("/", "hamza-agency-language=en");
+const rootWithEn = await readPage("/", { cookie: "hamza-agency-language=en" });
 assertRedirect({ path: "/ with EN cookie", response: rootWithEn.response, expectedLocation: "/en" });
 
-const rootWithAr = await readPage("/", "hamza-agency-language=ar");
+const rootWithAr = await readPage("/", {
+  cookie: "hamza-agency-language=ar",
+  acceptLanguage: "ar-SY,ar;q=0.9",
+});
 assertLocalePage({ path: "/ with AR cookie", expectedLanguage: "ar", ...rootWithAr });
 assertNoMixedLanguage("/ with AR cookie", rootWithAr.html, "ar");
 
-const services = await readPage("/services", "hamza-agency-language=tr");
+for (const { label, acceptLanguage, expectedLocation, expectedLanguage } of [
+  { label: "EN first visit", acceptLanguage: "en-US,en;q=0.9", expectedLocation: "/en", expectedLanguage: "en" },
+  { label: "TR first visit", acceptLanguage: "tr-TR,tr;q=0.9", expectedLocation: "/tr", expectedLanguage: "tr" },
+  { label: "AR first visit", acceptLanguage: "ar-SY,ar;q=0.9", expectedLocation: "/", expectedLanguage: "ar" },
+]) {
+  const firstVisit = await readPage("/", { acceptLanguage });
+  if (expectedLocation === "/") {
+    assertLocalePage({ path: label, expectedLanguage, ...firstVisit });
+  } else {
+    assertRedirect({ path: label, response: firstVisit.response, expectedLocation });
+  }
+}
+
+const services = await readPage("/services", { cookie: "hamza-agency-language=tr" });
 assert(services.response.status === 200 && !services.response.headers.get("location"), "Arabic services URL redirected because of a cookie.");
 assert(services.html.includes('<html lang="ar"') && services.html.includes('data-site-language="ar"'), "Arabic services URL lost AR ownership.");
 assert(services.html.includes('href="/programs"'), "Arabic services page does not retain Arabic program links.");
 
-const programs = await readPage("/programs", "hamza-agency-language=en");
+const programs = await readPage("/programs", { cookie: "hamza-agency-language=en" });
 assert(programs.response.status === 200 && !programs.response.headers.get("location"), "Arabic programs URL redirected because of a cookie.");
 assert(programs.html.includes('<html lang="ar"') && programs.html.includes('data-site-language="ar"'), "Arabic programs URL lost AR ownership.");
 assert(programs.html.includes('href="/services"'), "Arabic programs page does not retain Arabic service links.");
@@ -121,4 +148,4 @@ for (const [path, page, language] of [["/ with AR cookie", rootWithAr, "ar"], ["
   assert(groupCount === 2, `${path} ticker rendered ${groupCount} marquee groups instead of 2.`);
 }
 
-console.log("Runtime locale verification passed: saved root preference, URL-owned deep links, localized program cards, clean language boundaries, locale links, no placeholders, and deterministic ticker mechanics.");
+console.log("Runtime locale verification passed: normalized redirects, explicit AR/EN/TR ownership, saved root preference, independent first-visit detection, localized program cards, clean language boundaries, locale links, no placeholders, and deterministic ticker mechanics.");

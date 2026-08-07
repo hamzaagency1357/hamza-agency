@@ -3,11 +3,14 @@ import { test, expect } from "@playwright/test";
 import { buildUrlGuard, parseAllowedHosts } from "../../scripts/closeout/url-guard.mjs";
 import { assertPreviewReadonlyRequest, previewRequestHeaders } from "./preview-bypass.mjs";
 
-const expectedHost = new URL(process.env.CLOSEOUT_TARGET_URL).hostname.toLowerCase();
+const targetUrl = new URL(process.env.CLOSEOUT_TARGET_URL);
+const targetOrigin = targetUrl.origin;
+const expectedHost = targetUrl.hostname.toLowerCase();
 const shortSha = process.env.CLOSEOUT_EXPECTED_SHA.slice(0, 8);
 const allowedExternalHosts = parseAllowedHosts(process.env.CLOSEOUT_ALLOWED_EXTERNAL_HOSTS);
 const assertSafeUrl = buildUrlGuard({ expectedHost, allowedExternalHosts });
 const supabaseHost = "fvaurkfnsvsfohpzguho.supabase.co";
+const languageCookieName = "hamza-agency-language";
 
 async function installReadonlyGuards(page) {
   page.on("framenavigated", (frame) => {
@@ -64,6 +67,26 @@ function screenshotName(locale, projectName) {
   return path.join("artifacts", "safe", "screenshots", `public-${locale}-${device}-${shortSha}.png`);
 }
 
+async function setExplicitLanguage(context, language) {
+  await context.addCookies([{
+    name: languageCookieName,
+    value: language,
+    url: targetOrigin,
+  }]);
+}
+
+function collectRuntimeFailures(page) {
+  const errors = [];
+  const failed = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("requestfailed", (request) => {
+    if (!isIgnorableRscPrefetchFailure(request) && !isIgnorableBlockedVercelToolbarFailure(request)) {
+      failed.push(`${request.method()} ${request.url()}`);
+    }
+  });
+  return { errors, failed };
+}
+
 test("the blocked Vercel Toolbar request is ignored exactly, while every other vercel.live path remains a failure", ({}, testInfo) => {
   const request = (url) => ({
     method: () => "GET",
@@ -81,16 +104,10 @@ test("the blocked Vercel Toolbar request is ignored exactly, while every other v
 });
 
 for (const [route, locale] of [["/", "ar"], ["/en", "en"], ["/tr", "tr"]]) {
-  test(`${locale} public runtime remains on the exact Preview host`, async ({ page }, testInfo) => {
+  test(`${locale} public runtime remains on the exact Preview host`, async ({ context, page }, testInfo) => {
+    await setExplicitLanguage(context, locale);
     await installReadonlyGuards(page);
-    const errors = [];
-    const failed = [];
-    page.on("pageerror", (error) => errors.push(error.message));
-    page.on("requestfailed", (request) => {
-      if (!isIgnorableRscPrefetchFailure(request) && !isIgnorableBlockedVercelToolbarFailure(request)) {
-        failed.push(`${request.method()} ${request.url()}`);
-      }
-    });
+    const { errors, failed } = collectRuntimeFailures(page);
 
     const response = await page.goto(route, { waitUntil: "networkidle" });
     expect(response?.ok(), `${route} HTTP status`).toBeTruthy();
@@ -102,6 +119,30 @@ for (const [route, locale] of [["/", "ar"], ["/en", "en"], ["/tr", "tr"]]) {
     recordAssertions(testInfo, 6);
 
     await page.screenshot({ path: screenshotName(locale, testInfo.project.name), fullPage: true, animations: "disabled" });
+  });
+}
+
+for (const { label, acceptLanguage, expectedPath, expectedLocale } of [
+  { label: "EN", acceptLanguage: "en-US,en;q=0.9", expectedPath: "/en", expectedLocale: "en" },
+  { label: "TR", acceptLanguage: "tr-TR,tr;q=0.9", expectedPath: "/tr", expectedLocale: "tr" },
+  { label: "AR", acceptLanguage: "ar-SY,ar;q=0.9", expectedPath: "/", expectedLocale: "ar" },
+]) {
+  test(`${label} first visit resolves from Accept-Language`, async ({ context, page }, testInfo) => {
+    await context.clearCookies();
+    await page.setExtraHTTPHeaders({ "Accept-Language": acceptLanguage });
+    await installReadonlyGuards(page);
+    const { errors, failed } = collectRuntimeFailures(page);
+
+    const response = await page.goto("/", { waitUntil: "networkidle" });
+    expect(response?.ok(), `${label} first-visit HTTP status`).toBeTruthy();
+    const resolvedUrl = new URL(page.url());
+    expect(resolvedUrl.hostname.toLowerCase()).toBe(expectedHost);
+    expect(resolvedUrl.pathname).toBe(expectedPath);
+    await expect(page.locator("body")).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("lang", expectedLocale);
+    expect(errors).toEqual([]);
+    expect(failed).toEqual([]);
+    recordAssertions(testInfo, 7);
   });
 }
 
