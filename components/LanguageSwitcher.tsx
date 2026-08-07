@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   rememberLanguagePreference,
   SITE_LANGUAGES,
@@ -20,27 +20,45 @@ const ariaLabels: Record<SiteLanguage, string> = {
 
 export default function LanguageSwitcher() {
   const pathname = usePathname();
+  const router = useRouter();
   const activeLanguage = getPathLanguage(pathname || "/");
-  const [isNavigating, setIsNavigating] = useState(false);
+  const [locationSuffix, setLocationSuffix] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setLocationSuffix(`${window.location.search}${window.location.hash}`);
+  }, [pathname]);
 
   const localizedTargets = useMemo(
     () =>
       Object.fromEntries(
         SITE_LANGUAGES.map(({ code }) => [
           code,
-          localizePublicPath(pathname || "/", code),
+          `${localizePublicPath(pathname || "/", code)}${locationSuffix}`,
         ])
       ) as Record<SiteLanguage, string>,
-    [pathname]
+    [locationSuffix, pathname]
   );
 
-  function changeLanguage(nextLanguage: SiteLanguage) {
-    if (isNavigating || nextLanguage === activeLanguage) return;
+  useEffect(() => {
+    const arabicPath = localizePublicPath(pathname || "/", "ar");
 
-    setIsNavigating(true);
+    for (const { code } of SITE_LANGUAGES) {
+      const returningToArabicHomepage =
+        activeLanguage !== "ar" && code === "ar" && arabicPath === "/";
+
+      if (returningToArabicHomepage) continue;
+      router.prefetch(localizedTargets[code]);
+    }
+  }, [activeLanguage, localizedTargets, pathname, router]);
+
+  function changeLanguage(nextLanguage: SiteLanguage) {
+    if (isPending || nextLanguage === activeLanguage) return;
+
     rememberLanguagePreference(nextLanguage);
-    const target = `${localizedTargets[nextLanguage]}${window.location.search}${window.location.hash}`;
-    window.location.assign(target);
+    startTransition(() => {
+      router.replace(localizedTargets[nextLanguage], { scroll: false });
+    });
   }
 
   return (
@@ -49,7 +67,7 @@ export default function LanguageSwitcher() {
       role="group"
       aria-label={ariaLabels[activeLanguage]}
       data-language-switcher="segmented"
-      aria-busy={isNavigating}
+      aria-busy={isPending}
     >
       {SITE_LANGUAGES.map(({ code, shortLabel, label }) => {
         const active = code === activeLanguage;
@@ -57,7 +75,7 @@ export default function LanguageSwitcher() {
           <button
             key={code}
             type="button"
-            disabled={isNavigating}
+            disabled={isPending}
             onClick={() => changeLanguage(code)}
             aria-current={active ? "page" : undefined}
             aria-label={shortLabel}

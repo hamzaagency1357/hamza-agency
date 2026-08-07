@@ -89,14 +89,19 @@ test("decorated agent identity is primary, readable, isolated, and mobile-safe",
   assert.ok(agent.includes("{AGENT_PUBLIC_PATH}"));
 });
 
-test("language switching avoids stale prefetch redirects when returning to Arabic", async () => {
+test("language switching preserves router contracts and skips stale Arabic-home prefetch", async () => {
   const switcher = await read("components/LanguageSwitcher.tsx");
-  assert.ok(switcher.includes("rememberLanguagePreference(nextLanguage);"));
-  assert.ok(switcher.includes("const target = `${localizedTargets[nextLanguage]}${window.location.search}${window.location.hash}`;"));
-  assert.ok(switcher.includes("window.location.assign(target);"));
-  assert.ok(!switcher.includes("router.prefetch"));
-  assert.ok(!switcher.includes("router.replace"));
-  assert.ok(!switcher.includes("useRouter"));
+  for (const value of [
+    "router.prefetch",
+    "router.replace",
+    "useTransition",
+    "scroll: false",
+    "rememberLanguagePreference(nextLanguage);",
+    'const arabicPath = localizePublicPath(pathname || "/", "ar");',
+    'activeLanguage !== "ar" && code === "ar" && arabicPath === "/"',
+    "if (returningToArabicHomepage) continue;",
+  ]) assert.ok(switcher.includes(value), value);
+  assert.ok(!switcher.includes("window.location.assign"));
 });
 
 test("public primary navigation stays in one horizontal row", async () => {
