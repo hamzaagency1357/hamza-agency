@@ -6,14 +6,9 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useState,
   type ReactNode,
 } from "react";
-import {
-  applySiteLanguage,
-  setStoredSiteLanguage,
-  type SiteLanguage,
-} from "@/lib/i18n/locale";
+import { applySiteLanguage, type SiteLanguage } from "@/lib/i18n/locale";
 import {
   getPathLanguage,
   isSupportedPublicPath,
@@ -29,16 +24,14 @@ export function SiteLanguageProvider({
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  const [language, setLanguage] = useState<SiteLanguage>(initialLanguage);
+  const nextLanguage = getPathLanguage(pathname || "/");
+  const language = isSupportedPublicPath(pathname || "/")
+    ? nextLanguage
+    : initialLanguage;
 
   useEffect(() => {
-    if (!isSupportedPublicPath(pathname || "/")) return;
-
-    const nextLanguage = getPathLanguage(pathname || "/");
-    setLanguage(nextLanguage);
-    setStoredSiteLanguage(nextLanguage);
-    applySiteLanguage(nextLanguage);
-  }, [pathname]);
+    applySiteLanguage(language);
+  }, [language]);
 
   const value = useMemo(() => language, [language]);
 

@@ -20,24 +20,8 @@ export type JobTranslationRecord = {
   requirements: string | null;
 };
 
-type JobTranslationField =
-  | "title"
-  | "department"
-  | "location"
-  | "job_type"
-  | "summary"
-  | "content"
-  | "requirements";
-
-const fields: JobTranslationField[] = [
-  "title",
-  "department",
-  "location",
-  "job_type",
-  "summary",
-  "content",
-  "requirements",
-];
+type JobTranslationField = "title" | "department" | "location" | "job_type" | "summary" | "content" | "requirements";
+const fields: JobTranslationField[] = ["title", "department", "location", "job_type", "summary", "content", "requirements"];
 
 function fieldValue(job: JobTranslationRecord, field: JobTranslationField) {
   if (field === "title") return job.title || "";
@@ -53,77 +37,31 @@ function activeFields(job: JobTranslationRecord) {
   return fields.filter((field) => Boolean(fieldValue(job, field).trim()));
 }
 
-function localizeJob<T extends JobTranslationRecord>(
-  job: T,
-  translations: Partial<Record<JobTranslationField, string>> | undefined,
-  language: "ar" | "en" | "tr"
-): T {
+function localizeJob<T extends JobTranslationRecord>(job: T, translations: Partial<Record<JobTranslationField, string>> | undefined, language: "ar" | "en" | "tr"): T {
   const required = activeFields(job);
-  if (language === "ar" || required.length === 0) {
-    return job;
-  }
-
-  const hasTranslation =
-    job.id !== null &&
-    hasCompletePublishedTranslation(translations, required);
-  const value = (field: JobTranslationField) =>
-    localizeDynamicPublicCopy(
-      hasTranslation ? translations?.[field] : fieldValue(job, field),
-      language
-    );
-
-  return {
-    ...job,
-    title: value("title"),
-    department: value("department"),
-    location: value("location"),
-    job_type: value("job_type"),
-    short_description: value("summary"),
-    description: value("content"),
-    requirements: value("requirements"),
-  };
+  if (language === "ar" || required.length === 0) return job;
+  const hasTranslation = hasCompletePublishedTranslation(translations, required);
+  const value = (field: JobTranslationField) => localizeDynamicPublicCopy(hasTranslation ? translations?.[field] : fieldValue(job, field), language);
+  return { ...job, title: value("title"), department: value("department"), location: value("location"), job_type: value("job_type"), short_description: value("summary"), description: value("content"), requirements: value("requirements") };
 }
 
 export function usePublishedJobs<T extends JobTranslationRecord>(jobs: T[]) {
   const language = useSiteLanguage();
-  const [translationMap, setTranslationMap] = useState<
-    PublishedTranslationMap<JobTranslationField>
-  >({});
+  const publishedJobs = useMemo(() => jobs.filter((job) => typeof job.id === "number"), [jobs]);
+  const [translationMap, setTranslationMap] = useState<PublishedTranslationMap<JobTranslationField>>({});
 
   useEffect(() => {
     let active = true;
     setTranslationMap({});
-    const sourceIds = jobs
-      .map((job) => job.id)
-      .filter((id): id is number => typeof id === "number");
-
-    if (language === "ar" || sourceIds.length === 0) {
-      return () => {
-        active = false;
-      };
-    }
-
+    const sourceIds = publishedJobs.map((job) => job.id as number);
+    if (language === "ar" || sourceIds.length === 0) return () => { active = false; };
     async function loadTranslations() {
-      const translations = await readPublishedTranslations<JobTranslationField>({
-        sourceType: "jobs",
-        language,
-        sourceIds,
-        fields,
-      });
+      const translations = await readPublishedTranslations<JobTranslationField>({ sourceType: "jobs", language, sourceIds, fields });
       if (active) setTranslationMap(translations);
     }
-
     void loadTranslations();
-    return () => {
-      active = false;
-    };
-  }, [jobs, language]);
+    return () => { active = false; };
+  }, [publishedJobs, language]);
 
-  return useMemo(
-    () =>
-      jobs.map((job) =>
-        localizeJob(job, job.id === null ? undefined : translationMap[String(job.id)], language)
-      ),
-    [jobs, language, translationMap]
-  );
+  return useMemo(() => publishedJobs.map((job) => localizeJob(job, translationMap[String(job.id)], language)), [publishedJobs, language, translationMap]);
 }

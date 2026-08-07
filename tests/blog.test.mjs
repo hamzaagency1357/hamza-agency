@@ -1,0 +1,8 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { getBlogPosts, getBlogPostBySlug, getBlogFeed } from "../lib/blog/posts.mjs";
+test("does not expose editorial templates as published content", () => { const result = getBlogPosts({ language: "ar", page: 1, perPage: 6 }); assert.equal(result.posts.length, 0); assert.equal(result.total, 0); assert.equal(getBlogFeed("ar").length, 0); });
+test("allows administrators to preview draft templates", () => { const post = getBlogPostBySlug("editorial-plan", { language: "ar", preview: true }); assert.ok(post); assert.equal(post?.status, "draft"); });
+test("supports preview search filters and pagination", () => { assert.ok(getBlogPosts({ language: "en", search: "operations", preview: true }).posts.length >= 1); assert.equal(getBlogPosts({ language: "tr", category: "planning", preview: true }).posts.length, 1); assert.equal(getBlogPosts({ language: "ar", page: 2, perPage: 1, preview: true }).page, 2); });
+test("blog snapshot hardening rejects non-admin callers before reading drafts", async () => { const migration = await readFile(new URL("../supabase/migrations/20260806061000_pr3_blog_snapshot_admin_hardening.sql", import.meta.url), "utf8"); for (const token of ["security definer", "set search_path = pg_catalog, public", "public.pr99_require_admin()", "revoke all on function public.pr3_blog_snapshot(bigint) from public, anon, authenticated", "grant execute on function public.pr3_blog_snapshot(bigint) to authenticated"]) assert.ok(migration.includes(token), token); assert.ok(migration.indexOf("public.pr99_require_admin()") < migration.indexOf("from public.blog_posts")); });

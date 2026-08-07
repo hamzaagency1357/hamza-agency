@@ -1,227 +1,47 @@
 import type { SiteLanguage } from "@/lib/i18n/locale";
-import {
-  getProgramSlugFromPath,
-  stripLocalePrefix,
-} from "@/lib/i18n/publicLocales";
-import {
-  getSiteRuntimeMetadata,
-  type RuntimeRouteMetadata,
-} from "@/lib/i18n/siteRuntimeTranslations";
+import { AGENT_PUBLIC_PATH, getProgramSlugFromPath, stripLocalePrefix } from "@/lib/i18n/publicLocales";
+import { getSiteRuntimeMetadata, type RuntimeRouteMetadata } from "@/lib/i18n/siteRuntimeTranslations";
 
-export type PublicSeoCopy = RuntimeRouteMetadata & {
-  schemaType:
-    | "AboutPage"
-    | "CollectionPage"
-    | "ContactPage"
-    | "FAQPage"
-    | "ImageGallery"
-    | "WebPage";
-};
-
+export type PublicSeoCopy = RuntimeRouteMetadata & { schemaType: "AboutPage" | "CollectionPage" | "ContactPage" | "FAQPage" | "ImageGallery" | "WebPage" };
+const agencyDescription = "HAMZA AGENCY بإدارة الوكيل عراب سوريا، أحد أبرز وأكثر الوكلاء أمانًا واحترافية على مستوى العالم في إدارة ودعم وتطوير صناع المحتوى وبرامج البث المباشر.";
 const arabicRouteSeo: Record<string, PublicSeoCopy> = {
-  "/": {
-    title: "وكالة حمزة | إدارة وتطوير صناع المحتوى",
-    description:
-      "وكالة حمزة لإدارة وتطوير صناع المحتوى عبر برامج البث المباشر ومنصات التواصل، مع دعم ومتابعة وفرص نمو متجددة.",
-    schemaType: "WebPage",
-  },
-  "/about": {
-    title: "من نحن | وكالة حمزة",
-    description:
-      "تعرف على وكالة حمزة وطريقة عملها في تنظيم البرامج ودعم صناع المحتوى ومتابعة الطلبات باحتراف.",
-    schemaType: "AboutPage",
-  },
-  "/ai-policy": {
-    title: "سياسة الدعم الذكي | وكالة حمزة",
-    description:
-      "تعرف على دور الدعم الذكي وحدوده وقواعد الخصوصية والإشراف البشري داخل موقع وكالة حمزة.",
-    schemaType: "WebPage",
-  },
-  "/ai-support": {
-    title: "الدعم الذكي | وكالة حمزة",
-    description:
-      "اطرح أسئلتك واحصل على إرشاد منظم، مع تحويل الحالات الخاصة إلى فريق وكالة حمزة عبر القنوات الرسمية.",
-    schemaType: "WebPage",
-  },
-  "/apply": {
-    title: "طلب الانضمام | وكالة حمزة",
-    description:
-      "اختر البرنامج المناسب وابدأ طلب الانضمام إلى وكالة حمزة عبر نموذج واضح وآمن.",
-    schemaType: "WebPage",
-  },
-  "/application-status": {
-    title: "تتبع طلب الانضمام | وكالة حمزة",
-    description:
-      "تابع آخر حالة مسجلة لطلب الانضمام باستخدام رقم واتساب والبرنامج المحدد.",
-    schemaType: "WebPage",
-  },
-  "/contact": {
-    title: "تواصل معنا | وكالة حمزة",
-    description:
-      "تواصل مع فريق وكالة حمزة عبر قنوات واتساب والبريد الرسمية للاستفسار عن البرامج والخدمات.",
-    schemaType: "ContactPage",
-  },
-  "/digital-services": {
-    title: "الخدمات الرقمية | وكالة حمزة",
-    description:
-      "طلبات خدمات رقمية منظمة مع تأكيد التفاصيل والمتابعة عبر قناة واتساب الرسمية قبل التنفيذ.",
-    schemaType: "CollectionPage",
-  },
-  "/faq": {
-    title: "الأسئلة الشائعة | وكالة حمزة",
-    description:
-      "إجابات واضحة حول الانضمام والبرامج والمتابعة والتواصل والخدمات الرقمية.",
-    schemaType: "WebPage",
-  },
-  "/gallery": {
-    title: "المعرض | وكالة حمزة",
-    description:
-      "استعرض الهوية البصرية والبرامج والخدمات وتجربة صناع المحتوى داخل وكالة حمزة.",
-    schemaType: "ImageGallery",
-  },
-  "/jobs": {
-    title: "الوظائف | وكالة حمزة",
-    description:
-      "استعرض فرص العمل المرنة والتشغيلية والإدارية المتاحة ضمن وكالة حمزة.",
-    schemaType: "CollectionPage",
-  },
-  "/knowledge-center": {
-    title: "مركز المعرفة | وكالة حمزة",
-    description:
-      "إرشادات حول طلبات الانضمام واختيار البرامج والتواصل والخدمات الرقمية.",
-    schemaType: "CollectionPage",
-  },
-  "/partners": {
-    title: "البرامج والمنصات | وكالة حمزة",
-    description:
-      "استعرض مسارات TikTok وBIGO LIVE وYaahlan وXena وCatchii واختر البرنامج الأنسب لك.",
-    schemaType: "CollectionPage",
-  },
-  "/privacy-policy": {
-    title: "سياسة الخصوصية | وكالة حمزة",
-    description:
-      "تعرف على طريقة جمع بيانات المتقدمين والعملاء واستخدامها وحمايتها والاحتفاظ بها.",
-    schemaType: "WebPage",
-  },
-  "/programs": {
-    title: "برامج وكالة حمزة لصناع المحتوى",
-    description:
-      "استعرض برامج TikTok وBIGO LIVE وYaahlan وXena وCatchii واختر المسار المناسب لك.",
-    schemaType: "CollectionPage",
-  },
-  "/reviews": {
-    title: "التقييمات | وكالة حمزة",
-    description:
-      "استعرض تجارب العملاء وصناع المحتوى المنشورة ضمن نظام وكالة حمزة.",
-    schemaType: "CollectionPage",
-  },
-  "/service-request": {
-    title: "طلب خدمة رقمية | وكالة حمزة",
-    description:
-      "أرسل طلب خدمة رقمية منظماً واحصل على كود مخصص لمتابعة الطلب.",
-    schemaType: "WebPage",
-  },
-  "/service-status": {
-    title: "تتبع طلب الخدمة | وكالة حمزة",
-    description:
-      "تابع آخر حالة لطلب الخدمة الرقمية باستخدام كود الطلب.",
-    schemaType: "WebPage",
-  },
-  "/services": {
-    title: "خدمات وكالة حمزة",
-    description:
-      "متابعة طلبات الانضمام ودعم البرامج والإرشاد العملي وتنظيم التواصل لصناع المحتوى.",
-    schemaType: "CollectionPage",
-  },
-  "/success-stories": {
-    title: "مسارات النجاح | وكالة حمزة",
-    description:
-      "استعرض مسارات منظمة لصناع المحتوى والخدمات الرقمية من الطلب حتى المتابعة.",
-    schemaType: "CollectionPage",
-  },
-  "/terms-and-conditions": {
-    title: "الشروط والأحكام | وكالة حمزة",
-    description:
-      "الشروط العامة لاستخدام الموقع وإرسال الطلبات والتواصل والاستفادة من الخدمات.",
-    schemaType: "WebPage",
-  },
+  "/": { title: "HAMZA AGENCY | بإدارة الوكيل عراب سوريا", description: agencyDescription, schemaType: "WebPage" },
+  "/about": { title: "من نحن | HAMZA AGENCY بإدارة عراب سوريا", description: "تعرف على HAMZA AGENCY ودور الوكيل عراب سوريا في دعم وتطوير صناع المحتوى وبرامج البث المباشر ضمن نهج يحترم الثقة والخصوصية.", schemaType: "AboutPage" },
+  "/apply": { title: "طلب الانضمام | HAMZA AGENCY", description: "اختر البرنامج المناسب وأرسل طلب الانضمام إلى HAMZA AGENCY عبر نموذج واضح وآمن.", schemaType: "WebPage" },
+  "/programs": { title: "برامج HAMZA AGENCY لصناع المحتوى", description: "استعرض برامج TikTok وBIGO LIVE وYaahlan وXena وCatchii واختر المسار المناسب.", schemaType: "CollectionPage" },
+  "/services": { title: "خدمات HAMZA AGENCY", description: "خدمات احترافية لمتابعة طلبات الانضمام ودعم البرامج والإرشاد العملي وتنظيم التواصل.", schemaType: "CollectionPage" },
+  "/digital-services": { title: "الخدمات الرقمية | HAMZA AGENCY", description: "طلبات خدمات رقمية منظمة مع تأكيد التفاصيل والمتابعة عبر القنوات الرسمية.", schemaType: "CollectionPage" },
+  "/service-request": { title: "طلب خدمة رقمية | HAMZA AGENCY", description: "أرسل طلب خدمة رقمية منظمًا واحصل على رمز مخصص لمتابعة الطلب.", schemaType: "WebPage" },
+  "/service-status": { title: "تتبع طلب الخدمة | HAMZA AGENCY", description: "تابع آخر حالة مسجلة لطلب الخدمة الرقمية باستخدام رمز الطلب.", schemaType: "WebPage" },
+  "/application-status": { title: "تتبع طلب الانضمام | HAMZA AGENCY", description: "تابع حالة طلب الانضمام باستخدام البيانات المطلوبة بصورة آمنة.", schemaType: "WebPage" },
+  "/jobs": { title: "الوظائف | HAMZA AGENCY", description: "استعرض فرص العمل المرنة والتشغيلية والإدارية المنشورة ضمن HAMZA AGENCY.", schemaType: "CollectionPage" },
+  "/reviews": { title: "التقييمات | HAMZA AGENCY", description: "استعرض التقييمات المنشورة والموثقة ضمن HAMZA AGENCY.", schemaType: "CollectionPage" },
+  "/success-stories": { title: "قصص النجاح | HAMZA AGENCY", description: "استعرض قصص النجاح المنشورة فعليًا ومسارات التطور المهني داخل الوكالة.", schemaType: "CollectionPage" },
+  "/partners": { title: "البرامج والمنصات | HAMZA AGENCY", description: "تعرف على البرامج والمنصات المتاحة واختر المسار الأنسب لك.", schemaType: "CollectionPage" },
+  "/gallery": { title: "المعرض | HAMZA AGENCY", description: "استعرض الهوية البصرية والبرامج والخدمات المنشورة داخل HAMZA AGENCY.", schemaType: "ImageGallery" },
+  "/knowledge-center": { title: "مركز المعرفة | HAMZA AGENCY", description: "إرشادات واضحة حول الانضمام والبرامج والمتابعة والخدمات الرقمية.", schemaType: "CollectionPage" },
+  "/faq": { title: "الأسئلة الشائعة | HAMZA AGENCY", description: "إجابات واضحة حول الوكالة والوكيل عراب سوريا والانضمام والبرامج والمتابعة.", schemaType: "FAQPage" },
+  "/contact": { title: "تواصل معنا | HAMZA AGENCY", description: "تواصل مع فريق HAMZA AGENCY عبر واتساب والبريد الرسمي للاستفسار عن البرامج والخدمات.", schemaType: "ContactPage" },
+  "/privacy-policy": { title: "سياسة الخصوصية | HAMZA AGENCY", description: "تعرف على طريقة جمع البيانات واستخدامها وحمايتها والاحتفاظ بها.", schemaType: "WebPage" },
+  "/terms-and-conditions": { title: "الشروط والأحكام | HAMZA AGENCY", description: "الشروط العامة لاستخدام الموقع وإرسال الطلبات والاستفادة من الخدمات.", schemaType: "WebPage" },
+  "/ai-policy": { title: "سياسة الدعم الذكي | HAMZA AGENCY", description: "تعرف على دور الدعم الذكي وحدوده وقواعد الخصوصية والإشراف البشري.", schemaType: "WebPage" },
+  "/ai-support": { title: "الدعم الذكي | HAMZA AGENCY", description: "احصل على إرشاد منظم مع تحويل الحالات الخاصة إلى الفريق عبر القنوات الرسمية.", schemaType: "WebPage" },
+  "/blog": { title: "مدونة HAMZA AGENCY", description: "مقالات وإرشادات مهنية حول صناع المحتوى وبرامج البث المباشر والهوية الرقمية.", schemaType: "CollectionPage" },
 };
-
-const arabicProgramSeo: Record<string, RuntimeRouteMetadata> = {
-  tiktok: {
-    title: "برنامج TikTok | وكالة حمزة",
-    description:
-      "تعرف على برنامج TikTok لصناع المحتوى وخطوات الانضمام والدعم المتاح لتطوير الحضور والأداء.",
-  },
-  "bigo-live": {
-    title: "برنامج BIGO LIVE | وكالة حمزة",
-    description:
-      "تعرف على برنامج BIGO LIVE للبث المباشر وخطوات الانضمام والمتابعة ودعم التفاعل مع الجمهور.",
-  },
-  yaahlan: {
-    title: "برنامج Yaahlan | وكالة حمزة",
-    description:
-      "تعرف على برنامج Yaahlan لبناء الحضور الاجتماعي والتفاعل مع الجمهور ضمن متابعة منظمة.",
-  },
-  xena: {
-    title: "برنامج Xena | وكالة حمزة",
-    description:
-      "تعرف على برنامج Xena لصناع المحتوى وخطوات الانضمام والمتابعة الإدارية ودعم تطوير الحساب.",
-  },
-  catchii: {
-    title: "برنامج Catchii | وكالة حمزة",
-    description:
-      "تعرف على برنامج Catchii للتواصل والترفيه وبناء حضور اجتماعي ضمن بيئة وكالة منظمة.",
-  },
+const agentSeo: Record<SiteLanguage, PublicSeoCopy> = {
+  ar: { title: "عراب سوريا | الوكيل والمدير في HAMZA AGENCY", description: agencyDescription, schemaType: "WebPage" },
+  en: { title: "Arab Syria | Agent and Manager at HAMZA AGENCY", description: "Meet Arab Syria, the agent and manager overseeing creator support, development, privacy, and live-streaming programs at HAMZA AGENCY.", schemaType: "WebPage" },
+  tr: { title: "Arab Syria | HAMZA AGENCY Temsilcisi ve Yöneticisi", description: "HAMZA AGENCY bünyesinde içerik üreticisi desteği, gelişimi, gizlilik ve canlı yayın programlarını yöneten Arab Syria'yı tanıyın.", schemaType: "WebPage" },
 };
-
-const schemaTypeByPath: Record<string, PublicSeoCopy["schemaType"]> =
-  Object.fromEntries(
-    Object.entries(arabicRouteSeo).map(([path, copy]) => [
-      path,
-      copy.schemaType,
-    ])
-  );
-
 const genericSeo: Record<SiteLanguage, RuntimeRouteMetadata> = {
-  ar: {
-    title: "وكالة حمزة",
-    description:
-      "وكالة احترافية لتنظيم ودعم صناع المحتوى والبرامج والخدمات الرقمية.",
-  },
-  en: {
-    title: "HAMZA AGENCY",
-    description:
-      "A professional agency for organizing and supporting content creators, programs, and digital services.",
-  },
-  tr: {
-    title: "HAMZA AGENCY",
-    description:
-      "İçerik üreticilerini, programları ve dijital hizmetleri organize eden ve destekleyen profesyonel ajans.",
-  },
+  ar: { title: "HAMZA AGENCY | وكالة حمزة", description: "وكالة احترافية لإدارة ودعم وتطوير صناع المحتوى وبرامج البث المباشر والخدمات الرقمية." },
+  en: { title: "HAMZA AGENCY", description: "A professional agency for creator management, live-streaming programs, and digital services." },
+  tr: { title: "HAMZA AGENCY", description: "İçerik üreticisi yönetimi, canlı yayın programları ve dijital hizmetler için profesyonel ajans." },
 };
-
-export function getPublicSeoCopy(
-  pathname: string,
-  language: SiteLanguage
-): PublicSeoCopy {
+export function getPublicSeoCopy(pathname: string, language: SiteLanguage): PublicSeoCopy {
   const publicPath = stripLocalePrefix(pathname);
+  if (publicPath === AGENT_PUBLIC_PATH) return agentSeo[language];
   const programSlug = getProgramSlugFromPath(publicPath);
-
-  let copy: RuntimeRouteMetadata | null = null;
-
-  if (language === "ar") {
-    copy = programSlug
-      ? arabicProgramSeo[programSlug] || null
-      : arabicRouteSeo[publicPath] || null;
-  } else {
-    copy = getSiteRuntimeMetadata(publicPath, language);
-  }
-
-  return {
-    ...(copy || genericSeo[language]),
-    schemaType: programSlug
-      ? "WebPage"
-      : schemaTypeByPath[publicPath] || "WebPage",
-  };
+  const copy = language === "ar" ? arabicRouteSeo[publicPath] : getSiteRuntimeMetadata(publicPath, language);
+  return { ...(copy || genericSeo[language]), schemaType: programSlug ? "WebPage" : arabicRouteSeo[publicPath]?.schemaType || "WebPage" };
 }

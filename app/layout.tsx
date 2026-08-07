@@ -1,6 +1,7 @@
 import type { Viewport } from "next";
 import PublicQuickNav from "@/components/PublicQuickNav";
 import AdminQuickNav from "@/components/AdminQuickNav";
+import AdminBlogQuickLink from "@/components/AdminBlogQuickLink";
 import PublicAiSupport from "@/components/PublicAiSupport";
 import PublicMobileDock from "@/components/PublicMobileDock";
 import PublicDesktopEnhancer from "@/components/PublicDesktopEnhancer";
@@ -83,6 +84,7 @@ export default async function RootLayout({
           <PublicMobileDock />
           <PublicAiSupport />
           <PublicQuickNav />
+          <AdminBlogQuickLink />
           <AdminQuickNav />
           <CookieConsent />
         </SiteLanguageProvider>

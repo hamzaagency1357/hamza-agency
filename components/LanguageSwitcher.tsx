@@ -2,11 +2,21 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { SITE_LANGUAGES, type SiteLanguage } from "@/lib/i18n/locale";
+import {
+  rememberLanguagePreference,
+  SITE_LANGUAGES,
+  type SiteLanguage,
+} from "@/lib/i18n/locale";
 import {
   getPathLanguage,
   localizePublicPath,
 } from "@/lib/i18n/publicLocales";
+
+const ariaLabels: Record<SiteLanguage, string> = {
+  ar: "اختيار لغة الموقع",
+  en: "Choose site language",
+  tr: "Site dilini seçin",
+};
 
 export default function LanguageSwitcher() {
   const pathname = usePathname();
@@ -39,6 +49,7 @@ export default function LanguageSwitcher() {
   function changeLanguage(nextLanguage: SiteLanguage) {
     if (isPending || nextLanguage === activeLanguage) return;
 
+    rememberLanguagePreference(nextLanguage);
     startTransition(() => {
       router.replace(localizedTargets[nextLanguage], { scroll: false });
     });
@@ -48,11 +59,11 @@ export default function LanguageSwitcher() {
     <div
       className="hamza-language-segmented inline-grid grid-cols-3 overflow-hidden rounded-xl border border-white/15 bg-[#09000f]/90 p-1 shadow-[0_0_24px_rgba(124,58,237,0.18)] backdrop-blur-xl"
       role="group"
-      aria-label="Language"
+      aria-label={ariaLabels[activeLanguage]}
       data-language-switcher="segmented"
       aria-busy={isPending}
     >
-      {SITE_LANGUAGES.map(({ code, shortLabel }) => {
+      {SITE_LANGUAGES.map(({ code, shortLabel, label }) => {
         const active = code === activeLanguage;
         return (
           <button
@@ -61,6 +72,9 @@ export default function LanguageSwitcher() {
             disabled={isPending}
             onClick={() => changeLanguage(code)}
             aria-current={active ? "page" : undefined}
+            aria-label={shortLabel}
+            title={label}
+            data-language-code={code}
             className={`min-h-11 min-w-11 rounded-lg px-2 text-xs font-black transition disabled:cursor-wait ${
               active
                 ? "bg-gradient-to-r from-purple-600 to-yellow-500 text-white"
