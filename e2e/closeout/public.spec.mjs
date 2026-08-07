@@ -83,16 +83,91 @@ async function setExplicitLanguage(context, language) {
   }]);
 }
 
+function isMainDocumentNavigation(request, page) {
+  return request.isNavigationRequest()
+    && request.resourceType() === "document"
+    && request.frame() === page.mainFrame();
+}
+
+function isNavigationReplacementError(errorText) {
+  return /net::ERR_ABORTED|navigation (?:was )?replaced|document replacement|redirect cancellation/i.test(errorText ?? "");
+}
+
+function navigationUrlsMatch(failedUrl, successfulUrl) {
+  const failed = new URL(failedUrl);
+  const successful = new URL(successfulUrl);
+  return failed.href === successful.href
+    || (failed.origin === successful.origin && failed.pathname === successful.pathname && failed.search === successful.search);
+}
+
+function unresolvedNavigationFailures({
+  pendingNavigationFailures,
+  successfulDocumentUrls,
+  finalUrl,
+  expectedPath,
+  expectedLocale,
+  actualLocale,
+}) {
+  const final = new URL(finalUrl);
+  const finalStateMatches = final.hostname.toLowerCase() === expectedHost
+    && final.pathname === expectedPath
+    && actualLocale === expectedLocale;
+
+  return pendingNavigationFailures.filter((failure) => {
+    if (!finalStateMatches || !isNavigationReplacementError(failure.errorText)) return true;
+    return !successfulDocumentUrls.some((successfulUrl) => navigationUrlsMatch(failure.url, successfulUrl));
+  });
+}
+
+function formatRequestFailure({ method, url, resourceType, errorText }) {
+  return `${method} ${url} [${resourceType}]${errorText ? ` ${errorText}` : ""}`;
+}
+
 function collectRuntimeFailures(page) {
   const errors = [];
   const failed = [];
+  const pendingNavigationFailures = [];
+  const successfulDocumentUrls = [];
+
   page.on("pageerror", (error) => errors.push(error.message));
-  page.on("requestfailed", (request) => {
-    if (!isIgnorableRscPrefetchFailure(request) && !isIgnorableBlockedVercelToolbarFailure(request)) {
-      failed.push(`${request.method()} ${request.url()}`);
+  page.on("response", (response) => {
+    const request = response.request();
+    if (response.ok() && isMainDocumentNavigation(request, page)) {
+      successfulDocumentUrls.push(response.url());
     }
   });
-  return { errors, failed };
+  page.on("requestfailed", (request) => {
+    if (isIgnorableRscPrefetchFailure(request) || isIgnorableBlockedVercelToolbarFailure(request)) return;
+
+    const failure = {
+      url: request.url(),
+      method: request.method(),
+      resourceType: request.resourceType(),
+      errorText: request.failure()?.errorText ?? null,
+    };
+
+    if (isMainDocumentNavigation(request, page) && isNavigationReplacementError(failure.errorText)) {
+      pendingNavigationFailures.push(failure);
+      return;
+    }
+
+    failed.push(formatRequestFailure(failure));
+  });
+
+  function finalizeNavigationFailures({ expectedPath, expectedLocale, actualLocale }) {
+    const unresolved = unresolvedNavigationFailures({
+      pendingNavigationFailures,
+      successfulDocumentUrls,
+      finalUrl: page.url(),
+      expectedPath,
+      expectedLocale,
+      actualLocale,
+    });
+    failed.push(...unresolved.map(formatRequestFailure));
+    pendingNavigationFailures.length = 0;
+  }
+
+  return { errors, failed, finalizeNavigationFailures };
 }
 
 test("the blocked Vercel Toolbar request is ignored exactly, while every other vercel.live path remains a failure", ({}, testInfo) => {
@@ -111,17 +186,58 @@ test("the blocked Vercel Toolbar request is ignored exactly, while every other v
   recordAssertions(testInfo, 4);
 });
 
+test("replaced document navigation failures resolve only after a matching successful document response", ({}, testInfo) => {
+  const abortedDocument = {
+    url: `${targetOrigin}/en`,
+    method: "GET",
+    resourceType: "document",
+    errorText: "net::ERR_ABORTED",
+  };
+  const finalState = {
+    finalUrl: `${targetOrigin}/en`,
+    expectedPath: "/en",
+    expectedLocale: "en",
+    actualLocale: "en",
+  };
+
+  expect(unresolvedNavigationFailures({
+    pendingNavigationFailures: [abortedDocument],
+    successfulDocumentUrls: [`${targetOrigin}/en`],
+    ...finalState,
+  })).toEqual([]);
+
+  for (const errorText of ["net::ERR_NAME_NOT_RESOLVED", "net::ERR_CERT_AUTHORITY_INVALID", "net::ERR_CONNECTION_REFUSED"]) {
+    expect(unresolvedNavigationFailures({
+      pendingNavigationFailures: [{ ...abortedDocument, errorText }],
+      successfulDocumentUrls: [`${targetOrigin}/en`],
+      ...finalState,
+    })).toHaveLength(1);
+  }
+
+  expect(unresolvedNavigationFailures({
+    pendingNavigationFailures: [abortedDocument],
+    successfulDocumentUrls: [],
+    ...finalState,
+  })).toHaveLength(1);
+  recordAssertions(testInfo, 5);
+});
+
 for (const [route, locale] of [["/", "ar"], ["/en", "en"], ["/tr", "tr"]]) {
   test(`${locale} public runtime remains on the exact Preview host`, async ({ context, page }, testInfo) => {
     await setExplicitLanguage(context, locale);
     await installReadonlyGuards(page);
-    const { errors, failed } = collectRuntimeFailures(page);
+    const { errors, failed, finalizeNavigationFailures } = collectRuntimeFailures(page);
 
     const response = await page.goto(route, { waitUntil: "networkidle" });
     expect(response?.ok(), `${route} HTTP status`).toBeTruthy();
     expect(new URL(page.url()).hostname.toLowerCase()).toBe(expectedHost);
     await expect(page.locator("body")).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    finalizeNavigationFailures({
+      expectedPath: route,
+      expectedLocale: locale,
+      actualLocale: await page.locator("html").getAttribute("lang"),
+    });
     expect(errors).toEqual([]);
     expect(failed).toEqual([]);
     recordAssertions(testInfo, 6);
@@ -152,7 +268,7 @@ for (const { label, locale, acceptLanguage, expectedPath, expectedLocale } of [
           firstNavigationAcceptLanguage ??= headers["accept-language"] ?? null;
         },
       });
-      const { errors, failed } = collectRuntimeFailures(page);
+      const { errors, failed, finalizeNavigationFailures } = collectRuntimeFailures(page);
 
       const response = await page.goto("/", { waitUntil: "networkidle" });
       expect(primaryLanguageTag(firstNavigationAcceptLanguage)).toBe(locale.toLowerCase());
@@ -162,6 +278,11 @@ for (const { label, locale, acceptLanguage, expectedPath, expectedLocale } of [
       expect(resolvedUrl.pathname).toBe(expectedPath);
       await expect(page.locator("body")).toBeVisible();
       await expect(page.locator("html")).toHaveAttribute("lang", expectedLocale);
+      finalizeNavigationFailures({
+        expectedPath,
+        expectedLocale,
+        actualLocale: await page.locator("html").getAttribute("lang"),
+      });
       expect(errors).toEqual([]);
       expect(failed).toEqual([]);
       recordAssertions(testInfo, 8);
