@@ -19,7 +19,7 @@ export async function GET() {
   const context = await getRequestSiteContext();
   const language = context.language;
   const posts = await getServerBlogFeed(language);
-  const channelTitle = language === "ar" ? "مدونة عراب سوريا" : language === "tr" ? "Arab Syria Blogu" : "Arab Syria Blog";
+  const channelTitle = language === "ar" ? "مدونة HAMZA AGENCY" : language === "tr" ? "HAMZA AGENCY Blogu" : "HAMZA AGENCY Blog";
   const channelDescription = language === "ar" ? "مقالات مهنية حول صناعة المحتوى والهوية الرقمية والبرامج." : language === "tr" ? "İçerik üretimi, dijital kimlik ve programlar hakkında profesyonel makaleler." : "Professional articles about content creation, digital identity, and programs.";
   const channelUrl = getLocalizedAbsoluteUrl("/blog", language);
 

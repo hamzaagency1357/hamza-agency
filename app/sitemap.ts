@@ -2,9 +2,13 @@ import type { MetadataRoute } from "next";
 import { getServerBlogFeed } from "@/lib/blog/serverPosts";
 import type { SiteLanguage } from "@/lib/i18n/locale";
 import { getLanguageAlternates, getLocalizedAbsoluteUrl, PROGRAM_SLUGS, PUBLIC_ROUTE_PATHS } from "@/lib/i18n/publicLocales";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 const languages: readonly SiteLanguage[] = ["ar", "en", "tr"];
 const excludedPaths = new Set(["/apply", "/application-status", "/service-status", "/track"]);
+
+type CmsPageUpdate = { slug: string | null; updated_at: string | null };
+
 function getRouteConfig(path: string) {
   if (path === "/") return { priority: 1, changeFrequency: "daily" as const };
   if (path === "/programs" || path === "/services" || path === "/blog" || path === "/agent/arab-syria") return { priority: 0.9, changeFrequency: "weekly" as const };
@@ -12,15 +16,62 @@ function getRouteConfig(path: string) {
   if (path === "/privacy-policy" || path === "/terms-and-conditions" || path === "/ai-policy") return { priority: 0.45, changeFrequency: "yearly" as const };
   return { priority: 0.75, changeFrequency: "weekly" as const };
 }
+
+function cmsSlugToPublicPath(slug: string | null) {
+  const normalized = slug?.trim().toLowerCase().replace(/^\/+|\/+$/g, "");
+  if (!normalized) return null;
+  if (normalized === "home" || normalized === "homepage") return "/";
+  return `/${normalized}`;
+}
+
+function safeDate(value: string | null | undefined) {
+  if (!value) return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+async function getCmsLastModifiedByPath() {
+  const updates = new Map<string, Date>();
+  if (!isSupabaseConfigured || !supabase) return updates;
+
+  const { data, error } = await supabase
+    .from("pages")
+    .select("slug,updated_at")
+    .eq("is_published", true);
+  if (error || !data) return updates;
+
+  for (const row of data as CmsPageUpdate[]) {
+    const path = cmsSlugToPublicPath(row.slug);
+    const updatedAt = safeDate(row.updated_at);
+    if (path && updatedAt) updates.set(path, updatedAt);
+  }
+  return updates;
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date();
-  const posts = await getServerBlogFeed("ar");
+  const [posts, cmsLastModifiedByPath] = await Promise.all([
+    getServerBlogFeed("ar"),
+    getCmsLastModifiedByPath(),
+  ]);
   const routes = Array.from(new Set([...PUBLIC_ROUTE_PATHS.filter((path) => !excludedPaths.has(path)), ...PROGRAM_SLUGS.map((slug) => `/programs/${slug}`), ...posts.map((post) => `/blog/${post.slug}`)]));
+
   return routes.flatMap((path) => {
     const route = getRouteConfig(path);
     const alternates = getLanguageAlternates(path);
     const post = path.startsWith("/blog/") ? posts.find((item) => `/blog/${item.slug}` === path) : null;
-    const lastModified = post ? new Date(post.updatedAt || post.publishedAt || post.scheduledAt || now) : now;
-    return languages.map((language) => ({ url: getLocalizedAbsoluteUrl(path, language), lastModified, changeFrequency: route.changeFrequency, priority: route.priority, alternates: { languages: alternates } }));
+    const lastModified = post
+      ? safeDate(post.updatedAt || post.publishedAt)
+      : cmsLastModifiedByPath.get(path);
+
+    return languages.map((language) => {
+      const entry: MetadataRoute.Sitemap[number] = {
+        url: getLocalizedAbsoluteUrl(path, language),
+        changeFrequency: route.changeFrequency,
+        priority: route.priority,
+        alternates: { languages: alternates },
+      };
+      if (lastModified) entry.lastModified = lastModified;
+      return entry;
+    });
   });
 }

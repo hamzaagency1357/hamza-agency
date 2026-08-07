@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { sanitizeArticleHtml } from "@/lib/blog/sanitizeHtml.mjs";
 import { supabase } from "@/lib/supabase";
 
 type Language = "ar" | "en" | "tr";
@@ -12,7 +13,6 @@ type Row = { id: number; slug: string; status: Status; category: string; tags: s
 const languages: Language[] = ["ar", "en", "tr"];
 const labels = { ar: "العربية", en: "English", tr: "Türkçe" } as const;
 const blank = (): Translation => ({ title: "", excerpt: "", content: "", seoTitle: "", seoDescription: "" });
-const cleanHtml = (value: string) => value.replace(/<\s*(script|iframe|object|embed|style)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "").replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "").replace(/javascript:/gi, "");
 const localDate = (value: string | null) => value ? new Date(new Date(value).getTime() - new Date(value).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "";
 
 export default function AdminBlogManager() {
@@ -31,7 +31,7 @@ export default function AdminBlogManager() {
   const [scheduledAt, setScheduledAt] = useState("");
   const [translations, setTranslations] = useState<Record<Language, Translation>>({ ar: blank(), en: blank(), tr: blank() });
   const active = translations[language];
-  const preview = useMemo(() => cleanHtml(active.content), [active.content]);
+  const preview = useMemo(() => sanitizeArticleHtml(active.content), [active.content]);
 
   const loadRows = useCallback(async () => {
     if (!supabase) return;
@@ -73,7 +73,7 @@ export default function AdminBlogManager() {
     if (!translations.ar.title.trim() || !translations.ar.excerpt.trim() || !translations.ar.content.trim()) return setMessage("العنوان والملخص والمحتوى بالعربية مطلوبة.");
     if (status === "scheduled" && !scheduledAt) return setMessage("حدد موعد النشر.");
     setSaving(true); setMessage("");
-    const payload = languages.map((item) => ({ language: item, title: translations[item].title.trim(), excerpt: translations[item].excerpt.trim(), content_html: translations[item].content.trim(), seo_title: translations[item].seoTitle.trim(), seo_description: translations[item].seoDescription.trim() }));
+    const payload = languages.map((item) => ({ language: item, title: translations[item].title.trim(), excerpt: translations[item].excerpt.trim(), content_html: sanitizeArticleHtml(translations[item].content.trim()), seo_title: translations[item].seoTitle.trim(), seo_description: translations[item].seoDescription.trim() }));
     const { data, error } = await supabase.rpc("pr3_save_blog_post", { p_post_id: activeId, p_slug: slug, p_status: status, p_category: category || "general", p_tags: tags.split(",").map((item) => item.trim().toLowerCase()).filter(Boolean), p_featured_image_url: featuredImage || null, p_scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null, p_translations: payload });
     setSaving(false);
     if (error) return setMessage(error.message || "تعذر حفظ المقال.");

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import PublicLanguageMain from "@/components/PublicLanguageMain";
 import PublicBreadcrumbs from "@/components/PublicBreadcrumbs";
 import { getServerBlogPostBySlug, getServerBlogTaxonomy, getServerRelatedBlogPosts } from "@/lib/blog/serverPosts";
+import { sanitizeArticleHtml } from "@/lib/blog/sanitizeHtml.mjs";
 import { buildPublicMetadata, getRequestSiteContext } from "@/lib/i18n/serverPublicMetadata";
 import { getLanguageAlternates, getLocalizedAbsoluteUrl, localizePublicHref, SITE_URL } from "@/lib/i18n/publicLocales";
 
@@ -16,7 +17,6 @@ const copy = {
   tr: { back: "Bloga dön", related: "İlgili makaleler", published: "Yayınlandı", updated: "Son güncelleme", category: "Kategori" },
 } as const;
 function safeBackgroundImage(value: string | null) { if (!value || !/^https?:\/\//i.test(value)) return undefined; return `url("${value.replaceAll('"', "%22")}")`; }
-function sanitizeRenderableHtml(value: string) { return value.replace(/<\s*(script|iframe|object|embed|style)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "").replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "").replace(/javascript:/gi, ""); }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const [{ slug }, siteContext] = await Promise.all([params, getRequestSiteContext()]);
@@ -43,7 +43,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const canonical = getLocalizedAbsoluteUrl(publicPath, language);
   const backgroundImage = safeBackgroundImage(post.featuredImage);
   const publishedValue = post.publishedAt || post.scheduledAt;
-  const safeHtml = sanitizeRenderableHtml(post.copy.content);
+  const safeHtml = sanitizeArticleHtml(post.copy.content, { siteOrigin: SITE_URL });
   const blogPostingJsonLd = { "@context": "https://schema.org", "@type": "BlogPosting", "@id": `${canonical}#blog-posting`, headline: post.copy.title, description: post.copy.excerpt, image: post.featuredImage ? [post.featuredImage] : undefined, datePublished: publishedValue || undefined, dateModified: post.updatedAt || publishedValue || undefined, inLanguage: language, mainEntityOfPage: canonical, keywords: post.tags.join(", "), author: { "@id": organizationId }, publisher: { "@id": organizationId }, isPartOf: { "@type": "Blog", "@id": `${getLocalizedAbsoluteUrl("/blog", language)}#blog`, name: "HAMZA AGENCY Blog", url: getLocalizedAbsoluteUrl("/blog", language) } };
   return <PublicLanguageMain className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(blogPostingJsonLd).replace(/</g, "\\u003c") }} />
