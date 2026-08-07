@@ -12,7 +12,7 @@ const assertSafeUrl = buildUrlGuard({ expectedHost, allowedExternalHosts });
 const supabaseHost = "fvaurkfnsvsfohpzguho.supabase.co";
 const languageCookieName = "hamza-agency-language";
 
-async function installReadonlyGuards(page) {
+async function installReadonlyGuards(page, { onNavigationRequestHeaders } = {}) {
   page.on("framenavigated", (frame) => {
     if (frame === page.mainFrame()) assertSafeUrl(frame.url(), "main document");
   });
@@ -32,12 +32,14 @@ async function installReadonlyGuards(page) {
     if (url.hostname.toLowerCase() !== expectedHost && !allowedExternalHosts.includes(url.hostname.toLowerCase())) {
       throw new Error(`Network request reached a host outside the allowlist: ${url.href}`);
     }
+    const requestHeaders = await request.allHeaders();
     const headers = previewRequestHeaders({
-      headers: request.headers(),
+      headers: requestHeaders,
       host: url.hostname.toLowerCase(),
       expectedHost,
       bypassSecret: process.env.CLOSEOUT_VERCEL_BYPASS_SECRET,
     });
+    if (request.isNavigationRequest()) onNavigationRequestHeaders?.(headers);
     await route.continue({ headers });
   });
 }
@@ -122,25 +124,32 @@ for (const [route, locale] of [["/", "ar"], ["/en", "en"], ["/tr", "tr"]]) {
   });
 }
 
-for (const { label, acceptLanguage, expectedPath, expectedLocale } of [
-  { label: "EN", acceptLanguage: "en-US,en;q=0.9", expectedPath: "/en", expectedLocale: "en" },
-  { label: "TR", acceptLanguage: "tr-TR,tr;q=0.9", expectedPath: "/tr", expectedLocale: "tr" },
-  { label: "AR", acceptLanguage: "ar-SY,ar;q=0.9", expectedPath: "/", expectedLocale: "ar" },
+for (const { label, locale, acceptLanguage, expectedPath, expectedLocale } of [
+  { label: "EN", locale: "en-US", acceptLanguage: "en-US,en;q=0.9", expectedPath: "/en", expectedLocale: "en" },
+  { label: "TR", locale: "tr-TR", acceptLanguage: "tr-TR,tr;q=0.9", expectedPath: "/tr", expectedLocale: "tr" },
+  { label: "AR", locale: "ar-SY", acceptLanguage: "ar-SY,ar;q=0.9", expectedPath: "/", expectedLocale: "ar" },
 ]) {
   test(`${label} first visit resolves from Accept-Language`, async ({ browser }, testInfo) => {
     const context = await browser.newContext({
       baseURL: targetOrigin,
       ignoreHTTPSErrors: true,
+      locale,
       extraHTTPHeaders: { "Accept-Language": acceptLanguage },
     });
 
     try {
       await context.clearCookies();
       const page = await context.newPage();
-      await installReadonlyGuards(page);
+      let firstNavigationAcceptLanguage = null;
+      await installReadonlyGuards(page, {
+        onNavigationRequestHeaders: (headers) => {
+          firstNavigationAcceptLanguage ??= headers["accept-language"] ?? null;
+        },
+      });
       const { errors, failed } = collectRuntimeFailures(page);
 
       const response = await page.goto("/", { waitUntil: "networkidle" });
+      expect(firstNavigationAcceptLanguage).toBe(acceptLanguage);
       expect(response?.ok(), `${label} first-visit HTTP status`).toBeTruthy();
       const resolvedUrl = new URL(page.url());
       expect(resolvedUrl.hostname.toLowerCase()).toBe(expectedHost);
@@ -149,7 +158,7 @@ for (const { label, acceptLanguage, expectedPath, expectedLocale } of [
       await expect(page.locator("html")).toHaveAttribute("lang", expectedLocale);
       expect(errors).toEqual([]);
       expect(failed).toEqual([]);
-      recordAssertions(testInfo, 7);
+      recordAssertions(testInfo, 8);
     } finally {
       await context.close();
     }
