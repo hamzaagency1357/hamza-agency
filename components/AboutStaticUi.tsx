@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import PublicAgencyName from "@/components/PublicAgencyName";
 import { getLanguageDirection } from "@/lib/i18n/locale";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
@@ -10,7 +9,7 @@ const copy = {
   ar: {
     back: "← العودة إلى الرئيسية",
     managementTitle: "إدارة الوكالة",
-    managedBy: "بإدارة الوكيل",
+    managementBody: "تُدار وكالة حمزة بإشراف الوكيل عراب سوريا، وفق معايير مهنية تركز على الثقة والخصوصية والمتابعة الدقيقة.",
     values: [
       ["إدارة احترافية", "نساعد صناع المحتوى على فهم طريقة العمل داخل البرامج، تنظيم خطواتهم، ومتابعة تقدمهم بوضوح."],
       ["دعم ومتابعة", "نوفر متابعة للطلبات والمشاكل الفنية والتواصل مع المتقدمين عبر واتساب عند الحاجة."],
@@ -29,7 +28,7 @@ const copy = {
   en: {
     back: "← Back to home",
     managementTitle: "Agency management",
-    managedBy: "Managed by the agent",
+    managementBody: "HAMZA AGENCY is managed under the supervision of agent Arab Syria, following professional standards focused on trust, privacy, and careful follow-up.",
     values: [
       ["Professional management", "We help content creators understand how programs work, organize their steps, and follow their progress clearly."],
       ["Support and follow-up", "We provide follow-up for applications and technical issues, with WhatsApp communication when needed."],
@@ -48,7 +47,7 @@ const copy = {
   tr: {
     back: "← Ana sayfaya dön",
     managementTitle: "Ajans yönetimi",
-    managedBy: "Ajan tarafından yönetilir",
+    managementBody: "HAMZA AGENCY, güven, gizlilik ve titiz takibe odaklanan profesyonel standartlar doğrultusunda Arab Syria temsilcisinin gözetiminde yönetilir.",
     values: [
       ["Profesyonel yönetim", "İçerik üreticilerinin programların nasıl çalıştığını anlamasına, adımlarını düzenlemesine ve ilerlemelerini açıkça takip etmesine yardımcı oluyoruz."],
       ["Destek ve takip", "Başvurular ve teknik sorunlar için takip sağlıyor, gerektiğinde WhatsApp üzerinden iletişim kuruyoruz."],
@@ -83,7 +82,7 @@ export function AboutBackLink() {
 
 export function AboutManagementPanel({ agencyName }: { agencyName: string }) {
   const { text } = useAboutCopy();
-  return <div className="mt-8 rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-6"><h2 className="text-2xl font-black text-yellow-100">{text.managementTitle}</h2><p className="mt-4 text-xl leading-9 text-white/80"><PublicAgencyName value={agencyName} /> — {text.managedBy}</p></div>;
+  return <div className="mt-8 rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-6"><h2 className="text-2xl font-black text-yellow-100">{text.managementTitle}</h2><p className="mt-4 text-xl leading-9 text-white/80">{text.managementBody}</p><span className="sr-only">{agencyName}</span></div>;
 }
 
 export function AboutValues() {

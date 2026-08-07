@@ -12,7 +12,7 @@ const copy = {
     eyebrow: "HAMZA AGENCY — وكالة حمزة",
     title: "عراب سوريا | الوكيل والمدير في HAMZA AGENCY",
     visualName: "⚔عܓོراب✴سܓོوريا⚔",
-    lead: "ويُعد الوكيل ⚔عܓོراب✴سܓོوريا⚔ من أبرز الوكلاء وأكثرهم أمانًا واحترافية على مستوى العالم، بفضل خبرته الواسعة ونهجه القائم على الثقة والخصوصية والمتابعة الدقيقة.",
+    lead: "يشرف عراب سوريا على دعم وتطوير صناع المحتوى وبرامج البث المباشر، مستندًا إلى خبرة واسعة ونهج قائم على الأمان والخصوصية والمتابعة المهنية.",
     roleTitle: "دوره داخل HAMZA AGENCY",
     roleBody: "يتولى عراب سوريا دور الوكيل والمدير في HAMZA AGENCY، ويشرف على تنظيم مسارات الدعم والمتابعة وتطوير صناع المحتوى وبرامج البث المباشر ضمن معايير مهنية واضحة.",
     trustTitle: "الثقة والخصوصية والأمان",
@@ -28,7 +28,7 @@ const copy = {
     eyebrow: "HAMZA AGENCY",
     title: "Arab Syria | Agent and Manager at HAMZA AGENCY",
     visualName: "⚔عܓོراب✴سܓོوريا⚔",
-    lead: "Agent Arab Syria is recognized for extensive experience and a professional approach built on trust, privacy, safety, and careful follow-up.",
+    lead: "Arab Syria oversees the support and development of content creators and live-streaming programs, drawing on broad experience and an approach centered on safety, privacy, and professional follow-up.",
     roleTitle: "Role at HAMZA AGENCY",
     roleBody: "Arab Syria serves as the agent and manager at HAMZA AGENCY, overseeing creator support, operational follow-up, development pathways, and live-streaming programs through clear professional standards.",
     trustTitle: "Trust, privacy, and safety",
@@ -44,7 +44,7 @@ const copy = {
     eyebrow: "HAMZA AGENCY",
     title: "Arab Syria | HAMZA AGENCY Temsilcisi ve Yöneticisi",
     visualName: "⚔عܓོراب✴سܓོوريا⚔",
-    lead: "Arab Syria; geniş deneyimi, güvene, gizliliğe, güvenliğe ve titiz takibe dayanan profesyonel yaklaşımıyla öne çıkan bir temsilcidir.",
+    lead: "Arab Syria, geniş deneyime ve güvenlik, gizlilik ve profesyonel takibi merkeze alan bir yaklaşıma dayanarak içerik üreticilerinin ve canlı yayın programlarının desteklenmesini ve geliştirilmesini yönetir.",
     roleTitle: "HAMZA AGENCY içindeki rolü",
     roleBody: "Arab Syria, HAMZA AGENCY'nin temsilcisi ve yöneticisi olarak içerik üreticisi desteğini, operasyonel takibi, gelişim yollarını ve canlı yayın programlarını açık profesyonel standartlarla yönetir.",
     trustTitle: "Güven, gizlilik ve güvenlik",
@@ -69,7 +69,7 @@ export default async function ArabSyriaAgentPage() {
         <section className="rounded-[2rem] border border-purple-400/20 bg-black/40 p-7 shadow-[0_0_60px_rgba(124,58,237,0.16)] backdrop-blur md:p-12" data-testid="agent-profile-page">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-yellow-200">{t.eyebrow}</p>
           <h1 className="mt-5 text-4xl font-black leading-tight md:text-7xl">{t.title}</h1>
-          <p aria-hidden="true" className="mt-5 bg-gradient-to-r from-purple-300 via-white to-yellow-300 bg-clip-text text-3xl font-black text-transparent md:text-5xl" dir="rtl">{t.visualName}</p>
+          <p aria-hidden="true" className="mt-5 inline-flex max-w-full whitespace-nowrap rounded-full border border-purple-300/20 bg-purple-500/10 px-3 py-2 text-[clamp(0.68rem,3vw,0.95rem)] font-black leading-none text-purple-100" dir="rtl">{t.visualName}</p>
           <p className="mt-8 max-w-5xl text-xl leading-10 text-white/76">{t.lead}</p>
         </section>
         <section className="mt-10 grid gap-6 lg:grid-cols-3">{[[t.roleTitle, t.roleBody], [t.trustTitle, t.trustBody], [t.experienceTitle, t.experienceBody]].map(([title, body]) => <article key={title} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-7 backdrop-blur"><h2 className="text-2xl font-black text-purple-100">{title}</h2><p className="mt-4 leading-8 text-white/70">{body}</p></article>)}</section>
