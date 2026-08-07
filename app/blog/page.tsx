@@ -16,7 +16,7 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 const copy = {
   ar: {
-    eyebrow: "مدونة عراب سوريا",
+    eyebrow: "مدونة HAMZA AGENCY",
     intro: "مقالات مهنية حول صناعة المحتوى، البرامج، الهوية الرقمية، وتحسين الظهور.",
     searchLabel: "ابحث في المدونة",
     searchPlaceholder: "اكتب كلمة أو موضوعاً",
@@ -31,11 +31,11 @@ const copy = {
     of: "من",
     rss: "خلاصة RSS",
     published: "نُشر في",
-    emptyHint: "ستظهر المقالات هنا بعد اعتمادها ونشرها من لوحة التحكم.",
+    emptyHint: "لا توجد مقالات منشورة حالياً.",
     noResultsHint: "جرّب كلمة مختلفة أو امسح التصنيف والوسم الحاليين.",
   },
   en: {
-    eyebrow: "Arab Syria Blog",
+    eyebrow: "HAMZA AGENCY Blog",
     intro: "Professional articles about content creation, programs, digital identity, and search visibility.",
     searchLabel: "Search the blog",
     searchPlaceholder: "Enter a keyword or topic",
@@ -50,11 +50,11 @@ const copy = {
     of: "of",
     rss: "RSS feed",
     published: "Published",
-    emptyHint: "Articles will appear here after they are reviewed and published from the administration area.",
+    emptyHint: "There are no published articles at the moment.",
     noResultsHint: "Try another keyword or clear the current category and tag.",
   },
   tr: {
-    eyebrow: "Arab Syria Blogu",
+    eyebrow: "HAMZA AGENCY Blogu",
     intro: "İçerik üretimi, programlar, dijital kimlik ve arama görünürlüğü hakkında profesyonel makaleler.",
     searchLabel: "Blogda ara",
     searchPlaceholder: "Bir kelime veya konu yazın",
@@ -69,7 +69,7 @@ const copy = {
     of: "/",
     rss: "RSS akışı",
     published: "Yayınlandı",
-    emptyHint: "Makaleler yönetim alanında incelenip yayınlandıktan sonra burada görünür.",
+    emptyHint: "Şu anda yayımlanmış makale bulunmuyor.",
     noResultsHint: "Başka bir kelime deneyin veya kategori ve etiket filtrelerini temizleyin.",
   },
 } as const;
@@ -116,6 +116,8 @@ export default async function BlogListPage({ searchParams }: { searchParams: Sea
   ]);
   const locale = language === "ar" ? "ar-SA" : language === "tr" ? "tr-TR" : "en-US";
   const hasFilters = Boolean(search || category || tag);
+  const hasPublishedPosts = result.posts.length > 0;
+  const hasTaxonomy = Object.keys(taxonomy.categories).length > 0 || Object.keys(taxonomy.tags).length > 0;
   const canonicalBlog = localizePublicHref("/blog", language);
 
   return (
@@ -133,7 +135,7 @@ export default async function BlogListPage({ searchParams }: { searchParams: Sea
               <h1 className="mt-4 text-4xl font-black md:text-6xl">{result.labels.title}</h1>
               <p className="mt-5 max-w-3xl text-lg leading-9 text-white/70">{t.intro}</p>
             </div>
-            <a href={localizePublicHref("/blog/rss", language)} className="inline-flex min-h-11 w-fit items-center rounded-full border border-yellow-300/25 bg-yellow-300/10 px-5 py-3 text-sm font-black text-yellow-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300">{t.rss}</a>
+            {hasPublishedPosts ? <a href={localizePublicHref("/blog/rss", language)} className="inline-flex min-h-11 w-fit items-center rounded-full border border-yellow-300/25 bg-yellow-300/10 px-5 py-3 text-sm font-black text-yellow-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300">{t.rss}</a> : null}
           </div>
         </header>
 
@@ -147,7 +149,7 @@ export default async function BlogListPage({ searchParams }: { searchParams: Sea
           </div>
         </form>
 
-        <section aria-labelledby="blog-categories-title" className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-5">
+        {hasPublishedPosts && hasTaxonomy ? <section aria-labelledby="blog-categories-title" className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="blog-categories-title" className="text-lg font-black">{t.categories}</h2>
             {hasFilters ? <Link href={canonicalBlog} className="inline-flex min-h-11 items-center rounded-full border border-white/15 px-4 py-2 text-sm font-bold text-white/75 hover:text-white">{t.clear}</Link> : null}
@@ -159,9 +161,9 @@ export default async function BlogListPage({ searchParams }: { searchParams: Sea
             })}
           </div>
           {Object.keys(taxonomy.tags).length ? <><h2 className="mt-6 text-sm font-black text-white/70">{t.tags}</h2><div className="mt-3 flex flex-wrap gap-2">{Object.values(taxonomy.tags).slice(0, 16).map((item) => { const active = tag === item.slug; return <Link key={item.slug} href={buildBlogHref(language, { search, category, tag: active ? "" : item.slug })} aria-current={active ? "true" : undefined} className={`inline-flex min-h-11 items-center rounded-full border px-4 py-2 text-sm font-bold ${active ? "border-yellow-300/45 bg-yellow-300/15 text-yellow-100" : "border-purple-400/20 bg-purple-500/10 text-purple-100"}`}>#{item.label}</Link>; })}</div></> : null}
-        </section>
+        </section> : null}
 
-        {result.posts.length > 0 ? <>
+        {hasPublishedPosts ? <>
           <section aria-label={result.labels.title} className="mt-10 grid gap-6 lg:grid-cols-2">
             {result.posts.map((post) => {
               const backgroundImage = safeBackgroundImage(post.featuredImage);
