@@ -1,7 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { installPreviewBypass } from "./preview-bypass.mjs";
 
-const expectedHost = new URL(process.env.CLOSEOUT_TARGET_URL).hostname.toLowerCase();
+const targetUrl = new URL(process.env.CLOSEOUT_TARGET_URL);
+const targetOrigin = targetUrl.origin;
+const expectedHost = targetUrl.hostname.toLowerCase();
+const languageCookieName = "hamza-agency-language";
 const storageKey = "hamza_agency_cookie_consent";
 const arabicPattern = /[\u0600-\u06ff]/;
 test.describe.configure({ retries: 0 });
@@ -82,6 +85,15 @@ function recordAssertions(testInfo, count) {
   });
 }
 
+async function setExplicitLanguage(context, locale) {
+  await context.clearCookies();
+  await context.addCookies([{
+    name: languageCookieName,
+    value: locale,
+    url: targetOrigin,
+  }]);
+}
+
 async function freshConsent(page, route) {
   await page.goto(route, { waitUntil: "networkidle" });
   await page.evaluate((key) => localStorage.removeItem(key), storageKey);
@@ -137,7 +149,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const [locale, data] of Object.entries(cases)) {
-  test(`${locale} first visit uses a compact localized banner with page navigation`, async ({ page }, testInfo) => {
+  test(`${locale} first visit uses a compact localized banner with page navigation`, async ({ context, page }, testInfo) => {
+    await setExplicitLanguage(context, locale);
     await freshConsent(page, data.route);
     expect(new URL(page.url()).hostname.toLowerCase()).toBe(expectedHost);
 
@@ -171,7 +184,8 @@ for (const [locale, data] of Object.entries(cases)) {
     recordAssertions(testInfo, 16);
   });
 
-  test(`${locale} cookie settings page persists all supported decisions`, async ({ page }, testInfo) => {
+  test(`${locale} cookie settings page persists all supported decisions`, async ({ context, page }, testInfo) => {
+    await setExplicitLanguage(context, locale);
     await freshConsent(page, data.settingsRoute);
     const settingsPage = page.getByTestId("cookie-settings-page");
 
@@ -235,7 +249,8 @@ for (const [locale, data] of Object.entries(cases)) {
     recordAssertions(testInfo, 27);
   });
 
-  test(`${locale} install direct navigation is fully localized and user-triggered`, async ({ page }, testInfo) => {
+  test(`${locale} install direct navigation is fully localized and user-triggered`, async ({ context, page }, testInfo) => {
+    await setExplicitLanguage(context, locale);
     await page.goto(data.installRoute, { waitUntil: "networkidle" });
     await dismissCookieBanner(page);
     await dispatchInstallPrompt(page);

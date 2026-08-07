@@ -127,22 +127,32 @@ for (const { label, acceptLanguage, expectedPath, expectedLocale } of [
   { label: "TR", acceptLanguage: "tr-TR,tr;q=0.9", expectedPath: "/tr", expectedLocale: "tr" },
   { label: "AR", acceptLanguage: "ar-SY,ar;q=0.9", expectedPath: "/", expectedLocale: "ar" },
 ]) {
-  test(`${label} first visit resolves from Accept-Language`, async ({ context, page }, testInfo) => {
-    await context.clearCookies();
-    await page.setExtraHTTPHeaders({ "Accept-Language": acceptLanguage });
-    await installReadonlyGuards(page);
-    const { errors, failed } = collectRuntimeFailures(page);
+  test(`${label} first visit resolves from Accept-Language`, async ({ browser }, testInfo) => {
+    const context = await browser.newContext({
+      baseURL: targetOrigin,
+      ignoreHTTPSErrors: true,
+      extraHTTPHeaders: { "Accept-Language": acceptLanguage },
+    });
 
-    const response = await page.goto("/", { waitUntil: "networkidle" });
-    expect(response?.ok(), `${label} first-visit HTTP status`).toBeTruthy();
-    const resolvedUrl = new URL(page.url());
-    expect(resolvedUrl.hostname.toLowerCase()).toBe(expectedHost);
-    expect(resolvedUrl.pathname).toBe(expectedPath);
-    await expect(page.locator("body")).toBeVisible();
-    await expect(page.locator("html")).toHaveAttribute("lang", expectedLocale);
-    expect(errors).toEqual([]);
-    expect(failed).toEqual([]);
-    recordAssertions(testInfo, 7);
+    try {
+      await context.clearCookies();
+      const page = await context.newPage();
+      await installReadonlyGuards(page);
+      const { errors, failed } = collectRuntimeFailures(page);
+
+      const response = await page.goto("/", { waitUntil: "networkidle" });
+      expect(response?.ok(), `${label} first-visit HTTP status`).toBeTruthy();
+      const resolvedUrl = new URL(page.url());
+      expect(resolvedUrl.hostname.toLowerCase()).toBe(expectedHost);
+      expect(resolvedUrl.pathname).toBe(expectedPath);
+      await expect(page.locator("body")).toBeVisible();
+      await expect(page.locator("html")).toHaveAttribute("lang", expectedLocale);
+      expect(errors).toEqual([]);
+      expect(failed).toEqual([]);
+      recordAssertions(testInfo, 7);
+    } finally {
+      await context.close();
+    }
   });
 }
 
