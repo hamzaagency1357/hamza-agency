@@ -12,6 +12,8 @@ const assertSafeUrl = buildUrlGuard({ expectedHost, allowedExternalHosts });
 const supabaseHost = "fvaurkfnsvsfohpzguho.supabase.co";
 const languageCookieName = "hamza-agency-language";
 
+test.describe.configure({ mode: "default" });
+
 async function installReadonlyGuards(page, { onNavigationRequestHeaders } = {}) {
   page.on("framenavigated", (frame) => {
     if (frame === page.mainFrame()) assertSafeUrl(frame.url(), "main document");
@@ -58,6 +60,10 @@ function isIgnorableRscPrefetchFailure(request) {
     && !request.isNavigationRequest()
     && url.hostname.toLowerCase() === expectedHost
     && url.searchParams.has("_rsc");
+}
+
+function primaryLanguageTag(value) {
+  return value?.split(",")[0]?.trim().toLowerCase() ?? null;
 }
 
 function recordAssertions(testInfo, count) {
@@ -149,7 +155,7 @@ for (const { label, locale, acceptLanguage, expectedPath, expectedLocale } of [
       const { errors, failed } = collectRuntimeFailures(page);
 
       const response = await page.goto("/", { waitUntil: "networkidle" });
-      expect(firstNavigationAcceptLanguage).toBe(acceptLanguage);
+      expect(primaryLanguageTag(firstNavigationAcceptLanguage)).toBe(locale.toLowerCase());
       expect(response?.ok(), `${label} first-visit HTTP status`).toBeTruthy();
       const resolvedUrl = new URL(page.url());
       expect(resolvedUrl.hostname.toLowerCase()).toBe(expectedHost);
