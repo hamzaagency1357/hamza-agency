@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { usePathname } from "next/navigation";
+import { useMemo, useState } from "react";
 import {
   rememberLanguagePreference,
   SITE_LANGUAGES,
@@ -20,39 +20,27 @@ const ariaLabels: Record<SiteLanguage, string> = {
 
 export default function LanguageSwitcher() {
   const pathname = usePathname();
-  const router = useRouter();
   const activeLanguage = getPathLanguage(pathname || "/");
-  const [locationSuffix, setLocationSuffix] = useState("");
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    setLocationSuffix(`${window.location.search}${window.location.hash}`);
-  }, [pathname]);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   const localizedTargets = useMemo(
     () =>
       Object.fromEntries(
         SITE_LANGUAGES.map(({ code }) => [
           code,
-          `${localizePublicPath(pathname || "/", code)}${locationSuffix}`,
+          localizePublicPath(pathname || "/", code),
         ])
       ) as Record<SiteLanguage, string>,
-    [locationSuffix, pathname]
+    [pathname]
   );
 
-  useEffect(() => {
-    for (const target of Object.values(localizedTargets)) {
-      router.prefetch(target);
-    }
-  }, [localizedTargets, router]);
-
   function changeLanguage(nextLanguage: SiteLanguage) {
-    if (isPending || nextLanguage === activeLanguage) return;
+    if (isNavigating || nextLanguage === activeLanguage) return;
 
+    setIsNavigating(true);
     rememberLanguagePreference(nextLanguage);
-    startTransition(() => {
-      router.replace(localizedTargets[nextLanguage], { scroll: false });
-    });
+    const target = `${localizedTargets[nextLanguage]}${window.location.search}${window.location.hash}`;
+    window.location.assign(target);
   }
 
   return (
@@ -61,7 +49,7 @@ export default function LanguageSwitcher() {
       role="group"
       aria-label={ariaLabels[activeLanguage]}
       data-language-switcher="segmented"
-      aria-busy={isPending}
+      aria-busy={isNavigating}
     >
       {SITE_LANGUAGES.map(({ code, shortLabel, label }) => {
         const active = code === activeLanguage;
@@ -69,7 +57,7 @@ export default function LanguageSwitcher() {
           <button
             key={code}
             type="button"
-            disabled={isPending}
+            disabled={isNavigating}
             onClick={() => changeLanguage(code)}
             aria-current={active ? "page" : undefined}
             aria-label={shortLabel}
