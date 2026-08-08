@@ -41,10 +41,16 @@ export default function LanguageSwitcher() {
   );
 
   useEffect(() => {
-    for (const target of Object.values(localizedTargets)) {
-      router.prefetch(target);
+    const arabicPath = localizePublicPath(pathname || "/", "ar");
+
+    for (const { code } of SITE_LANGUAGES) {
+      const returningToArabicHomepage =
+        activeLanguage !== "ar" && code === "ar" && arabicPath === "/";
+
+      if (returningToArabicHomepage) continue;
+      router.prefetch(localizedTargets[code]);
     }
-  }, [localizedTargets, router]);
+  }, [activeLanguage, localizedTargets, pathname, router]);
 
   function changeLanguage(nextLanguage: SiteLanguage) {
     if (isPending || nextLanguage === activeLanguage) return;

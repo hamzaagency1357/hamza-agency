@@ -24,11 +24,8 @@ test("article HTML sanitizer removes active content, handlers, styles, namespace
     '<script>globalThis.pwned=1</script>',
   ].join("");
   const output = sanitizeArticleHtml(input);
-
   assert.equal(output, '<p>Visible</p><a>encoded</a><a>data</a><a>protocol-relative</a>');
-  for (const token of ["onclick", "onmouseover", "style=", "javascript:", "data:", "//evil", "iframe", "srcdoc", "form", "input", "svg", "xlink", "math", "script"]) {
-    assert.ok(!output.toLowerCase().includes(token), token);
-  }
+  for (const token of ["onclick", "onmouseover", "style=", "javascript:", "data:", "//evil", "iframe", "srcdoc", "form", "input", "svg", "xlink", "math", "script"]) assert.ok(!output.toLowerCase().includes(token), token);
 });
 
 test("article HTML sanitizer allows safe URL classes and hardens external links", () => {
@@ -39,29 +36,17 @@ test("article HTML sanitizer allows safe URL classes and hardens external links"
 });
 
 test("encoded and ambiguous protocols remain fail-closed", () => {
-  for (const href of [
-    "java%73cript:alert(1)",
-    "java&#115;cript:alert(1)",
-    "java&#x0a;script:alert(1)",
-    "\\\\evil.example/path",
-    "vbscript:alert(1)",
-    "file:///etc/passwd",
-  ]) {
-    assert.equal(sanitizeArticleHtml(`<a href="${href}">unsafe</a>`), "<a>unsafe</a>", href);
-  }
+  for (const href of ["java%73cript:alert(1)","java&#115;cript:alert(1)","java&#x0a;script:alert(1)","\\\\evil.example/path","vbscript:alert(1)","file:///etc/passwd"]) assert.equal(sanitizeArticleHtml(`<a href="${href}">unsafe</a>`), "<a>unsafe</a>", href);
 });
 
 test("public article and admin preview both use the shared sanitizer", async () => {
-  const [article, admin] = await Promise.all([
-    read("app/blog/[slug]/page.tsx"),
-    read("components/AdminBlogManager.tsx"),
-  ]);
+  const [article, admin] = await Promise.all([read("app/blog/[slug]/page.tsx"), read("components/AdminBlogManager.tsx")]);
   for (const source of [article, admin]) {
     assert.ok(source.includes('sanitizeArticleHtml'));
     assert.ok(source.includes('@/lib/blog/sanitizeHtml.mjs'));
     assert.ok(!source.includes("sanitizeRenderableHtml"));
     assert.ok(!source.includes("const cleanHtml"));
   }
-  assert.ok(article.includes("__html: safeHtml"));
-  assert.ok(admin.includes("__html: preview"));
+  assert.match(article, /__html\s*:\s*safeHtml/);
+  assert.match(admin, /__html\s*:\s*preview/);
 });

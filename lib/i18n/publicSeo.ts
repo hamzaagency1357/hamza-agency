@@ -3,7 +3,7 @@ import { AGENT_PUBLIC_PATH, getProgramSlugFromPath, stripLocalePrefix } from "@/
 import { getSiteRuntimeMetadata, type RuntimeRouteMetadata } from "@/lib/i18n/siteRuntimeTranslations";
 
 export type PublicSeoCopy = RuntimeRouteMetadata & { schemaType: "AboutPage" | "CollectionPage" | "ContactPage" | "FAQPage" | "ImageGallery" | "WebPage" };
-const agencyDescription = "HAMZA AGENCY بإدارة الوكيل عراب سوريا، أحد أبرز وأكثر الوكلاء أمانًا واحترافية على مستوى العالم في إدارة ودعم وتطوير صناع المحتوى وبرامج البث المباشر.";
+const agencyDescription = "HAMZA AGENCY بإدارة الوكيل عراب سوريا، لدعم وتطوير صناع المحتوى وبرامج البث المباشر وفق نهج قائم على الأمان والخصوصية والمتابعة المهنية.";
 const arabicRouteSeo: Record<string, PublicSeoCopy> = {
   "/": { title: "HAMZA AGENCY | بإدارة الوكيل عراب سوريا", description: agencyDescription, schemaType: "WebPage" },
   "/about": { title: "من نحن | HAMZA AGENCY بإدارة عراب سوريا", description: "تعرف على HAMZA AGENCY ودور الوكيل عراب سوريا في دعم وتطوير صناع المحتوى وبرامج البث المباشر ضمن نهج يحترم الثقة والخصوصية.", schemaType: "AboutPage" },
@@ -30,8 +30,8 @@ const arabicRouteSeo: Record<string, PublicSeoCopy> = {
 };
 const agentSeo: Record<SiteLanguage, PublicSeoCopy> = {
   ar: { title: "عراب سوريا | الوكيل والمدير في HAMZA AGENCY", description: agencyDescription, schemaType: "WebPage" },
-  en: { title: "Arab Syria | Agent and Manager at HAMZA AGENCY", description: "Meet Arab Syria, the agent and manager overseeing creator support, development, privacy, and live-streaming programs at HAMZA AGENCY.", schemaType: "WebPage" },
-  tr: { title: "Arab Syria | HAMZA AGENCY Temsilcisi ve Yöneticisi", description: "HAMZA AGENCY bünyesinde içerik üreticisi desteği, gelişimi, gizlilik ve canlı yayın programlarını yöneten Arab Syria'yı tanıyın.", schemaType: "WebPage" },
+  en: { title: "Godfather of Syria | Agent and Manager at HAMZA AGENCY", description: "The Godfather of Syria oversees creator support and development, privacy, safety, and live-streaming programs at HAMZA AGENCY through professional follow-up.", schemaType: "WebPage" },
+  tr: { title: "Suriye'nin Vaftiz Babası | HAMZA AGENCY Temsilcisi ve Yöneticisi", description: "Suriye'nin Vaftiz Babası, HAMZA AGENCY bünyesinde içerik üreticisi desteğini ve gelişimini, gizliliği, güvenliği ve canlı yayın programlarını profesyonel takiple yönetir.", schemaType: "WebPage" },
 };
 const genericSeo: Record<SiteLanguage, RuntimeRouteMetadata> = {
   ar: { title: "HAMZA AGENCY | وكالة حمزة", description: "وكالة احترافية لإدارة ودعم وتطوير صناع المحتوى وبرامج البث المباشر والخدمات الرقمية." },

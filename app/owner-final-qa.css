@@ -141,36 +141,3 @@ body.public-site-page [data-testid="install-app-page"] section:first-of-type h1 
     padding: 0.55rem 0.6rem !important;
   }
 }
-
-:root {
-  --public-mobile-dock-end-clearance: calc(
-    var(--public-mobile-dock-height) +
-    var(--public-mobile-dock-gap) +
-    env(safe-area-inset-bottom, 0px) +
-    3.5rem
-  );
-}
-
-@media (max-width: 768px) {
-  html,
-  body {
-    scroll-padding-bottom: var(--public-mobile-dock-end-clearance);
-  }
-
-  .hamza-mobile-dock-clearance {
-    height: var(--public-mobile-dock-end-clearance);
-    min-height: var(--public-mobile-dock-end-clearance);
-  }
-
-  body.public-site-page [data-testid="cookie-settings-page"] {
-    padding-bottom: calc(var(--public-mobile-dock-end-clearance) + 2rem) !important;
-  }
-
-  body.public-site-page footer {
-    padding-bottom: calc(var(--public-mobile-dock-end-clearance) + 1.5rem) !important;
-  }
-
-  .hamza-approved-support-copy {
-    padding-bottom: calc(var(--public-mobile-dock-end-clearance) + 1rem) !important;
-  }
-}

@@ -1,0 +1,6 @@
+import type { ProgramMediaCompatRow } from "@/lib/programMediaCompat.mjs";
+
+type Filters={ids?:number[];slugs?:string[]};
+export type PublicProgramMediaRow=Omit<ProgramMediaCompatRow,"id"|"slug">&{id:number};
+export async function fetchProgramMedia(filters:Filters={}):Promise<PublicProgramMediaRow[]>{const params=new URLSearchParams();if(filters.ids?.length)params.set("ids",filters.ids.join(","));if(filters.slugs?.length)params.set("slugs",filters.slugs.join(","));try{const response=await fetch(`/api/public/program-media${params.size?`?${params.toString()}`:""}`,{cache:"no-store"});if(!response.ok)return[];const body=await response.json() as {media?:Array<Partial<ProgramMediaCompatRow>>};if(!Array.isArray(body.media))return[];return body.media.filter((item)=>Number.isSafeInteger(item.id)&&Number(item.id)>0).map((item)=>({id:Number(item.id),logo_url:item.logo_url??null,hero_image_url:item.hero_image_url??null,mobile_image_url:item.mobile_image_url??null,og_image_url:item.og_image_url??null,alt_ar:item.alt_ar??null,alt_en:item.alt_en??null,alt_tr:item.alt_tr??null}))}catch{return[]}}
+export async function attachProgramMedia<T extends {id:number}>(programs:T[],filters:Filters={}){const media=await fetchProgramMedia(filters);const byId=new Map(media.map((item)=>[item.id,item]));return programs.map((program)=>({...program,...(byId.get(program.id)||{})}))}

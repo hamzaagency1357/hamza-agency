@@ -19,7 +19,7 @@ const emptyForm: Form = { fullName: "", email: "", whatsapp: "", subject: "", me
 const copyByLanguage = {
   ar: {
     title: "أرسل رسالة إلى الوكالة",
-    description: "تُرسل الرسالة عبر مسار خادم محمي، وستحصل على رقم CNT لمتابعتها.",
+    description: "تُرسل رسالتك عبر مسار خادم محمي، وستحصل على رقم مرجعي لمتابعة طلبك.",
     fullName: "الاسم الكامل",
     email: "البريد الإلكتروني",
     whatsapp: "رقم واتساب",
@@ -28,12 +28,12 @@ const copyByLanguage = {
     submit: "إرسال الرسالة",
     submitting: "جارٍ الإرسال...",
     validation: "يرجى إدخال الاسم والرسالة بشكل صحيح.",
-    success: "تم استلام رسالتك. احتفظ برقم التتبع التالي.",
+    success: "تم استلام رسالتك. احتفظ بالرقم المرجعي التالي.",
     error: "تعذر الإرسال حالياً. حاول لاحقاً أو استخدم واتساب الرسمي.",
   },
   en: {
     title: "Send a message to the agency",
-    description: "Your message is sent through a protected server route, and you will receive a CNT tracking number.",
+    description: "Your message is sent through a protected server route. You will receive a reference number to follow up on your request.",
     fullName: "Full name",
     email: "Email address",
     whatsapp: "WhatsApp number",
@@ -42,12 +42,12 @@ const copyByLanguage = {
     submit: "Send message",
     submitting: "Sending...",
     validation: "Enter a valid name and message.",
-    success: "Your message was received. Keep the tracking number below.",
+    success: "Your message was received. Keep the reference number below.",
     error: "The message could not be sent right now. Try later or use the official WhatsApp number.",
   },
   tr: {
     title: "Ajansa mesaj gönderin",
-    description: "Mesajınız korumalı bir sunucu yolu üzerinden gönderilir ve bir CNT takip numarası alırsınız.",
+    description: "Mesajınız korumalı bir sunucu yolu üzerinden gönderilir. Talebinizi takip etmek için bir referans numarası alırsınız.",
     fullName: "Ad soyad",
     email: "E-posta adresi",
     whatsapp: "WhatsApp numarası",
@@ -56,7 +56,7 @@ const copyByLanguage = {
     submit: "Mesajı gönder",
     submitting: "Gönderiliyor...",
     validation: "Geçerli bir ad ve mesaj girin.",
-    success: "Mesajınız alındı. Aşağıdaki takip numarasını saklayın.",
+    success: "Mesajınız alındı. Aşağıdaki referans numarasını saklayın.",
     error: "Mesaj şu anda gönderilemedi. Daha sonra tekrar deneyin veya resmi WhatsApp numarasını kullanın.",
   },
 } as const;

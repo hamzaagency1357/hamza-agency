@@ -1,48 +1,23 @@
 import "server-only";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getLanguageDirection, isSiteLanguage, type SiteLanguage } from "@/lib/i18n/locale";
-import { getLanguageAlternates, getLocalizedAbsoluteUrl, isIndexablePublicPath, isSupportedPublicPath, normalizePublicPathname, stripLocalePrefix } from "@/lib/i18n/publicLocales";
+import { getLanguageDirection,isSiteLanguage,type SiteLanguage } from "@/lib/i18n/locale";
+import { getLanguageAlternates,getLocalizedAbsoluteUrl,isIndexablePublicPath,isSupportedPublicPath,normalizePublicPathname,stripLocalePrefix,SITE_URL } from "@/lib/i18n/publicLocales";
 import { getPublicSeoCopy } from "@/lib/i18n/publicSeo";
+import { isSupabaseConfigured,supabase } from "@/lib/supabase";
 
-const ogLocale: Record<SiteLanguage, string> = { ar: "ar_AR", en: "en_US", tr: "tr_TR" };
-const siteKeywords: Record<SiteLanguage, string[]> = {
-  ar: ["HAMZA AGENCY", "وكالة حمزة", "عراب سوريا", "إدارة صناع المحتوى", "برامج البث المباشر", "TikTok", "BIGO LIVE"],
-  en: ["HAMZA AGENCY", "Arab Syria", "content creator management", "live streaming programs", "TikTok", "BIGO LIVE"],
-  tr: ["HAMZA AGENCY", "Arab Syria", "içerik üreticisi yönetimi", "canlı yayın programları", "TikTok", "BIGO LIVE"],
-};
-export type RequestSiteContext = { language: SiteLanguage; direction: "rtl" | "ltr"; publicPath: string; requestPath: string };
-
-export async function getRequestSiteContext(): Promise<RequestSiteContext> {
-  const requestHeaders = await headers();
-  const languageHeader = requestHeaders.get("x-site-locale");
-  const language = isSiteLanguage(languageHeader) ? languageHeader : "ar";
-  const requestPath = normalizePublicPathname(requestHeaders.get("x-site-path") || "/");
-  return { language, direction: getLanguageDirection(language), publicPath: stripLocalePrefix(requestPath), requestPath };
-}
-
-export function buildPublicMetadata(publicPath: string, language: SiteLanguage): Metadata {
-  const normalizedPath = stripLocalePrefix(publicPath);
-  const copy = getPublicSeoCopy(normalizedPath, language);
-  const canonical = getLocalizedAbsoluteUrl(normalizedPath, language);
-  const languages = getLanguageAlternates(normalizedPath);
-  const indexable = isIndexablePublicPath(normalizedPath);
-  const ogImage = normalizedPath.startsWith("/programs/") ? `${normalizedPath}/opengraph-image` : "/opengraph-image";
-  return {
-    metadataBase: new URL("https://hamza-agency.com"), title: copy.title, description: copy.description,
-    applicationName: "HAMZA AGENCY", generator: "Next.js", creator: "HAMZA AGENCY", publisher: "HAMZA AGENCY",
-    authors: [{ name: "HAMZA AGENCY", url: "https://hamza-agency.com" }], category: "Content Creator Management", manifest: "/manifest.webmanifest",
-    keywords: siteKeywords[language], alternates: { canonical, languages },
-    icons: { icon: "/Logo%20hamza%20agency.jpg", shortcut: "/Logo%20hamza%20agency.jpg", apple: "/Logo%20hamza%20agency.jpg" },
-    openGraph: { title: copy.title, description: copy.description, url: canonical, siteName: "HAMZA AGENCY", locale: ogLocale[language], alternateLocale: (Object.keys(ogLocale) as SiteLanguage[]).filter((item) => item !== language).map((item) => ogLocale[item]), type: "website", images: [{ url: ogImage, width: 1200, height: 630, alt: language === "ar" ? "صورة هوية HAMZA AGENCY" : "HAMZA AGENCY brand image" }] },
-    twitter: { card: "summary_large_image", title: copy.title, description: copy.description, images: [ogImage] },
-    robots: { index: indexable, follow: indexable, googleBot: { index: indexable, follow: indexable, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 } },
-    formatDetection: { email: false, address: false, telephone: false },
-  };
-}
-
-export async function generatePublicMetadataForRequest(): Promise<Metadata> {
-  const context = await getRequestSiteContext();
-  if (!isSupportedPublicPath(context.publicPath)) return { ...buildPublicMetadata("/", "ar"), title: "HAMZA AGENCY", robots: { index: false, follow: false } };
-  return buildPublicMetadata(context.publicPath, context.language);
-}
+const ogLocale:Record<SiteLanguage,string>={ar:"ar_AR",en:"en_US",tr:"tr_TR"};
+const siteKeywords:Record<SiteLanguage,string[]>={ar:["HAMZA AGENCY","وكالة حمزة","عراب سوريا","إدارة صناع المحتوى","برامج البث المباشر","TikTok","BIGO LIVE"],en:["HAMZA AGENCY","Godfather of Syria","content creator management","live streaming programs","TikTok","BIGO LIVE"],tr:["HAMZA AGENCY","Suriye'nin Vaftiz Babası","içerik üreticisi yönetimi","canlı yayın programları","TikTok","BIGO LIVE"]};
+export type RequestSiteContext={language:SiteLanguage;direction:"rtl"|"ltr";publicPath:string;requestPath:string};
+type SeoOverlay={title?:string;description?:string;canonical?:string;og_title?:string;og_description?:string;og_image?:string;allow_index?:boolean;last_modified?:string;page_type?:string};
+type SettingRow={setting_key:string|null;setting_value:string|null};
+function seoRouteKey(path:string){return path==="/"?"home":path.replace(/^\//,"").replaceAll("/","__").replace(/[^a-z0-9_-]/gi,"_")||"home"}
+function safeText(value:unknown,max=1200){return typeof value==="string"?value.trim().slice(0,max):""}
+function safeCanonical(value:unknown,fallback:string){const text=safeText(value);if(!text)return fallback;try{const url=new URL(text,SITE_URL);return url.origin===SITE_URL?url.toString():fallback}catch{return fallback}}
+function safeImage(value:unknown,fallback:string){const text=safeText(value);if(!text)return fallback;if(text.startsWith("/"))return text;try{const url=new URL(text);return url.protocol==="https:"?url.toString():fallback}catch{return fallback}}
+function parseBoolean(value:unknown,fallback:boolean){if(typeof value==="boolean")return value;if(value==="true")return true;if(value==="false")return false;return fallback}
+function parseOverlay(value:string|undefined):SeoOverlay{if(!value?.trim())return{};try{const parsed=JSON.parse(value);return parsed&&typeof parsed==="object"?parsed as SeoOverlay:{}}catch{return{}}}
+async function readPublishedSeo(path:string,language:SiteLanguage):Promise<SeoOverlay>{if(!isSupabaseConfigured||!supabase)return{};const key=`seo_page_${seoRouteKey(path)}_${language}`;const flatPrefix=`seo_${seoRouteKey(path)}_${language}_`;const fields=["title","description","canonical","og_title","og_description","og_image","allow_index","last_modified","page_type"] as const;const keys=[key,...fields.map((field)=>`${flatPrefix}${field}`)];const{data,error}=await supabase.from("settings").select("setting_key,setting_value").eq("is_public",true).in("setting_key",keys);if(error||!data)return{};const map=new Map((data as SettingRow[]).map((row)=>[row.setting_key||"",row.setting_value||""]));const json=parseOverlay(map.get(key));for(const field of fields){const value=map.get(`${flatPrefix}${field}`);if(value!==undefined)(json as Record<string,unknown>)[field]=value}return json}
+export async function getRequestSiteContext():Promise<RequestSiteContext>{const requestHeaders=await headers();const languageHeader=requestHeaders.get("x-site-locale");const language=isSiteLanguage(languageHeader)?languageHeader:"ar";const requestPath=normalizePublicPathname(requestHeaders.get("x-site-path")||"/");return{language,direction:getLanguageDirection(language),publicPath:stripLocalePrefix(requestPath),requestPath}}
+export function buildPublicMetadata(publicPath:string,language:SiteLanguage):Metadata{const normalizedPath=stripLocalePrefix(publicPath);const copy=getPublicSeoCopy(normalizedPath,language);const canonical=getLocalizedAbsoluteUrl(normalizedPath,language);const languages=getLanguageAlternates(normalizedPath);const indexable=isIndexablePublicPath(normalizedPath);const ogImage=normalizedPath.startsWith("/programs/")?`${normalizedPath}/opengraph-image`:"/opengraph-image";return{metadataBase:new URL(SITE_URL),title:copy.title,description:copy.description,applicationName:"HAMZA AGENCY",generator:"Next.js",creator:"HAMZA AGENCY",publisher:"HAMZA AGENCY",authors:[{name:"HAMZA AGENCY",url:SITE_URL}],category:"Content Creator Management",manifest:"/manifest.webmanifest",keywords:siteKeywords[language],alternates:{canonical,languages},icons:{icon:"/Logo%20hamza%20agency.jpg",shortcut:"/Logo%20hamza%20agency.jpg",apple:"/Logo%20hamza%20agency.jpg"},openGraph:{title:copy.title,description:copy.description,url:canonical,siteName:"HAMZA AGENCY",locale:ogLocale[language],alternateLocale:(Object.keys(ogLocale)as SiteLanguage[]).filter((item)=>item!==language).map((item)=>ogLocale[item]),type:"website",images:[{url:ogImage,width:1200,height:630,alt:language==="ar"?"صورة هوية HAMZA AGENCY":"HAMZA AGENCY brand image"}]},twitter:{card:"summary_large_image",title:copy.title,description:copy.description,images:[ogImage]},robots:{index:indexable,follow:indexable,googleBot:{index:indexable,follow:indexable,"max-image-preview":"large","max-snippet":-1,"max-video-preview":-1}},formatDetection:{email:false,address:false,telephone:false}}}
+export async function generatePublicMetadataForRequest():Promise<Metadata>{const context=await getRequestSiteContext();if(!isSupportedPublicPath(context.publicPath))return{...buildPublicMetadata("/","ar"),title:"HAMZA AGENCY",robots:{index:false,follow:false}};const base=buildPublicMetadata(context.publicPath,context.language);const overlay=await readPublishedSeo(context.publicPath,context.language);const baseTitle=String(base.title||"HAMZA AGENCY");const title=safeText(overlay.title,300)||baseTitle;const description=safeText(overlay.description,1000)||base.description||"";const fallbackCanonical=typeof base.alternates?.canonical==="string"?base.alternates.canonical:getLocalizedAbsoluteUrl(context.publicPath,context.language);const canonical=safeCanonical(overlay.canonical,fallbackCanonical);const baseImage=Array.isArray(base.openGraph?.images)?base.openGraph?.images?.[0]:"/opengraph-image";const baseImageUrl=typeof baseImage==="string"?baseImage:baseImage&&typeof baseImage==="object"&&"url"in baseImage?String(baseImage.url):"/opengraph-image";const image=safeImage(overlay.og_image,baseImageUrl);const indexable=isIndexablePublicPath(context.publicPath)&&parseBoolean(overlay.allow_index,true);const ogTitle=safeText(overlay.og_title,300)||title;const ogDescription=safeText(overlay.og_description,1000)||String(description);const pageType=safeText(overlay.page_type,30);void overlay.last_modified;return{...base,title,description,alternates:{...base.alternates,canonical},openGraph:{...base.openGraph,title:ogTitle,description:ogDescription,url:canonical,type:pageType==="article"?"article":"website",images:[{url:image,width:1200,height:630,alt:ogTitle}]},twitter:{...base.twitter,title:ogTitle,description:ogDescription,images:[image]},robots:{index:indexable,follow:indexable,googleBot:{index:indexable,follow:indexable,"max-image-preview":"large","max-snippet":-1,"max-video-preview":-1}}}}
