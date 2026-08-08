@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import MarketplaceClient from "@/components/marketplace/MarketplaceClient";
-import { getServerTenantRuntime } from "@/lib/productExpansion/serverTenantRuntime";
+import PlatformStatusClient from "@/components/PlatformStatusClient";
 
-export const dynamic="force-dynamic";
-export const metadata:Metadata={title:"Marketplace | HAMZA AGENCY",description:"Products and services published by HAMZA AGENCY and approved partners.",robots:{index:false,follow:false}};
-export default async function MarketplacePage(){const tenant=await getServerTenantRuntime();return <MarketplaceClient tenantId={tenant.id}/>}
+export const metadata:Metadata={title:"Platform Status | HAMZA AGENCY",description:"Operational status for HAMZA AGENCY public services.",robots:{index:false,follow:false}};
+export default function PlatformStatusPage(){return <PlatformStatusClient/>}
