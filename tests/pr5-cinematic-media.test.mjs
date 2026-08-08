@@ -12,9 +12,10 @@ const migration = readFileSync(join(root, "supabase/migrations/20260808233000_pr
 
 test("PR5 maps all approved page scopes and AR EN TR locale stripping", () => {
   for (const scope of ["home","programs","services","success-stories","blog","agent","contact","install-app","tracking","service-request","application-status","service-status"]) {
-    assert.match(lib, new RegExp(`\\"${scope}\\"`));
+    assert.ok(lib.includes(`\"${scope}\"`), `missing visual scope ${scope}`);
   }
-  assert.match(lib, /\^\\\/(?:en\|tr)/);
+  assert.ok(lib.includes("withoutLocale"));
+  assert.ok(lib.includes("(?:en|tr)"));
 });
 
 test("PR5 runtime provides cinematic fallback and constrained-device guards", () => {
@@ -46,7 +47,7 @@ test("PR5 migration is additive, scheduled and RLS protected", () => {
 
 test("PR5 upload allowlist excludes SVG and client service-role credentials", () => {
   for (const mime of ["image/jpeg","image/png","image/webp","image/avif","video/webm","video/mp4"]) {
-    assert.match(migration, new RegExp(mime.replace("/", "\\/")));
+    assert.ok(migration.includes(`'${mime}'`), `missing MIME ${mime}`);
   }
   assert.doesNotMatch(migration, /image\/svg\+xml/);
   assert.doesNotMatch(admin, /image\/svg\+xml/);
