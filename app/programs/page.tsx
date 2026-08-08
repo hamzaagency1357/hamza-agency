@@ -2,6 +2,8 @@ import { supabase } from "@/lib/supabase";
 import ProgramsPageContent from "@/components/ProgramsPageContent";
 import PublicLanguageMain from "@/components/PublicLanguageMain";
 import { getPublicContact } from "@/lib/publicContact";
+import { mergeProgramMediaRows } from "@/lib/programMediaCompat.mjs";
+import { readProgramMedia } from "@/lib/programMediaServer";
 
 type Program = { id:number;name:string;slug:string;description:string|null;short_description:string|null;status:string|null;sort_order:number|null;is_visible:boolean|null;is_active:boolean|null;logo_url?:string|null;hero_image_url?:string|null;mobile_image_url?:string|null;og_image_url?:string|null;alt_ar?:string|null;alt_en?:string|null;alt_tr?:string|null };
 type ProgramMedia={id:number;name:string|null;file_url:string|null;file_type:string|null;category:string|null;page_slug:string|null;alt_text:string|null;is_active:boolean|null};
@@ -16,12 +18,7 @@ async function getPrograms():Promise<Program[]>{
  if(!supabase)return defaultPrograms;
  const{data,error}=await supabase.from("programs").select("id,name,slug,description,short_description,status,sort_order,is_visible,is_active").eq("is_visible",true).eq("is_active",true).order("sort_order",{ascending:true});
  if(error||!data?.length)return defaultPrograms;
- const base=data as Program[];
- const ids=base.map((item)=>item.id);
- const{data:mediaFields,error:mediaError}=await supabase.from("programs").select("id,logo_url,hero_image_url,mobile_image_url,og_image_url,alt_ar,alt_en,alt_tr").in("id",ids);
- if(mediaError||!mediaFields)return base;
- const byId=new Map((mediaFields as Program[]).map((item)=>[item.id,item]));
- return base.map((item)=>({...item,...(byId.get(item.id)||{})}));
+ const base=data as Program[];const media=await readProgramMedia({ids:base.map((item)=>item.id)});return mergeProgramMediaRows(base,media) as Program[];
 }
 async function getProgramMedia():Promise<ProgramMedia[]>{if(!supabase)return[];const{data,error}=await supabase.from("media").select("id,name,file_url,file_type,category,page_slug,alt_text,is_active").eq("is_active",true).order("created_at",{ascending:false}).limit(100);if(error||!data)return[];return(data as ProgramMedia[]).filter((item)=>Boolean(item.file_url));}
 export default async function ProgramsPage(){const[programs,mediaItems,contact]=await Promise.all([getPrograms(),getProgramMedia(),getPublicContact()]);return <PublicLanguageMain className="relative min-h-screen overflow-hidden bg-[#070009] text-white"><ProgramsBackground/><ProgramsPageContent programs={programs} mediaItems={mediaItems} whatsappHref={contact.whatsappHref}/></PublicLanguageMain>}

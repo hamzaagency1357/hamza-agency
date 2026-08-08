@@ -41,7 +41,8 @@ test("program media schema and admin cover logo hero mobile OG and trilingual al
   }
   assert.ok(grid.includes("program.logo_url||getLegacyProgramLogoUrl"));
   assert.ok(detail.includes("program?.hero_image_url||program?.mobile_image_url||program?.logo_url"));
-  assert.ok(og.includes('select("name,og_image_url")'));
+  assert.ok(og.includes("readProgramMediaBySlug"));
+  assert.ok(!og.includes('select("name,og_image_url")'));
 });
 
 test("admin navigation is sanitized and consumed by public header footer quick nav and CTA config", async () => {
