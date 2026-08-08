@@ -1,5 +1,6 @@
 "use client";
 
+import Image, { type ImageLoaderProps } from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
@@ -16,6 +17,7 @@ type NavigatorWithHints = Navigator & { connection?: NetworkInformationLike; dev
 const DEFAULT_DESKTOP = "/media/cinematic/home-gateway-desktop.webp";
 const DEFAULT_MOBILE = "/media/cinematic/home-gateway-mobile.webp";
 const DEFAULT_POSTER = "/media/cinematic/home-gateway-poster.webp";
+const passthroughLoader = ({ src }: ImageLoaderProps) => src;
 
 function inferVideoType(url: string | null) {
   if (!url) return undefined;
@@ -122,22 +124,28 @@ export default function CinematicSiteBackground() {
       {!media && (
         <picture className={`hamza-cinematic-picture ${imageMotion ? "is-moving" : "is-static"}`}>
           <source media="(max-width: 767px)" srcSet={DEFAULT_MOBILE} />
-          <img
+          <Image
             className="hamza-cinematic-scene-image"
             src={constrained ? DEFAULT_POSTER : DEFAULT_DESKTOP}
             alt=""
-            decoding="async"
-            fetchPriority="high"
+            fill
+            priority
+            sizes="100vw"
+            loader={passthroughLoader}
+            unoptimized
           />
         </picture>
       )}
 
       {media && !canPlayVideo && staticAsset && (
-        <img
+        <Image
           className={`hamza-cinematic-scene-image hamza-cinematic-managed-image ${imageMotion ? "is-moving" : "is-static"}`}
           src={imageMotion ? motionImage || staticAsset : staticAsset}
           alt=""
-          decoding="async"
+          fill
+          sizes="100vw"
+          loader={passthroughLoader}
+          unoptimized
           style={{ objectPosition: focalPosition, filter: blur, opacity }}
           onError={(event) => {
             const image = event.currentTarget;
@@ -149,7 +157,15 @@ export default function CinematicSiteBackground() {
 
       {canPlayVideo && media && selected.primary && (
         <>
-          <img className="hamza-cinematic-scene-image is-static hamza-cinematic-video-poster" src={staticAsset || DEFAULT_POSTER} alt="" decoding="async" />
+          <Image
+            className="hamza-cinematic-scene-image is-static hamza-cinematic-video-poster"
+            src={staticAsset || DEFAULT_POSTER}
+            alt=""
+            fill
+            sizes="100vw"
+            loader={passthroughLoader}
+            unoptimized
+          />
           <video
             key={`${scope}-${mobile ? "mobile" : "desktop"}-${selected.primary}`}
             className="hamza-cinematic-video"
