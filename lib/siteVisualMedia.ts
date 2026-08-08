@@ -66,6 +66,26 @@ const ROUTE_TO_SCOPE = new Map<string, SiteVisualScope>(
   SITE_VISUAL_SCOPES.map((item) => [item.route, item.value])
 );
 
+const PUBLIC_ROUTE_ALIASES = new Map<string, SiteVisualScope>([
+  ["/about", "agent"],
+  ["/ai-policy", "blog"],
+  ["/ai-support", "services"],
+  ["/apply", "programs"],
+  ["/cookie-policy", "contact"],
+  ["/cookie-settings", "contact"],
+  ["/digital-services", "services"],
+  ["/faq", "services"],
+  ["/gallery", "success-stories"],
+  ["/jobs", "services"],
+  ["/knowledge-center", "blog"],
+  ["/marketplace", "services"],
+  ["/partners", "success-stories"],
+  ["/platform-status", "tracking"],
+  ["/privacy-policy", "contact"],
+  ["/reviews", "success-stories"],
+  ["/terms-and-conditions", "contact"],
+]);
+
 const SUPPORTED_SCOPES = new Set<SiteVisualScope>(
   SITE_VISUAL_SCOPES.map((item) => item.value)
 );
@@ -87,7 +107,15 @@ export function resolveSiteVisualScope(input: string | null | undefined): SiteVi
     return value as SiteVisualScope;
   }
 
-  return ROUTE_TO_SCOPE.get(canonicalPath(value)) ?? null;
+  const path = canonicalPath(value);
+  const exact = ROUTE_TO_SCOPE.get(path) ?? PUBLIC_ROUTE_ALIASES.get(path);
+  if (exact) return exact;
+
+  if (path.startsWith("/programs/")) return "programs";
+  if (path.startsWith("/blog/")) return "blog";
+  if (path.startsWith("/agent/")) return "agent";
+
+  return null;
 }
 
 export function shouldPlayCinematic(
