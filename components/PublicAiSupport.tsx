@@ -13,7 +13,7 @@ export default function PublicAiSupport({open,onOpenChange,mobileDockMode=false,
  useEffect(()=>{if(mobileDockMode)return;document.body.classList.toggle("public-ai-support-open",isOpen);return()=>document.body.classList.remove("public-ai-support-open")},[isOpen,mobileDockMode]);
  useEffect(()=>{if(!mobileDockMode&&!controlled)setInternalOpen(false)},[pathname,mobileDockMode,controlled]);
  if(pathname.startsWith("/admin")||pathname==="/maintenance")return null;
+ if(mobileDockMode){return isOpen?<div dir={getLanguageDirection(language)} id={panelId} className="fixed inset-x-2 top-[calc(env(safe-area-inset-top)+0.5rem)] bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-[260] min-w-0 overflow-hidden print:hidden sm:inset-x-3"><SmartSupportPanel language={language} compact onClose={()=>setOpen(false)}/></div>:null}
  const panel=isOpen?<div id={panelId} className="md:mb-3 md:w-[min(390px,calc(100vw-2rem))]"><SmartSupportPanel language={language} compact onClose={()=>setOpen(false)}/></div>:null;
- if(mobileDockMode)return panel;
  return <div dir={getLanguageDirection(language)} className="hamza-ai-support fixed bottom-24 right-6 z-[165] hidden print:hidden md:block">{panel}<button type="button" onClick={()=>setOpen(!isOpen)} aria-controls={panelId} aria-expanded={isOpen} className="min-h-12 rounded-full border border-fuchsia-300/35 bg-[#12051f]/95 px-5 py-3 text-sm font-black text-fuchsia-100">{isOpen?"×":"Smart Support"}</button></div>;
 }
