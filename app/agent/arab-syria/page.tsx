@@ -9,54 +9,50 @@ import { getRequestSiteContext } from "@/lib/i18n/serverPublicMetadata";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const WHATSAPP_URL = "https://wa.me/905011730377";
+
 const copy = {
   ar: {
     readableName: "عراب سوريا",
     visualName: "⚔عܓོراب✴سܓོوريا⚔",
     roleLine: "الوكيل والمدير في",
     lead: "يشرف عراب سوريا على دعم وتطوير صناع المحتوى وبرامج البث المباشر، مستندًا إلى خبرة واسعة ونهج قائم على الأمان والخصوصية والمتابعة المهنية.",
-    roleTitle: "دوره داخل HAMZA AGENCY",
-    roleBody: "يتولى عراب سوريا دور الوكيل والمدير في HAMZA AGENCY، ويشرف على تنظيم مسارات الدعم والمتابعة وتطوير صناع المحتوى وبرامج البث المباشر ضمن معايير مهنية واضحة.",
-    trustTitle: "الثقة والخصوصية والأمان",
-    trustBody: "يعتمد نهجه على حماية الخصوصية، وضوح التواصل، مراجعة الطلبات بعناية، وتوجيه كل حالة إلى المسار المناسب دون وعود مضللة أو مشاركة غير ضرورية للبيانات.",
-    experienceTitle: "خبرة ومتابعة دقيقة",
-    experienceBody: "تُترجم الخبرة إلى متابعة عملية تبدأ بفهم احتياجات صانع المحتوى، ثم اختيار البرنامج الأنسب، وتقديم الإرشاد المستمر بما يدعم التطور والاستقرار.",
-    faqTitle: "من هو الوكيل الذي يدير HAMZA AGENCY؟",
-    faqBody: "الوكيل عراب سوريا هو الوكيل والمدير في HAMZA AGENCY، ويشرف على دعم وتطوير صناع المحتوى وبرامج البث المباشر وفق نهج يقوم على الثقة والخصوصية والمتابعة الدقيقة.",
-    contact: "تواصل مع HAMZA AGENCY",
-    about: "تعرف على الوكالة",
+    managementTitle: "إدارة الوكالة",
+    managementBody: "تُدار وكالة حمزة بإشراف الوكيل عراب سوريا، وفق معايير مهنية تركز على الثقة والخصوصية والمتابعة الدقيقة.",
+    aboutTitle: "عن الوكيل",
+    aboutBody: "يشرف عراب سوريا على دعم وتطوير صناع المحتوى وبرامج البث المباشر، مستندًا إلى خبرة واسعة ونهج قائم على الأمان والخصوصية والمتابعة المهنية.",
+    menu: "فتح القائمة",
+    about: "عن الوكيل",
+    whatsapp: "واتساب الوكيل",
+    ribbon: "يمكنك الآن الانضمام إلى برامجنا الحصرية:",
   },
   en: {
-    readableName: "Arab Syria",
+    readableName: "Godfather of Syria",
     visualName: "⚔عܓོراب✴سܓོوريا⚔",
     roleLine: "Agent and Manager at",
-    lead: "Arab Syria oversees the support and development of content creators and live-streaming programs, drawing on broad experience and an approach centered on safety, privacy, and professional follow-up.",
-    roleTitle: "Role at HAMZA AGENCY",
-    roleBody: "Arab Syria serves as the agent and manager at HAMZA AGENCY, overseeing creator support, operational follow-up, development pathways, and live-streaming programs through clear professional standards.",
-    trustTitle: "Trust, privacy, and safety",
-    trustBody: "The approach prioritizes privacy, clear communication, careful request review, and appropriate guidance without misleading promises or unnecessary data sharing.",
-    experienceTitle: "Experience and precise follow-up",
-    experienceBody: "Experience is translated into practical support: understanding each creator's needs, identifying the appropriate program, and providing structured guidance for sustainable growth.",
-    faqTitle: "Who is the agent managing HAMZA AGENCY?",
-    faqBody: "Arab Syria is the agent and manager at HAMZA AGENCY, overseeing creator support, development, privacy, and live-streaming programs with careful follow-up.",
-    contact: "Contact HAMZA AGENCY",
-    about: "About the agency",
+    lead: "The Godfather of Syria oversees the support and development of content creators and live-streaming programs, drawing on broad experience and an approach centered on safety, privacy, and professional follow-up.",
+    managementTitle: "Agency Management",
+    managementBody: "HAMZA AGENCY is managed under the supervision of the Godfather of Syria, following professional standards focused on trust, privacy, and careful follow-up.",
+    aboutTitle: "About the Agent",
+    aboutBody: "The Godfather of Syria oversees creator support and live-streaming programs with broad experience and a professional approach centered on safety, privacy, and consistent follow-up.",
+    menu: "Open menu",
+    about: "About the agent",
+    whatsapp: "Agent WhatsApp",
+    ribbon: "You can now join our featured programs:",
   },
   tr: {
-    readableName: "Arab Syria",
+    readableName: "Suriye'nin Vaftiz Babası",
     visualName: "⚔عܓོراب✴سܓོوريا⚔",
     roleLine: "Temsilci ve Yönetici",
-    lead: "Arab Syria, geniş deneyime ve güvenlik, gizlilik ve profesyonel takibi merkeze alan bir yaklaşıma dayanarak içerik üreticilerinin ve canlı yayın programlarının desteklenmesini ve geliştirilmesini yönetir.",
-    roleTitle: "HAMZA AGENCY içindeki rolü",
-    roleBody: "Arab Syria, HAMZA AGENCY'nin temsilcisi ve yöneticisi olarak içerik üreticisi desteğini, operasyonel takibi, gelişim yollarını ve canlı yayın programlarını açık profesyonel standartlarla yönetir.",
-    trustTitle: "Güven, gizlilik ve güvenlik",
-    trustBody: "Yaklaşım; gizliliği, açık iletişimi, taleplerin dikkatle incelenmesini ve yanıltıcı vaatler ya da gereksiz veri paylaşımı olmadan doğru yönlendirmeyi esas alır.",
-    experienceTitle: "Deneyim ve titiz takip",
-    experienceBody: "Deneyim; üreticinin ihtiyacını anlamaya, doğru programı belirlemeye ve sürdürülebilir gelişim için düzenli rehberlik sunmaya dönüşür.",
-    faqTitle: "HAMZA AGENCY'yi yöneten temsilci kimdir?",
-    faqBody: "Arab Syria, HAMZA AGENCY'nin temsilcisi ve yöneticisidir; içerik üreticisi desteğini, gelişimi, gizliliği ve canlı yayın programlarını yakından denetler.",
-    contact: "HAMZA AGENCY ile iletişim",
-    about: "Ajans hakkında",
+    lead: "Suriye'nin Vaftiz Babası, geniş deneyime ve güvenlik, gizlilik ve profesyonel takibi merkeze alan bir yaklaşıma dayanarak içerik üreticilerinin ve canlı yayın programlarının desteklenmesini ve geliştirilmesini yönetir.",
+    managementTitle: "Ajans Yönetimi",
+    managementBody: "HAMZA AGENCY, güven, gizlilik ve titiz takibe odaklanan profesyonel standartlar doğrultusunda Suriye'nin Vaftiz Babası'nın gözetiminde yönetilir.",
+    aboutTitle: "Temsilci Hakkında",
+    aboutBody: "Suriye'nin Vaftiz Babası, geniş deneyimiyle içerik üreticilerini ve canlı yayın programlarını güvenlik, gizlilik ve profesyonel takip odaklı bir yaklaşımla destekler.",
+    menu: "Menüyü aç",
+    about: "Temsilci hakkında",
+    whatsapp: "Temsilci WhatsApp",
+    ribbon: "Öne çıkan programlarımıza şimdi katılabilirsiniz:",
   },
 } as const;
 
@@ -68,12 +64,13 @@ export default async function ArabSyriaAgentPage() {
     <PublicLanguageMain className="relative min-h-screen overflow-hidden bg-[#070009] text-white">
       <div className="pointer-events-none fixed inset-0">
         <div className="absolute inset-0 bg-[#070009]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,58,237,0.34)_0%,rgba(7,0,9,0.98)_68%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,58,237,0.42)_0%,rgba(23,3,44,0.78)_34%,rgba(7,0,9,0.98)_72%)]" />
+        <div className="absolute inset-x-0 top-1/3 h-72 -rotate-6 bg-[linear-gradient(90deg,transparent,rgba(126,34,206,0.16),transparent)] blur-2xl" />
       </div>
 
-      <main className="relative z-10 mx-auto max-w-6xl px-5 py-10 md:py-16">
+      <main className="relative z-10 mx-auto max-w-7xl px-4 py-6 sm:px-6 md:py-10">
         <section
-          className="overflow-hidden rounded-[2rem] border border-purple-400/20 bg-black/40 p-7 text-center shadow-[0_0_60px_rgba(124,58,237,0.16)] backdrop-blur md:p-12"
+          className="overflow-hidden rounded-[2rem] border border-purple-300/20 bg-[linear-gradient(145deg,rgba(18,5,38,.94),rgba(40,12,73,.78),rgba(12,3,24,.95))] px-5 py-9 text-center shadow-[0_0_70px_rgba(124,58,237,0.22)] backdrop-blur md:px-10 md:py-14"
           data-testid="agent-profile-page"
         >
           <h1
@@ -85,66 +82,59 @@ export default async function ArabSyriaAgentPage() {
             <bdi
               aria-hidden="true"
               dir="ltr"
-              className="block max-w-full whitespace-nowrap [unicode-bidi:isolate] bg-gradient-to-r from-yellow-200 via-fuchsia-300 to-yellow-300 bg-clip-text text-[clamp(1.5rem,7.2vw,4.25rem)] font-black leading-tight tracking-[-0.04em] text-transparent drop-shadow-[0_0_20px_rgba(250,204,21,0.22)]"
+              className="block max-w-full whitespace-nowrap [unicode-bidi:isolate] bg-gradient-to-b from-yellow-100 via-yellow-300 to-fuchsia-400 bg-clip-text text-[clamp(1.5rem,7.2vw,4.5rem)] font-black leading-tight tracking-[-0.04em] text-transparent drop-shadow-[0_4px_14px_rgba(250,204,21,0.36)]"
             >
               {t.visualName}
             </bdi>
           </h1>
 
-          <p className="mt-5 text-[clamp(1.25rem,5vw,2.25rem)] font-extrabold leading-tight text-white">
+          <p className="mt-5 text-[clamp(1.25rem,5vw,2.2rem)] font-extrabold leading-tight text-white/95">
             {t.roleLine}
           </p>
-          <p
-            dir="ltr"
-            className="mt-2 text-[clamp(2rem,8vw,4.25rem)] font-black leading-none tracking-tight text-yellow-200"
-          >
+          <p dir="ltr" className="mt-2 text-[clamp(2rem,8vw,4.3rem)] font-black leading-none tracking-tight text-yellow-200">
             HAMZA AGENCY
           </p>
 
-          <div
-            aria-hidden="true"
-            className="mx-auto mt-7 h-px w-full max-w-xl bg-gradient-to-r from-transparent via-yellow-300/75 to-transparent"
-          />
+          <div aria-hidden="true" className="mx-auto mt-7 flex max-w-xl items-center gap-2">
+            <span className="h-px flex-1 bg-gradient-to-r from-transparent to-yellow-300/70" />
+            <span className="h-2 w-2 rotate-45 border border-yellow-300 bg-yellow-200/80" />
+            <span className="h-1.5 w-1.5 rotate-45 bg-yellow-300" />
+            <span className="h-px flex-1 bg-gradient-to-l from-transparent to-yellow-300/70" />
+          </div>
 
-          <p className="mx-auto mt-7 max-w-4xl text-lg leading-9 text-white/76 md:text-xl md:leading-10">
+          <p className="mx-auto mt-7 max-w-4xl text-base leading-8 text-white/82 sm:text-lg md:text-xl md:leading-10">
             {t.lead}
           </p>
 
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link
-              href={localizePublicHref("/contact", language)}
-              className="inline-flex min-h-12 items-center rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-7 py-3 font-black"
-            >
-              {t.contact}
-            </Link>
-            <Link
-              href={localizePublicHref("/about", language)}
-              className="inline-flex min-h-12 items-center rounded-full border border-white/15 bg-white/[0.05] px-7 py-3 font-black"
-            >
+          <div className="mx-auto mt-8 grid max-w-4xl gap-3 sm:grid-cols-3">
+            <a href="#agent-details" className="inline-flex min-h-12 items-center justify-center rounded-full border border-yellow-300/55 bg-yellow-300/[0.06] px-6 py-3 font-black text-yellow-200 transition hover:bg-yellow-300/10">
+              {t.menu}
+            </a>
+            <Link href={localizePublicHref("/about", language)} className="inline-flex min-h-12 items-center justify-center rounded-full border border-fuchsia-300/45 bg-fuchsia-500/[0.08] px-6 py-3 font-black text-fuchsia-100 transition hover:bg-fuchsia-500/15">
               {t.about}
             </Link>
+            <a href={WHATSAPP_URL} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center rounded-full border border-green-300/45 bg-green-500/[0.10] px-6 py-3 font-black text-green-200 transition hover:bg-green-500/15">
+              {t.whatsapp}
+            </a>
           </div>
         </section>
 
-        <section className="mt-10 grid gap-6 lg:grid-cols-3">
-          {[
-            [t.roleTitle, t.roleBody],
-            [t.trustTitle, t.trustBody],
-            [t.experienceTitle, t.experienceBody],
-          ].map(([title, body]) => (
-            <article
-              key={title}
-              className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-7 backdrop-blur"
-            >
-              <h2 className="text-2xl font-black text-purple-100">{title}</h2>
-              <p className="mt-4 leading-8 text-white/70">{body}</p>
-            </article>
-          ))}
+        <section id="agent-details" className="mt-5 grid gap-5 md:grid-cols-2">
+          <article className="rounded-[2rem] border border-white/10 bg-[linear-gradient(145deg,rgba(43,15,73,.72),rgba(16,5,31,.88))] p-7 text-center shadow-[0_18px_45px_rgba(0,0,0,.22)] backdrop-blur">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-600/45 text-2xl">◇</div>
+            <h2 className="mt-5 text-2xl font-black text-white">{t.managementTitle}</h2>
+            <p className="mt-4 leading-8 text-white/74">{t.managementBody}</p>
+          </article>
+          <article className="rounded-[2rem] border border-white/10 bg-[linear-gradient(145deg,rgba(43,15,73,.72),rgba(16,5,31,.88))] p-7 text-center shadow-[0_18px_45px_rgba(0,0,0,.22)] backdrop-blur">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-600/45 text-2xl">✦</div>
+            <h2 className="mt-5 text-2xl font-black text-white">{t.aboutTitle}</h2>
+            <p className="mt-4 leading-8 text-white/74">{t.aboutBody}</p>
+          </article>
         </section>
 
-        <section className="mt-10 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-7 backdrop-blur">
-          <h2 className="text-3xl font-black text-yellow-100">{t.faqTitle}</h2>
-          <p className="mt-4 max-w-4xl leading-9 text-white/75">{t.faqBody}</p>
+        <section className="mt-5 rounded-2xl border border-yellow-300/25 bg-yellow-300/[0.055] px-5 py-4 text-center text-sm font-bold text-white/85 sm:text-base">
+          <span className="text-yellow-200">⚡ {t.ribbon}</span>{" "}
+          <span dir="ltr">BIGO LIVE, Yaahlan, Xena, Catchii</span>
         </section>
 
         <span className="sr-only">{AGENT_PUBLIC_PATH}</span>

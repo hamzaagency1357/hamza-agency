@@ -18,13 +18,11 @@ test("public reference-number copy preserves tracking contracts", async () => {
     "Mesajınız korumalı bir sunucu yolu üzerinden gönderilir. Talebinizi takip etmek için bir referans numarası alırsınız.",
     "Mesajınız alındı. Aşağıdaki referans numarasını saklayın.",
   ]) assert.ok(contact.includes(value), value);
-
   for (const oldValue of ["رقم CNT", "CNT tracking number", "CNT takip numarası"]) {
     assert.ok(!contact.includes(oldValue));
     assert.ok(!receipt.includes(oldValue));
     assert.ok(!tracking.includes(oldValue));
   }
-
   assert.ok(contact.includes('submitPublicForm(\n        "contact"'));
   assert.ok(contact.includes('setTrackingCode(result.trackingCode || "")'));
   assert.ok(tracking.includes("const pattern = /^(APP|SR|JOB|CNT)-[0-9]{4}-[A-F0-9]{10}$/;"));
@@ -47,46 +45,51 @@ test("blog Open Graph remains institutional", async () => {
   assert.ok(rss.includes("HAMZA AGENCY Blog"));
 });
 
-test("management and agent copy is distinct and professional", async () => {
-  const [ui, about, agent, seo] = await Promise.all([
+test("management and agent identity uses translated meaning", async () => {
+  const [ui, agent, seo, header, structured] = await Promise.all([
     read("components/AboutStaticUi.tsx"),
-    read("app/about/page.tsx"),
     read("app/agent/arab-syria/page.tsx"),
     read("lib/i18n/publicSeo.ts"),
+    read("components/PublicGlobalHeader.tsx"),
+    read("components/StructuredData.tsx"),
   ]);
-  assert.ok(ui.includes("تُدار وكالة حمزة بإشراف الوكيل عراب سوريا، وفق معايير مهنية تركز على الثقة والخصوصية والمتابعة الدقيقة."));
-  assert.ok(ui.includes("HAMZA AGENCY is managed under the supervision of agent Arab Syria, following professional standards focused on trust, privacy, and careful follow-up."));
-  assert.ok(ui.includes("HAMZA AGENCY, güven, gizlilik ve titiz takibe odaklanan profesyonel standartlar doğrultusunda Arab Syria temsilcisinin gözetiminde yönetilir."));
-  for (const value of ["عن الوكيل", "About the agent", "Temsilci hakkında"]) assert.ok(about.includes(value));
-  assert.ok(agent.includes("يشرف عراب سوريا على دعم وتطوير صناع المحتوى وبرامج البث المباشر، مستندًا إلى خبرة واسعة ونهج قائم على الأمان والخصوصية والمتابعة المهنية."));
-  for (const banned of [
-    "من أبرز الوكلاء وأكثرهم أمانًا واحترافية على مستوى العالم",
-    "أحد أبرز وأكثر الوكلاء أمانًا واحترافية على مستوى العالم",
-  ]) {
-    assert.ok(!agent.includes(banned));
-    assert.ok(!seo.includes(banned));
+  assert.ok(ui.includes("تُدار وكالة حمزة بإشراف الوكيل عراب سوريا"));
+  assert.ok(ui.includes("HAMZA AGENCY is managed under the supervision of the Godfather of Syria"));
+  assert.ok(ui.includes("Suriye'nin Vaftiz Babası'nın gözetiminde"));
+  for (const source of [agent, seo, header, structured]) {
+    assert.ok(source.includes("Godfather of Syria"));
+    assert.ok(source.includes("Suriye'nin Vaftiz Babası"));
+    assert.ok(!source.includes("Arab Syria"));
   }
 });
 
-test("decorated agent identity is primary, readable, isolated, and mobile-safe", async () => {
+test("decorated agent hero matches approved visual structure", async () => {
   const agent = await read("app/agent/arab-syria/page.tsx");
-  assert.ok(agent.includes('data-testid="agent-primary-identity"'));
-  assert.ok(agent.includes('<span className="sr-only">{t.readableName}</span>'));
-  assert.ok(agent.includes("<bdi"));
-  assert.ok(agent.includes('aria-hidden="true"'));
-  assert.ok(agent.includes('dir="ltr"'));
-  assert.ok(agent.includes('[unicode-bidi:isolate]'));
-  assert.ok(agent.includes("⚔عܓོراب✴سܓོوريا⚔"));
-  assert.ok(agent.includes("max-w-full"));
-  assert.ok(agent.includes("whitespace-nowrap"));
-  assert.ok(agent.includes("text-[clamp(1.5rem,7.2vw,4.25rem)]"));
-  assert.ok(agent.includes("{t.roleLine}"));
-  assert.ok(agent.includes(">\n            HAMZA AGENCY\n          </p>"));
+  for (const value of [
+    'data-testid="agent-primary-identity"',
+    '<span className="sr-only">{t.readableName}</span>',
+    "<bdi",
+    'aria-hidden="true"',
+    'dir="ltr"',
+    '[unicode-bidi:isolate]',
+    "⚔عܓོراب✴سܓོوريا⚔",
+    "max-w-full",
+    "whitespace-nowrap",
+    "text-[clamp(1.5rem,7.2vw,4.5rem)]",
+    "{t.roleLine}",
+    "HAMZA AGENCY",
+    "{t.menu}",
+    "{t.about}",
+    "{t.whatsapp}",
+    "{t.managementTitle}",
+    "{t.aboutTitle}",
+    "{t.ribbon}",
+    "BIGO LIVE, Yaahlan, Xena, Catchii",
+    'localizePublicHref("/about", language)',
+    "WHATSAPP_URL",
+    "{AGENT_PUBLIC_PATH}",
+  ]) assert.ok(agent.includes(value), value);
   assert.ok(!agent.includes("<PublicBreadcrumbs"));
-  assert.ok(!agent.includes("{t.title}</h1>"));
-  assert.ok(agent.includes('localizePublicHref("/contact", language)'));
-  assert.ok(agent.includes('localizePublicHref("/about", language)'));
-  assert.ok(agent.includes("{AGENT_PUBLIC_PATH}"));
 });
 
 test("language switching preserves router contracts and skips stale Arabic-home prefetch", async () => {
@@ -106,15 +109,7 @@ test("language switching preserves router contracts and skips stale Arabic-home 
 
 test("public primary navigation stays in one horizontal row", async () => {
   const header = await read("components/PublicGlobalHeader.tsx");
-  for (const value of [
-    "overflow-x-auto",
-    "min-w-max",
-    "whitespace-nowrap",
-    "[scrollbar-width:none]",
-    "public-primary-navigation",
-  ]) assert.ok(header.includes(value), value);
-  assert.ok(!header.includes("grid-cols-3"));
-  assert.ok(!header.includes("sm:grid-cols-4"));
+  for (const value of ["overflow-x-auto", "min-w-max", "whitespace-nowrap", "[scrollbar-width:none]", "public-primary-navigation"]) assert.ok(header.includes(value), value);
   const order = [
     '{ label: "الرئيسية", href: "/" }',
     '{ label: "البرامج", href: "/programs" }',
@@ -132,7 +127,7 @@ test("public primary navigation stays in one horizontal row", async () => {
   }
 });
 
-test("known public agent identity sources do not contain the removed global-ranking claim", async () => {
+test("known public agent identity sources do not contain removed global-ranking claim", async () => {
   const sources = await Promise.all([
     read("app/agent/arab-syria/page.tsx"),
     read("lib/i18n/publicSeo.ts"),

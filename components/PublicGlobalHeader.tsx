@@ -30,14 +30,14 @@ const identity = {
     logoAlt: "شعار الوكالة",
   },
   en: {
-    managedBy: "Managed by agent Arab Syria",
-    semanticIdentity: `${AGENCY_NAME} managed by agent Arab Syria`,
+    managedBy: "Managed by the Godfather of Syria",
+    semanticIdentity: `${AGENCY_NAME} managed by the Godfather of Syria`,
     navLabel: "Primary navigation",
     logoAlt: "Agency logo",
   },
   tr: {
-    managedBy: "Arab Syria yönetiminde",
-    semanticIdentity: `${AGENCY_NAME}, Arab Syria yönetiminde`,
+    managedBy: "Suriye'nin Vaftiz Babası yönetiminde",
+    semanticIdentity: `${AGENCY_NAME}, Suriye'nin Vaftiz Babası yönetiminde`,
     navLabel: "Ana gezinme",
     logoAlt: "Ajans logosu",
   },

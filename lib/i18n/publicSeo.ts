@@ -30,8 +30,8 @@ const arabicRouteSeo: Record<string, PublicSeoCopy> = {
 };
 const agentSeo: Record<SiteLanguage, PublicSeoCopy> = {
   ar: { title: "عراب سوريا | الوكيل والمدير في HAMZA AGENCY", description: agencyDescription, schemaType: "WebPage" },
-  en: { title: "Arab Syria | Agent and Manager at HAMZA AGENCY", description: "Arab Syria oversees creator support and development, privacy, safety, and live-streaming programs at HAMZA AGENCY through professional follow-up.", schemaType: "WebPage" },
-  tr: { title: "Arab Syria | HAMZA AGENCY Temsilcisi ve Yöneticisi", description: "Arab Syria, HAMZA AGENCY bünyesinde içerik üreticisi desteğini ve gelişimini, gizliliği, güvenliği ve canlı yayın programlarını profesyonel takiple yönetir.", schemaType: "WebPage" },
+  en: { title: "Godfather of Syria | Agent and Manager at HAMZA AGENCY", description: "The Godfather of Syria oversees creator support and development, privacy, safety, and live-streaming programs at HAMZA AGENCY through professional follow-up.", schemaType: "WebPage" },
+  tr: { title: "Suriye'nin Vaftiz Babası | HAMZA AGENCY Temsilcisi ve Yöneticisi", description: "Suriye'nin Vaftiz Babası, HAMZA AGENCY bünyesinde içerik üreticisi desteğini ve gelişimini, gizliliği, güvenliği ve canlı yayın programlarını profesyonel takiple yönetir.", schemaType: "WebPage" },
 };
 const genericSeo: Record<SiteLanguage, RuntimeRouteMetadata> = {
   ar: { title: "HAMZA AGENCY | وكالة حمزة", description: "وكالة احترافية لإدارة ودعم وتطوير صناع المحتوى وبرامج البث المباشر والخدمات الرقمية." },
