@@ -131,9 +131,14 @@ declare v_event record;v_count integer:=0;v_tenant uuid:=public.pr4_primary_tena
 end $$;
 revoke all on function public.pr4_escalate_overdue_support() from public,anon,authenticated;
 
-do $$ begin
-  if exists(select 1 from pg_extension where extname='pg_cron') and not exists(select 1 from cron.job where jobname='pr4-support-sla-escalation') then
-    perform cron.schedule('pr4-support-sla-escalation','17 * * * *','select public.pr4_escalate_overdue_support();');
+do $$
+declare v_job_exists boolean:=false;
+begin
+  if exists(select 1 from pg_extension where extname='pg_cron') and to_regclass('cron.job') is not null then
+    execute 'select exists(select 1 from cron.job where jobname=$1)' into v_job_exists using 'pr4-support-sla-escalation';
+    if not v_job_exists then
+      execute $cron$select cron.schedule('pr4-support-sla-escalation','17 * * * *','select public.pr4_escalate_overdue_support();')$cron$;
+    end if;
   end if;
 end $$;
 
