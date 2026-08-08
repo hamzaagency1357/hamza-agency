@@ -36,7 +36,7 @@ export default function CinematicSiteBackground() {
   const [videoFailed, setVideoFailed] = useState(false);
 
   useEffect(() => {
-    const requestedScope = scope;
+    const requestedScope = scope ?? "";
     if (!requestedScope) {
       setMedia(null);
       return;
