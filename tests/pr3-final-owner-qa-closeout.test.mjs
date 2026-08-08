@@ -92,3 +92,12 @@ test("footer and dock reserve safe area and avoid public content coverage", asyn
   assert.ok(footer.includes("⚔عܓོراب✴سܓོوريا⚔"));
   assert.ok(footer.includes("[unicode-bidi:isolate]"));
 });
+
+test("agent mobile closeout keeps one dock clearance and lists every open program", async () => {
+  const [agent, css] = await Promise.all([read("app/agent/arab-syria/page.tsx"), read("app/owner-final-qa.css")]);
+  assert.ok(agent.includes("TikTok, BIGO LIVE, Yaahlan, Xena, Catchii"));
+  assert.ok(agent.includes('className="relative overflow-hidden bg-[#070009] pb-6 text-white sm:pb-8"'));
+  assert.ok(!agent.includes("pb-[calc(6rem+env(safe-area-inset-bottom))]"));
+  assert.ok(css.includes("--public-mobile-dock-clearance"));
+  assert.ok(!css.includes("--public-mobile-dock-end-clearance"));
+});
