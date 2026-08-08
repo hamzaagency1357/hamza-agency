@@ -7,78 +7,16 @@ import { callOidcGateway } from "@/lib/server/pr100SignedGateway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const MAX_BODY_BYTES = 4_096;
-const MAX_QUESTION_LENGTH = 1_200;
-const KNOWLEDGE_CACHE_MS = 60_000;
-
-type KnowledgeRow = { id?: string | number | null; title?: string | null; summary?: string | null; content?: string | null; category?: string | null };
-type CachedKnowledge = { expiresAt: number; rows: KnowledgeRow[] };
-type GuardResult = { allowed?: boolean; code?: string };
-
-const BUILT_IN_KNOWLEDGE: KnowledgeRow[] = [
-  { id: "programs", title: "البرامج المتاحة", summary: "وكالة حمزة تدير برامج ومنصات متعددة لصناع المحتوى.", content: "يمكنك الاطلاع على البرامج من صفحة البرامج. المنصات الحالية تشمل TikTok وBIGO LIVE وYaahlan وXena وCatchii.", category: "برامج" },
-  { id: "apply", title: "طريقة الانضمام", summary: "الانضمام يتم عبر نموذج طلب الانضمام الرسمي.", content: "افتح صفحة البرنامج المناسب، املأ البيانات بدقة، ثم احتفظ برقم التتبع الذي يظهر بعد الإرسال لمتابعة حالة الطلب.", category: "انضمام" },
-  { id: "services", title: "طلب خدمة رقمية", summary: "يمكن إرسال طلب خدمة رقمية من صفحة طلب الخدمة.", content: "بعد إرسال طلب الخدمة تحصل على كود متابعة يمكنك استخدامه لمعرفة الحالة.", category: "خدمات" },
-  { id: "tracking", title: "تتبع الطلبات", summary: "يمكن تتبع طلب الانضمام أو طلب الخدمة.", content: "استخدم رقم التتبع الذي ظهر بعد إرسال طلب الانضمام أو طلب الخدمة في صفحة التتبع المناسبة. لا يتم البحث العام برقم واتساب.", category: "تتبع" },
-  { id: "whatsapp", title: "التواصل الرسمي", summary: "واتساب هو المسار الرسمي للحالات الخاصة.", content: "لا يطلب الدعم الذكي كلمات مرور أو رموز تحقق. الحالات الإدارية الخاصة تُحوّل إلى واتساب الرسمي.", category: "تواصل" },
-];
-
-let knowledgeCache: CachedKnowledge | null = null;
-
-function clean(value: unknown) { return typeof value === "string" ? value.trim() : ""; }
-function normalize(value: string) { return value.toLowerCase().replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/[^؀-ۿ\w\s]/g, " ").replace(/\s+/g, " ").trim(); }
-function tokens(value: string) { return normalize(value).split(" ").filter((token) => token.length >= 3).slice(0, 40); }
-function pick(question: string, rows: KnowledgeRow[]) {
-  const questionTokens = tokens(question);
-  const ranked = rows.map((row) => ({ row, score: questionTokens.reduce((score, token) => normalize([row.title, row.summary, row.content, row.category].filter(Boolean).join(" ")).includes(token) ? score + 1 : score, 0) })).sort((a, b) => b.score - a.score);
-  return ranked[0]?.score > 0 ? ranked[0].row : null;
-}
-function failure(status: number, message = "تعذر معالجة الطلب حالياً. يرجى المحاولة لاحقاً.") { return NextResponse.json({ ok: false, message }, { status, headers: { "Cache-Control": "no-store" } }); }
-function fingerprint(request: NextRequest) {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const userAgent = request.headers.get("user-agent")?.slice(0, 320) || "unknown";
-  return createHash("sha256").update(`${forwarded}|${userAgent}`).digest("hex");
-}
-async function loadKnowledge(url: string | undefined, key: string | undefined) {
-  if (knowledgeCache && knowledgeCache.expiresAt > Date.now()) return knowledgeCache.rows;
-  if (!url || !key) return BUILT_IN_KNOWLEDGE;
-  const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
-  const { data, error } = await client.from("knowledge_base").select("id,title,summary,content,category").eq("is_published", true).limit(120);
-  const rows = error || !data?.length ? BUILT_IN_KNOWLEDGE : [...(data as KnowledgeRow[]), ...BUILT_IN_KNOWLEDGE];
-  knowledgeCache = { expiresAt: Date.now() + KNOWLEDGE_CACHE_MS, rows };
-  return rows;
-}
-
-export async function POST(request: NextRequest) {
-  const contentLength = Number(request.headers.get("content-length") || "0");
-  if (contentLength > MAX_BODY_BYTES) return failure(413);
-  const raw = await request.text();
-  if (!raw || Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES) return failure(413);
-
-  let body: Record<string, unknown>;
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return failure(400);
-    body = parsed as Record<string, unknown>;
-  } catch { return failure(400); }
-
-  const question = clean(body.question);
-  if (question.length < 3 || question.length > MAX_QUESTION_LENGTH) return failure(400, "اكتب سؤالاً واضحاً ضمن الحد المسموح قبل الإرسال.");
-
-  try {
-    const guard = await callOidcGateway<GuardResult>(request, "ai_guard", {
-      identity: fingerprint(request),
-      payload: { question },
-    });
-    if (!guard?.allowed) return failure(guard?.code === "rate_limited" ? 429 : 400);
-  } catch { return failure(503); }
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const knowledge = pick(question, await loadKnowledge(url, key));
-  if (!knowledge) return NextResponse.json({ ok: true, answer: "لم أجد إجابة مؤكدة داخل قاعدة المعرفة الحالية. للحالات المستعجلة تواصل عبر واتساب الرسمي.", status: "unanswered", source: "unanswered", escalated: true }, { headers: { "Cache-Control": "no-store" } });
-
-  const content = clean(knowledge.content) || clean(knowledge.summary) || clean(knowledge.title);
-  return NextResponse.json({ ok: true, answer: content.length > 900 ? `${content.slice(0, 900)}...` : content, status: "answered", source: clean(knowledge.category) || "knowledge_base", escalated: false }, { headers: { "Cache-Control": "no-store" } });
-}
+const MAX_BODY_BYTES=4096,MAX_QUESTION_LENGTH=1200,MAX_PUBLIC_PAGES=24,MAX_PAGE_TEXT=18000;
+type Language="ar"|"en"|"tr";type KnowledgeRow={question:string;answer:string;alternatives?:string[]|null;keywords?:string[]|null;language:Language;category?:string|null;source_label?:string|null;source_url?:string|null;priority?:number|null};type Candidate={text:string;sourceLabel:string;sourceUrl?:string;score:number;kind:"knowledge"|"published_page"};type GuardResult={allowed?:boolean;code?:string};
+const greetings:Record<Language,Array<{match:RegExp;answer:string}>>={ar:[{match:/^(السلام عليكم|سلام عليكم)[.!؟? ]*$/i,answer:"وعليكم السلام ورحمة الله وبركاته، أهلًا وسهلًا فيك. كيفك؟ بشو حابب نساعدك اليوم؟"},{match:/^(مرحبا|مرحباً|اهلا|أهلا|هلا)[.!؟? ]*$/i,answer:"أهلًا وسهلًا فيك في HAMZA AGENCY. فيني ساعدك بمعلومات البرامج، شروط الانضمام، الخدمات، تتبع الطلبات أو التواصل مع الفريق."},{match:/^(كيفك|شلونك|كيف الحال)[.!؟? ]*$/i,answer:"الحمد لله بخير، شكرًا لسؤالك. وإنت كيفك؟ شو السؤال أو الخدمة اللي حابب تعرف عنها؟"},{match:/^(شكرا|شكراً|مشكور|يسلمو)[.!؟? ]*$/i,answer:"العفو، أهلًا وسهلًا فيك دائمًا."}],en:[{match:/^(hi|hello|hey|good morning|good evening)[.!? ]*$/i,answer:"Hello and welcome to HAMZA AGENCY. I can help with programs, joining requirements, services, request tracking, or reaching our team."},{match:/^(how are you|how are you doing)[.!? ]*$/i,answer:"I'm doing well, thank you. How are you? What would you like to know or get help with today?"},{match:/^(thanks|thank you|thx)[.!? ]*$/i,answer:"You're welcome. We're always happy to help."}],tr:[{match:/^(merhaba|selam|günaydın|iyi akşamlar)[.!? ]*$/i,answer:"Merhaba, HAMZA AGENCY'ye hoş geldiniz. Programlar, katılım koşulları, hizmetler, başvuru takibi veya ekibimizle iletişim konusunda yardımcı olabilirim."},{match:/^(nasılsın|nasılsınız)[.!? ]*$/i,answer:"İyiyim, teşekkür ederim. Siz nasılsınız? Hangi konuda bilgi veya destek almak istersiniz?"},{match:/^(teşekkürler|teşekkür ederim|sağ ol|sağol)[.!? ]*$/i,answer:"Rica ederim. Her zaman yardımcı olmaktan memnuniyet duyarız."}]};
+const fallback:Record<Language,string>={ar:"ما لقيت ضمن المعلومات المنشورة جوابًا مؤكّدًا عن هالنقطة. فيك تطلب متابعة من موظف، أو تسأل سؤالًا ثانيًا، وواتساب متاح كخيار إضافي.",en:"I couldn't find a confirmed answer to that in the published information. You can ask a staff member to follow up, ask another question, or use WhatsApp as an optional channel.",tr:"Yayınlanmış bilgiler içinde bu konuya ilişkin doğrulanmış bir yanıt bulamadım. Bir çalışandan takip isteyebilir, başka bir soru sorabilir veya WhatsApp'ı ek bir seçenek olarak kullanabilirsiniz."};
+function clean(v:unknown){return typeof v==="string"?v.trim():""}function languageOf(q:string,e:unknown):Language{if(e==="ar"||e==="en"||e==="tr")return e;if(/[؀-ۿ]/.test(q))return"ar";if(/[çğıöşüİı]/i.test(q)||/\b(merhaba|selam|başvuru|hizmet|program|katılım|teşekkür)\b/i.test(q))return"tr";return"en"}function normalize(v:string){return v.toLocaleLowerCase().replace(/[أإآ]/g,"ا").replace(/ة/g,"ه").replace(/ى/g,"ي").replace(/[^\p{L}\p{N}]+/gu," ").replace(/\s+/g," ").trim()}function tokens(v:string){return[...new Set(normalize(v).split(" ").filter(t=>t.length>=2))].slice(0,48)}function score(q:string,h:string,p=0){const nq=normalize(q),nh=normalize(h),parts=tokens(nq);let points=0;for(const t of parts)if(nh.includes(t))points+=t.length>=5?2:1;if(nq.length>=5&&nh.includes(nq))points+=8;return points+Math.max(-2,Math.min(2,Math.trunc(p/40)))}
+function stripHtml(html:string){return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi," ").replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi," ").replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;/gi,'"').replace(/&#39;/gi,"'").replace(/\s+/g," ").trim().slice(0,MAX_PAGE_TEXT)}function safePublicPath(pathname:string){const path=pathname.replace(/^\/(en|tr)(?=\/|$)/,"")||"/";return!/^\/(admin|api|auth|login|portal|dashboard|maintenance|_next)(\/|$)/.test(path)&&!/^\/(application-status|service-status)(\/|$)/.test(path)}function fingerprint(r:NextRequest){const f=r.headers.get("x-forwarded-for")?.split(",")[0]?.trim()||"unknown",a=r.headers.get("user-agent")?.slice(0,320)||"unknown";return createHash("sha256").update(`${f}|${a}`).digest("hex")}function fail(s:number,m:string){return NextResponse.json({ok:false,message:m},{status:s,headers:{"Cache-Control":"no-store"}})}
+function relevantExcerpt(text:string,question:string){const q=tokens(question);const sentences=text.split(/(?<=[.!?؟])\s+/).filter(s=>s.length>20);const ranked=sentences.map((s,i)=>({s,i,n:q.reduce((v,t)=>normalize(s).includes(t)?v+1:v,0)})).sort((a,b)=>b.n-a.n||a.i-b.i);const best=ranked[0];if(!best||best.n===0)return text.slice(0,900);const start=Math.max(0,best.i-1),picked=sentences.slice(start,start+4).join(" ");return picked.slice(0,1100)}
+async function loadKnowledge(language:Language):Promise<KnowledgeRow[]>{const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;if(!url||!key)return[];const client=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});const{data,error}=await client.from("pr4_knowledge_base").select("question,answer,alternatives,keywords,language,category,source_label,source_url,priority").eq("language",language).order("priority",{ascending:false}).limit(160);return error?[]:(data||[]) as KnowledgeRow[]}
+async function loadPublicPages(request:NextRequest,language:Language,question:string){const origin=request.nextUrl.origin;const sitemap=await fetch(`${origin}/sitemap.xml`,{cache:"no-store",headers:{"User-Agent":"HAMZA-AGENCY-Smart-Support/1.0"}}).then(r=>r.ok?r.text():"").catch(()=>"");const rawUrls=[...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gi)].map(m=>m[1].trim()).filter(Boolean);const q=tokens(question);const ranked=rawUrls.map(raw=>{try{const parsed=new URL(raw);if(!safePublicPath(parsed.pathname))return null;const localizedPath=parsed.pathname;const localeBoost=language==="ar"?!/^\/(en|tr)(\/|$)/.test(localizedPath)?4:-2:localizedPath.startsWith(`/${language}`)?4:-2;const hint=normalize(localizedPath),tokenBoost=q.reduce((n,t)=>hint.includes(t)?n+2:n,0);return{url:new URL(`${localizedPath}${parsed.search}`,origin),score:localeBoost+tokenBoost}}catch{return null}}).filter((x):x is{url:URL;score:number}=>Boolean(x)).sort((a,b)=>b.score-a.score).slice(0,MAX_PUBLIC_PAGES);const pages=await Promise.all(ranked.map(async({url})=>{try{const response=await fetch(url,{cache:"no-store",redirect:"follow",headers:{"User-Agent":"HAMZA-AGENCY-Smart-Support/1.0"}});if(!response.ok||!response.headers.get("content-type")?.includes("text/html"))return null;const text=stripHtml(await response.text());return text.length>=40?{text,label:url.pathname==="/"?"HAMZA AGENCY":url.pathname,url:url.href}:null}catch{return null}}));return pages.filter((p):p is{text:string;label:string;url:string}=>Boolean(p))}
+export async function POST(request:NextRequest){const len=Number(request.headers.get("content-length")||"0");if(len>MAX_BODY_BYTES)return fail(413,"Request is too large.");const raw=await request.text();if(!raw||Buffer.byteLength(raw,"utf8")>MAX_BODY_BYTES)return fail(413,"Request is too large.");let body:Record<string,unknown>;try{const parsed=JSON.parse(raw) as unknown;if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw new Error();body=parsed as Record<string,unknown>}catch{return fail(400,"Invalid request.")}const question=clean(body.question),language=languageOf(question,body.language);if(question.length<2||question.length>MAX_QUESTION_LENGTH)return fail(400,language==="ar"?"اكتب سؤالًا واضحًا ضمن الحد المسموح.":language==="tr"?"Lütfen izin verilen uzunlukta açık bir soru yazın.":"Please write a clear question within the allowed length.");const greeting=greetings[language].find(i=>i.match.test(question));if(greeting)return NextResponse.json({ok:true,answer:greeting.answer,status:"answered",sourceType:"natural_reply",language,externalAi:"rules_fallback",handoffAvailable:true,whatsappOptional:true},{headers:{"Cache-Control":"no-store"}});try{const guard=await callOidcGateway<GuardResult>(request,"ai_guard",{identity:fingerprint(request),payload:{question}});if(!guard?.allowed)return fail(guard?.code==="rate_limited"?429:400,"Request rejected safely.")}catch{return fail(503,language==="ar"?"تعذر تشغيل حماية الدعم حالياً. حاول لاحقًا.":"Support protection is temporarily unavailable.")}
+ const[knowledge,pages]=await Promise.all([loadKnowledge(language),loadPublicPages(request,language,question)]);const candidates:Candidate[]=[];for(const row of knowledge){const hay=[row.question,row.answer,(row.alternatives||[]).join(" "),(row.keywords||[]).join(" "),row.category||""].join(" ");candidates.push({text:row.answer,sourceLabel:row.source_label||row.category||"HAMZA AGENCY Knowledge Base",sourceUrl:row.source_url||undefined,score:score(question,hay,row.priority||0),kind:"knowledge"})}for(const page of pages)candidates.push({text:relevantExcerpt(page.text,question),sourceLabel:page.label,sourceUrl:page.url,score:score(question,page.text),kind:"published_page"});candidates.sort((a,b)=>b.score-a.score);const best=candidates[0],threshold=tokens(question).length<=2?4:5;if(best&&best.score>=threshold)return NextResponse.json({ok:true,answer:best.text.length>1100?`${best.text.slice(0,1100)}…`:best.text,status:"answered",sourceType:best.kind,sourceLabel:best.sourceLabel,sourceUrl:best.sourceUrl,language,externalAi:"rules_fallback",handoffAvailable:true,whatsappOptional:true},{headers:{"Cache-Control":"no-store"}});
+ const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;if(url&&key){try{const client=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});await client.rpc("pr4_suggest_knowledge",{p_question:question,p_language:language})}catch{}}
+ return NextResponse.json({ok:true,answer:fallback[language],status:"unanswered",sourceType:"safe_fallback",language,externalAi:"rules_fallback",handoffAvailable:true,whatsappOptional:true,actions:["human","another_question","whatsapp"]},{headers:{"Cache-Control":"no-store"}})}

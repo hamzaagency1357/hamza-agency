@@ -1,0 +1,45 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+
+const read=(path)=>readFileSync(new URL(`../${path}`,import.meta.url),"utf8");
+const ai=read("app/api/ai-support/route.ts");
+const track=read("app/api/track/route.ts");
+const handoff=read("app/api/support-request/route.ts");
+const panel=read("components/SmartSupportPanel.tsx");
+const kbAdmin=read("app/admin/knowledge-base/page.tsx");
+const supportAdmin=read("app/admin/ai-support/page.tsx");
+const inbox=read("components/AdminNotificationsInbox.tsx");
+const core=read("supabase/migrations/20260808210000_pr4_smart_support_notifications.sql");
+const integration=read("supabase/migrations/20260808211000_pr4_support_notification_integrations.sql");
+
+test("PR4 answers only from active published sources or natural safe fallback",()=>{
+  assert.match(ai,/pr4_knowledge_base/);assert.match(ai,/sitemap\.xml/);assert.match(ai,/cache:\s*"no-store"/);assert.match(ai,/rules_fallback/);assert.match(ai,/safe_fallback/);assert.match(ai,/وعليكم السلام ورحمة الله وبركاته/);assert.match(ai,/Hello and welcome to HAMZA AGENCY/);assert.match(ai,/HAMZA AGENCY'ye hoş geldiniz/);assert.doesNotMatch(ai,/BUILT_IN_KNOWLEDGE/);assert.doesNotMatch(ai,/service_role/i);
+});
+
+test("PR4 human handoff requires disclosure and consent and keeps WhatsApp optional",()=>{
+  assert.match(panel,/90 يوم/);assert.match(panel,/Privacy policy|سياسة الخصوصية/);assert.match(panel,/consent/);assert.match(panel,/WhatsApp \(optional\)|واتساب \(اختياري\)/);assert.match(handoff,/consent_required/);assert.match(handoff,/pr4_create_support_request/);
+});
+
+test("SUP tracking requires a second secret and never exposes internal notes",()=>{
+  assert.match(track,/SUP-\[A-Z0-9\]/);assert.match(track,/verification_required/);assert.match(track,/pr4_track_support_request/);assert.match(core,/verification_hash/);assert.match(core,/pr4_support_internal_notes/);assert.doesNotMatch(track,/internal_notes|pr4_support_internal_notes/);
+});
+
+test("Knowledge lifecycle is draft-first, publication-gated and expiration-aware",()=>{
+  assert.match(core,/status text not null default 'draft'/);assert.match(core,/status='published'/);assert.match(core,/expires_at is null or expires_at>now\(\)/);assert.match(core,/start_at is null or start_at<=now\(\)/);assert.match(core,/question_redacted/);assert.match(core,/values\(v_suggestion\.question_redacted,''/);assert.match(kbAdmin,/إنشاء مسودة/);assert.match(kbAdmin,/لا يمكن نشر معرفة بلا جواب/);
+});
+
+test("Support workflow, audit, assignment and private notes are present",()=>{
+  for(const state of ["new","awaiting_acceptance","accepted","responding","awaiting_user","resolved","closed","cancelled"])assert.match(core,new RegExp(state));
+  assert.match(core,/pr4_support_history/);assert.match(integration,/close reason required/);assert.match(integration,/assigned_admin_id/);assert.match(supportAdmin,/ملاحظات داخلية — لا تظهر للمستخدم/);assert.match(supportAdmin,/حفظ التعيين/);assert.match(supportAdmin,/حفظ الحالة/);
+});
+
+test("Notifications are deduplicated, permission-filtered, deep-linked and SLA-aware",()=>{
+  assert.match(core,/dedupe_key/);assert.match(core,/pr4_notification_inbox/);assert.match(core,/pr4_admin_can_module/);assert.match(inbox,/فتح الطلب/);assert.match(integration,/application_new/);assert.match(integration,/service_request_new/);assert.match(integration,/job_application_new/);assert.match(integration,/contact_request_new/);assert.match(integration,/privacy_request/);assert.match(integration,/dispute_refund/);assert.match(integration,/membership_review/);assert.match(integration,/pr4_escalate_overdue_support/);assert.match(integration,/sla_policies/);
+});
+
+test("PR4 migrations remain additive and RLS protected",()=>{
+  for(const sql of [core,integration]){assert.doesNotMatch(sql,/\bdrop\s+(table|column|schema)\b/i);assert.doesNotMatch(sql,/\btruncate\b/i);assert.doesNotMatch(sql,/\bdelete\s+from\b/i)}
+  for(const table of ["pr4_knowledge_base","pr4_knowledge_suggestions","pr4_support_requests","pr4_support_messages","pr4_support_internal_notes","pr4_support_history"])assert.match(core,new RegExp(`alter table public\\.${table} enable row level security`));
+  assert.match(core,/security_invoker=true/);assert.match(core,/fixed search_path|set search_path=pg_catalog,public/);
+});
