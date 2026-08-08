@@ -96,7 +96,7 @@ export default function AdminCinematicMediaPage() {
     const result = await supabase.from("media").select(fields).in("file_type", ["cinematic_video","background_image","texture"]).order("updated_at", { ascending: false });
     if (result.error) {
       setSchemaReady(false); setRows([]);
-      setError("النظام جاهز في الكود ويحتاج تطبيق Migration الآمن الخاص بـPR5 قبل إدارة الوسائط.");
+      setError("تعذر تحميل إعدادات الوسائط السينمائية. تحقق من إعدادات النظام والصلاحيات.");
       return;
     }
     setSchemaReady(true); setRows((result.data || []) as Row[]);
@@ -125,7 +125,7 @@ export default function AdminCinematicMediaPage() {
     const expectedVideo = form.fileType === "cinematic_video" && !poster;
     if (detected.video !== expectedVideo) throw new Error(expectedVideo ? "هذا الحقل يحتاج WebM أو MP4." : "هذا الحقل يحتاج صورة آمنة.");
     if ((detected.video && file.size > VIDEO_MAX) || (!detected.video && file.size > IMAGE_MAX)) throw new Error(detected.video ? "حجم الفيديو يتجاوز 25MB." : "حجم الصورة يتجاوز 5MB.");
-    if ((slot === "desktop_fallback_url" || slot === "mobile_fallback_url") && detected.mime !== "video/mp4") throw new Error("Fallback يجب أن يكون MP4.");
+    if ((slot === "desktop_fallback_url" || slot === "mobile_fallback_url") && detected.mime !== "video/mp4") throw new Error("الفيديو البديل يجب أن يكون MP4.");
     const path = `pr5/${safeSlug(form.pageSlug)}/${safeSlug(slot)}/${Date.now()}-${crypto.randomUUID()}.${detected.ext}`;
     const result = await supabase.storage.from(BUCKET).upload(path, file, { cacheControl: "31536000", contentType: detected.mime, upsert: false });
     if (result.error) throw new Error("تعذر رفع الملف إلى مكتبة الوسائط.");
@@ -146,8 +146,8 @@ export default function AdminCinematicMediaPage() {
       for (const slot of Object.keys(uploads) as Slot[]) {
         const file = uploads[slot]; if (file) urls[slot] = await upload(slot, file);
       }
-      if (!urls.desktop_url && !urls.mobile_url) throw new Error("أضف أصل Desktop أو Mobile واحداً على الأقل.");
-      if (form.fileType === "cinematic_video" && form.status === "published" && !urls.poster_url) throw new Error("الفيديو المنشور يحتاج Poster لضمان fallback سريع.");
+      if (!urls.desktop_url && !urls.mobile_url) throw new Error("أضف أصل سطح المكتب أو الهاتف واحداً على الأقل.");
+      if (form.fileType === "cinematic_video" && form.status === "published" && !urls.poster_url) throw new Error("الفيديو المنشور يحتاج صورة ثابتة لضمان العرض البديل السريع.");
       const payload = {
         name: form.name.trim(), file_url: urls.desktop_url || urls.mobile_url || urls.poster_url,
         file_type: form.fileType, category: "cinematic_visual", alt_text: form.alt.trim(), page_slug: form.pageSlug,
@@ -187,10 +187,10 @@ export default function AdminCinematicMediaPage() {
     <main dir="rtl" className="min-h-screen bg-[#050008] p-4 pb-40 text-white md:p-8 md:pb-10">
       <section className="mx-auto max-w-7xl">
         <header className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div><div className="mb-3 inline-flex rounded-full border border-yellow-400/25 bg-yellow-500/10 px-4 py-2 text-xs font-black text-yellow-100">PR5 · CINEMATIC MEDIA</div><h1 className="text-3xl font-black md:text-5xl">مكتبة الوسائط السينمائية</h1><p className="mt-3 max-w-3xl leading-8 text-white/60">Desktop وMobile وWebM وMP4 fallback وPoster وجدولة وتحكم بصري لكل صفحة.</p></div>
+          <div><h1 className="text-3xl font-black md:text-5xl">إدارة الوسائط السينمائية</h1><p className="mt-3 max-w-3xl leading-8 text-white/60">إدارة خلفيات الصفحات، النسخ المخصصة للشاشات، الصور البديلة، الجدولة والتحكم البصري.</p></div>
           <div className="flex flex-wrap gap-2"><Link href="/admin/media" className="rounded-full border border-white/10 px-5 py-3 text-sm font-black">مكتبة الصور</Link><Link href="/admin/visual-experience" className="rounded-full border border-purple-300/20 px-5 py-3 text-sm font-black">التجربة البصرية</Link></div>
         </header>
-        {!schemaReady && <div className="mb-6 rounded-3xl border border-yellow-400/25 bg-yellow-500/10 p-5 text-yellow-100">Migration الخاص بـPR5 لم يطبق بعد. يبقى الموقع على الـfallback الحالي بأمان.</div>}
+        {!schemaReady && <div className="mb-6 rounded-3xl border border-yellow-400/25 bg-yellow-500/10 p-5 text-yellow-100">إعدادات الوسائط السينمائية غير متاحة حاليًا. سيستمر الموقع باستخدام الخلفية الآمنة.</div>}
         {(error || message) && <div className={`mb-6 rounded-3xl border p-5 ${error ? "border-red-400/25 bg-red-500/10 text-red-100" : "border-green-400/25 bg-green-500/10 text-green-100"}`}>{error || message}</div>}
 
         <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[.04] p-5 md:p-7">
@@ -198,27 +198,27 @@ export default function AdminCinematicMediaPage() {
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <Input label="اسم الأصل" value={form.name} onChange={(name) => setForm({ ...form, name })} />
             <Select label="الصفحة" value={form.pageSlug} onChange={(pageSlug) => setForm({ ...form, pageSlug: pageSlug as SiteVisualScope })}>{SITE_VISUAL_SCOPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select>
-            <Select label="النوع" value={form.fileType} onChange={(fileType) => setForm({ ...form, fileType: fileType as SiteVisualMediaKind })}><option value="cinematic_video">فيديو سينمائي</option><option value="background_image">صورة خلفية</option><option value="texture">Texture</option></Select>
+            <Select label="النوع" value={form.fileType} onChange={(fileType) => setForm({ ...form, fileType: fileType as SiteVisualMediaKind })}><option value="cinematic_video">فيديو سينمائي</option><option value="background_image">صورة خلفية</option><option value="texture">نسيج بصري</option></Select>
             <Select label="الحالة" value={form.status} onChange={(status) => setForm({ ...form, status: status as Status })}>{(Object.keys(labels) as Status[]).map((s) => <option key={s} value={s}>{labels[s]}</option>)}</Select>
           </div>
-          <div className="mt-4 grid gap-4 md:grid-cols-2"><Input label="سياق الاستخدام" value={form.usage} onChange={(usage) => setForm({ ...form, usage })} /><Input label="Alt text" value={form.alt} onChange={(alt) => setForm({ ...form, alt })} /></div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2"><Input label="سياق الاستخدام" value={form.usage} onChange={(usage) => setForm({ ...form, usage })} /><Input label="النص البديل" value={form.alt} onChange={(alt) => setForm({ ...form, alt })} /></div>
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <Upload label="Desktop asset" accept={form.fileType === "cinematic_video" ? "video/webm,video/mp4" : "image/jpeg,image/png,image/webp,image/avif"} onFile={(file) => setUploads({ ...uploads, desktop_url: file })} />
-            <Upload label="Desktop MP4 fallback" accept="video/mp4" disabled={form.fileType !== "cinematic_video"} onFile={(file) => setUploads({ ...uploads, desktop_fallback_url: file })} />
-            <Upload label="Mobile asset" accept={form.fileType === "cinematic_video" ? "video/webm,video/mp4" : "image/jpeg,image/png,image/webp,image/avif"} onFile={(file) => setUploads({ ...uploads, mobile_url: file })} />
-            <Upload label="Mobile MP4 fallback" accept="video/mp4" disabled={form.fileType !== "cinematic_video"} onFile={(file) => setUploads({ ...uploads, mobile_fallback_url: file })} />
-            <Upload label="Poster" accept="image/jpeg,image/png,image/webp,image/avif" onFile={(file) => setUploads({ ...uploads, poster_url: file })} />
+            <Upload label="ملف سطح المكتب" accept={form.fileType === "cinematic_video" ? "video/webm,video/mp4" : "image/jpeg,image/png,image/webp,image/avif"} onFile={(file) => setUploads({ ...uploads, desktop_url: file })} />
+            <Upload label="فيديو بديل لسطح المكتب" accept="video/mp4" disabled={form.fileType !== "cinematic_video"} onFile={(file) => setUploads({ ...uploads, desktop_fallback_url: file })} />
+            <Upload label="ملف الهاتف" accept={form.fileType === "cinematic_video" ? "video/webm,video/mp4" : "image/jpeg,image/png,image/webp,image/avif"} onFile={(file) => setUploads({ ...uploads, mobile_url: file })} />
+            <Upload label="فيديو بديل للهاتف" accept="video/mp4" disabled={form.fileType !== "cinematic_video"} onFile={(file) => setUploads({ ...uploads, mobile_fallback_url: file })} />
+            <Upload label="الصورة الثابتة" accept="image/jpeg,image/png,image/webp,image/avif" onFile={(file) => setUploads({ ...uploads, poster_url: file })} />
           </div>
           <p className="mt-3 text-xs text-white/45">الصور ≤5MB، الفيديو ≤25MB. JPEG/PNG/WebP/AVIF/WebM/MP4 فقط. SVG ممنوع.</p>
-          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4"><Range label="Opacity" value={form.opacity} max={1} step={.05} onChange={(opacity) => setForm({ ...form, opacity })} /><Range label="Dimming" value={form.dimming} max={.9} step={.05} onChange={(dimming) => setForm({ ...form, dimming })} /><Range label="Overlay" value={form.overlay} max={.9} step={.05} onChange={(overlay) => setForm({ ...form, overlay })} /><Range label="Blur" value={form.blur} max={24} step={1} onChange={(blur) => setForm({ ...form, blur })} /></div>
-          <div className="mt-4 grid gap-4 md:grid-cols-3"><Select label="Focal position" value={form.focal} onChange={(focal) => setForm({ ...form, focal })}><option value="center center">الوسط</option><option value="center top">أعلى</option><option value="center bottom">أسفل</option><option value="left center">يسار</option><option value="right center">يمين</option></Select><Input label="بدء النشر" type="datetime-local" value={form.publishAt} onChange={(publishAt) => setForm({ ...form, publishAt })} /><Input label="إيقاف النشر" type="datetime-local" value={form.unpublishAt} onChange={(unpublishAt) => setForm({ ...form, unpublishAt })} /></div>
-          <div className="mt-4 flex flex-wrap gap-3"><Check label="تشغيل تلقائي صامت" checked={form.autoplay} disabled={form.fileType !== "cinematic_video"} onChange={(autoplay) => setForm({ ...form, autoplay })} /><Check label="Loop" checked={form.loop} disabled={form.fileType !== "cinematic_video"} onChange={(loop) => setForm({ ...form, loop })} /></div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4"><Range label="الشفافية" value={form.opacity} max={1} step={.05} onChange={(opacity) => setForm({ ...form, opacity })} /><Range label="التعتيم" value={form.dimming} max={.9} step={.05} onChange={(dimming) => setForm({ ...form, dimming })} /><Range label="طبقة القراءة" value={form.overlay} max={.9} step={.05} onChange={(overlay) => setForm({ ...form, overlay })} /><Range label="الضبابية" value={form.blur} max={24} step={1} onChange={(blur) => setForm({ ...form, blur })} /></div>
+          <div className="mt-4 grid gap-4 md:grid-cols-3"><Select label="موضع التركيز" value={form.focal} onChange={(focal) => setForm({ ...form, focal })}><option value="center center">الوسط</option><option value="center top">أعلى</option><option value="center bottom">أسفل</option><option value="left center">يسار</option><option value="right center">يمين</option></Select><Input label="بدء النشر" type="datetime-local" value={form.publishAt} onChange={(publishAt) => setForm({ ...form, publishAt })} /><Input label="إيقاف النشر" type="datetime-local" value={form.unpublishAt} onChange={(unpublishAt) => setForm({ ...form, unpublishAt })} /></div>
+          <div className="mt-4 flex flex-wrap gap-3"><Check label="تشغيل تلقائي صامت" checked={form.autoplay} disabled={form.fileType !== "cinematic_video"} onChange={(autoplay) => setForm({ ...form, autoplay })} /><Check label="تكرار الفيديو" checked={form.loop} disabled={form.fileType !== "cinematic_video"} onChange={(loop) => setForm({ ...form, loop })} /></div>
           <div className="mt-6 flex justify-end"><button onClick={() => void save()} disabled={!schemaReady || busy} className="rounded-full bg-gradient-to-r from-purple-600 to-yellow-500 px-7 py-3 font-black disabled:opacity-50">{busy ? "جارٍ الحفظ..." : editing ? "حفظ التعديلات" : "إضافة إلى المكتبة"}</button></div>
         </section>
 
         <section><h2 className="mb-4 text-2xl font-black">الأصول وربط الصفحات</h2><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {rows.map((row) => <article key={row.id} className="rounded-3xl border border-white/10 bg-white/[.04] p-5"><div className="flex items-start justify-between gap-3"><div><h3 className="font-black">{row.name || "أصل بصري"}</h3><p className="mt-1 text-sm text-white/55">{row.page_slug ? siteVisualScopeLabel(row.page_slug) : "غير مربوط"}</p></div><span className="rounded-full border border-white/10 px-3 py-1 text-xs">{labels[row.status || "draft"]}</span></div><div className="mt-4 grid grid-cols-2 gap-2 text-xs text-white/45"><div>Desktop: {row.desktop_url ? "جاهز" : "—"}</div><div>Mobile: {row.mobile_url ? "جاهز" : "يرث Desktop"}</div><div>Poster: {row.poster_url ? "جاهز" : "—"}</div><div>الجدولة: {row.publish_at ? "محددة" : "بدون"}</div></div><div className="mt-4 flex flex-wrap justify-end gap-2"><button onClick={() => { setEditing(row.id); setForm(fromRow(row)); setUploads({}); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="rounded-full border border-purple-300/20 px-4 py-2 text-xs font-black">تعديل</button><button onClick={() => void archive(row)} className="rounded-full border border-red-300/20 bg-red-500/10 px-4 py-2 text-xs font-black text-red-100">أرشفة آمنة</button>{row.status === "archived" && row.is_active === false && <button onClick={() => void safeDelete(row)} className="rounded-full border border-red-300/25 px-4 py-2 text-xs font-black text-red-100">حذف آمن للسجل</button>}</div></article>)}
-        </div>{rows.length === 0 && <div className="rounded-3xl border border-white/10 p-8 text-center text-white/45">لا توجد أصول سينمائية بعد. سيبقى الـfallback الحالي.</div>}</section>
+          {rows.map((row) => <article key={row.id} className="rounded-3xl border border-white/10 bg-white/[.04] p-5"><div className="flex items-start justify-between gap-3"><div><h3 className="font-black">{row.name || "أصل بصري"}</h3><p className="mt-1 text-sm text-white/55">{row.page_slug ? siteVisualScopeLabel(row.page_slug) : "غير مربوط"}</p></div><span className="rounded-full border border-white/10 px-3 py-1 text-xs">{labels[row.status || "draft"]}</span></div><div className="mt-4 grid grid-cols-2 gap-2 text-xs text-white/45"><div>سطح المكتب: {row.desktop_url ? "جاهز" : "—"}</div><div>الهاتف: {row.mobile_url ? "جاهز" : "يرث نسخة سطح المكتب"}</div><div>الصورة الثابتة: {row.poster_url ? "جاهزة" : "—"}</div><div>الجدولة: {row.publish_at ? "محددة" : "بدون"}</div></div><div className="mt-4 flex flex-wrap justify-end gap-2"><button onClick={() => { setEditing(row.id); setForm(fromRow(row)); setUploads({}); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="rounded-full border border-purple-300/20 px-4 py-2 text-xs font-black">تعديل</button><button onClick={() => void archive(row)} className="rounded-full border border-red-300/20 bg-red-500/10 px-4 py-2 text-xs font-black text-red-100">أرشفة آمنة</button>{row.status === "archived" && row.is_active === false && <button onClick={() => void safeDelete(row)} className="rounded-full border border-red-300/25 px-4 py-2 text-xs font-black text-red-100">حذف آمن للسجل</button>}</div></article>)}
+        </div>{rows.length === 0 && <div className="rounded-3xl border border-white/10 p-8 text-center text-white/45">لا توجد أصول سينمائية بعد. سيستمر الموقع باستخدام الخلفية السينمائية الافتراضية.</div>}</section>
       </section>
     </main>
   );

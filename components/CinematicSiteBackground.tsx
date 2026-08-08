@@ -13,6 +13,10 @@ type PublicVisualResponse = { media: PublicSiteVisualMedia | null; compatible: b
 type NetworkInformationLike = { saveData?: boolean };
 type NavigatorWithHints = Navigator & { connection?: NetworkInformationLike; deviceMemory?: number };
 
+const DEFAULT_DESKTOP = "/media/cinematic/home-gateway-desktop.webp";
+const DEFAULT_MOBILE = "/media/cinematic/home-gateway-mobile.webp";
+const DEFAULT_POSTER = "/media/cinematic/home-gateway-poster.webp";
+
 function inferVideoType(url: string | null) {
   if (!url) return undefined;
   const clean = url.split(/[?#]/, 1)[0].toLowerCase();
@@ -20,16 +24,12 @@ function inferVideoType(url: string | null) {
   if (clean.endsWith(".mp4") || clean.endsWith(".m4v")) return "video/mp4";
   return undefined;
 }
-function backgroundImage(url: string | null) {
-  if (!url) return undefined;
-  return `url(${JSON.stringify(url)})`;
-}
 
 export default function CinematicSiteBackground() {
   const pathname = usePathname() || "/";
   const scope = useMemo(() => resolveSiteVisualScope(pathname), [pathname]);
   const [media, setMedia] = useState<PublicSiteVisualMedia | null>(null);
-  const [mobile, setMobile] = useState(false);
+  const [mobile, setMobile] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [saveData, setSaveData] = useState(false);
   const [weakDevice, setWeakDevice] = useState(false);
@@ -87,37 +87,92 @@ export default function CinematicSiteBackground() {
 
   useEffect(() => {
     const root = document.documentElement;
-    if (media) root.dataset.cinematicMedia = "active";
+    if (scope) root.dataset.cinematicMedia = "active";
     else delete root.dataset.cinematicMedia;
     return () => { delete root.dataset.cinematicMedia; };
-  }, [media]);
+  }, [scope]);
 
   if (!scope) return null;
+
   const selected = media ? selectDeviceVisualSources(media, mobile) : { primary: null, fallback: null };
-  const canPlay = media?.fileType === "cinematic_video" && !videoFailed && Boolean(selected.primary) &&
+  const constrained = reducedMotion || saveData || weakDevice;
+  const canPlayVideo = media?.fileType === "cinematic_video" && !videoFailed && Boolean(selected.primary) &&
     shouldPlayCinematic(media.autoplay, { reducedMotion, saveData, weakDevice });
-  const staticAsset = !saveData && !weakDevice
-    ? media?.posterUrl || (media?.fileType !== "cinematic_video" ? selected.primary : null)
-    : null;
+  const managedImage = media?.fileType !== "cinematic_video" ? selected.primary : null;
+  const managedPoster = media?.posterUrl || managedImage;
+  const staticAsset = managedPoster || (mobile ? DEFAULT_MOBILE : DEFAULT_POSTER);
+  const motionImage = managedImage || (mobile ? DEFAULT_MOBILE : DEFAULT_DESKTOP);
+  const imageMotion = !canPlayVideo && !constrained && Boolean(motionImage);
+  const mode = canPlayVideo ? "video" : imageMotion ? "layered-motion" : "poster";
+  const focalPosition = media?.focalPosition || "center center";
+  const blur = media?.blurPx ? `blur(${media.blurPx}px)` : undefined;
+  const opacity = media?.opacity ?? 1;
 
   return (
-    <div className="hamza-cinematic-site-background" aria-hidden="true" data-scope={scope} data-mode={canPlay ? "video" : staticAsset ? "poster" : "fallback"}>
+    <div
+      className="hamza-cinematic-site-background"
+      aria-hidden="true"
+      data-scope={scope}
+      data-mode={mode}
+      data-cinematic-motion={imageMotion || canPlayVideo ? "active" : "static"}
+      data-cinematic-source={media ? "managed" : "built-in"}
+    >
       <div className="hamza-cinematic-base" />
-      {staticAsset && <div className="hamza-cinematic-poster" style={{
-        backgroundImage: backgroundImage(staticAsset), backgroundPosition: media?.focalPosition || "center center",
-        filter: media?.blurPx ? `blur(${media.blurPx}px)` : undefined, opacity: media?.opacity ?? 1,
-      }} />}
-      {canPlay && media && selected.primary && (
-        <video key={`${scope}-${mobile ? "mobile" : "desktop"}-${selected.primary}`} className="hamza-cinematic-video"
-          muted autoPlay loop={media.loop} playsInline preload="metadata" poster={media.posterUrl || undefined}
-          onError={() => setVideoFailed(true)}
-          style={{ objectPosition: media.focalPosition, filter: media.blurPx ? `blur(${media.blurPx}px)` : undefined, opacity: media.opacity }}>
-          <source src={selected.primary} type={inferVideoType(selected.primary)} />
-          {selected.fallback && selected.fallback !== selected.primary && <source src={selected.fallback} type={inferVideoType(selected.fallback)} />}
-        </video>
+
+      {!media && (
+        <picture className={`hamza-cinematic-picture ${imageMotion ? "is-moving" : "is-static"}`}>
+          <source media="(max-width: 767px)" srcSet={DEFAULT_MOBILE} />
+          <img
+            className="hamza-cinematic-scene-image"
+            src={constrained ? DEFAULT_POSTER : DEFAULT_DESKTOP}
+            alt=""
+            decoding="async"
+            fetchPriority="high"
+          />
+        </picture>
       )}
-      <div className="hamza-cinematic-dim" style={{ opacity: media?.dimming ?? .34 }} />
-      <div className="hamza-cinematic-overlay" style={{ opacity: media?.overlayStrength ?? .42 }} />
+
+      {media && !canPlayVideo && staticAsset && (
+        <img
+          className={`hamza-cinematic-scene-image hamza-cinematic-managed-image ${imageMotion ? "is-moving" : "is-static"}`}
+          src={imageMotion ? motionImage || staticAsset : staticAsset}
+          alt=""
+          decoding="async"
+          style={{ objectPosition: focalPosition, filter: blur, opacity }}
+          onError={(event) => {
+            const image = event.currentTarget;
+            const fallback = mobile ? DEFAULT_MOBILE : DEFAULT_POSTER;
+            if (!image.src.endsWith(fallback)) image.src = fallback;
+          }}
+        />
+      )}
+
+      {canPlayVideo && media && selected.primary && (
+        <>
+          <img className="hamza-cinematic-scene-image is-static hamza-cinematic-video-poster" src={staticAsset || DEFAULT_POSTER} alt="" decoding="async" />
+          <video
+            key={`${scope}-${mobile ? "mobile" : "desktop"}-${selected.primary}`}
+            className="hamza-cinematic-video"
+            muted
+            autoPlay
+            loop={media.loop}
+            playsInline
+            preload="metadata"
+            poster={staticAsset || DEFAULT_POSTER}
+            onError={() => setVideoFailed(true)}
+            style={{ objectPosition: focalPosition, filter: blur, opacity }}
+          >
+            <source src={selected.primary} type={inferVideoType(selected.primary)} />
+            {selected.fallback && selected.fallback !== selected.primary && <source src={selected.fallback} type={inferVideoType(selected.fallback)} />}
+          </video>
+        </>
+      )}
+
+      <div className="hamza-cinematic-depth hamza-cinematic-depth-far" />
+      <div className="hamza-cinematic-depth hamza-cinematic-depth-mid" />
+      <div className="hamza-cinematic-light-sweep" />
+      <div className="hamza-cinematic-dim" style={{ opacity: media?.dimming ?? .3 }} />
+      <div className="hamza-cinematic-overlay" style={{ opacity: media?.overlayStrength ?? .38 }} />
       <div className="hamza-cinematic-vignette" />
     </div>
   );
