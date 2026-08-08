@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
+import { join } from "node:path";
 
 const action = process.argv[2] || "setup";
 const dbUrl = process.env.DB_URL;
@@ -23,6 +24,9 @@ function psql(sql) {
     input: sql,
     stdio: ["pipe", "inherit", "inherit"],
   });
+}
+function psqlFile(path) {
+  execFileSync("psql", [dbUrl, "--no-psqlrc", "-X", "-v", "ON_ERROR_STOP=1", "-f", path], { stdio: "inherit" });
 }
 function scalar(sql) {
   return execFileSync("psql", [dbUrl, "--no-psqlrc", "-X", "-Atqc", sql], { encoding: "utf8" }).trim();
@@ -48,6 +52,15 @@ if (action === "cleanup") {
   console.log(JSON.stringify({ ok: true, tenantRowsRemaining: 0 }));
   process.exit(0);
 }
+
+if (process.env.CLOSEOUT_EXECUTION_MODE !== "local-isolated") throw new Error("pr4_migrations_require_local_isolated");
+const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+for (const migration of [
+  "20260808210000_pr4_smart_support_notifications.sql",
+  "20260808211000_pr4_support_notification_integrations.sql",
+  "20260808211500_pr4_permission_hardening.sql",
+  "20260808212000_pr4_marketplace_notification_hardening.sql",
+]) psqlFile(join(workspace, "supabase", "migrations", migration));
 
 psql(`
 begin;
@@ -125,4 +138,4 @@ commit;
 
 fixture.macro = ids;
 await writeFile(fixturePath, JSON.stringify(fixture), { mode: 0o600 });
-console.log(JSON.stringify({ ok: true, listing: ids.listing, sla: ids.sla, workflow: ids.workflow }));
+console.log(JSON.stringify({ ok: true, listing: ids.listing, sla: ids.sla, workflow: ids.workflow, pr4Migrations: true }));
