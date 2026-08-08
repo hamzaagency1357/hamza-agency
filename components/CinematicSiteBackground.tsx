@@ -8,15 +8,34 @@ import {
   selectDeviceVisualSources,
   shouldPlayCinematic,
   type PublicSiteVisualMedia,
+  type SiteVisualScope,
 } from "@/lib/siteVisualMedia";
 
 type PublicVisualResponse = { media: PublicSiteVisualMedia | null; compatible: boolean };
 type NetworkInformationLike = { saveData?: boolean };
 type NavigatorWithHints = Navigator & { connection?: NetworkInformationLike; deviceMemory?: number };
 
-const DEFAULT_DESKTOP = "/media/cinematic/home-gateway-desktop.webp";
-const DEFAULT_MOBILE = "/media/cinematic/home-gateway-mobile.webp";
-const DEFAULT_POSTER = "/media/cinematic/home-gateway-poster.webp";
+const HOME_DESKTOP_WEBM = "/media/cinematic/home-cinematic-desktop.webm";
+const HOME_DESKTOP_MP4 = "/media/cinematic/home-cinematic-desktop.mp4";
+const HOME_MOBILE_WEBM = "/media/cinematic/home-cinematic-mobile.webm";
+const HOME_MOBILE_MP4 = "/media/cinematic/home-cinematic-mobile.mp4";
+const HOME_DESKTOP_POSTER = "/media/cinematic/home-cinematic-desktop-poster.webp";
+const HOME_MOBILE_POSTER = "/media/cinematic/home-cinematic-mobile-poster.webp";
+
+const PAGE_VISUALS: Partial<Record<SiteVisualScope, string>> = {
+  programs: "/media/cinematic/programs.webp",
+  services: "/media/cinematic/services.webp",
+  "success-stories": "/media/cinematic/success-stories.webp",
+  blog: "/media/cinematic/blog.webp",
+  agent: "/media/cinematic/agent.webp",
+  contact: "/media/cinematic/contact.webp",
+  "install-app": "/media/cinematic/install-app.webp",
+  tracking: "/media/cinematic/tracking.webp",
+  "service-request": "/media/cinematic/service-request.webp",
+  "application-status": "/media/cinematic/application-status.webp",
+  "service-status": "/media/cinematic/service-status.webp",
+};
+
 const passthroughLoader = ({ src }: ImageLoaderProps) => src;
 
 function inferVideoType(url: string | null) {
@@ -96,19 +115,23 @@ export default function CinematicSiteBackground() {
 
   if (!scope) return null;
 
-  const selected = media ? selectDeviceVisualSources(media, mobile) : { primary: null, fallback: null };
   const constrained = reducedMotion || saveData || weakDevice;
-  const canPlayVideo = media?.fileType === "cinematic_video" && !videoFailed && Boolean(selected.primary) &&
+  const selected = media ? selectDeviceVisualSources(media, mobile) : { primary: null, fallback: null };
+  const canPlayManagedVideo = media?.fileType === "cinematic_video" && !videoFailed && Boolean(selected.primary) &&
     shouldPlayCinematic(media.autoplay, { reducedMotion, saveData, weakDevice });
+  const canPlayBuiltInHomeVideo = !media && scope === "home" && !videoFailed && !constrained;
   const managedImage = media?.fileType !== "cinematic_video" ? selected.primary : null;
   const managedPoster = media?.posterUrl || managedImage;
-  const staticAsset = managedPoster || (mobile ? DEFAULT_MOBILE : DEFAULT_POSTER);
-  const motionImage = managedImage || (mobile ? DEFAULT_MOBILE : DEFAULT_DESKTOP);
-  const imageMotion = !canPlayVideo && !constrained && Boolean(motionImage);
-  const mode = canPlayVideo ? "video" : imageMotion ? "layered-motion" : "poster";
+  const builtInPoster = mobile ? HOME_MOBILE_POSTER : HOME_DESKTOP_POSTER;
+  const pageVisual = PAGE_VISUALS[scope] || builtInPoster;
+  const staticAsset = managedPoster || (scope === "home" ? builtInPoster : pageVisual);
+  const managedImageMotion = Boolean(media && managedImage && !constrained);
+  const mode = canPlayManagedVideo || canPlayBuiltInHomeVideo ? "video" : managedImageMotion ? "layered-motion" : "poster";
   const focalPosition = media?.focalPosition || "center center";
   const blur = media?.blurPx ? `blur(${media.blurPx}px)` : undefined;
   const opacity = media?.opacity ?? 1;
+  const defaultDimming = scope === "home" ? 0.14 : 0.24;
+  const defaultOverlay = scope === "home" ? 0.2 : 0.3;
 
   return (
     <div
@@ -116,17 +139,16 @@ export default function CinematicSiteBackground() {
       aria-hidden="true"
       data-scope={scope}
       data-mode={mode}
-      data-cinematic-motion={imageMotion || canPlayVideo ? "active" : "static"}
+      data-cinematic-motion={canPlayManagedVideo || canPlayBuiltInHomeVideo || managedImageMotion ? "active" : "static"}
       data-cinematic-source={media ? "managed" : "built-in"}
     >
       <div className="hamza-cinematic-base" />
 
-      {!media && (
-        <picture className={`hamza-cinematic-picture ${imageMotion ? "is-moving" : "is-static"}`}>
-          <source media="(max-width: 767px)" srcSet={DEFAULT_MOBILE} />
+      {!media && scope === "home" && (
+        <>
           <Image
-            className="hamza-cinematic-scene-image"
-            src={constrained ? DEFAULT_POSTER : DEFAULT_DESKTOP}
+            className="hamza-cinematic-scene-image is-static hamza-cinematic-video-poster"
+            src={builtInPoster}
             alt=""
             fill
             priority
@@ -134,13 +156,42 @@ export default function CinematicSiteBackground() {
             loader={passthroughLoader}
             unoptimized
           />
-        </picture>
+          {canPlayBuiltInHomeVideo && (
+            <video
+              className="hamza-cinematic-video"
+              muted
+              autoPlay
+              loop
+              playsInline
+              preload="metadata"
+              poster={builtInPoster}
+              onError={() => setVideoFailed(true)}
+            >
+              <source media="(max-width: 767px)" src={HOME_MOBILE_WEBM} type="video/webm" />
+              <source media="(max-width: 767px)" src={HOME_MOBILE_MP4} type="video/mp4" />
+              <source src={HOME_DESKTOP_WEBM} type="video/webm" />
+              <source src={HOME_DESKTOP_MP4} type="video/mp4" />
+            </video>
+          )}
+        </>
       )}
 
-      {media && !canPlayVideo && staticAsset && (
+      {!media && scope !== "home" && pageVisual && (
         <Image
-          className={`hamza-cinematic-scene-image hamza-cinematic-managed-image ${imageMotion ? "is-moving" : "is-static"}`}
-          src={imageMotion ? motionImage || staticAsset : staticAsset}
+          className="hamza-cinematic-scene-image is-static hamza-cinematic-page-visual"
+          src={pageVisual}
+          alt=""
+          fill
+          sizes="100vw"
+          loader={passthroughLoader}
+          unoptimized
+        />
+      )}
+
+      {media && !canPlayManagedVideo && staticAsset && (
+        <Image
+          className={`hamza-cinematic-scene-image hamza-cinematic-managed-image ${managedImageMotion ? "is-moving" : "is-static"}`}
+          src={managedImageMotion ? managedImage || staticAsset : staticAsset}
           alt=""
           fill
           sizes="100vw"
@@ -149,17 +200,16 @@ export default function CinematicSiteBackground() {
           style={{ objectPosition: focalPosition, filter: blur, opacity }}
           onError={(event) => {
             const image = event.currentTarget;
-            const fallback = mobile ? DEFAULT_MOBILE : DEFAULT_POSTER;
-            if (!image.src.endsWith(fallback)) image.src = fallback;
+            if (!image.src.endsWith(builtInPoster)) image.src = builtInPoster;
           }}
         />
       )}
 
-      {canPlayVideo && media && selected.primary && (
+      {canPlayManagedVideo && media && selected.primary && (
         <>
           <Image
             className="hamza-cinematic-scene-image is-static hamza-cinematic-video-poster"
-            src={staticAsset || DEFAULT_POSTER}
+            src={staticAsset || builtInPoster}
             alt=""
             fill
             sizes="100vw"
@@ -174,7 +224,7 @@ export default function CinematicSiteBackground() {
             loop={media.loop}
             playsInline
             preload="metadata"
-            poster={staticAsset || DEFAULT_POSTER}
+            poster={staticAsset || builtInPoster}
             onError={() => setVideoFailed(true)}
             style={{ objectPosition: focalPosition, filter: blur, opacity }}
           >
@@ -187,8 +237,8 @@ export default function CinematicSiteBackground() {
       <div className="hamza-cinematic-depth hamza-cinematic-depth-far" />
       <div className="hamza-cinematic-depth hamza-cinematic-depth-mid" />
       <div className="hamza-cinematic-light-sweep" />
-      <div className="hamza-cinematic-dim" style={{ opacity: media?.dimming ?? .3 }} />
-      <div className="hamza-cinematic-overlay" style={{ opacity: media?.overlayStrength ?? .38 }} />
+      <div className="hamza-cinematic-dim" style={{ opacity: media?.dimming ?? defaultDimming }} />
+      <div className="hamza-cinematic-overlay" style={{ opacity: media?.overlayStrength ?? defaultOverlay }} />
       <div className="hamza-cinematic-vignette" />
     </div>
   );

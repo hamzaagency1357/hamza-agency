@@ -1,0 +1,57 @@
+name: PR115 cinematic asset materialization
+
+on:
+  push:
+    branches: [fix/pr5-cinematic-background-completion]
+    paths: [.github/workflows/pr115-cinematic-assets.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ffmpeg
+      - name: Download generated cinematic master
+        env:
+          SOURCE_URL: "https://files2.heygen.ai/aws_pacific/avatar_tmp/4ecb05323f5649c1ae8bdad99daff844/vf3928451a6da4b498fdb78d261d865d7/e9cb293dd3f34e3eb0d87ed9209e4401.mp4?Expires=1786835969&Signature=gpOmth-495MmzMFtOlGbqrg17vdHMZOmQV89RFHvyx1n~5ZgwOuILrCnLqPbjMZ6Bw86KnzK9k4lZ7UOsKT-Koa3wO8ue8GpcxM0C2pRb8eByfiXmMlVdfU74u6aIjnNXxqqTHXbD5~MI~SOmLlxrStV8VG2yrFq54vydGMalTUQ3AA5XSVR92wDEbV9xTIUxpJyw50jQekrtAAxYSUpim19er8zjL-2zFb0QR0US~fa~C7XethzFdoLBB1dQMHF2r4r39mnHoECDDf6HVJFBc1WRcH81EjWznnzS6iQCMRc7Pu7i73EXjtfu7u2NnUY5lR7C4p2~SBeWNok6V08wA__&Key-Pair-Id=K38HBHX5LX3X2H"
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 4 --retry-delay 2 "$SOURCE_URL" -o /tmp/master.mp4
+          ffprobe -v error -show_entries format=duration -show_entries stream=width,height,codec_name -of default=noprint_wrappers=1 /tmp/master.mp4
+      - name: Create production web assets
+        run: |
+          set -euo pipefail
+          OUT=public/media/cinematic
+          mkdir -p "$OUT"
+          ffmpeg -y -i /tmp/master.mp4 -vf "eq=brightness=0.035:contrast=1.025:saturation=1.06:gamma=1.035,scale=1280:-2" -an -c:v libx264 -preset medium -crf 29 -pix_fmt yuv420p -movflags +faststart "$OUT/home-cinematic-desktop.mp4"
+          ffmpeg -y -i "$OUT/home-cinematic-desktop.mp4" -an -c:v libvpx-vp9 -b:v 0 -crf 39 -deadline good -cpu-used 3 -row-mt 1 "$OUT/home-cinematic-desktop.webm"
+          ffmpeg -y -i /tmp/master.mp4 -vf "eq=brightness=0.045:contrast=1.02:saturation=1.06:gamma=1.04,scale=-2:1280,crop=720:1280:(iw-720)*0.70:0" -an -c:v libx264 -preset medium -crf 30 -pix_fmt yuv420p -movflags +faststart "$OUT/home-cinematic-mobile.mp4"
+          ffmpeg -y -i "$OUT/home-cinematic-mobile.mp4" -an -c:v libvpx-vp9 -b:v 0 -crf 41 -deadline good -cpu-used 3 -row-mt 1 "$OUT/home-cinematic-mobile.webm"
+          ffmpeg -y -ss 9 -i "$OUT/home-cinematic-desktop.mp4" -frames:v 1 -c:v libwebp -quality 82 "$OUT/home-cinematic-desktop-poster.webp"
+          ffmpeg -y -ss 9 -i "$OUT/home-cinematic-mobile.mp4" -frames:v 1 -c:v libwebp -quality 82 "$OUT/home-cinematic-mobile-poster.webp"
+          python - <<'PY2'
+          import subprocess
+          out='public/media/cinematic'
+          src=f'{out}/home-cinematic-desktop.mp4'
+          items=[('programs',6.2),('services',7.0),('success-stories',9.0),('blog',8.0),('agent',9.4),('contact',5.4),('install-app',7.5),('tracking',6.0),('service-request',7.3),('application-status',5.0),('service-status',6.7)]
+          for name,t in items:
+              subprocess.run(['ffmpeg','-y','-ss',str(t),'-i',src,'-frames:v','1','-vf','scale=1280:720','-c:v','libwebp','-quality','78',f'{out}/{name}.webp'],check=True)
+          PY2
+          find "$OUT" -maxdepth 1 -type f -printf '%f %s bytes\n' | sort
+      - name: Commit generated assets and remove temporary workflow
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/media/cinematic
+          git rm .github/workflows/pr115-cinematic-assets.yml
+          git commit -m "feat(pr5): ship actual cinematic video backgrounds"
+          git push origin HEAD:fix/pr5-cinematic-background-completion
