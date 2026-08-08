@@ -10,6 +10,7 @@ import PublicGlobalHeader from "@/components/PublicGlobalHeader";
 import PublicFooterLinks from "@/components/PublicFooterLinks";
 import PublicSupportAvailability from "@/components/PublicSupportAvailability";
 import VisualBackgroundPresets from "@/components/VisualBackgroundPresets";
+import CinematicSiteBackground from "@/components/CinematicSiteBackground";
 import AuthRecoveryRedirect from "@/components/AuthRecoveryRedirect";
 import StructuredData from "@/components/StructuredData";
 import SiteLanguageDocumentSync from "@/components/SiteLanguageDocumentSync";
@@ -26,6 +27,7 @@ import "./globals.css";
 import "./final-fixes.css";
 import "./public-modal-fixes.css";
 import "./owner-final-qa.css";
+import "./pr5-cinematic.css";
 
 export const generateMetadata = generatePublicMetadataForRequest;
 
@@ -39,11 +41,7 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [siteContext, tenant] = await Promise.all([
     getRequestSiteContext(),
     getServerTenantRuntime(),
@@ -63,17 +61,14 @@ export default async function RootLayout({
       style={tenantStyle}
       suppressHydrationWarning
     >
-      <body
-        dir={siteContext.direction}
-        data-site-language={siteContext.language}
-        suppressHydrationWarning
-      >
+      <body dir={siteContext.direction} data-site-language={siteContext.language} suppressHydrationWarning>
         <SiteLanguageProvider initialLanguage={siteContext.language}>
           <StructuredData />
           <AuthRecoveryRedirect />
           <SiteLanguageDocumentSync />
           <PublicSiteRuntimeTranslator />
           <PublicDesktopEnhancer />
+          <CinematicSiteBackground />
           <VisualBackgroundPresets />
           <PublicGlobalHeader />
           <PwaRuntime />

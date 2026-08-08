@@ -1,0 +1,64 @@
+body > div.hamza-cinematic-site-background {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+  background: #050008;
+  isolation: isolate;
+  contain: layout paint;
+}
+
+.hamza-cinematic-site-background > * { position: absolute; inset: 0; }
+.hamza-cinematic-base {
+  background:
+    radial-gradient(circle at 50% 8%, rgba(126,34,206,.34), transparent 40%),
+    radial-gradient(circle at 16% 34%, rgba(88,28,135,.24), transparent 36%),
+    radial-gradient(circle at 84% 30%, rgba(212,175,55,.12), transparent 30%),
+    linear-gradient(145deg, #030005 0%, #12051f 46%, #050008 100%);
+}
+.hamza-cinematic-poster {
+  inset: -1.5% !important;
+  background-size: cover;
+  background-repeat: no-repeat;
+  transform: translateZ(0);
+}
+.hamza-cinematic-video {
+  width: 100%; height: 100%; max-width: none;
+  object-fit: cover; background: #050008; transform: translateZ(0);
+}
+.hamza-cinematic-dim { background: #030005; }
+.hamza-cinematic-overlay {
+  background:
+    radial-gradient(circle at 50% 18%, rgba(124,58,237,.16), transparent 42%),
+    linear-gradient(90deg, rgba(3,0,5,.72), rgba(3,0,5,.28) 46%, rgba(3,0,5,.58));
+  mix-blend-mode: multiply;
+}
+.hamza-cinematic-vignette {
+  box-shadow: inset 0 0 18vw rgba(0,0,0,.88);
+  background: linear-gradient(180deg, rgba(3,0,5,.46), transparent 24%, transparent 72%, rgba(3,0,5,.64));
+}
+html[data-cinematic-media="active"] .hamza-visual-background-presets { opacity: .48; }
+html[data-cinematic-media="active"] .public-site-page { background: transparent !important; }
+html[data-cinematic-media="active"] .public-site-page main {
+  background:
+    radial-gradient(circle at 50% 18%, rgba(168,85,247,.16), transparent 34%),
+    linear-gradient(180deg, rgba(17,5,31,.26), rgba(4,0,10,.42)) !important;
+}
+html[data-cinematic-media="active"] .public-site-page .pointer-events-none.fixed.inset-0.z-0.overflow-hidden > .absolute.inset-0:first-child {
+  background: rgba(5,0,8,.28) !important;
+}
+html[data-cinematic-media="active"] .public-site-page .pointer-events-none.fixed.inset-0.z-0.overflow-hidden > .absolute.inset-0:nth-child(2) { opacity: .55; }
+@media (prefers-reduced-motion: reduce) {
+  .hamza-cinematic-site-background video { display: none !important; }
+  html[data-cinematic-media="active"] .hamza-visual-background-presets * { animation: none !important; }
+}
+@media (max-width: 767px) {
+  .hamza-cinematic-overlay {
+    background:
+      linear-gradient(180deg, rgba(3,0,5,.5), rgba(3,0,5,.26) 44%, rgba(3,0,5,.66)),
+      radial-gradient(circle at 50% 18%, rgba(124,58,237,.16), transparent 48%);
+  }
+}
