@@ -12,6 +12,7 @@ const supportAdmin=read("app/admin/ai-support/page.tsx");
 const inbox=read("components/AdminNotificationsInbox.tsx");
 const core=read("supabase/migrations/20260808210000_pr4_smart_support_notifications.sql");
 const integration=read("supabase/migrations/20260808211000_pr4_support_notification_integrations.sql");
+const marketplace=read("supabase/migrations/20260808212000_pr4_marketplace_notification_hardening.sql");
 
 test("PR4 answers only from active published sources or natural safe fallback",()=>{
   assert.match(ai,/pr4_knowledge_base/);assert.match(ai,/sitemap\.xml/);assert.match(ai,/cache:\s*"no-store"/);assert.match(ai,/rules_fallback/);assert.match(ai,/safe_fallback/);assert.match(ai,/وعليكم السلام ورحمة الله وبركاته/);assert.match(ai,/Hello and welcome to HAMZA AGENCY/);assert.match(ai,/HAMZA AGENCY'ye hoş geldiniz/);assert.doesNotMatch(ai,/BUILT_IN_KNOWLEDGE/);assert.doesNotMatch(ai,/service_role/i);
@@ -34,12 +35,12 @@ test("Support workflow, audit, assignment and private notes are present",()=>{
   assert.match(core,/pr4_support_history/);assert.match(integration,/close reason required/);assert.match(integration,/assigned_admin_id/);assert.match(supportAdmin,/ملاحظات داخلية — لا تظهر للمستخدم/);assert.match(supportAdmin,/حفظ التعيين/);assert.match(supportAdmin,/حفظ الحالة/);
 });
 
-test("Notifications are deduplicated, permission-filtered, deep-linked and SLA-aware",()=>{
-  assert.match(core,/dedupe_key/);assert.match(core,/pr4_notification_inbox/);assert.match(core,/pr4_admin_can_module/);assert.match(inbox,/فتح الطلب/);assert.match(integration,/application_new/);assert.match(integration,/service_request_new/);assert.match(integration,/job_application_new/);assert.match(integration,/contact_request_new/);assert.match(integration,/privacy_request/);assert.match(integration,/dispute_refund/);assert.match(integration,/membership_review/);assert.match(integration,/pr4_escalate_overdue_support/);assert.match(integration,/sla_policies/);
+test("Notifications are deduplicated, permission-filtered, deep-linked, marketplace-aware and SLA-aware",()=>{
+  assert.match(core,/dedupe_key/);assert.match(core,/pr4_notification_inbox/);assert.match(core,/pr4_admin_can_module/);assert.match(inbox,/فتح الطلب/);assert.match(integration,/application_new/);assert.match(integration,/service_request_new/);assert.match(integration,/job_application_new/);assert.match(integration,/contact_request_new/);assert.match(integration,/privacy_request/);assert.match(integration,/dispute_refund/);assert.match(integration,/membership_review/);assert.match(integration,/pr4_escalate_overdue_support/);assert.match(integration,/sla_policies/);assert.match(marketplace,/marketplace_orders/);assert.match(marketplace,/marketplace_followup/);assert.match(marketplace,/nullif\(v_data->>'tenant_id',''\)::uuid/);
 });
 
 test("PR4 migrations remain additive and RLS protected",()=>{
-  for(const sql of [core,integration]){assert.doesNotMatch(sql,/\bdrop\s+(table|column|schema)\b/i);assert.doesNotMatch(sql,/\btruncate\b/i);assert.doesNotMatch(sql,/\bdelete\s+from\b/i)}
+  for(const sql of [core,integration,marketplace]){assert.doesNotMatch(sql,/\bdrop\s+(table|column|schema)\b/i);assert.doesNotMatch(sql,/\btruncate\b/i);assert.doesNotMatch(sql,/\bdelete\s+from\b/i)}
   for(const table of ["pr4_knowledge_base","pr4_knowledge_suggestions","pr4_support_requests","pr4_support_messages","pr4_support_internal_notes","pr4_support_history"])assert.match(core,new RegExp(`alter table public\\.${table} enable row level security`));
   assert.match(core,/security_invoker=true/);assert.match(core,/fixed search_path|set search_path=pg_catalog,public/);
 });
