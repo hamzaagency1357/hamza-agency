@@ -49,13 +49,14 @@ export default function CinematicSiteBackground() {
       return;
     }
 
+    const requestScope = scope;
     let current = true;
     const controller = new AbortController();
 
     async function loadMedia() {
       try {
         const response = await fetch(
-          `/api/public/site-visual?scope=${encodeURIComponent(scope)}`,
+          `/api/public/site-visual?scope=${encodeURIComponent(requestScope)}`,
           { signal: controller.signal, headers: { Accept: "application/json" } }
         );
         if (!response.ok) {
