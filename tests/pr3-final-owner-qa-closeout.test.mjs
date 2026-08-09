@@ -83,29 +83,32 @@ test("marketplace status and member portal are reachable without indexing unread
   for (const href of ['/marketplace','/platform-status','/portal/login']) assert.ok(nav.includes(href), href);
   assert.ok(locales.includes('"/marketplace"'));
   assert.ok(locales.includes('"/platform-status"'));
-  assert.ok(locales.includes('"/marketplace","/platform-status"') || (locales.includes('"/marketplace"') && locales.includes('"/platform-status"')));
   assert.ok(marketplace.includes("index:false"));
   assert.ok(status.includes("index:false"));
 });
 
-test("footer and dock reserve safe area and avoid public content coverage", async () => {
-  const [footer, dock] = await Promise.all([read("components/PublicFooterLinks.tsx"), read("components/PublicMobileDock.tsx")]);
+test("footer and dock reserve safe area and preserve final Owner identity", async () => {
+  const [footer, dock, css] = await Promise.all([read("components/PublicFooterLinks.tsx"), read("components/PublicMobileDock.tsx"), read("app/owner-final-qa.css")]);
   assert.ok(footer.includes("--public-mobile-dock-height"));
   assert.ok(footer.includes("env(safe-area-inset-bottom)"));
   assert.ok(dock.includes("--public-mobile-dock-height"));
-  assert.ok(dock.includes("env(safe-area-inset-bottom)"));
-  assert.ok(footer.includes('readable:"عراب سوريا"'));
+  assert.ok(dock.includes("env(safe-area-inset-bottom"));
+  assert.ok(css.includes("--public-mobile-dock-clearance"));
+  assert.ok(footer.includes("وكالة حمزة — بإدارة الوكيل"));
+  assert.ok(footer.includes("⚔عܓོراب✴سܓོوريا⚔"));
+  assert.ok(footer.includes("Hamza Agency — Managed by Godfather of Syria"));
+  assert.ok(footer.includes("Hamza Ajansı — Suriye'nin Vaftiz Babası yönetiminde"));
   assert.ok(footer.includes("AGENT_PUBLIC_PATH"));
   assert.ok(footer.includes('data-testid="footer-agent-link"'));
-  assert.ok(!footer.includes("⚔عܓོراب✴سܓོوريا⚔"));
   assert.ok(footer.includes("[unicode-bidi:isolate]"));
 });
 
-test("agent mobile closeout uses measured dock clearance and lists every open program", async () => {
+test("agent mobile closeout uses centralized measured dock clearance and lists every open program", async () => {
   const [agent, css] = await Promise.all([read("app/agent/arab-syria/page.tsx"), read("app/owner-final-qa.css")]);
   assert.ok(agent.includes("TikTok, BIGO LIVE, Yaahlan, Xena, Catchii"));
-  assert.ok(agent.includes('pb-[calc(var(--public-mobile-dock-height,0px)+env(safe-area-inset-bottom)+2rem)]'));
-  assert.ok(!agent.includes("pb-[calc(6rem+env(safe-area-inset-bottom))]"));
+  assert.ok(agent.includes('pb-[var(--public-mobile-dock-clearance,2rem)]'));
+  assert.ok(css.includes("--public-mobile-dock-height"));
   assert.ok(css.includes("--public-mobile-dock-clearance"));
+  assert.ok(css.includes("env(safe-area-inset-bottom, 0px)"));
   assert.ok(!css.includes("--public-mobile-dock-end-clearance"));
 });
