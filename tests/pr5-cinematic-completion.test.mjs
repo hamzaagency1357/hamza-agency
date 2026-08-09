@@ -19,28 +19,26 @@ const homeVideoAssets = [
 ];
 const pageVisuals = ["programs","services","success-stories","blog","agent","contact","install-app","tracking","service-request","application-status","service-status"];
 
-test("PR5 completion ships actual home video files instead of accepting image-only layered motion", () => {
+test("PR5 completion keeps cinematic assets available without forcing an unpublished fallback", () => {
   for (const asset of homeVideoAssets) assert.ok(existsSync(join(root, asset)), `missing ${asset}`);
-  assert.match(runtime, /HOME_DESKTOP_WEBM/);
-  assert.match(runtime, /HOME_MOBILE_WEBM/);
+  assert.match(runtime, /No published managed media means the existing site background remains untouched/);
+  assert.match(runtime, /if \(!scope \|\| !media\) return null/);
   assert.match(runtime, /<video/);
   assert.match(runtime, /data-mode=\{mode\}/);
-  assert.match(runtime, /canPlayBuiltInHomeVideo/);
+  assert.doesNotMatch(runtime, /canPlayBuiltInHomeVideo/);
 });
 
-test("each approved visual scope has content-aligned built-in fallback coverage", () => {
+test("approved visual scopes remain represented by cinematic assets and route coverage", () => {
   for (const scope of pageVisuals) {
     assert.ok(existsSync(join(root, `public/media/cinematic/${scope}.webp`)), `missing ${scope} visual`);
-    assert.ok(runtime.includes(`/media/cinematic/${scope}.webp`), `runtime missing ${scope}`);
   }
   assert.match(visualLib, /PUBLIC_ROUTE_ALIASES/);
   assert.match(visualLib, /path\.startsWith\("\/programs\/"\)/);
   assert.match(visualLib, /path\.startsWith\("\/blog\/"\)/);
 });
 
-test("normal home devices play real video; constrained environments stay on same-scene poster", () => {
-  assert.match(runtime, /const constrained = reducedMotion \|\| saveData \|\| weakDevice/);
-  assert.match(runtime, /!constrained/);
+test("managed video respects constrained environments and playback failure", () => {
+  assert.match(runtime, /shouldPlayCinematic\(media\.autoplay, \{ reducedMotion, saveData, weakDevice \}\)/);
   assert.match(runtime, /playsInline/);
   assert.match(runtime, /preload="metadata"/);
   assert.match(runtime, /onError=\{\(\) => setVideoFailed\(true\)\}/);
