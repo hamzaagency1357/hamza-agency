@@ -13,7 +13,6 @@ type Copy = {
   sendEmail: string;
   hoursTitle: string;
   hoursFallback: string;
-  hoursNote: string;
   viewPrograms: string;
   reasonsTitle: string;
   reasons: string[];
@@ -34,8 +33,7 @@ const copy: Record<"ar" | "en" | "tr", Copy> = {
     emailNote: "يمكن استخدام البريد للتواصل الرسمي عند توفره ضمن بيانات الوكالة.",
     sendEmail: "إرسال بريد",
     hoursTitle: "الدعم والتواصل",
-    hoursFallback: "نستقبل رسائلكم وطلباتكم على مدار الساعة، وسيتم الرد عليكم في أقرب وقت ممكن.",
-    hoursNote: "قد تختلف سرعة الرد حسب ضغط الطلبات ونوع البرنامج أو الخدمة.",
+    hoursFallback: "فريقنا متواجد لمتابعة طلباتكم ورسائلكم، وسيتم الرد عليكم في أقرب فرصة ممكنة.",
     viewPrograms: "عرض البرامج",
     reasonsTitle: "متى تتواصل معنا؟",
     reasons: ["الاستفسار عن الانضمام لأحد البرامج", "متابعة طلب تم إرساله سابقاً", "السؤال عن خدمات الوكالة", "الاستفسار عن الخدمات الرقمية", "الإبلاغ عن مشكلة تقنية", "طلب تحويل المحادثة إلى أحد أفراد الفريق"],
@@ -54,8 +52,7 @@ const copy: Record<"ar" | "en" | "tr", Copy> = {
     emailNote: "Email can be used for official communication when it is available in the agency contact details.",
     sendEmail: "Send email",
     hoursTitle: "Support and contact",
-    hoursFallback: "We receive your messages and requests around the clock and will respond as soon as possible.",
-    hoursNote: "Response times may vary depending on request volume and the type of program or service.",
+    hoursFallback: "Our team is available to follow up on your requests and messages, and we will respond at the earliest possible opportunity.",
     viewPrograms: "View programs",
     reasonsTitle: "When should you contact us?",
     reasons: ["Ask about joining a program", "Follow up on a previously submitted request", "Ask about agency services", "Ask about digital services", "Report a technical issue", "Request to speak with a team member"],
@@ -74,8 +71,7 @@ const copy: Record<"ar" | "en" | "tr", Copy> = {
     emailNote: "Ajans iletişim bilgilerinde mevcut olduğunda resmî iletişim için e-posta kullanılabilir.",
     sendEmail: "E-posta gönder",
     hoursTitle: "Destek ve iletişim",
-    hoursFallback: "Mesajlarınızı ve taleplerinizi günün her saati alıyor ve en kısa sürede yanıtlıyoruz.",
-    hoursNote: "Yanıt süresi, talep yoğunluğuna ve program ya da hizmet türüne göre değişebilir.",
+    hoursFallback: "Ekibimiz talep ve mesajlarınızı takip etmek için hazırdır ve size mümkün olan en kısa sürede yanıt verilecektir.",
     viewPrograms: "Programları görüntüle",
     reasonsTitle: "Ne zaman bizimle iletişime geçmelisiniz?",
     reasons: ["Bir programa katılım hakkında bilgi almak", "Daha önce gönderilmiş bir başvuruyu takip etmek", "Ajans hizmetleri hakkında soru sormak", "Dijital hizmetler hakkında bilgi almak", "Teknik bir sorunu bildirmek", "Bir ekip üyesiyle görüşme talep etmek"],
@@ -108,7 +104,7 @@ export function ContactEmailAndHoursCards({ email, workingHours }: { email: stri
   const { language, text } = useCopy();
   const localizedWorkingHours = workingHours ? localizeDynamicPublicCopy(workingHours, language) : "";
   const displayWorkingHours = localizedWorkingHours || text.hoursFallback;
-  return <>{email ? <div dir={getLanguageDirection(language)} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur"><h2 className="text-3xl font-black">{text.emailTitle}</h2><p dir="ltr" className="mt-4 break-words text-left text-xl font-bold text-green-200 [unicode-bidi:isolate]">{email}</p><a href={`mailto:${email}`} className="mt-6 inline-flex rounded-full bg-green-500 px-6 py-3 font-black text-white">{text.sendEmail}</a></div> : null}<div dir={getLanguageDirection(language)} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur"><h2 className="text-3xl font-black">{text.hoursTitle}</h2><p className="mt-4 break-words text-xl font-bold text-green-200">{displayWorkingHours}</p><p className="mt-4 leading-8 text-white/65">{text.hoursNote}</p><Link href="/programs" className="mt-6 inline-flex rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-6 py-3 font-black text-white">{text.viewPrograms}</Link></div></>;
+  return <>{email ? <div dir={getLanguageDirection(language)} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur"><h2 className="text-3xl font-black">{text.emailTitle}</h2><p dir="ltr" className="mt-4 break-words text-left text-xl font-bold text-green-200 [unicode-bidi:isolate]">{email}</p><a href={`mailto:${email}`} className="mt-6 inline-flex rounded-full bg-green-500 px-6 py-3 font-black text-white">{text.sendEmail}</a></div> : null}<div dir={getLanguageDirection(language)} className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur"><h2 className="text-3xl font-black">{text.hoursTitle}</h2><p className="mt-4 break-words text-xl font-bold text-green-200">{displayWorkingHours}</p><Link href="/programs" className="mt-6 inline-flex rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-6 py-3 font-black text-white">{text.viewPrograms}</Link></div></>;
 }
 
 export function ContactReasons() {
