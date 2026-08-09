@@ -80,7 +80,7 @@ if (runtimeTranslator.includes("MutationObserver") || runtimeTranslator.includes
 if (!runtimeTranslator.includes("[data-runtime-translate='true']")) errors.push("Runtime translator is not restricted to explicit legacy markers.");
 if (rootLayout.includes("PublicLocaleLinkSync")) errors.push("DOM locale-link synchronization is still mounted.");
 if (rootLayout.includes("ApprovedSupportCopySync") || rootLayout.includes("PublicHeaderDropdownNav")) errors.push("Removed DOM synchronization/header portal components are still mounted.");
-if (!rootLayout.includes("<PublicGlobalHeader />")) errors.push("Direct React public header is not mounted.");
+if (!/<PublicGlobalHeader\s*\/>/.test(rootLayout)) errors.push("Direct React public header is not mounted.");
 
 if (middleware.includes('request.cookies.get("hamza-agency-language")') || middleware.includes("localizePublicPath")) errors.push("Middleware still redirects an Arabic URL from the saved locale cookie.");
 for (const token of ["NextResponse.rewrite", "x-site-locale", "isSupportedPublicPath"]) if (!middleware.includes(token)) errors.push(`Locale middleware is missing: ${token}`);
