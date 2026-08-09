@@ -28,33 +28,33 @@ export const PUBLIC_IDENTITY_SETTING_KEYS = {
 
 export const DEFAULT_PUBLIC_IDENTITY: PublicIdentity = {
   agencyName: { ar: "وكالة حمزة", en: "HAMZA AGENCY", tr: "Hamza Ajansı" },
-  agentReadableName: { ar: "عراب سوريا", en: "Godfather of Syria", tr: "Suriye'nin Vaftiz Babası" },
+  agentReadableName: { ar: "عراب سوريا", en: "Agent Hamza", tr: "Temsilci Hamza" },
   agentDecoratedAr: "⚔عܓོراب✴سܓོوريا⚔",
-  agentRoleLine: { ar: "الوكيل والمدير في", en: "Agent and Manager at", tr: "Temsilci ve Yönetici" },
+  agentRoleLine: { ar: "الوكيل والمدير في", en: "Agent and Manager at HAMZA AGENCY", tr: "Hamza Ajansı Temsilcisi ve Yöneticisi" },
   agentLead: {
     ar: "ويُعد الوكيل ⚔عܓོراب✴سܓོوريا⚔ من أبرز الوكلاء وأكثرهم أمانًا واحترافية على مستوى العالم، بفضل خبرته الواسعة ونهجه القائم على الثقة والخصوصية والمتابعة الدقيقة.",
-    en: "The Godfather of Syria is considered one of the most prominent, safest, and most professional agents worldwide, thanks to his extensive experience and an approach built on trust, privacy, and precise follow-up.",
-    tr: "Suriye'nin Vaftiz Babası, geniş deneyimi ve güven, gizlilik ve titiz takibe dayalı yaklaşımı sayesinde dünya çapında en önde gelen, en güvenli ve en profesyonel temsilcilerden biri olarak kabul edilir.",
+    en: "Agent Hamza is considered one of the most prominent, safest, and most professional agents worldwide, thanks to his extensive experience and an approach built on trust, privacy, and precise follow-up.",
+    tr: "Temsilci Hamza, geniş deneyimi ve güven, gizlilik ve titiz takibe dayalı yaklaşımı sayesinde dünya çapında önde gelen, güvenli ve profesyonel temsilcilerden biridir.",
   },
   agentManagementCopy: {
     ar: "HAMZA AGENCY بإدارة الوكيل عراب سوريا، مع متابعة منظمة لمسارات البرامج وصناع المحتوى والخدمات المرتبطة بالوكالة.",
-    en: "HAMZA AGENCY is managed by the Godfather of Syria, with organized follow-up for programs, creators, and agency-related services.",
-    tr: "HAMZA AGENCY, Suriye'nin Vaftiz Babası yönetiminde programlar, içerik üreticileri ve ajansla ilgili hizmetler için düzenli takip sağlar.",
+    en: "HAMZA AGENCY is managed by Agent Hamza, with organized follow-up for programs, creators, and agency-related services.",
+    tr: "Hamza Ajansı, Temsilci Hamza yönetiminde programlar, içerik üreticileri ve ajansla ilgili hizmetler için düzenli takip sağlar.",
   },
   agentAboutCopy: {
     ar: "يجمع عراب سوريا بين الخبرة الواسعة، الخصوصية، المتابعة الدقيقة، وفهم متطلبات برامج البث المباشر وصناع المحتوى.",
-    en: "The Godfather of Syria combines extensive experience, privacy, precise follow-up, and a strong understanding of live-streaming programs and creator requirements.",
-    tr: "Suriye'nin Vaftiz Babası; geniş deneyimi, gizliliği, titiz takibi ve canlı yayın programları ile içerik üreticisi gerekliliklerine ilişkin güçlü bilgiyi bir araya getirir.",
+    en: "Agent Hamza combines extensive experience, privacy, precise follow-up, and a strong understanding of live-streaming programs and creator requirements.",
+    tr: "Temsilci Hamza; geniş deneyimi, gizliliği, titiz takibi ve canlı yayın programları ile içerik üreticisi gerekliliklerine ilişkin güçlü bilgiyi bir araya getirir.",
   },
   agentSeoTitle: {
     ar: "عراب سوريا | الوكيل والمدير في HAMZA AGENCY",
-    en: "Godfather of Syria | Agent and Manager at HAMZA AGENCY",
-    tr: "Suriye'nin Vaftiz Babası | HAMZA AGENCY Temsilcisi ve Yöneticisi",
+    en: "Agent Hamza | Agent and Manager at HAMZA AGENCY",
+    tr: "Temsilci Hamza | Hamza Ajansı Temsilcisi ve Yöneticisi",
   },
   agentSeoDescription: {
     ar: "HAMZA AGENCY بإدارة الوكيل عراب سوريا، أحد أبرز وأكثر الوكلاء أمانًا واحترافية على مستوى العالم في إدارة ودعم وتطوير صناع المحتوى وبرامج البث المباشر.",
-    en: "HAMZA AGENCY, managed by the Godfather of Syria, one of the most prominent, safest, and most professional agents worldwide in managing, supporting, and developing content creators and live-streaming programs.",
-    tr: "HAMZA AGENCY, içerik üreticileri ve canlı yayın programlarının yönetimi, desteği ve geliştirilmesinde dünya çapında en önde gelen, en güvenli ve en profesyonel temsilcilerden biri olan Suriye'nin Vaftiz Babası tarafından yönetilmektedir.",
+    en: "HAMZA AGENCY is managed by Agent Hamza, with professional support, development, privacy, safety, and follow-up for content creators and live-streaming programs.",
+    tr: "Hamza Ajansı, içerik üreticileri ve canlı yayın programları için profesyonel destek, gelişim, gizlilik, güvenlik ve takip sunan Temsilci Hamza tarafından yönetilmektedir.",
   },
 };
 
