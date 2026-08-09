@@ -12,9 +12,9 @@ import { defaultPublicNavigationConfig, getPublicNavigationConfig, type PublicNa
 
 function shouldHideFooter(pathname: string) { return pathname.startsWith("/admin") || pathname.startsWith("/portal") || pathname === "/maintenance" || pathname === "/pr99-e2e"; }
 const identity = {
-  ar:{prefix:"HAMZA AGENCY — بإدارة الوكيل",readable:"عراب سوريا",agent:"تعرف على الوكيل عراب سوريا"},
-  en:{prefix:"HAMZA AGENCY — Managed by",readable:"Godfather of Syria",agent:"Meet the Godfather of Syria"},
-  tr:{prefix:"HAMZA AGENCY — Yönetim",readable:"Suriye'nin Vaftiz Babası",agent:"Suriye'nin Vaftiz Babası'nı tanıyın"},
+  ar:{prefix:"وكالة حمزة — بإدارة الوكيل",decorated:"⚔عܓོراب✴سܓོوريا⚔",agent:"تعرف على الوكيل عراب سوريا"},
+  en:{line:"Hamza Agency — Managed by Godfather of Syria",agent:"Meet the Godfather of Syria"},
+  tr:{line:"Hamza Ajansı — Suriye'nin Vaftiz Babası yönetiminde",agent:"Suriye'nin Vaftiz Babası'nı tanıyın"},
 } as const;
 function isInternal(href:string){return href.startsWith("/")||href.startsWith("#")}
 function isInstallAppLink(link:PublicNavigationLink){return isInternal(link.href)&&stripLocalePrefix(link.href)==="/install-app"}
@@ -33,10 +33,10 @@ export default function PublicFooterLinks(){
   return <footer dir={getLanguageDirection(language)} className="hamza-public-utility-footer border-t border-white/10 bg-[#050008] px-4 py-6 pb-[calc(1.5rem+var(--public-mobile-dock-height,0px)+env(safe-area-inset-bottom))] text-white md:pb-6" data-testid="public-footer-links">
     <div className="mx-auto max-w-7xl">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0"><p className="text-sm font-black leading-7"><span>{t.prefix} </span><bdi dir={language==="ar"?"rtl":"ltr"} className="inline-block max-w-full text-yellow-200 [unicode-bidi:isolate]">{t.readable}</bdi></p><Link href={localizePublicHref(AGENT_PUBLIC_PATH,language)} aria-label={t.agent} className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-yellow-200 underline-offset-4 hover:underline" data-testid="footer-agent-link">{t.agent}</Link></div>
+        <div className="min-w-0"><p className="text-sm font-black leading-7">{language==="ar"?<><span>{t.prefix} </span><bdi dir="rtl" className="inline-block max-w-full text-yellow-200 [unicode-bidi:isolate]" style={{letterSpacing:"normal"}}>{t.decorated}</bdi></>:<span>{t.line}</span>}</p><Link href={localizePublicHref(AGENT_PUBLIC_PATH,language)} aria-label={t.agent} className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-white/78 underline decoration-white/25 underline-offset-4 hover:text-white hover:decoration-purple-300/60" data-testid="footer-agent-link">{t.agent}</Link></div>
         <div className="flex flex-wrap gap-2">{managedLinks.filter((link)=>!isInstallAppLink(link)).map((link)=><FooterManagedLink key={`${link.href}-${link.label}`} link={link} language={language}/>)}</div>
       </div>
-      <div className="mt-4 flex flex-wrap gap-2 text-xs text-white/55"><Link href={localizePublicHref("/install-app",language)} className="underline underline-offset-4" data-testid="footer-install-app">{installCopy.installButton}</Link><Link href={localizePublicHref("/cookie-settings",language)} className="underline underline-offset-4" data-testid="footer-cookie-settings">{cookieCopy.settings}</Link></div>
+      <div className="mt-4 flex flex-wrap gap-3 text-xs text-white/70"><Link href={localizePublicHref("/install-app",language)} className="underline decoration-white/30 underline-offset-4 hover:text-white" data-testid="footer-install-app">{installCopy.installButton}</Link><Link href={localizePublicHref("/cookie-settings",language)} className="underline decoration-white/30 underline-offset-4 hover:text-white" data-testid="footer-cookie-settings">{cookieCopy.settings}</Link></div>
     </div>
   </footer>;
 }
