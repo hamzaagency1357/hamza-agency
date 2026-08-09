@@ -89,7 +89,10 @@ test("footer and dock reserve safe area and avoid public content coverage", asyn
   assert.ok(footer.includes("env(safe-area-inset-bottom)"));
   assert.ok(dock.includes("--public-mobile-dock-height"));
   assert.ok(dock.includes("env(safe-area-inset-bottom)"));
-  assert.ok(footer.includes("⚔عܓོراب✴سܓོوريا⚔"));
+  assert.ok(footer.includes('readable:"عراب سوريا"'));
+  assert.ok(footer.includes("AGENT_PUBLIC_PATH"));
+  assert.ok(footer.includes('data-testid="footer-agent-link"'));
+  assert.ok(!footer.includes("⚔عܓོراب✴سܓོوريا⚔"));
   assert.ok(footer.includes("[unicode-bidi:isolate]"));
 });
 
