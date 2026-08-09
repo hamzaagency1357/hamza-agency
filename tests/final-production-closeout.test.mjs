@@ -3,69 +3,66 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const read=(path)=>readFileSync(new URL(`../${path}`,import.meta.url),"utf8");
+const has=(source,needle,message)=>assert.ok(source.includes(needle),message||`missing: ${needle}`);
 
-test("EN/TR shared public chrome cannot reuse raw managed Arabic labels",()=>{
+test("EN/TR shared public chrome localizes managed navigation and deduplicates install",()=>{
   const header=read("components/PublicGlobalHeader.tsx");
   const footer=read("components/PublicFooterLinks.tsx");
   const quickNav=read("components/PublicQuickNav.tsx");
-  assert.match(header,/getSharedNavigationLabel\(language, managed\)/);
-  assert.match(footer,/getSharedNavigationLabel\(language,link\)/);
-  assert.match(footer,/filter\(\(link\)=>!isInstallAppLink\(link\)\)/);
-  assert.match(quickNav,/"الوصول والخدمات": "Access and services"/);
-  assert.match(quickNav,/"الوصول والخدمات": "Erişim ve hizmetler"/);
+  has(header,"getSharedNavigationLabel(language, managed)");
+  has(footer,"getSharedNavigationLabel(language,link)");
+  has(footer,"!isInstallAppLink(link)");
+  has(quickNav,'"الوصول والخدمات": "Access and services"');
+  has(quickNav,'"الوصول والخدمات": "Erişim ve hizmetler"');
 });
 
-test("home uses one global navigation and safe EN/TR program fallbacks",()=>{
+test("home keeps one global navigation and safe EN/TR program fallbacks",()=>{
   const home=read("app/page.tsx");
-  assert.doesNotMatch(home,/const nav=\[/);
-  assert.doesNotMatch(home,/<nav className=/);
-  assert.match(home,/xena:"Explore the Xena creator program/);
-  assert.match(home,/catchii:"HAMZA AGENCY'nin profesyonel takibiyle Catchii/);
-  assert.match(home,/containsArabic/);
+  assert.equal(home.includes("const nav=["),false);
+  assert.equal(home.includes("<nav className="),false);
+  has(home,'xena:"Explore the Xena creator program');
+  has(home,'catchii:"HAMZA AGENCY\'nin profesyonel takibiyle Catchii');
+  has(home,"containsArabic");
 });
 
-test("localized program SEO states non-guaranteed acceptance in all locales",()=>{
+test("localized program SEO is explicit and non-guaranteed",()=>{
   const seo=read("lib/i18n/publicSeo.ts");
-  assert.match(seo,/ولا يعني القبول التلقائي أو النهائي/);
-  assert.match(seo,/does not guarantee automatic or final acceptance/);
-  assert.match(seo,/otomatik veya kesin kabul anlamına gelmez/);
+  for(const slug of ["tiktok","bigo-live","yaahlan","xena","catchii"]) has(seo,slug);
+  has(seo,"ولا يعني القبول التلقائي أو النهائي");
+  has(seo,"does not guarantee automatic or final acceptance");
+  has(seo,"otomatik veya kesin kabul anlamına gelmez");
+  has(seo,'`برنامج ${name} لصناع المحتوى | HAMZA AGENCY`');
+  has(seo,'`${name} Creator Program | HAMZA AGENCY`');
+  has(seo,"سياسة ملفات تعريف الارتباط | HAMZA AGENCY");
 });
 
-test("all five program routes have explicit localized SEO and Arabic cookie policy metadata",()=>{
-  const seo=read("lib/i18n/publicSeo.ts");
-  for(const slug of ["tiktok","bigo-live","yaahlan","xena","catchii"]) assert.ok(seo.includes(slug),`missing SEO program slug ${slug}`);
-  assert.match(seo,/برنامج \$\{name\} لصناع المحتوى \| HAMZA AGENCY/);
-  assert.match(seo,/\$\{name\} Creator Program \| HAMZA AGENCY/);
-  assert.match(seo,/سياسة ملفات تعريف الارتباط \| HAMZA AGENCY/);
-});
-
-test("review empty state has no fake review or prominent zero metrics",()=>{
+test("review empty state contains no fabricated review and no empty zero-stat strip",()=>{
   const reviews=read("components/ReviewsPageContent.tsx");
   const stats=read("components/ReviewsStatsUi.tsx");
-  assert.doesNotMatch(reviews,/بانتظار أول تقييم/);
-  assert.doesNotMatch(reviews,/defaultReview/);
-  assert.match(stats,/if\(isDefault\)return null/);
+  assert.equal(reviews.includes("بانتظار أول تقييم"),false);
+  assert.equal(reviews.includes("defaultReview"),false);
+  has(stats,"if(isDefault)return null");
 });
 
-test("install flow remains gated by real install availability",()=>{
+test("install flow remains gated by a real browser install opportunity",()=>{
   const install=read("components/InstallAppPage.tsx");
-  assert.match(install,/const ready = context === "browser" && installState\.available && !installed/);
-  assert.match(install,/hamza:pwa-install-request/);
-  assert.match(install,/data-testid="install-app-fallback"/);
-  assert.match(install,/data-testid="install-app-action"/);
+  has(install,'const ready = context === "browser" && installState.available && !installed');
+  has(install,"hamza:pwa-install-request");
+  has(install,'data-testid="install-app-fallback"');
+  has(install,'data-testid="install-app-action"');
 });
 
-test("sitemap dates and robots sensitive-route invariants stay truthful",()=>{
+test("sitemap and robots keep truthful date and sensitive-route invariants",()=>{
   const sitemap=read("app/sitemap.ts");
   const robots=read("app/robots.ts");
-  assert.match(sitemap,/post\.updatedAt\|\|post\.publishedAt/);
-  assert.match(sitemap,/cmsLastModifiedByPath\.get\(path\)/);
-  assert.doesNotMatch(sitemap,/lastModified:\s*new Date\(\)/);
-  for(const value of ["/admin","/api/","/track"]) assert.ok(robots.includes(value),`robots missing ${value}`);
+  has(sitemap,"post.updatedAt||post.publishedAt");
+  has(sitemap,"cmsLastModifiedByPath.get(path)");
+  assert.equal(sitemap.includes("lastModified:new Date()"),false);
+  for(const value of ["/admin","/api/","/track"]) has(robots,value);
 });
 
-test("structured agent identity keeps the decorated form out of the primary name",()=>{
+test("decorated agent identity is alternate, not the structured-data primary name",()=>{
   const schema=read("components/StructuredData.tsx");
-  assert.match(schema,/name: agentDisplayName\[language\]/);
-  assert.match(schema,/alternateName: \["عراب سوريا", "⚔عܓོراب✴سܓོوريا⚔"/);
+  has(schema,"name: agentDisplayName[language]");
+  has(schema,'alternateName: ["عراب سوريا", "⚔عܓོراب✴سܓོوريا⚔"');
 });
