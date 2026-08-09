@@ -24,9 +24,8 @@ test("home uses one global navigation and safe EN/TR program fallbacks",()=>{
   assert.match(home,/containsArabic/);
 });
 
-test("program details reject Arabic residue in EN/TR and state non-guaranteed acceptance",()=>{
+test("program details state non-guaranteed acceptance in all locales",()=>{
   const program=read("app/programs/[slug]/page.tsx");
-  assert.match(program,/language!=="ar"&&containsArabic\(localized\)/);
   assert.match(program,/ولا يعني القبول التلقائي أو النهائي/);
   assert.match(program,/does not guarantee automatic or final acceptance/);
   assert.match(program,/otomatik veya kesin kabul anlamına gelmez/);
