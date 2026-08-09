@@ -101,10 +101,10 @@ const approvedSupportCopy = ["فريقنا متواجد لمتابعة طلبا�
 for (const copy of approvedSupportCopy) if (!supportCopy.includes(copy) || !contactUi.includes(copy)) errors.push(`Approved support copy missing: ${copy}`);
 for (const forbidden of ["قد تختلف سرعة الرد حسب ضغط الطلبات ونوع البرنامج أو الخدمة.","Response times may vary depending on request volume and the type of program or service.","Yanıt süresi, talep yoğunluğuna ve program ya da hizmet türüne göre değişebilir."]) if (contactUi.includes(forbidden)) errors.push(`Removed support qualifier returned: ${forbidden}`);
 
-if (!homePage.includes("home_stat_${index+1}_number") || !homePage.includes("home_stat_5_number")) errors.push("Home statistics are no longer sourced from settings/CMS.");
+for (const token of ["home_stat_${item.key}_number","home_stat_${item.key}_label_${language}","home_stat_5_number","Content creators","Available platforms","Support & follow-up","Years of experience","İçerik üreticileri","Mevcut platformlar","Destek ve takip","Yıllık deneyim"]) if (!homePage.includes(token)) errors.push(`Homepage statistics settings/localization contract is missing: ${token}`);
 if (!marketingSafety.includes("Numeric values are intentionally excluded")) errors.push("Owner-managed numeric preservation documentation is missing.");
 if (!rootLayout.includes('import "./owner-final-qa.css"')) errors.push("Owner final QA stylesheet is not mounted.");
 for (const token of ["safe-area-inset-bottom", "--public-mobile-dock-clearance", "scroll-padding-bottom"]) if (!ownerQaCss.includes(token)) errors.push(`Mobile dock clearance is missing: ${token}`);
 
 if (errors.length) { console.error("Public translation verification failed:\n"); errors.forEach((error)=>console.error(`- ${error}`)); process.exit(1); }
-console.log(`Public experience verification passed: ${entries.length} translations, ${requiredRoutes.length} routes × 3 URL-owned locales, approved header and dropdown language switching, approved support copy, safe runtime fallbacks, localized ticker direction, and mobile dock clearance.`);
+console.log(`Public experience verification passed: ${entries.length} translations, ${requiredRoutes.length} routes × 3 URL-owned locales, approved header and dropdown language switching, approved support copy, localized homepage statistics, safe runtime fallbacks, localized ticker direction, and mobile dock clearance.`);
