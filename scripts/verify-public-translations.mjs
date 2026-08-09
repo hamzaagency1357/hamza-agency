@@ -71,8 +71,8 @@ if (!runtimeSurface.includes("siteRuntimeTranslationsLegacy")) errors.push("Safe
 if (!runtimeSurface.includes("isLegacyPlaceholder")) errors.push("Safe runtime translation surface does not block legacy placeholders.");
 for (const token of ["SAFE_UNMATCHED_COPY", "HAMZA AGENCY information", "HAMZA AGENCY bilgileri"]) if (`${runtimeTranslator}\n${languageSwitcher}`.includes(token)) errors.push(`Forbidden generic public fallback remains: ${token}`);
 
-for (const token of ["window.location.assign", "MutationObserver", "createPortal", "document.createElement"]) if (languageSwitcher.includes(token)) errors.push(`LanguageSwitcher still uses forbidden architecture: ${token}`);
-for (const token of ["router.prefetch","router.replace","useTransition","scroll:false","localizePublicPath","window.location.search","window.location.hash",'data-language-switcher="dropdown"','aria-haspopup="menu"','aria-expanded={open}','role="menu"','role="menuitemradio"',"العربية","English","Türkçe"]) if (!languageSwitcher.includes(token)) errors.push(`Approved language dropdown is missing: ${token}`);
+for (const token of ["window.location.assign", "MutationObserver", "createPortal", "document.createElement", "router.prefetch"]) if (languageSwitcher.includes(token)) errors.push(`LanguageSwitcher still uses forbidden architecture: ${token}`);
+for (const token of ["router.replace","useTransition","scroll:false","rememberLanguagePreference(next)","localizePublicPath","window.location.search","window.location.hash",'data-language-switcher="dropdown"','aria-haspopup="menu"','aria-expanded={open}','role="menu"','role="menuitemradio"',"العربية","English","Türkçe"]) if (!languageSwitcher.includes(token)) errors.push(`Approved language dropdown is missing: ${token}`);
 if (languageSwitcher.includes('data-language-switcher="segmented"')) errors.push("Legacy segmented language switcher returned.");
 
 for (const token of ["LanguageSwitcher","getPublicIdentity","identity.agencyName.en",'language==="en"?"":identity.agencyName[language]']) if (!globalHeader.includes(token)) errors.push(`Owner-approved public header identity wiring is missing: ${token}`);
@@ -87,7 +87,7 @@ if (rootLayout.includes("ApprovedSupportCopySync") || rootLayout.includes("Publi
 if (!/<PublicGlobalHeader\s*\/>/.test(rootLayout)) errors.push("Direct React public header is not mounted.");
 
 if (middleware.includes('request.cookies.get("hamza-agency-language")') || middleware.includes("localizePublicPath")) errors.push("Middleware still redirects an Arabic URL from the saved locale cookie.");
-for (const token of ["NextResponse.rewrite", "x-site-locale", "isSupportedPublicPath"]) if (!middleware.includes(token)) errors.push(`Locale middleware is missing: ${token}`);
+for (const token of ["NextResponse.rewrite", "x-site-locale", "isSupportedPublicPath", "shouldPersistLanguagePreference", 'headers.get("next-router-prefetch")', 'headers.get("rsc")', 'headers.get("sec-fetch-mode")', 'headers.get("sec-fetch-dest")', 'fetchMode === "navigate" && fetchDestination === "document"']) if (!middleware.includes(token)) errors.push(`Locale middleware is missing: ${token}`);
 if (!siteLanguageProvider.includes('const nextLanguage = getPathLanguage(pathname || "/");')) errors.push("SiteLanguageProvider does not derive language directly from the URL.");
 for (const token of ["getStoredSiteLanguage", "SITE_LANGUAGE_CHANGE_EVENT", 'pathLanguage === "ar"']) if (siteLanguageProvider.includes(token)) errors.push(`SiteLanguageProvider still allows a non-URL language source: ${token}`);
 

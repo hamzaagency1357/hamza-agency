@@ -81,8 +81,8 @@ const forbiddenVisibleCopy = [
   "beforeinstallprompt",
 ];
 const ownerMobileViewports = [
-  { width: 390, height: 844 },
-  { width: 320, height: 720 },
+  {width:390,height:844},
+  {width:320,height:720},
 ];
 
 function recordAssertions(testInfo, count) {
@@ -187,13 +187,13 @@ async function expectInstallCopy(page, locale, data) {
   await expect(page.locator("html")).toHaveAttribute("dir", data.dir);
   await expect(installPage).toHaveAttribute("data-install-locale", locale);
   await expect(
-    installPage.getByRole("heading", { level: 1, name: data.install.agency })
+    installPage.getByRole("heading", {level:1,name:data.install.agency})
   ).toBeVisible();
   await expect(
     installPage.getByText(data.install.eyebrow, { exact: true })
   ).toBeVisible();
   await expect(
-    installPage.getByRole("heading", { level: 2, name: data.install.title })
+    installPage.getByRole("heading", {level:2,name:data.install.title})
   ).toBeVisible();
   await expect(
     installPage.getByText(data.install.description, { exact: true })

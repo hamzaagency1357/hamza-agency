@@ -1,3 +1,6 @@
+import http from "node:http";
+import https from "node:https";
+
 const baseUrl = process.env.HAMZA_RUNTIME_BASE_URL || "http://127.0.0.1:3000";
 
 const placeholders = [
@@ -40,16 +43,47 @@ const localizedProgramSummaries = {
   ],
 };
 
-async function readPage(path, { cookie, acceptLanguage } = {}) {
-  const headers = {};
-  if (cookie) headers.cookie = cookie;
-  if (acceptLanguage) headers["accept-language"] = acceptLanguage;
-  const response = await fetch(`${baseUrl}${path}`, {
-    redirect: "manual",
-    headers,
+function navigationResponse(url, { cookie, acceptLanguage } = {}) {
+  return new Promise((resolve, reject) => {
+    const client = url.protocol === "https:" ? https : http;
+    const headers = {
+      accept: "text/html,application/xhtml+xml",
+      "sec-fetch-mode": "navigate",
+      "sec-fetch-dest": "document",
+      "sec-fetch-user": "?1",
+    };
+    if (cookie) headers.cookie = cookie;
+    if (acceptLanguage) headers["accept-language"] = acceptLanguage;
+
+    const request = client.request(url, { method: "GET", headers }, (response) => {
+      const chunks = [];
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => chunks.push(chunk));
+      response.on("end", () => {
+        resolve({
+          status: response.statusCode || 0,
+          headers: {
+            get(name) {
+              const value = response.headers[name.toLowerCase()];
+              if (Array.isArray(value)) return value[0] || null;
+              return value ?? null;
+            },
+          },
+          html: chunks.join(""),
+        });
+      });
+    });
+    request.on("error", reject);
+    request.end();
   });
-  const html = await response.text();
-  return { response, html };
+}
+
+async function readPage(path, options = {}) {
+  const result = await navigationResponse(new URL(path, baseUrl), options);
+  return {
+    response: { status: result.status, headers: result.headers },
+    html: result.html,
+  };
 }
 
 function assert(condition, message) {
@@ -148,4 +182,4 @@ for (const [path, page, language] of [["/ with AR cookie", rootWithAr, "ar"], ["
   assert(groupCount === 2, `${path} ticker rendered ${groupCount} marquee groups instead of 2.`);
 }
 
-console.log("Runtime locale verification passed: normalized redirects, explicit AR/EN/TR ownership, saved root preference, independent first-visit detection, localized program cards, clean language boundaries, locale links, no placeholders, and deterministic ticker mechanics.");
+console.log("Runtime locale verification passed: document-navigation headers, normalized redirects, explicit AR/EN/TR ownership, saved root preference, independent first-visit detection, localized program cards, clean language boundaries, locale links, no placeholders, and deterministic ticker mechanics.");
