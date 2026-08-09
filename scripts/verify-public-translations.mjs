@@ -83,7 +83,7 @@ for (const token of ["SAFE_UNMATCHED_COPY", "HAMZA AGENCY information", "HAMZA A
   if (`${runtimeTranslator}\n${languageSwitcher}`.includes(token)) errors.push(`Forbidden generic public fallback remains: ${token}`);
 }
 
-for (const token of ["window.location.assign", "MutationObserver", "createPortal", "document.createElement", 'aria-haspopup="menu"']) {
+for (const token of ["window.location.assign", "MutationObserver", "createPortal", "document.createElement"]) {
   if (languageSwitcher.includes(token)) errors.push(`LanguageSwitcher still uses forbidden architecture: ${token}`);
 }
 
@@ -91,16 +91,22 @@ for (const token of [
   "router.prefetch",
   "router.replace",
   "useTransition",
-  "scroll: false",
+  "scroll:false",
   "localizePublicPath",
   "window.location.search",
   "window.location.hash",
-  'data-language-switcher="segmented"',
-  "min-h-11",
-  "min-w-11",
+  'data-language-switcher="dropdown"',
+  'aria-haspopup="menu"',
+  'aria-expanded={open}',
+  'role="menu"',
+  'role="menuitemradio"',
+  "العربية",
+  "English",
+  "Türkçe",
 ]) {
-  if (!languageSwitcher.includes(token)) errors.push(`Segmented language switcher is missing: ${token}`);
+  if (!languageSwitcher.includes(token)) errors.push(`Approved language dropdown is missing: ${token}`);
 }
+if (languageSwitcher.includes('data-language-switcher="segmented"')) errors.push("Legacy segmented language switcher returned.");
 
 for (const token of ["<LanguageSwitcher />", 'en: "Content Creator Agency"', 'tr: "İçerik Üreticisi Ajansı"', 'ar: "وكالة حمزة"']) {
   if (!globalHeader.includes(token)) errors.push(`Direct public header is missing: ${token}`);
@@ -164,12 +170,19 @@ if (announcement.includes("justify-around") || announcement.includes("direction:
 if ((announcement.match(/hamza-marquee-group/g) || []).length !== 2) errors.push("Ticker must render exactly two identical marquee groups.");
 
 const approvedSupportCopy = [
-  "نستقبل رسائلكم وطلباتكم على مدار الساعة، وسيتم الرد عليكم في أقرب وقت ممكن.",
-  "We receive your messages and requests around the clock and will respond as soon as possible.",
-  "Mesajlarınızı ve taleplerinizi günün her saati alıyor ve en kısa sürede yanıtlıyoruz.",
+  "فريقنا متواجد لمتابعة طلباتكم ورسائلكم، وسيتم الرد عليكم في أقرب فرصة ممكنة.",
+  "Our team is available to follow up on your requests and messages, and we will respond at the earliest possible opportunity.",
+  "Ekibimiz talep ve mesajlarınızı takip etmek için hazırdır ve size mümkün olan en kısa sürede yanıt verilecektir.",
 ];
 for (const copy of approvedSupportCopy) {
   if (!supportCopy.includes(copy) || !contactUi.includes(copy)) errors.push(`Approved support copy missing: ${copy}`);
+}
+for (const forbidden of [
+  "قد تختلف سرعة الرد حسب ضغط الطلبات ونوع البرنامج أو الخدمة.",
+  "Response times may vary depending on request volume and the type of program or service.",
+  "Yanıt süresi, talep yoğunluğuna ve program ya da hizmet türüne göre değişebilir.",
+]) {
+  if (contactUi.includes(forbidden)) errors.push(`Removed support qualifier returned: ${forbidden}`);
 }
 
 if (!homePage.includes("home_stat_${index + 1}_number")) errors.push("Home statistics are no longer sourced from settings/CMS.");
@@ -185,4 +198,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`Public experience verification passed: ${entries.length} translations, ${requiredRoutes.length} routes × 3 URL-owned locales, approved homepage and announcement translations, safe runtime fallbacks, Arabic ticker rightward movement, EN/TR ticker leftward movement, and mobile dock clearance.`);
+console.log(`Public experience verification passed: ${entries.length} translations, ${requiredRoutes.length} routes × 3 URL-owned locales, approved dropdown language switching, approved support copy, safe runtime fallbacks, localized ticker direction, and mobile dock clearance.`);
