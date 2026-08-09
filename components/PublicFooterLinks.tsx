@@ -1,42 +1,4 @@
 "use client";
-
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { getLanguageDirection } from "@/lib/i18n/locale";
-import { AGENT_PUBLIC_PATH, localizePublicHref, stripLocalePrefix } from "@/lib/i18n/publicLocales";
-import { getCookieConsentCopy, getPwaRuntimeCopy } from "@/lib/i18n/privacyAndPwaCopy";
-import { getSharedNavigationLabel } from "@/lib/i18n/sharedChrome";
-import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
-import { defaultPublicNavigationConfig, getPublicNavigationConfig, type PublicNavigationLink } from "@/lib/publicNavigation";
-
-function shouldHideFooter(pathname: string) { return pathname.startsWith("/admin") || pathname.startsWith("/portal") || pathname === "/maintenance" || pathname === "/pr99-e2e"; }
-const identity = {
-  ar:{prefix:"وكالة حمزة — بإدارة الوكيل",decorated:"⚔عܓོراب✴سܓོوريا⚔",agent:"تعرف على الوكيل عراب سوريا"},
-  en:{line:"Hamza Agency — Managed by Godfather of Syria",agent:"Meet the Godfather of Syria"},
-  tr:{line:"Hamza Ajansı — Suriye'nin Vaftiz Babası yönetiminde",agent:"Suriye'nin Vaftiz Babası'nı tanıyın"},
-} as const;
-function isInternal(href:string){return href.startsWith("/")||href.startsWith("#")}
-function isInstallAppLink(link:PublicNavigationLink){return isInternal(link.href)&&stripLocalePrefix(link.href)==="/install-app"}
-function FooterManagedLink({link,language}:{link:PublicNavigationLink;language:"ar"|"en"|"tr"}){
-  const className="inline-flex min-h-11 items-center rounded-full border border-white/15 px-4 py-2 text-sm font-bold text-white/78 transition hover:border-purple-300/40 hover:text-white";
-  const label=getSharedNavigationLabel(language,link);
-  if(isInternal(link.href)) return <Link href={localizePublicHref(link.href,language)} className={className}>{label}</Link>;
-  return <a href={link.href} target={link.target||"_blank"} rel={link.rel||"noopener noreferrer"} className={className}>{label}</a>;
-}
-export default function PublicFooterLinks(){
-  const pathname=usePathname()||"/"; const language=useSiteLanguage();
-  const[managedLinks,setManagedLinks]=useState<PublicNavigationLink[]>(defaultPublicNavigationConfig.footerLinks);
-  useEffect(()=>{let live=true;getPublicNavigationConfig().then((config)=>{if(live)setManagedLinks(config.footerLinks)}).catch(()=>undefined);return()=>{live=false}},[]);
-  if(shouldHideFooter(pathname))return null;
-  const cookieCopy=getCookieConsentCopy(language);const installCopy=getPwaRuntimeCopy(language);const agentLabel=identity[language].agent;
-  return <footer dir={getLanguageDirection(language)} className="hamza-public-utility-footer border-t border-white/10 bg-[#050008] px-4 py-6 pb-[calc(1.5rem+var(--public-mobile-dock-height,0px)+env(safe-area-inset-bottom))] text-white md:pb-6" data-testid="public-footer-links">
-    <div className="mx-auto max-w-7xl">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0"><p className="text-sm font-black leading-7">{language==="ar"?<><span>{identity.ar.prefix} </span><bdi dir="rtl" className="inline-block max-w-full text-yellow-200 [unicode-bidi:isolate]" style={{letterSpacing:"normal"}}>{identity.ar.decorated}</bdi></>:<span>{language==="en"?identity.en.line:identity.tr.line}</span>}</p><Link href={localizePublicHref(AGENT_PUBLIC_PATH,language)} aria-label={agentLabel} className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-white/78 underline decoration-white/25 underline-offset-4 hover:text-white hover:decoration-purple-300/60" data-testid="footer-agent-link">{agentLabel}</Link></div>
-        <div className="flex flex-wrap gap-2">{managedLinks.filter((link)=>!isInstallAppLink(link)).map((link)=><FooterManagedLink key={`${link.href}-${link.label}`} link={link} language={language}/>)}</div>
-      </div>
-      <div className="mt-4 flex flex-wrap gap-3 text-xs text-white/70"><Link href={localizePublicHref("/install-app",language)} className="underline decoration-white/30 underline-offset-4 hover:text-white" data-testid="footer-install-app">{installCopy.installButton}</Link><Link href={localizePublicHref("/cookie-settings",language)} className="underline decoration-white/30 underline-offset-4 hover:text-white" data-testid="footer-cookie-settings">{cookieCopy.settings}</Link></div>
-    </div>
-  </footer>;
-}
+import Link from"next/link";import{usePathname}from"next/navigation";import{useEffect,useState}from"react";import{getLanguageDirection}from"@/lib/i18n/locale";import{AGENT_PUBLIC_PATH,localizePublicHref,stripLocalePrefix}from"@/lib/i18n/publicLocales";import{getCookieConsentCopy,getPwaRuntimeCopy}from"@/lib/i18n/privacyAndPwaCopy";import{getSharedNavigationLabel}from"@/lib/i18n/sharedChrome";import{useSiteLanguage}from"@/lib/i18n/useSiteLanguage";import{defaultPublicNavigationConfig,getPublicNavigationConfig,type PublicNavigationLink}from"@/lib/publicNavigation";import{DEFAULT_PUBLIC_IDENTITY,getFooterIdentity,getPublicIdentity,type PublicIdentity}from"@/lib/publicIdentity";
+function shouldHideFooter(pathname:string){return pathname.startsWith("/admin")||pathname.startsWith("/portal")||pathname==="/maintenance"||pathname==="/pr99-e2e"}const agentLinkLabel={ar:"تعرف على الوكيل عراب سوريا",en:"Meet the Godfather of Syria",tr:"Suriye'nin Vaftiz Babası'nı tanıyın"}as const;function isInternal(href:string){return href.startsWith("/")||href.startsWith("#")}function isInstallAppLink(link:PublicNavigationLink){return isInternal(link.href)&&stripLocalePrefix(link.href)==="/install-app"}function FooterManagedLink({link,language}:{link:PublicNavigationLink;language:"ar"|"en"|"tr"}){const className="inline-flex min-h-11 items-center rounded-full border border-white/15 px-4 py-2 text-sm font-bold text-white/72 transition hover:border-purple-300/40 hover:text-white";const label=getSharedNavigationLabel(language,link);if(isInternal(link.href))return <Link href={localizePublicHref(link.href,language)} className={className}>{label}</Link>;return <a href={link.href} target={link.target||"_blank"} rel={link.rel||"noopener noreferrer"} className={className}>{label}</a>}
+export default function PublicFooterLinks(){const pathname=usePathname()||"/";const language=useSiteLanguage();const[managedLinks,setManagedLinks]=useState<PublicNavigationLink[]>(defaultPublicNavigationConfig.footerLinks);const[identity,setIdentity]=useState<PublicIdentity>(DEFAULT_PUBLIC_IDENTITY);useEffect(()=>{let live=true;void Promise.all([getPublicNavigationConfig(),getPublicIdentity()]).then(([config,current])=>{if(live){setManagedLinks(config.footerLinks);setIdentity(current)}}).catch(()=>undefined);return()=>{live=false}},[]);if(shouldHideFooter(pathname))return null;const cookieCopy=getCookieConsentCopy(language);const installCopy=getPwaRuntimeCopy(language);const footerLine=getFooterIdentity(identity,language);const linkLabel=language==="ar"?`تعرف على الوكيل ${identity.agentReadableName.ar}`:agentLinkLabel[language];return <footer dir={getLanguageDirection(language)} className="hamza-public-utility-footer border-t border-white/10 bg-[#050008] px-4 py-6 pb-[calc(1.5rem+var(--public-mobile-dock-height,0px)+env(safe-area-inset-bottom))] text-white md:pb-6" data-testid="public-footer-links"><div className="mx-auto max-w-7xl"><div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><p className="text-sm font-black leading-7 text-white/90">{language==="ar"?<><span>{identity.agencyName.ar} — بإدارة الوكيل </span><bdi dir="rtl" className="inline-block max-w-full text-yellow-100/90 [unicode-bidi:isolate]" style={{letterSpacing:"normal"}}>{identity.agentDecoratedAr}</bdi></>:<span>{footerLine}</span>}</p><Link href={localizePublicHref(AGENT_PUBLIC_PATH,language)} aria-label={linkLabel} className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-purple-100/75 underline decoration-purple-300/30 underline-offset-4 hover:text-white hover:decoration-purple-300/60" data-testid="footer-agent-link">{linkLabel}</Link></div><div className="flex flex-wrap gap-2">{managedLinks.filter((link)=>!isInstallAppLink(link)).map((link)=><FooterManagedLink key={`${link.href}-${link.label}`} link={link} language={language}/>)}</div></div><div className="mt-4 flex flex-wrap gap-3 text-xs text-white/60"><Link href={localizePublicHref("/install-app",language)} className="underline decoration-white/30 underline-offset-4 hover:text-white" data-testid="footer-install-app">{installCopy.installButton}</Link><Link href={localizePublicHref("/cookie-settings",language)} className="underline decoration-white/30 underline-offset-4 hover:text-white" data-testid="footer-cookie-settings">{cookieCopy.settings}</Link></div></div></footer>}
