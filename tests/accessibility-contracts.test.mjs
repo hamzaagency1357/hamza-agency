@@ -3,14 +3,20 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("public navigation and language controls expose accessible labels and targets", async () => {
+test("public navigation and language dropdown expose accessible labels, state and targets", async () => {
   const [header, switcher, footer, breadcrumbs] = await Promise.all([read("components/PublicGlobalHeader.tsx"), read("components/LanguageSwitcher.tsx"), read("components/PublicFooterLinks.tsx"), read("components/PublicBreadcrumbs.tsx")]);
   assert.ok(header.includes("aria-label={t.navLabel}"));
   assert.ok(header.includes("aria-current"));
   assert.ok(header.includes("focus-visible:ring-2"));
-  assert.ok(switcher.includes('role="group"'));
-  assert.ok(switcher.includes("aria-label"));
+  assert.ok(switcher.includes('aria-haspopup="menu"'));
+  assert.ok(switcher.includes("aria-expanded={open}"));
+  assert.ok(switcher.includes('role="menu"'));
+  assert.ok(switcher.includes('role="menuitemradio"'));
+  assert.ok(switcher.includes("aria-checked={code===activeLanguage}"));
+  assert.ok(switcher.includes("aria-label={ariaLabels[activeLanguage]}"));
+  assert.ok(switcher.includes("min-h-10"));
   assert.ok(switcher.includes("min-h-11"));
+  assert.ok(switcher.includes("focus-visible:ring-2"));
   assert.ok(footer.includes("<footer"));
   assert.ok(footer.includes('data-testid="public-footer-links"'));
   assert.ok(breadcrumbs.includes('aria-label="Breadcrumb"'));
