@@ -9,7 +9,7 @@ const cases={
 };
 const forbiddenVisibleCopy=["دون نوافذ عائمة أو طلبات تلقائية","without floating cards or automatic prompts","Yüzen kartlar veya otomatik istemler olmadan","beforeinstallprompt"];
 function recordAssertions(testInfo,count){testInfo.annotations.push({type:"closeout-assertions",description:String(count)})}
-async function setExplicitLanguage(context,locale){await context.addInitScript((key)=>window.sessionStorage.setItem(key,"1"),FIRST_VISIT_LANGUAGE_SESSION_KEY);await context.clearCookies();await context.addCookies([{name:languageCookieName,value:locale,url:targetOrigin}])}
+async function setExplicitLanguage(context,locale){await context.addInitScript(({sessionKey,languageKey,language})=>{window.sessionStorage.setItem(sessionKey,"1");window.localStorage.setItem(languageKey,language)}, {sessionKey:FIRST_VISIT_LANGUAGE_SESSION_KEY,languageKey:languageCookieName,language:locale});await context.clearCookies();await context.addCookies([{name:languageCookieName,value:locale,url:targetOrigin}])}
 async function freshConsent(page,route){await page.goto(route,{waitUntil:"networkidle"});await page.evaluate((key)=>localStorage.removeItem(key),storageKey);await page.reload({waitUntil:"networkidle"})}
 async function dispatchInstallPrompt(page){await page.evaluate(()=>{window.installPromptCalls=0;const event=new Event("beforeinstallprompt");Object.defineProperty(event,"prompt",{value:async()=>{window.installPromptCalls+=1}});Object.defineProperty(event,"userChoice",{value:Promise.resolve({outcome:"accepted",platform:"web"})});window.dispatchEvent(event)})}
 async function dismissCookieBanner(page){const banner=page.getByTestId("cookie-banner");if(await banner.isVisible().catch(()=>false))await page.getByTestId("cookie-necessary-only").click()}
