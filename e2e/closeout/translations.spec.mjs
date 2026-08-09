@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { FIRST_VISIT_LANGUAGE_SESSION_KEY } from "../../lib/i18n/firstVisitLanguage.mjs";
 import { installPreviewBypass } from "./preview-bypass.mjs";
 
 const targetUrl = new URL(process.env.CLOSEOUT_TARGET_URL);
@@ -86,6 +87,9 @@ function recordAssertions(testInfo, count) {
 }
 
 async function setExplicitLanguage(context, locale) {
+  await context.addInitScript((sessionKey) => {
+    window.sessionStorage.setItem(sessionKey, "1");
+  }, FIRST_VISIT_LANGUAGE_SESSION_KEY);
   await context.clearCookies();
   await context.addCookies([{
     name: languageCookieName,
