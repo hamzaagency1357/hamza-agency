@@ -30,7 +30,7 @@ test("real apply flow explains program selection, privacy, response and APP trac
   ]) assert.ok(source.includes(token), token);
 });
 
-test("program media schema and admin cover logo hero mobile OG and trilingual alt", async () => {
+test("program media schema and admin/public surfaces preserve PR116 logo-cover-layout contract", async () => {
   const [migration, admin, grid, detail, og] = await Promise.all([
     read("supabase/migrations/20260808090000_pr3_final_owner_qa_closeout.sql"),
     read("app/admin/programs/media/page.tsx"), read("components/ProgramsGridWithTranslations.tsx"),
@@ -39,8 +39,13 @@ test("program media schema and admin cover logo hero mobile OG and trilingual al
   for (const field of ["logo_url","hero_image_url","mobile_image_url","og_image_url","alt_ar","alt_en","alt_tr"]) {
     assert.ok(migration.includes(field), field); assert.ok(admin.includes(field), field);
   }
+  for (const field of ["media_display_mode","detail_layout"]) assert.ok(admin.includes(field), field);
   assert.ok(grid.includes("program.logo_url||getLegacyProgramLogoUrl"));
-  assert.ok(detail.includes("program?.hero_image_url||program?.mobile_image_url||program?.logo_url"));
+  assert.ok(detail.includes("fetchProgramMedia"));
+  assert.ok(detail.includes('const mode:MediaMode=program?.media_display_mode==="cover"||program?.media_display_mode==="logo_cover"'));
+  assert.ok(detail.includes("const layout=program?.detail_layout===2?2:program?.detail_layout===3?3:1"));
+  assert.ok(detail.includes("const cover=program?.hero_image_url||program?.mobile_image_url||null"));
+  assert.ok(detail.includes("const logo=program?.logo_url||null"));
   assert.ok(og.includes("readProgramMediaBySlug"));
   assert.ok(!og.includes('select("name,og_image_url")'));
 });
@@ -96,10 +101,10 @@ test("footer and dock reserve safe area and avoid public content coverage", asyn
   assert.ok(footer.includes("[unicode-bidi:isolate]"));
 });
 
-test("agent mobile closeout keeps one dock clearance and lists every open program", async () => {
+test("agent mobile closeout uses measured dock clearance and lists every open program", async () => {
   const [agent, css] = await Promise.all([read("app/agent/arab-syria/page.tsx"), read("app/owner-final-qa.css")]);
   assert.ok(agent.includes("TikTok, BIGO LIVE, Yaahlan, Xena, Catchii"));
-  assert.ok(agent.includes('className="relative overflow-hidden bg-[#070009] pb-6 text-white sm:pb-8"'));
+  assert.ok(agent.includes('pb-[calc(var(--public-mobile-dock-height,0px)+env(safe-area-inset-bottom)+2rem)]'));
   assert.ok(!agent.includes("pb-[calc(6rem+env(safe-area-inset-bottom))]"));
   assert.ok(css.includes("--public-mobile-dock-clearance"));
   assert.ok(!css.includes("--public-mobile-dock-end-clearance"));
