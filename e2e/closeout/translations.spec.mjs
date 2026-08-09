@@ -1,4 +1,4 @@
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rmdir } from "node:fs/promises";
 import { test, expect } from "@playwright/test";
 import { FIRST_VISIT_LANGUAGE_SESSION_KEY } from "../../lib/i18n/firstVisitLanguage.mjs";
 import { installPreviewBypass } from "./preview-bypass.mjs";
@@ -13,7 +13,7 @@ const ownerMobileViewports=[{width:390,height:844},{width:320,height:720}];
 const sleep=(ms)=>new Promise((resolve)=>setTimeout(resolve,ms));
 function recordAssertions(testInfo,count){testInfo.annotations.push({type:"closeout-assertions",description:String(count)})}
 async function acquireWorkerLock(){await mkdir(".tmp",{recursive:true});for(;;){try{await mkdir(workerLockDir);return}catch(error){if(error?.code!=="EEXIST")throw error;await sleep(50)}}}
-async function releaseWorkerLock(){await rm(workerLockDir,{recursive:true,force:true});await sleep(75)}
+async function releaseWorkerLock(){await rmdir(workerLockDir);await sleep(75)}
 async function setExplicitLanguage(context,page,locale,route){const cookie={name:languageCookieName,value:locale,url:targetOrigin};await context.clearCookies();await context.addCookies([cookie]);await page.goto(route,{waitUntil:"domcontentloaded"});await page.evaluate(({sessionKey,languageKey,language})=>{window.sessionStorage.setItem(sessionKey,"1");window.localStorage.setItem(languageKey,language)}, {sessionKey:FIRST_VISIT_LANGUAGE_SESSION_KEY,languageKey:languageCookieName,language:locale});await context.clearCookies();await context.addCookies([cookie]);await page.goto(route,{waitUntil:"networkidle"})}
 async function freshConsent(page,route){await page.goto(route,{waitUntil:"networkidle"});await page.evaluate((key)=>localStorage.removeItem(key),storageKey);await page.reload({waitUntil:"networkidle"})}
 async function dispatchInstallPrompt(page){await page.evaluate(()=>{window.installPromptCalls=0;const event=new Event("beforeinstallprompt");Object.defineProperty(event,"prompt",{value:async()=>{window.installPromptCalls+=1}});Object.defineProperty(event,"userChoice",{value:Promise.resolve({outcome:"accepted",platform:"web"})});window.dispatchEvent(event)})}
