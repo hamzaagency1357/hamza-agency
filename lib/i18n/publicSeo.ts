@@ -32,8 +32,8 @@ const arabicRouteSeo: Record<string, PublicSeoCopy> = {
 };
 const agentSeo: Record<SiteLanguage, PublicSeoCopy> = {
   ar: { title: "عراب سوريا | الوكيل والمدير في HAMZA AGENCY", description: agencyDescription, schemaType: "WebPage" },
-  en: { title: "Godfather of Syria | Agent and Manager at HAMZA AGENCY", description: "The Godfather of Syria oversees creator support and development, privacy, safety, and live-streaming programs at HAMZA AGENCY through professional follow-up.", schemaType: "WebPage" },
-  tr: { title: "Suriye'nin Vaftiz Babası | HAMZA AGENCY Temsilcisi ve Yöneticisi", description: "Suriye'nin Vaftiz Babası, HAMZA AGENCY bünyesinde içerik üreticisi desteğini ve gelişimini, gizliliği, güvenliği ve canlı yayın programlarını profesyonel takiple yönetir.", schemaType: "WebPage" },
+  en: { title: "Agent Hamza | Agent and Manager at HAMZA AGENCY", description: "Agent Hamza manages creator support and development, privacy, safety, and live-streaming programs at HAMZA AGENCY through professional follow-up.", schemaType: "WebPage" },
+  tr: { title: "Temsilci Hamza | Hamza Ajansı Temsilcisi ve Yöneticisi", description: "Temsilci Hamza, Hamza Ajansı bünyesinde içerik üreticisi desteğini ve gelişimini, gizliliği, güvenliği ve canlı yayın programlarını profesyonel takiple yönetir.", schemaType: "WebPage" },
 };
 const programNames: Record<string,string>={tiktok:"TikTok","bigo-live":"BIGO LIVE",yaahlan:"Yaahlan",xena:"Xena",catchii:"Catchii"};
 const programSeoDescription:Record<SiteLanguage,(name:string)=>string>={
