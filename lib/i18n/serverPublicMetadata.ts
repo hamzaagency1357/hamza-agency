@@ -7,7 +7,7 @@ import { getPublicSeoCopy } from "@/lib/i18n/publicSeo";
 import { isSupabaseConfigured,supabase } from "@/lib/supabase";
 
 const ogLocale:Record<SiteLanguage,string>={ar:"ar_AR",en:"en_US",tr:"tr_TR"};
-const siteKeywords:Record<SiteLanguage,string[]>={ar:["HAMZA AGENCY","وكالة حمزة","عراب سوريا","إدارة صناع المحتوى","برامج البث المباشر","TikTok","BIGO LIVE"],en:["HAMZA AGENCY","Godfather of Syria","content creator management","live streaming programs","TikTok","BIGO LIVE"],tr:["HAMZA AGENCY","Suriye'nin Vaftiz Babası","içerik üreticisi yönetimi","canlı yayın programları","TikTok","BIGO LIVE"]};
+const siteKeywords:Record<SiteLanguage,string[]>={ar:["HAMZA AGENCY","وكالة حمزة","عراب سوريا","إدارة صناع المحتوى","برامج البث المباشر","TikTok","BIGO LIVE"],en:["HAMZA AGENCY","Agent Hamza","content creator management","live streaming programs","TikTok","BIGO LIVE"],tr:["HAMZA AGENCY","Temsilci Hamza","içerik üreticisi yönetimi","canlı yayın programları","TikTok","BIGO LIVE"]};
 export type RequestSiteContext={language:SiteLanguage;direction:"rtl"|"ltr";publicPath:string;requestPath:string};
 type SeoOverlay={title?:string;description?:string;canonical?:string;og_title?:string;og_description?:string;og_image?:string;allow_index?:boolean;last_modified?:string;page_type?:string};
 type SettingRow={setting_key:string|null;setting_value:string|null};
