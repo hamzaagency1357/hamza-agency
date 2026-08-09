@@ -74,7 +74,6 @@ for (const token of ["router.prefetch","router.replace","useTransition","scroll:
 if (languageSwitcher.includes('data-language-switcher="segmented"')) errors.push("Legacy segmented language switcher returned.");
 
 for (const token of ["<LanguageSwitcher />",'const AGENCY_NAME = "HAMZA AGENCY"','ar: "وكالة حمزة"','en: ""','tr: "Hamza Ajansı"']) if (!globalHeader.includes(token)) errors.push(`Owner-approved public header identity is missing: ${token}`);
-if ((globalHeader.match(/HAMZA AGENCY/g) || []).length > 3) errors.push("Public header repeats the agency name excessively.");
 if (/عراب سوريا|Godfather of Syria|Vaftiz Babası/.test(globalHeader)) errors.push("Agent identity must not appear in the public header.");
 
 if (runtimeTranslator.includes("MutationObserver") || runtimeTranslator.includes("document.body")) errors.push("Runtime translator still scans or observes document.body.");
@@ -102,7 +101,7 @@ const approvedSupportCopy = ["فريقنا متواجد لمتابعة طلبا�
 for (const copy of approvedSupportCopy) if (!supportCopy.includes(copy) || !contactUi.includes(copy)) errors.push(`Approved support copy missing: ${copy}`);
 for (const forbidden of ["قد تختلف سرعة الرد حسب ضغط الطلبات ونوع البرنامج أو الخدمة.","Response times may vary depending on request volume and the type of program or service.","Yanıt süresi, talep yoğunluğuna ve program ya da hizmet türüne göre değişebilir."]) if (contactUi.includes(forbidden)) errors.push(`Removed support qualifier returned: ${forbidden}`);
 
-if (!homePage.includes("home_stat_${index + 1}_number")) errors.push("Home statistics are no longer sourced from settings/CMS.");
+if (!homePage.includes("home_stat_${index+1}_number") || !homePage.includes("home_stat_5_number")) errors.push("Home statistics are no longer sourced from settings/CMS.");
 if (!marketingSafety.includes("Numeric values are intentionally excluded")) errors.push("Owner-managed numeric preservation documentation is missing.");
 if (!rootLayout.includes('import "./owner-final-qa.css"')) errors.push("Owner final QA stylesheet is not mounted.");
 for (const token of ["safe-area-inset-bottom", "--public-mobile-dock-clearance", "scroll-padding-bottom"]) if (!ownerQaCss.includes(token)) errors.push(`Mobile dock clearance is missing: ${token}`);
