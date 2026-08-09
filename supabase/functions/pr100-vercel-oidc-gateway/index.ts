@@ -21,6 +21,14 @@ const ALLOWED_ACTIONS = new Set([
   "ai_support_submit",
   "review_submit",
 ]);
+const PRODUCTION_ONLY_ACTIONS = new Set([
+  "application_submit",
+  "service_request_submit",
+  "job_application_submit",
+  "contact_submit",
+  "ai_support_submit",
+  "review_submit",
+]);
 const JWKS = createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks`));
 const encoder = new TextEncoder();
 
@@ -59,6 +67,7 @@ Deno.serve(async (request: Request) => {
   const bodyDigest=typeof input.bodyDigest==="string"?input.bodyDigest.toLowerCase():"";
   const now=Math.floor(Date.now()/1000);
   if(!ALLOWED_ACTIONS.has(action))return json(400,{allowed:false,code:"invalid_action"});
+  if(environment==="preview"&&PRODUCTION_ONLY_ACTIONS.has(action))return json(403,{allowed:false,code:"preview_write_denied"});
   if(timestamp<now-120||timestamp>now+30)return json(400,{allowed:false,code:"stale_request"});
   if(!/^[A-Za-z0-9_-]{24,80}$/.test(nonce))return json(400,{allowed:false,code:"invalid_nonce"});
   if(!body||encoder.encode(body).byteLength>40_000)return json(400,{allowed:false,code:"invalid_payload"});
