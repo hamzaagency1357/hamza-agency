@@ -110,7 +110,35 @@ export async function middleware(request: NextRequest) {
   );
 }
 
+function shouldPersistLanguagePreference(request: NextRequest) {
+  if (request.method !== "GET") return false;
+
+  const headers = request.headers;
+  const purpose = `${headers.get("purpose") || ""} ${headers.get("sec-purpose") || ""}`.toLowerCase();
+
+  if (
+    headers.get("next-router-prefetch") === "1" ||
+    headers.get("x-middleware-prefetch") === "1" ||
+    purpose.includes("prefetch") ||
+    headers.get("rsc") === "1" ||
+    headers.has("next-router-state-tree") ||
+    headers.has("next-router-segment-prefetch")
+  ) {
+    return false;
+  }
+
+  const fetchMode = headers.get("sec-fetch-mode");
+  const fetchDestination = headers.get("sec-fetch-dest");
+
+  if (fetchMode || fetchDestination) {
+    return fetchMode === "navigate" && fetchDestination === "document";
+  }
+
+  return (headers.get("accept") || "").toLowerCase().includes("text/html");
+}
+
 function resolveFirstVisitRedirect(request: NextRequest) {
+  if (!shouldPersistLanguagePreference(request)) return null;
   if (request.nextUrl.pathname !== "/") return null;
 
   const savedLanguage =
@@ -158,7 +186,10 @@ function createLocalizedResponse({
       )
     : NextResponse.next({ request: { headers: requestHeaders } });
 
-  if (isSupportedPublicPath(publicPath)) {
+  if (
+    isSupportedPublicPath(publicPath) &&
+    shouldPersistLanguagePreference(request)
+  ) {
     response.cookies.set(SITE_LANGUAGE_STORAGE_KEY, language, {
       maxAge: 60 * 60 * 24 * 365,
       path: "/",

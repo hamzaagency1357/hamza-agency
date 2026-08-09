@@ -15,7 +15,6 @@ export default function LanguageSwitcher(){
   const[locationSuffix,setLocationSuffix]=useState("");const[open,setOpen]=useState(false);const[isPending,startTransition]=useTransition();const rootRef=useRef<HTMLDivElement>(null);
   useEffect(()=>setLocationSuffix(`${window.location.search}${window.location.hash}`),[pathname]);
   const localizedTargets=useMemo(()=>Object.fromEntries(SITE_LANGUAGES.map(({code})=>[code,`${localizePublicPath(pathname||"/",code)}${locationSuffix}`])) as Record<SiteLanguage,string>,[locationSuffix,pathname]);
-  useEffect(()=>{const arabicPath=localizePublicPath(pathname||"/","ar");for(const{code}of SITE_LANGUAGES){if(activeLanguage!=="ar"&&code==="ar"&&arabicPath==="/")continue;router.prefetch(localizedTargets[code])}},[activeLanguage,localizedTargets,pathname,router]);
   useEffect(()=>{if(!open)return;const key=(event:KeyboardEvent)=>{if(event.key==="Escape")setOpen(false)};const pointer=(event:PointerEvent)=>{if(event.target instanceof Node&&!rootRef.current?.contains(event.target))setOpen(false)};document.addEventListener("keydown",key);document.addEventListener("pointerdown",pointer);return()=>{document.removeEventListener("keydown",key);document.removeEventListener("pointerdown",pointer)}},[open]);
   function changeLanguage(next:SiteLanguage){if(isPending||next===activeLanguage){setOpen(false);return}rememberLanguagePreference(next);setOpen(false);startTransition(()=>router.replace(localizedTargets[next],{scroll:false}))}
   return <div ref={rootRef} className="relative shrink-0" aria-busy={isPending}>

@@ -1,34 +1,401 @@
-import { mkdir, rmdir } from "node:fs/promises";
 import { test, expect } from "@playwright/test";
 import { FIRST_VISIT_LANGUAGE_SESSION_KEY } from "../../lib/i18n/firstVisitLanguage.mjs";
-import { installPreviewBypass } from "./preview-bypass.mjs";
-const targetUrl=new URL(process.env.CLOSEOUT_TARGET_URL),targetOrigin=targetUrl.origin,expectedHost=targetUrl.hostname.toLowerCase(),languageCookieName="hamza-agency-language",storageKey="hamza_agency_cookie_consent",workerLockDir=".tmp/translation-e2e-worker-lock";const arabicPattern=/[\u0600-\u06ff]/;test.describe.configure({retries:0});
-const cases={
- ar:{route:"/",settingsRoute:"/cookie-settings",installRoute:"/install-app",dir:"rtl",cookieTitle:"الخصوصية وملفات الارتباط",acceptAll:"قبول الكل",necessaryOnly:"الضرورية فقط",manage:"إدارة التفضيلات",install:{agency:"وكالة حمزة",eyebrow:"تطبيق وكالة حمزة",title:"ثبّت الموقع كتطبيق",description:"ثبّت وكالة حمزة على جهازك للوصول السريع إلى البرامج والخدمات ومتابعة طلباتك بسهولة.",statusTitle:"التثبيت جاهز",statusDescription:"اضغط الزر أدناه لفتح خيار التثبيت في المتصفح.",button:"تثبيت التطبيق",back:"العودة إلى الرئيسية"}},
- en:{route:"/en",settingsRoute:"/en/cookie-settings",installRoute:"/en/install-app",dir:"ltr",cookieTitle:"Privacy and cookies",acceptAll:"Accept all",necessaryOnly:"Necessary only",manage:"Manage preferences",install:{agency:"HAMZA AGENCY",eyebrow:"HAMZA AGENCY app",title:"Install the website as an app",description:"Install HAMZA AGENCY on your device for fast access to programs, services, and application tracking.",statusTitle:"Installation is ready",statusDescription:"Press the button below to open the browser installation option.",button:"Install app",back:"Back to home"}},
- tr:{route:"/tr",settingsRoute:"/tr/cookie-settings",installRoute:"/tr/install-app",dir:"ltr",cookieTitle:"Gizlilik ve çerezler",acceptAll:"Tümünü kabul et",necessaryOnly:"Yalnızca gerekli",manage:"Tercihleri yönet",install:{agency:"Hamza Ajansı",eyebrow:"Hamza Ajansı uygulaması",title:"Web sitesini uygulama olarak yükleyin",description:"Programlara, hizmetlere ve başvuru takibine hızlı erişmek için Hamza Ajansı'nı cihazınıza yükleyin.",statusTitle:"Yükleme hazır",statusDescription:"Tarayıcıdaki yükleme seçeneğini açmak için aşağıdaki düğmeye basın.",button:"Uygulamayı yükle",back:"Ana sayfaya dön"}},
+import { installPreviewBypass, previewBypassHeaders } from "./preview-bypass.mjs";
+
+const targetUrl = new URL(process.env.CLOSEOUT_TARGET_URL);
+const targetOrigin = targetUrl.origin;
+const expectedHost = targetUrl.hostname.toLowerCase();
+const languageCookieName = "hamza-agency-language";
+const storageKey = "hamza_agency_cookie_consent";
+const arabicPattern = /[\u0600-\u06ff]/;
+
+test.describe.configure({ retries: 0 });
+
+const cases = {
+  ar: {
+    route: "/",
+    settingsRoute: "/cookie-settings",
+    installRoute: "/install-app",
+    dir: "rtl",
+    cookieTitle: "الخصوصية وملفات الارتباط",
+    acceptAll: "قبول الكل",
+    necessaryOnly: "الضرورية فقط",
+    manage: "إدارة التفضيلات",
+    install: {
+      agency: "وكالة حمزة",
+      eyebrow: "تطبيق وكالة حمزة",
+      title: "ثبّت الموقع كتطبيق",
+      description: "ثبّت وكالة حمزة على جهازك للوصول السريع إلى البرامج والخدمات ومتابعة طلباتك بسهولة.",
+      statusTitle: "التثبيت جاهز",
+      statusDescription: "اضغط الزر أدناه لفتح خيار التثبيت في المتصفح.",
+      button: "تثبيت التطبيق",
+      back: "العودة إلى الرئيسية",
+    },
+  },
+  en: {
+    route: "/en",
+    settingsRoute: "/en/cookie-settings",
+    installRoute: "/en/install-app",
+    dir: "ltr",
+    cookieTitle: "Privacy and cookies",
+    acceptAll: "Accept all",
+    necessaryOnly: "Necessary only",
+    manage: "Manage preferences",
+    install: {
+      agency: "HAMZA AGENCY",
+      eyebrow: "HAMZA AGENCY app",
+      title: "Install the website as an app",
+      description: "Install HAMZA AGENCY on your device for fast access to programs, services, and application tracking.",
+      statusTitle: "Installation is ready",
+      statusDescription: "Press the button below to open the browser installation option.",
+      button: "Install app",
+      back: "Back to home",
+    },
+  },
+  tr: {
+    route: "/tr",
+    settingsRoute: "/tr/cookie-settings",
+    installRoute: "/tr/install-app",
+    dir: "ltr",
+    cookieTitle: "Gizlilik ve çerezler",
+    acceptAll: "Tümünü kabul et",
+    necessaryOnly: "Yalnızca gerekli",
+    manage: "Tercihleri yönet",
+    install: {
+      agency: "Hamza Ajansı",
+      eyebrow: "Hamza Ajansı uygulaması",
+      title: "Web sitesini uygulama olarak yükleyin",
+      description: "Programlara, hizmetlere ve başvuru takibine hızlı erişmek için Hamza Ajansı'nı cihazınıza yükleyin.",
+      statusTitle: "Yükleme hazır",
+      statusDescription: "Tarayıcıdaki yükleme seçeneğini açmak için aşağıdaki düğmeye basın.",
+      button: "Uygulamayı yükle",
+      back: "Ana sayfaya dön",
+    },
+  },
 };
-const forbiddenVisibleCopy=["دون نوافذ عائمة أو طلبات تلقائية","without floating cards or automatic prompts","Yüzen kartlar veya otomatik istemler olmadan","beforeinstallprompt"];
-const ownerMobileViewports=[{width:390,height:844},{width:320,height:720}];
-const sleep=(ms)=>new Promise((resolve)=>setTimeout(resolve,ms));
-function recordAssertions(testInfo,count){testInfo.annotations.push({type:"closeout-assertions",description:String(count)})}
-async function acquireWorkerLock(){await mkdir(".tmp",{recursive:true});for(;;){try{await mkdir(workerLockDir);return}catch(error){if(error?.code!=="EEXIST")throw error;await sleep(50)}}}
-async function releaseWorkerLock(){await rmdir(workerLockDir);await sleep(75)}
-async function setExplicitLanguage(context,page,locale,route){const cookie={name:languageCookieName,value:locale,url:targetOrigin},dir=locale==="ar"?"rtl":"ltr",expectedUrl=new URL(route,targetOrigin).toString();await context.clearCookies();await context.addCookies([cookie]);await context.addInitScript(({origin,sessionKey,languageKey,language})=>{if(window.location.origin!==origin)return;window.localStorage.setItem(languageKey,language);window.sessionStorage.setItem(sessionKey,"1")},{origin:targetOrigin,sessionKey:FIRST_VISIT_LANGUAGE_SESSION_KEY,languageKey:languageCookieName,language:locale});await page.goto(route,{waitUntil:"networkidle"});await expect(page).toHaveURL(expectedUrl);await expect(page.locator("html")).toHaveAttribute("lang",locale);await expect(page.locator("html")).toHaveAttribute("dir",dir)}
-async function freshConsent(page,route){await page.goto(route,{waitUntil:"networkidle"});await page.evaluate((key)=>localStorage.removeItem(key),storageKey);await page.reload({waitUntil:"networkidle"})}
-async function dispatchInstallPrompt(page){await page.evaluate(()=>{window.installPromptCalls=0;const event=new Event("beforeinstallprompt");Object.defineProperty(event,"prompt",{value:async()=>{window.installPromptCalls+=1}});Object.defineProperty(event,"userChoice",{value:Promise.resolve({outcome:"accepted",platform:"web"})});window.dispatchEvent(event)})}
-async function dismissCookieBanner(page){const banner=page.getByTestId("cookie-banner");if(await banner.isVisible().catch(()=>false))await page.getByTestId("cookie-necessary-only").click()}
-async function chooseLanguage(page,label){const switcher=page.locator('[data-language-switcher="dropdown"]').first();await expect(switcher).toBeVisible();await switcher.click();await page.getByRole("menuitemradio",{name:new RegExp(label)}).click()}
-async function expectInstallCopy(page,locale,data){const installPage=page.getByTestId("install-app-page");await expect(page).toHaveURL(new RegExp(`${data.installRoute.replaceAll("/","\\/")}$`));await expect(page.locator("html")).toHaveAttribute("lang",locale);await expect(page.locator("html")).toHaveAttribute("dir",data.dir);await expect(installPage).toHaveAttribute("data-install-locale",locale);await expect(installPage.getByRole("heading",{level:1,name:data.install.agency})).toBeVisible();await expect(installPage.getByText(data.install.eyebrow,{exact:true})).toBeVisible();await expect(installPage.getByRole("heading",{level:2,name:data.install.title})).toBeVisible();await expect(installPage.getByText(data.install.description,{exact:true})).toBeVisible();await expect(page.getByTestId("install-app-status").getByRole("heading",{level:2,name:data.install.statusTitle})).toBeVisible();await expect(page.getByTestId("install-app-status").getByText(data.install.statusDescription,{exact:true})).toBeVisible();await expect(page.getByTestId("install-app-action")).toHaveText(data.install.button);await expect(page.getByTestId("install-app-back-home")).toHaveText(data.install.back);const visible=await installPage.innerText();for(const forbidden of forbiddenVisibleCopy)expect(visible).not.toContain(forbidden);if(locale!=="ar")expect(visible).not.toMatch(arabicPattern)}
-async function assertClickTargetInViewport(page,testId){const locator=page.getByTestId(testId);await expect(locator).toBeVisible();await expect(locator).toBeEnabled();const box=await locator.boundingBox(),viewport=page.viewportSize();expect(box).not.toBeNull();expect(box.y).toBeGreaterThanOrEqual(0);expect(box.y+box.height).toBeLessThanOrEqual(viewport.height);expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(viewport.width)}
-test.beforeEach(async({page})=>{await acquireWorkerLock();await installPreviewBypass(page,expectedHost);await page.route("**/api/product-expansion/consent",(route)=>route.fulfill({status:204,body:""}))});
-test.afterEach(async()=>{await releaseWorkerLock()});
-for(const[locale,data]of Object.entries(cases)){
- for(const viewport of ownerMobileViewports){
-  test(`${locale} cookie actions are naturally clickable on ${viewport.width}x${viewport.height}`,async({context,page},testInfo)=>{await page.setViewportSize(viewport);await setExplicitLanguage(context,page,locale,data.route);await freshConsent(page,data.route);const banner=page.getByTestId("cookie-banner");await expect(banner).toBeVisible();await expect(banner).toHaveAttribute("dir",data.dir);await expect(banner).toHaveAttribute("data-cookie-locale",locale);await expect(banner.getByRole("heading",{name:data.cookieTitle})).toBeVisible();for(const id of["cookie-accept-all","cookie-necessary-only","cookie-manage-preferences"])await assertClickTargetInViewport(page,id);const bannerBox=await banner.boundingBox();const dock=page.getByTestId("public-mobile-dock");if(await dock.isVisible().catch(()=>false)){const dockBox=await dock.boundingBox();expect(bannerBox.y+bannerBox.height).toBeLessThanOrEqual(dockBox.y+1)}await page.getByTestId("cookie-necessary-only").click();await expect(banner).toBeHidden();recordAssertions(testInfo,15)});
- }
- test(`${locale} install page follows current semantic contract`,async({context,page},testInfo)=>{await setExplicitLanguage(context,page,locale,data.installRoute);await dismissCookieBanner(page);await dispatchInstallPrompt(page);await expect(page.getByTestId("install-app-action")).toBeVisible();await expectInstallCopy(page,locale,data);expect(await page.evaluate(()=>window.installPromptCalls)).toBe(0);await page.getByTestId("install-app-action").click();await expect.poll(()=>page.evaluate(()=>window.installPromptCalls)).toBe(1);recordAssertions(testInfo,15)})
+
+const forbiddenVisibleCopy = [
+  "دون نوافذ عائمة أو طلبات تلقائية",
+  "without floating cards or automatic prompts",
+  "Yüzen kartlar veya otomatik istemler olmadan",
+  "beforeinstallprompt",
+];
+const ownerMobileViewports = [
+  { width: 390, height: 844 },
+  { width: 320, height: 720 },
+];
+
+function recordAssertions(testInfo, count) {
+  testInfo.annotations.push({
+    type: "closeout-assertions",
+    description: String(count),
+  });
 }
-test("cookie decisions persist across reload and locale changes",async({page},testInfo)=>{await freshConsent(page,"/");await page.getByTestId("cookie-necessary-only").click();await page.reload({waitUntil:"networkidle"});await expect(page.getByTestId("cookie-banner")).toBeHidden();await page.goto("/en",{waitUntil:"networkidle"});await expect(page.getByTestId("cookie-banner")).toBeHidden();await page.goto("/tr",{waitUntil:"networkidle"});await expect(page.getByTestId("cookie-banner")).toBeHidden();expect(await page.evaluate((key)=>JSON.parse(localStorage.getItem(key)),storageKey)).toMatchObject({analytics:false,preferences:false,marketing:false});recordAssertions(testInfo,6)});
-test("Install App language switch changes URL and complete page together",async({page},testInfo)=>{await page.goto("/install-app",{waitUntil:"networkidle"});await dismissCookieBanner(page);await dispatchInstallPrompt(page);await expectInstallCopy(page,"ar",cases.ar);await chooseLanguage(page,"English");await expectInstallCopy(page,"en",cases.en);await chooseLanguage(page,"Türkçe");await expectInstallCopy(page,"tr",cases.tr);await chooseLanguage(page,"العربية");await expectInstallCopy(page,"ar",cases.ar);expect(await page.evaluate(()=>window.installPromptCalls)).toBe(0);recordAssertions(testInfo,40)});
-test("Chrome Custom Tab keeps localized fallback without automatic install",async({page},testInfo)=>{await page.setViewportSize({width:390,height:844});await page.addInitScript(()=>{Object.defineProperty(Document.prototype,"referrer",{configurable:true,get:()=>"android-app://com.example.host"})});await page.goto("/en/install-app",{waitUntil:"networkidle"});await dismissCookieBanner(page);await dispatchInstallPrompt(page);await expect(page.getByTestId("install-custom-tab-instructions")).toContainText("Open this page in full Chrome");await expect(page.getByTestId("install-open-chrome")).toHaveText("Open in Chrome");expect(await page.evaluate(()=>window.installPromptCalls)).toBe(0);recordAssertions(testInfo,5)});
+
+async function expectLanguageCookie(context, locale) {
+  const cookies = await context.cookies(targetOrigin);
+  expect(
+    cookies.find((cookie) => cookie.name === languageCookieName)?.value
+  ).toBe(locale);
+}
+
+async function requestBackgroundLocale(context, route, headers) {
+  const url = new URL(route, targetOrigin).toString();
+  const response = await context.request.get(url, {
+    failOnStatusCode: false,
+    headers: {
+      ...previewBypassHeaders(expectedHost, url),
+      ...headers,
+    },
+  });
+  expect(response.status()).toBeLessThan(500);
+  await response.dispose();
+}
+
+async function setExplicitLanguage(context, page, locale, route) {
+  const cookie = {
+    name: languageCookieName,
+    value: locale,
+    url: targetOrigin,
+  };
+  const dir = locale === "ar" ? "rtl" : "ltr";
+  const expectedUrl = new URL(route, targetOrigin).toString();
+
+  await context.clearCookies();
+  await context.addCookies([cookie]);
+  await context.addInitScript(
+    ({ origin, sessionKey, languageKey, language }) => {
+      if (window.location.origin !== origin) return;
+      window.localStorage.setItem(languageKey, language);
+      window.sessionStorage.setItem(sessionKey, "1");
+    },
+    {
+      origin: targetOrigin,
+      sessionKey: FIRST_VISIT_LANGUAGE_SESSION_KEY,
+      languageKey: languageCookieName,
+      language: locale,
+    }
+  );
+  await page.goto(route, { waitUntil: "networkidle" });
+  await expect(page).toHaveURL(expectedUrl);
+  await expect(page.locator("html")).toHaveAttribute("lang", locale);
+  await expect(page.locator("html")).toHaveAttribute("dir", dir);
+  await expectLanguageCookie(context, locale);
+}
+
+async function freshConsent(page) {
+  await page.evaluate((key) => localStorage.removeItem(key), storageKey);
+  await page.reload({ waitUntil: "networkidle" });
+}
+
+async function dispatchInstallPrompt(page) {
+  await page.evaluate(() => {
+    window.installPromptCalls = 0;
+    const event = new Event("beforeinstallprompt");
+    Object.defineProperty(event, "prompt", {
+      value: async () => {
+        window.installPromptCalls += 1;
+      },
+    });
+    Object.defineProperty(event, "userChoice", {
+      value: Promise.resolve({ outcome: "accepted", platform: "web" }),
+    });
+    window.dispatchEvent(event);
+  });
+}
+
+async function dismissCookieBanner(page) {
+  const banner = page.getByTestId("cookie-banner");
+  if (await banner.isVisible().catch(() => false)) {
+    await page.getByTestId("cookie-necessary-only").click();
+  }
+}
+
+async function chooseLanguage(page, label) {
+  const switcher = page.locator('[data-language-switcher="dropdown"]').first();
+  await expect(switcher).toBeVisible();
+  await switcher.click();
+  await page.getByRole("menuitemradio", { name: new RegExp(label) }).click();
+}
+
+async function expectInstallCopy(page, locale, data) {
+  const installPage = page.getByTestId("install-app-page");
+  await expect(page).toHaveURL(
+    new RegExp(`${data.installRoute.replaceAll("/", "\\/")}$`)
+  );
+  await expect(page.locator("html")).toHaveAttribute("lang", locale);
+  await expect(page.locator("html")).toHaveAttribute("dir", data.dir);
+  await expect(installPage).toHaveAttribute("data-install-locale", locale);
+  await expect(
+    installPage.getByRole("heading", { level: 1, name: data.install.agency })
+  ).toBeVisible();
+  await expect(
+    installPage.getByText(data.install.eyebrow, { exact: true })
+  ).toBeVisible();
+  await expect(
+    installPage.getByRole("heading", { level: 2, name: data.install.title })
+  ).toBeVisible();
+  await expect(
+    installPage.getByText(data.install.description, { exact: true })
+  ).toBeVisible();
+  await expect(
+    page
+      .getByTestId("install-app-status")
+      .getByRole("heading", { level: 2, name: data.install.statusTitle })
+  ).toBeVisible();
+  await expect(
+    page
+      .getByTestId("install-app-status")
+      .getByText(data.install.statusDescription, { exact: true })
+  ).toBeVisible();
+  await expect(page.getByTestId("install-app-action")).toHaveText(
+    data.install.button
+  );
+  await expect(page.getByTestId("install-app-back-home")).toHaveText(
+    data.install.back
+  );
+
+  const visible = await installPage.innerText();
+  for (const forbidden of forbiddenVisibleCopy) {
+    expect(visible).not.toContain(forbidden);
+  }
+  if (locale !== "ar") expect(visible).not.toMatch(arabicPattern);
+}
+
+async function assertClickTargetInViewport(page, testId) {
+  const locator = page.getByTestId(testId);
+  await expect(locator).toBeVisible();
+  await expect(locator).toBeEnabled();
+  const box = await locator.boundingBox();
+  const viewport = page.viewportSize();
+  expect(box).not.toBeNull();
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+}
+
+test.beforeEach(async ({ page }) => {
+  await installPreviewBypass(page, expectedHost);
+  await page.route("**/api/product-expansion/consent", (route) =>
+    route.fulfill({ status: 204, body: "" })
+  );
+});
+
+for (const [locale, data] of Object.entries(cases)) {
+  for (const viewport of ownerMobileViewports) {
+    test(`${locale} cookie actions are naturally clickable on ${viewport.width}x${viewport.height}`, async ({ context, page }, testInfo) => {
+      await page.setViewportSize(viewport);
+      await setExplicitLanguage(context, page, locale, data.route);
+      await freshConsent(page);
+      await expectLanguageCookie(context, locale);
+
+      const banner = page.getByTestId("cookie-banner");
+      await expect(banner).toBeVisible();
+      await expect(banner).toHaveAttribute("dir", data.dir);
+      await expect(banner).toHaveAttribute("data-cookie-locale", locale);
+      await expect(
+        banner.getByRole("heading", { name: data.cookieTitle })
+      ).toBeVisible();
+
+      for (const id of [
+        "cookie-accept-all",
+        "cookie-necessary-only",
+        "cookie-manage-preferences",
+      ]) {
+        await assertClickTargetInViewport(page, id);
+      }
+
+      const bannerBox = await banner.boundingBox();
+      const dock = page.getByTestId("public-mobile-dock");
+      if (await dock.isVisible().catch(() => false)) {
+        const dockBox = await dock.boundingBox();
+        expect(bannerBox.y + bannerBox.height).toBeLessThanOrEqual(
+          dockBox.y + 1
+        );
+      }
+
+      await page.getByTestId("cookie-necessary-only").click();
+      await expect(banner).toBeHidden();
+      await expectLanguageCookie(context, locale);
+      recordAssertions(testInfo, 17);
+    });
+  }
+
+  test(`${locale} install page follows current semantic contract`, async ({ context, page }, testInfo) => {
+    await setExplicitLanguage(context, page, locale, data.installRoute);
+    await dismissCookieBanner(page);
+    await dispatchInstallPrompt(page);
+    await expect(page.getByTestId("install-app-action")).toBeVisible();
+    await expectInstallCopy(page, locale, data);
+    await expectLanguageCookie(context, locale);
+    expect(await page.evaluate(() => window.installPromptCalls)).toBe(0);
+    await page.getByTestId("install-app-action").click();
+    await expect
+      .poll(() => page.evaluate(() => window.installPromptCalls))
+      .toBe(1);
+    await expectLanguageCookie(context, locale);
+    recordAssertions(testInfo, 17);
+  });
+}
+
+test("cookie decisions persist across reload and locale changes", async ({ context, page }, testInfo) => {
+  await context.clearCookies();
+  await context.addCookies([
+    { name: languageCookieName, value: "ar", url: targetOrigin },
+  ]);
+  await page.goto("/", { waitUntil: "networkidle" });
+  await expect(page).toHaveURL(new URL("/", targetOrigin).toString());
+  await expect(page.locator("html")).toHaveAttribute("lang", "ar");
+  await expectLanguageCookie(context, "ar");
+
+  await requestBackgroundLocale(context, "/en", {
+    accept: "text/x-component",
+    rsc: "1",
+    "next-router-prefetch": "1",
+  });
+  await expectLanguageCookie(context, "ar");
+
+  await requestBackgroundLocale(context, "/tr", {
+    accept: "text/html",
+    purpose: "prefetch",
+    "sec-purpose": "prefetch",
+  });
+  await expectLanguageCookie(context, "ar");
+  await expect(page).toHaveURL(new URL("/", targetOrigin).toString());
+  await expect(page.locator("html")).toHaveAttribute("lang", "ar");
+
+  await freshConsent(page);
+  await expectLanguageCookie(context, "ar");
+  await page.getByTestId("cookie-necessary-only").click();
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(page.getByTestId("cookie-banner")).toBeHidden();
+  await expect(page.locator("html")).toHaveAttribute("lang", "ar");
+  await expectLanguageCookie(context, "ar");
+
+  await page.goto("/en", { waitUntil: "networkidle" });
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expectLanguageCookie(context, "en");
+  await expect(page.getByTestId("cookie-banner")).toBeHidden();
+
+  await page.goto("/tr", { waitUntil: "networkidle" });
+  await expect(page.locator("html")).toHaveAttribute("lang", "tr");
+  await expectLanguageCookie(context, "tr");
+  await expect(page.getByTestId("cookie-banner")).toBeHidden();
+
+  expect(
+    await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), storageKey)
+  ).toMatchObject({
+    analytics: false,
+    preferences: false,
+    marketing: false,
+  });
+
+  recordAssertions(testInfo, 20);
+});
+
+test("Install App language switch changes URL and complete page together", async ({ context, page }, testInfo) => {
+  await page.goto("/install-app", { waitUntil: "networkidle" });
+  await dismissCookieBanner(page);
+  await dispatchInstallPrompt(page);
+
+  await expectInstallCopy(page, "ar", cases.ar);
+  await expectLanguageCookie(context, "ar");
+
+  await chooseLanguage(page, "English");
+  await expectInstallCopy(page, "en", cases.en);
+  await expectLanguageCookie(context, "en");
+
+  await chooseLanguage(page, "Türkçe");
+  await expectInstallCopy(page, "tr", cases.tr);
+  await expectLanguageCookie(context, "tr");
+
+  await chooseLanguage(page, "العربية");
+  await expectInstallCopy(page, "ar", cases.ar);
+  await expectLanguageCookie(context, "ar");
+
+  expect(await page.evaluate(() => window.installPromptCalls)).toBe(0);
+  recordAssertions(testInfo, 44);
+});
+
+test("Chrome Custom Tab keeps localized fallback without automatic install", async ({ context, page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    Object.defineProperty(Document.prototype, "referrer", {
+      configurable: true,
+      get: () => "android-app://com.example.host",
+    });
+  });
+  await page.goto("/en/install-app", { waitUntil: "networkidle" });
+  await dismissCookieBanner(page);
+  await dispatchInstallPrompt(page);
+  await expect(
+    page.getByTestId("install-custom-tab-instructions")
+  ).toContainText("Open this page in full Chrome");
+  await expect(page.getByTestId("install-open-chrome")).toHaveText(
+    "Open in Chrome"
+  );
+  await expectLanguageCookie(context, "en");
+  expect(await page.evaluate(() => window.installPromptCalls)).toBe(0);
+  recordAssertions(testInfo, 6);
+});

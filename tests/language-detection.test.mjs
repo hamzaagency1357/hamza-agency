@@ -39,3 +39,24 @@ test("middleware redirects the neutral root before rendering without loops", asy
   for (const token of ["resolveFirstVisitRedirect", "parseAcceptLanguageHeader", "SITE_LANGUAGE_STORAGE_KEY", 'request.nextUrl.pathname !== "/"', 'language !== "en" && language !== "tr"', "NextResponse.redirect(redirectUrl, 307)"]) assert.ok(middleware.includes(token), token);
   assert.ok(resolver.includes("if (isSiteLanguage(savedLanguage)) return savedLanguage"));
 });
+
+test("language preference is persisted only by real document navigation", async () => {
+  const [middleware, switcher] = await Promise.all([read("middleware.ts"), read("components/LanguageSwitcher.tsx")]);
+  for (const token of [
+    "shouldPersistLanguagePreference",
+    'headers.get("next-router-prefetch") === "1"',
+    'headers.get("x-middleware-prefetch") === "1"',
+    'headers.get("purpose")',
+    'headers.get("sec-purpose")',
+    'headers.get("rsc") === "1"',
+    'headers.has("next-router-state-tree")',
+    'headers.has("next-router-segment-prefetch")',
+    'headers.get("sec-fetch-mode")',
+    'headers.get("sec-fetch-dest")',
+    'fetchMode === "navigate" && fetchDestination === "document"',
+    'headers.get("accept")',
+  ]) assert.ok(middleware.includes(token), token);
+  assert.ok(middleware.includes("if (!shouldPersistLanguagePreference(request)) return null;"));
+  assert.equal(switcher.includes("router.prefetch("), false);
+  assert.ok(switcher.includes("rememberLanguagePreference(next)"));
+});
