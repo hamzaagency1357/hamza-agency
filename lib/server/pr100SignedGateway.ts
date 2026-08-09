@@ -17,6 +17,7 @@ const ALLOWED_ACTIONS = new Set([
   "job_application_submit",
   "contact_submit",
   "ai_support_submit",
+  "review_submit",
 ]);
 
 function getRuntimeOidcToken(request: Request) {
