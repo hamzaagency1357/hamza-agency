@@ -13,6 +13,7 @@ const homeAdmin=read("app/admin/settings/homepage/page.tsx");
 const programAdmin=read("app/admin/programs/media/page.tsx");
 const programPage=read("app/programs/[slug]/page.tsx");
 const programCompat=read("lib/programMediaCompat.mjs");
+const programClient=read("lib/programMediaClient.ts");
 const reviews=read("components/ReviewsPageContent.tsx");
 const reviewAdmin=read("components/AdminReviewSubmissionsPanel.tsx");
 const publicSubmit=read("app/api/public-submit/route.ts");
@@ -84,6 +85,16 @@ test("program media supports independent logo-cover modes and layouts 1 2 3",()=
   assert.match(programPage,/layout===2/);
   assert.match(programCompat,/detail_layout/);
   assert.match(home,/programCardMedia/);
+});
+
+test("public program media client reuses the canonical normalizer and preserves the full contract",()=>{
+  assert.match(programClient,/normalizeProgramMediaRow/);
+  for(const field of ["logo_url","hero_image_url","mobile_image_url","og_image_url","alt_ar","alt_en","alt_tr","media_display_mode","detail_layout"]){
+    assert.ok(programClient.includes(`${field}:normalized.${field}`),`client must preserve ${field}`);
+  }
+  assert.doesNotMatch(programClient,/media_display_mode:item\.|detail_layout:item\./);
+  assert.match(programCompat,/return value === "cover" \|\| value === "logo_cover" \? value : "logo"/);
+  assert.match(programCompat,/return parsed === 2 \|\| parsed === 3 \? parsed : 1/);
 });
 
 test("review intake is private, flexible, and never publishes private contact data",()=>{
