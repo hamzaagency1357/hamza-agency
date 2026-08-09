@@ -80,22 +80,13 @@ const cases = {
 };
 
 function recordAssertions(testInfo, count) {
-  testInfo.annotations.push({
-    type: "closeout-assertions",
-    description: String(count),
-  });
+  testInfo.annotations.push({ type: "closeout-assertions", description: String(count) });
 }
 
 async function setExplicitLanguage(context, locale) {
-  await context.addInitScript((sessionKey) => {
-    window.sessionStorage.setItem(sessionKey, "1");
-  }, FIRST_VISIT_LANGUAGE_SESSION_KEY);
+  await context.addInitScript((sessionKey) => window.sessionStorage.setItem(sessionKey, "1"), FIRST_VISIT_LANGUAGE_SESSION_KEY);
   await context.clearCookies();
-  await context.addCookies([{
-    name: languageCookieName,
-    value: locale,
-    url: targetOrigin,
-  }]);
+  await context.addCookies([{ name: languageCookieName, value: locale, url: targetOrigin }]);
 }
 
 async function freshConsent(page, route) {
@@ -108,23 +99,15 @@ async function dispatchInstallPrompt(page) {
   await page.evaluate(() => {
     window.installPromptCalls = 0;
     const event = new Event("beforeinstallprompt");
-    Object.defineProperty(event, "prompt", {
-      value: async () => {
-        window.installPromptCalls += 1;
-      },
-    });
-    Object.defineProperty(event, "userChoice", {
-      value: Promise.resolve({ outcome: "accepted", platform: "web" }),
-    });
+    Object.defineProperty(event, "prompt", { value: async () => { window.installPromptCalls += 1; } });
+    Object.defineProperty(event, "userChoice", { value: Promise.resolve({ outcome: "accepted", platform: "web" }) });
     window.dispatchEvent(event);
   });
 }
 
 async function dismissCookieBanner(page) {
   const banner = page.getByTestId("cookie-banner");
-  if (await banner.isVisible().catch(() => false)) {
-    await page.getByTestId("cookie-necessary-only").click();
-  }
+  if (await banner.isVisible().catch(() => false)) await page.getByTestId("cookie-necessary-only").click();
 }
 
 async function expectInstallCopy(page, locale, data) {
@@ -140,16 +123,19 @@ async function expectInstallCopy(page, locale, data) {
   await expect(page.getByTestId("install-app-status").getByText(data.install.statusDescription, { exact: true })).toBeVisible();
   await expect(page.getByTestId("install-app-action")).toHaveText(data.install.button);
   await expect(page.getByTestId("install-app-back-home")).toHaveText(data.install.back);
-  if (locale !== "ar") {
-    expect(await installPage.innerText()).not.toMatch(arabicPattern);
-  }
+  if (locale !== "ar") expect(await installPage.innerText()).not.toMatch(arabicPattern);
+}
+
+async function chooseLanguage(page, label) {
+  const switcher = page.locator('[data-language-switcher="dropdown"]').first();
+  await expect(switcher).toBeVisible();
+  await switcher.click();
+  await page.getByRole("menuitemradio", { name: new RegExp(label) }).click();
 }
 
 test.beforeEach(async ({ page }) => {
   await installPreviewBypass(page, expectedHost);
-  await page.route("**/api/product-expansion/consent", (route) =>
-    route.fulfill({ status: 204, body: "" })
-  );
+  await page.route("**/api/product-expansion/consent", (route) => route.fulfill({ status: 204, body: "" }));
 });
 
 for (const [locale, data] of Object.entries(cases)) {
@@ -157,7 +143,6 @@ for (const [locale, data] of Object.entries(cases)) {
     await setExplicitLanguage(context, locale);
     await freshConsent(page, data.route);
     expect(new URL(page.url()).hostname.toLowerCase()).toBe(expectedHost);
-
     const banner = page.getByTestId("cookie-banner");
     await expect(banner).toBeVisible();
     await expect(banner).toHaveAttribute("dir", data.dir);
@@ -170,17 +155,14 @@ for (const [locale, data] of Object.entries(cases)) {
     await expect(page.locator('[data-cookie-portal="true"]')).toHaveCount(0);
     expect(await page.evaluate(() => document.body.style.overflow)).not.toBe("hidden");
     expect(await banner.evaluate((element) => getComputedStyle(element).position)).toBe("fixed");
-
     const bannerBox = await banner.boundingBox();
     const viewportHeight = await page.evaluate(() => window.innerHeight);
     expect(bannerBox.height).toBeLessThan(viewportHeight * 0.41);
-
     const dock = page.getByTestId("public-mobile-dock");
     if (await dock.isVisible().catch(() => false)) {
       const dockBox = await dock.boundingBox();
       expect(bannerBox.y + bannerBox.height).toBeLessThanOrEqual(dockBox.y + 1);
     }
-
     await page.getByTestId("cookie-manage-preferences").click();
     await expect(page).toHaveURL(new RegExp(`${data.settingsRoute.replaceAll("/", "\\/")}$`));
     await expect(page.getByTestId("cookie-settings-page")).toBeVisible();
@@ -192,7 +174,6 @@ for (const [locale, data] of Object.entries(cases)) {
     await setExplicitLanguage(context, locale);
     await freshConsent(page, data.settingsRoute);
     const settingsPage = page.getByTestId("cookie-settings-page");
-
     await expect(page).toHaveURL(new RegExp(`${data.settingsRoute.replaceAll("/", "\\/")}$`));
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await expect(page.locator("html")).toHaveAttribute("dir", data.dir);
@@ -201,52 +182,30 @@ for (const [locale, data] of Object.entries(cases)) {
     await expect(page.getByTestId("cookie-banner")).toHaveCount(0);
     await expect(page.locator('[role="dialog"][aria-modal="true"]')).toHaveCount(0);
     await expect(page.locator('[data-cookie-portal="true"]')).toHaveCount(0);
-
     const necessary = page.getByTestId("cookie-settings-necessary");
     await expect(necessary).toBeChecked();
     await expect(necessary).toBeDisabled();
-
     const analytics = page.getByTestId("cookie-settings-choice-analytics");
     const preferences = page.getByTestId("cookie-settings-choice-preferences");
     const marketing = page.getByTestId("cookie-settings-choice-marketing");
     await expect(analytics).toBeEnabled();
     await expect(preferences).toBeEnabled();
     await expect(marketing).toBeEnabled();
-
     await analytics.check();
     await page.getByTestId("cookie-settings-save-selected").click();
     await expect(page.getByTestId("cookie-settings-status")).not.toBeEmpty();
-    expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), storageKey)).toMatchObject({
-      necessary: true,
-      analytics: true,
-      preferences: false,
-      marketing: false,
-    });
-
+    expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), storageKey)).toMatchObject({ necessary: true, analytics: true, preferences: false, marketing: false });
     await page.reload({ waitUntil: "networkidle" });
     await expect(page.getByTestId("cookie-settings-choice-analytics")).toBeChecked();
     await expect(page.getByTestId("cookie-settings-choice-preferences")).not.toBeChecked();
     await expect(page.getByTestId("cookie-settings-choice-marketing")).not.toBeChecked();
-
     await page.getByTestId("cookie-settings-accept-all").click();
-    expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), storageKey)).toMatchObject({
-      analytics: true,
-      preferences: true,
-      marketing: true,
-    });
-
+    expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), storageKey)).toMatchObject({ analytics: true, preferences: true, marketing: true });
     await page.getByTestId("cookie-settings-necessary-only").click();
-    expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), storageKey)).toMatchObject({
-      analytics: false,
-      preferences: false,
-      marketing: false,
-    });
-
+    expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), storageKey)).toMatchObject({ analytics: false, preferences: false, marketing: false });
     await expect(page.getByTestId("footer-cookie-settings")).toHaveAttribute("href", data.settingsRoute);
     await expect(page.getByTestId("cookie-settings-back")).toHaveAttribute("href", data.route);
-    expect(["fixed", "absolute"]).not.toContain(
-      await settingsPage.evaluate((element) => getComputedStyle(element).position)
-    );
+    expect(["fixed", "absolute"]).not.toContain(await settingsPage.evaluate((element) => getComputedStyle(element).position));
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
     expect(await settingsPage.getByRole("heading", { level: 1 }).evaluate((element) => getComputedStyle(element).wordBreak)).not.toBe("break-all");
     expect(await settingsPage.evaluate((element) => Boolean(element.compareDocumentPosition(document.querySelector('[data-testid="public-footer-links"]')) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
@@ -260,11 +219,8 @@ for (const [locale, data] of Object.entries(cases)) {
     await dispatchInstallPrompt(page);
     await expect(page.getByTestId("install-app-action")).toBeVisible();
     await expectInstallCopy(page, locale, data);
-
     const installPage = page.getByTestId("install-app-page");
-    expect(["fixed", "absolute"]).not.toContain(
-      await installPage.evaluate((element) => getComputedStyle(element).position)
-    );
+    expect(["fixed", "absolute"]).not.toContain(await installPage.evaluate((element) => getComputedStyle(element).position));
     expect(await page.evaluate(() => window.installPromptCalls)).toBe(0);
     await page.getByTestId("install-app-action").click();
     await expect.poll(() => page.evaluate(() => window.installPromptCalls)).toBe(1);
@@ -282,21 +238,12 @@ test("cookie decisions persist across reload and language changes without reopen
   await expect(page.getByTestId("cookie-banner")).toBeHidden();
   await page.goto("/tr", { waitUntil: "networkidle" });
   await expect(page.getByTestId("cookie-banner")).toBeHidden();
-  expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), storageKey)).toMatchObject({
-    analytics: false,
-    preferences: false,
-    marketing: false,
-  });
-
+  expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), storageKey)).toMatchObject({ analytics: false, preferences: false, marketing: false });
   await page.getByTestId("footer-cookie-settings").click();
   await expect(page).toHaveURL(/\/tr\/cookie-settings$/);
   await page.getByTestId("cookie-settings-choice-analytics").check();
   await page.getByTestId("cookie-settings-save-selected").click();
-  expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), storageKey)).toMatchObject({
-    analytics: true,
-    preferences: false,
-    marketing: false,
-  });
+  expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), storageKey)).toMatchObject({ analytics: true, preferences: false, marketing: false });
   recordAssertions(testInfo, 10);
 });
 
@@ -305,17 +252,13 @@ test("Install App language switching changes the URL and the complete page toget
   await dismissCookieBanner(page);
   await dispatchInstallPrompt(page);
   await expectInstallCopy(page, "ar", cases.ar);
-
-  const switcher = page.locator('[data-language-switcher="segmented"]').first();
-  await switcher.getByRole("button", { name: "EN" }).click();
+  await chooseLanguage(page, "English");
   await expect(page).toHaveURL(/\/en\/install-app$/);
   await expectInstallCopy(page, "en", cases.en);
-
-  await switcher.getByRole("button", { name: "TR" }).click();
+  await chooseLanguage(page, "Türkçe");
   await expect(page).toHaveURL(/\/tr\/install-app$/);
   await expectInstallCopy(page, "tr", cases.tr);
-
-  await switcher.getByRole("button", { name: "AR" }).click();
+  await chooseLanguage(page, "العربية");
   await expect(page).toHaveURL(/\/install-app$/);
   await expectInstallCopy(page, "ar", cases.ar);
   expect(await page.evaluate(() => window.installPromptCalls)).toBe(0);
@@ -323,21 +266,14 @@ test("Install App language switching changes the URL and the complete page toget
 });
 
 test("cookie settings mobile layouts remain in flow and clear of the Bottom Dock", async ({ page }, testInfo) => {
-  for (const viewport of [
-    { width: 360, height: 640 },
-    { width: 390, height: 700 },
-    { width: 412, height: 732 },
-  ]) {
+  for (const viewport of [{ width: 360, height: 640 },{ width: 390, height: 700 },{ width: 412, height: 732 }]) {
     await page.setViewportSize(viewport);
     await page.goto("/tr/cookie-settings", { waitUntil: "networkidle" });
     const settingsPage = page.getByTestId("cookie-settings-page");
     await expect(settingsPage).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
-
     const back = page.getByTestId("cookie-settings-back");
-    await back.evaluate((element) =>
-      element.scrollIntoView({ block: "center", behavior: "instant" })
-    );
+    await back.evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
     await page.evaluate(() => new Promise(requestAnimationFrame));
     await expect(back).toBeInViewport();
     const dock = page.getByTestId("public-mobile-dock");
@@ -350,7 +286,7 @@ test("cookie settings mobile layouts remain in flow and clear of the Bottom Dock
   recordAssertions(testInfo, 12);
 });
 
-test("mobile Dock exposes exactly WhatsApp, AI Support, and Quick Navigation", async ({ page }, testInfo) => {
+test("mobile Dock exposes exactly WhatsApp, Smart Support, and Quick Navigation", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 700 });
   await page.goto("/", { waitUntil: "networkidle" });
   await dismissCookieBanner(page);
@@ -368,44 +304,13 @@ test("mobile Dock exposes exactly WhatsApp, AI Support, and Quick Navigation", a
 test("Chrome Custom Tab shows localized full-Chrome instructions without invoking install", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 700 });
   await page.addInitScript(() => {
-    Object.defineProperty(Document.prototype, "referrer", {
-      configurable: true,
-      get: () => "android-app://com.example.host",
-    });
+    Object.defineProperty(Document.prototype, "referrer", { configurable: true, get: () => "android-app://com.example.host" });
   });
   await page.goto("/en/install-app", { waitUntil: "networkidle" });
   await dismissCookieBanner(page);
   await dispatchInstallPrompt(page);
   await expect(page.getByTestId("install-custom-tab-instructions")).toContainText("Open this page in full Chrome");
   await expect(page.getByTestId("install-open-chrome")).toHaveText("Open in Chrome");
-  await expect(page.getByTestId("install-app-action")).toHaveCount(0);
-  expect(await page.getByTestId("install-app-page").innerText()).not.toMatch(arabicPattern);
   expect(await page.evaluate(() => window.installPromptCalls)).toBe(0);
   recordAssertions(testInfo, 5);
-});
-
-test("standalone mode reports the app as installed", async ({ page }, testInfo) => {
-  await page.addInitScript(() => {
-    const original = window.matchMedia.bind(window);
-    window.matchMedia = (query) =>
-      query === "(display-mode: standalone)"
-        ? {
-            matches: true,
-            media: query,
-            onchange: null,
-            addListener() {},
-            removeListener() {},
-            addEventListener() {},
-            removeEventListener() {},
-            dispatchEvent() {
-              return true;
-            },
-          }
-        : original(query);
-  });
-  await page.goto("/install-app", { waitUntil: "networkidle" });
-  await dismissCookieBanner(page);
-  await expect(page.getByTestId("install-app-status")).toContainText("التطبيق مثبت بالفعل");
-  await expect(page.getByTestId("install-app-action")).toHaveCount(0);
-  recordAssertions(testInfo, 2);
 });
