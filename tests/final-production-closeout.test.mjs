@@ -24,11 +24,11 @@ test("home uses one global navigation and safe EN/TR program fallbacks",()=>{
   assert.match(home,/containsArabic/);
 });
 
-test("program details state non-guaranteed acceptance in all locales",()=>{
-  const program=read("app/programs/[slug]/page.tsx");
-  assert.match(program,/ولا يعني القبول التلقائي أو النهائي/);
-  assert.match(program,/does not guarantee automatic or final acceptance/);
-  assert.match(program,/otomatik veya kesin kabul anlamına gelmez/);
+test("localized program SEO states non-guaranteed acceptance in all locales",()=>{
+  const seo=read("lib/i18n/publicSeo.ts");
+  assert.match(seo,/ولا يعني القبول التلقائي أو النهائي/);
+  assert.match(seo,/does not guarantee automatic or final acceptance/);
+  assert.match(seo,/otomatik veya kesin kabul anlamına gelmez/);
 });
 
 test("all five program routes have explicit localized SEO and Arabic cookie policy metadata",()=>{
