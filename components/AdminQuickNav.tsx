@@ -174,6 +174,13 @@ export default function AdminQuickNav() {
     [role]
   );
 
+  const activeHref = useMemo(() => {
+    return visibleGroups
+      .flatMap((group) => group.links)
+      .filter((link) => link.href === "/admin" ? pathname === "/admin" : pathname === link.href || pathname.startsWith(`${link.href}/`))
+      .sort((left, right) => right.href.length - left.href.length)[0]?.href ?? null;
+  }, [pathname, visibleGroups]);
+
   if (!pathname.startsWith("/admin") || pathname === "/admin/login" || isCheckingAccess || !canShowNav) return null;
 
   return (
@@ -195,7 +202,7 @@ export default function AdminQuickNav() {
                 </div>
                 <div className="grid gap-2">
                   {group.links.map((link) => {
-                    const active = link.href === "/admin" ? pathname === "/admin" : pathname.startsWith(link.href);
+                    const active = link.href === activeHref;
                     return (
                       <Link
                         key={link.href}
