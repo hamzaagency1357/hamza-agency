@@ -3,6 +3,26 @@ import { assertCloseoutEnvironment } from "./scripts/closeout/environment-guard.
 
 const guard = assertCloseoutEnvironment();
 const suiteFile = `${guard.suite}.spec.mjs`;
+const ownerViewportProjects = ["public", "translations"].includes(guard.suite)
+  ? [
+      {
+        name: "owner-mobile-390x844",
+        use: {
+          ...devices["Pixel 7"],
+          viewport: { width: 390, height: 844 },
+          screen: { width: 390, height: 844 },
+        },
+      },
+      {
+        name: "owner-mobile-narrow-320x720",
+        use: {
+          ...devices["Pixel 7"],
+          viewport: { width: 320, height: 720 },
+          screen: { width: 320, height: 720 },
+        },
+      },
+    ]
+  : [];
 
 export default defineConfig({
   testDir: "./e2e/closeout",
@@ -33,5 +53,6 @@ export default defineConfig({
   projects: [
     { name: "desktop-chromium", use: { ...devices["Desktop Chrome"] } },
     { name: "mobile-chromium", use: { ...devices["Pixel 7"] } },
+    ...ownerViewportProjects,
   ],
 });
