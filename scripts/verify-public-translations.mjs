@@ -14,6 +14,7 @@ const [
   siteLanguageProvider,
   languageSwitcher,
   globalHeader,
+  publicIdentity,
   runtimeTranslator,
   cmsTranslations,
   announcement,
@@ -34,6 +35,7 @@ const [
   readProjectFile("lib/i18n/useSiteLanguage.tsx"),
   readProjectFile("components/LanguageSwitcher.tsx"),
   readProjectFile("components/PublicGlobalHeader.tsx"),
+  readProjectFile("lib/publicIdentity.ts"),
   readProjectFile("components/PublicSiteRuntimeTranslator.tsx"),
   readProjectFile("components/CmsPublishedTranslations.tsx"),
   readProjectFile("components/PublishedAnnouncementBar.tsx"),
@@ -73,8 +75,10 @@ for (const token of ["window.location.assign", "MutationObserver", "createPortal
 for (const token of ["router.prefetch","router.replace","useTransition","scroll:false","localizePublicPath","window.location.search","window.location.hash",'data-language-switcher="dropdown"','aria-haspopup="menu"','aria-expanded={open}','role="menu"','role="menuitemradio"',"العربية","English","Türkçe"]) if (!languageSwitcher.includes(token)) errors.push(`Approved language dropdown is missing: ${token}`);
 if (languageSwitcher.includes('data-language-switcher="segmented"')) errors.push("Legacy segmented language switcher returned.");
 
-for (const token of ["<LanguageSwitcher />",'const AGENCY_NAME = "HAMZA AGENCY"','ar: "وكالة حمزة"','en: ""','tr: "Hamza Ajansı"']) if (!globalHeader.includes(token)) errors.push(`Owner-approved public header identity is missing: ${token}`);
-if (/عراب سوريا|Godfather of Syria|Vaftiz Babası/.test(globalHeader)) errors.push("Agent identity must not appear in the public header.");
+for (const token of ["LanguageSwitcher","getPublicIdentity","identity.agencyName.en",'language==="en"?"":identity.agencyName[language]']) if (!globalHeader.includes(token)) errors.push(`Owner-approved public header identity wiring is missing: ${token}`);
+for (const token of ['ar: "وكالة حمزة"','en: "HAMZA AGENCY"','tr: "Hamza Ajansı"']) if (!publicIdentity.includes(token)) errors.push(`Central public identity default is missing: ${token}`);
+if (/عراب سوريا|Godfather of Syria|Vaftiz Babası|⚔/.test(globalHeader)) errors.push("Agent identity must not appear in the public header.");
+if (!publicIdentity.includes('agencyName: { ar: "وكالة حمزة", en: "HAMZA AGENCY", tr: "Hamza Ajansı" }')) errors.push("Central agency identity defaults drifted from the Owner-approved AR/EN/TR values.");
 
 if (runtimeTranslator.includes("MutationObserver") || runtimeTranslator.includes("document.body")) errors.push("Runtime translator still scans or observes document.body.");
 if (!runtimeTranslator.includes("[data-runtime-translate='true']")) errors.push("Runtime translator is not restricted to explicit legacy markers.");
@@ -107,4 +111,4 @@ if (!rootLayout.includes('import "./owner-final-qa.css"')) errors.push("Owner fi
 for (const token of ["safe-area-inset-bottom", "--public-mobile-dock-clearance", "scroll-padding-bottom"]) if (!ownerQaCss.includes(token)) errors.push(`Mobile dock clearance is missing: ${token}`);
 
 if (errors.length) { console.error("Public translation verification failed:\n"); errors.forEach((error)=>console.error(`- ${error}`)); process.exit(1); }
-console.log(`Public experience verification passed: ${entries.length} translations, ${requiredRoutes.length} routes × 3 URL-owned locales, approved header and dropdown language switching, approved support copy, localized homepage statistics, safe runtime fallbacks, localized ticker direction, and mobile dock clearance.`);
+console.log(`Public experience verification passed: ${entries.length} translations, ${requiredRoutes.length} routes × 3 URL-owned locales, centrally managed approved header identity and dropdown language switching, approved support copy, localized homepage statistics, safe runtime fallbacks, localized ticker direction, and mobile dock clearance.`);
