@@ -16,6 +16,7 @@ const allowedTypes = new Set([
   "contact",
   "ai_support",
   "password_reset",
+  "review",
 ]);
 const actionByType: Record<string, string> = {
   application: "application_submit",
@@ -24,6 +25,7 @@ const actionByType: Record<string, string> = {
   contact: "contact_submit",
   ai_support: "ai_support_submit",
   password_reset: "password_reset_guard",
+  review: "review_submit",
 };
 
 type GatewayResult = { allowed?: boolean; code?: string; id?: string | number; tracking_code?: string };
