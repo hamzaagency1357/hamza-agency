@@ -132,6 +132,7 @@ jobs:
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803007000_pr105_operational_depth_completion.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803008000_pr105_workflow_runtime_evidence_hardening.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260809095000_pr116_owner_approved_reviews_program_media.sql
+          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f tests/pr116-local-migration-contract.sql
           node scripts/closeout/macro-auth-fixtures.mjs setup
           node scripts/closeout/macro-runtime-fixtures.mjs setup
           node scripts/closeout/core-runtime-fixtures.mjs setup
