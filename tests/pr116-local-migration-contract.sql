@@ -5,6 +5,7 @@ declare
   v_gateway oid;
   v_submit oid;
   v_moderate oid;
+  v_boundary_fn oid;
 begin
   -- Program Media schema and defaults.
   if not exists (
@@ -113,6 +114,32 @@ begin
   if position('review_submit' in pg_get_functiondef(v_gateway))=0 then
     raise exception 'pr116_gateway_dispatch_missing_review_submit';
   end if;
+  if position('preview_write_denied' in pg_get_functiondef(v_gateway))=0 then
+    raise exception 'pr116_gateway_preview_write_guard_missing';
+  end if;
+
+  -- Internal write RPCs and legacy lookups may only be reached through the
+  -- service-role gateway. This prevents browser-role GRANT drift.
+  foreach v_boundary_fn in array array[
+    to_regprocedure('public.pr99_submit_application(jsonb,text,timestamp with time zone,text)')::oid,
+    to_regprocedure('public.pr99_submit_service_request(jsonb,text,timestamp with time zone,text)')::oid,
+    to_regprocedure('public.pr99_submit_contact(jsonb,text,timestamp with time zone,text)')::oid,
+    to_regprocedure('public.pr99_submit_ai_support(jsonb,text,timestamp with time zone,text)')::oid,
+    to_regprocedure('public.pr99_submit_job_application(jsonb,text,timestamp with time zone,text)')::oid,
+    to_regprocedure('public.lookup_public_agency_application(text,text)')::oid,
+    to_regprocedure('public.lookup_public_service_request(text)')::oid
+  ] loop
+    if v_boundary_fn is null then
+      raise exception 'pr116_security_boundary_function_missing';
+    end if;
+    if has_function_privilege('anon',v_boundary_fn,'EXECUTE')
+       or has_function_privilege('authenticated',v_boundary_fn,'EXECUTE') then
+      raise exception 'pr116_security_boundary_execute_exposed: %', v_boundary_fn::regprocedure;
+    end if;
+    if not has_function_privilege('service_role',v_boundary_fn,'EXECUTE') then
+      raise exception 'pr116_security_boundary_service_role_missing: %', v_boundary_fn::regprocedure;
+    end if;
+  end loop;
 
   if position('phone' in lower(pg_get_functiondef(v_moderate)))>0
      or position('reference_number' in lower(pg_get_functiondef(v_moderate)))>0
