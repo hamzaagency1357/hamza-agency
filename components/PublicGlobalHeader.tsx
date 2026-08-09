@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { getLanguageDirection, type SiteLanguage } from "@/lib/i18n/locale";
+import { getSharedNavigationLabel } from "@/lib/i18n/sharedChrome";
 import { AGENT_PUBLIC_PATH, localizePublicHref } from "@/lib/i18n/publicLocales";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 import { defaultPublicNavigationConfig, getPublicNavigationConfig, type PublicNavigationLink } from "@/lib/publicNavigation";
@@ -19,7 +20,7 @@ const agencyType: Record<SiteLanguage, string> = {
 };
 
 const identity = {
-  ar: { managedBy: "بإدارة الوكيل ⚔عܓོراب✴سܓོوريا⚔", semanticIdentity: "HAMZA AGENCY بإدارة الوكيل عراب سوريا", navLabel: "التنقل الرئيسي", logoAlt: "شعار الوكالة" },
+  ar: { managedBy: "بإدارة الوكيل عراب سوريا", semanticIdentity: "HAMZA AGENCY بإدارة الوكيل عراب سوريا", navLabel: "التنقل الرئيسي", logoAlt: "شعار الوكالة" },
   en: { managedBy: "Managed by the Godfather of Syria", semanticIdentity: `${AGENCY_NAME} managed by the Godfather of Syria`, navLabel: "Primary navigation", logoAlt: "Agency logo" },
   tr: { managedBy: "Suriye'nin Vaftiz Babası yönetiminde", semanticIdentity: `${AGENCY_NAME}, Suriye'nin Vaftiz Babası yönetiminde`, navLabel: "Ana gezinme", logoAlt: "Ajans logosu" },
 } as const;
@@ -73,8 +74,11 @@ export default function PublicGlobalHeader() {
 
   const items = useMemo(() => navigation[language].map((fallback) => {
     const managed = managedLinks.find((link) => link.href === fallback.href);
-    const defaultArabicLabel = navigation.ar.find((item) => item.href === fallback.href)?.label;
-    return { ...fallback, label: managed && managed.label !== defaultArabicLabel ? managed.label : fallback.label };
+    if (!managed) return fallback;
+    return {
+      ...fallback,
+      label: language === "ar" ? managed.label : getSharedNavigationLabel(language, managed),
+    };
   }), [language, managedLinks]);
 
   if (shouldHideHeader(pathname)) return null;
