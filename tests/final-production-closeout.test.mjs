@@ -49,7 +49,7 @@ test("review empty state has no fake review or prominent zero metrics",()=>{
 
 test("install flow remains gated by real install availability",()=>{
   const install=read("components/InstallAppPage.tsx");
-  assert.match(install,/context === "browser" && installState\.available && !installed/);
+  assert.match(install,/const ready = context === "browser" && installState\.available && !installed/);
   assert.match(install,/hamza:pwa-install-request/);
   assert.match(install,/data-testid="install-app-fallback"/);
   assert.match(install,/data-testid="install-app-action"/);
