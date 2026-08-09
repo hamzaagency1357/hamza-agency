@@ -120,7 +120,6 @@ export default function CinematicSiteBackground() {
   if (!scope || !media) return null;
 
   const selected = selectDeviceVisualSources(media, mobile);
-  const constrained = reducedMotion || saveData || weakDevice;
   const isVideo = media.fileType === "cinematic_video";
   const canPlayVideo =
     isVideo &&
