@@ -78,9 +78,9 @@ test("program media supports independent logo-cover modes and layouts 1 2 3",()=
   assert.match(programAdmin,/Logo فقط/);
   assert.match(programAdmin,/Cover فقط/);
   assert.match(programAdmin,/Logo \+ Cover/);
-  assert.match(programAdmin,/>1<\/option>/);
-  assert.match(programAdmin,/>2<\/option>/);
-  assert.match(programAdmin,/>3<\/option>/);
+  assert.match(programAdmin,/<option value=\{1\}>1<\/option>/);
+  assert.match(programAdmin,/<option value=\{2\}>2<\/option>/);
+  assert.match(programAdmin,/<option value=\{3\}>3<\/option>/);
   assert.match(programPage,/layout===1/);
   assert.match(programPage,/layout===2/);
   assert.match(programCompat,/detail_layout/);
