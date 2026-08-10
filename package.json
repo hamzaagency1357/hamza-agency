@@ -5,7 +5,7 @@
   "engines": {"node": "24.x"},
   "scripts": {
     "dev": "next dev",
-    "prebuild": "npm run verify:translations && npm run verify:product-expansion && npm run verify:pr4",
+    "prebuild": "npm run verify:translations && npm run verify:product-expansion && npm run verify:pr4 && npm run verify:admin-mutations",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
@@ -14,6 +14,7 @@
     "verify:migrations": "node scripts/verify-safe-migrations.mjs",
     "verify:product-expansion": "node scripts/verify-pr101-product-expansion.mjs",
     "verify:pr4": "node --test tests/pr4-smart-support.test.mjs",
+    "verify:admin-mutations": "node --test tests/admin-mutation-boundary.test.mjs",
     "verify:secrets": "node scripts/verify-no-client-secrets.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:smoke": "node scripts/runtime-smoke-test.mjs",
