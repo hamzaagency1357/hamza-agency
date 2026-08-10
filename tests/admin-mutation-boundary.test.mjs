@@ -5,12 +5,15 @@ import test from "node:test";
 
 const ROOT = process.cwd();
 const SCAN_ROOTS = ["app/admin", "components/admin"];
-const EXTRA_FILES = ["lib/adminAccess.ts", "lib/adminActivityLogger.ts"];
+const EXTRA_FILES = ["lib/adminAccess.ts", "lib/adminActivityLogger.ts", "lib/adminTrash.ts"];
 const EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx"]);
 
-// Explicit exceptions must be narrow, public/user-facing gateways only. Admin
-// browser mutations are intentionally not allowlisted here.
-const ALLOWLIST = new Set([]);
+// Only RPCs proven to be read-only may execute directly in Admin browser code.
+// Keep this name-level allowlist narrow; state-changing RPCs must use the server boundary.
+const READONLY_BROWSER_RPCS = new Map([
+  ["app/admin/requests/page.tsx", new Set(["pr100_admin_requests_index"])],
+  ["app/admin/system-health/page.tsx", new Set(["pr99_backup_schedule_status"])],
+]);
 
 function walk(relative) {
   const absolute = path.join(ROOT, relative);
@@ -27,12 +30,17 @@ function compact(source) {
   return source.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
 }
 
+function rpcViolations(file, text) {
+  const allowed = READONLY_BROWSER_RPCS.get(file) || new Set();
+  const names = [...text.matchAll(/\.rpc\s*\(\s*["'`]([^"'`]+)["'`]/g)].map((match) => match[1]);
+  return names.filter((name) => !allowed.has(name)).map((name) => `${file}: stateful/unclassified RPC ${name}`);
+}
+
 function findings(file, source) {
   const text = compact(source);
   const hits = [];
   const rules = [
     ["database DML", /\.from\s*\([^)]*\)[\s\S]{0,800}?\.(?:insert|update|upsert|delete)\s*\(/g],
-    ["RPC", /\.rpc\s*\(/g],
     ["Storage mutation", /\.storage[\s\S]{0,500}?\.(?:upload|update|remove|move|copy)\s*\(/g],
     ["Auth mutation", /\.auth\.(?:updateUser|signUp|resetPasswordForEmail)\s*\(/g],
     ["Admin auth mutation", /\.auth\.admin\.[A-Za-z0-9_]+\s*\(/g],
@@ -40,12 +48,12 @@ function findings(file, source) {
   for (const [label, pattern] of rules) {
     if (pattern.test(text)) hits.push(`${file}: ${label}`);
   }
+  hits.push(...rpcViolations(file, text));
   return hits;
 }
 
 test("Admin browser code contains no direct state-changing Supabase path", () => {
-  const files = [...new Set([...SCAN_ROOTS.flatMap(walk), ...EXTRA_FILES.filter((file) => fs.existsSync(path.join(ROOT, file)))])]
-    .filter((file) => !ALLOWLIST.has(file));
+  const files = [...new Set([...SCAN_ROOTS.flatMap(walk), ...EXTRA_FILES.filter((file) => fs.existsSync(path.join(ROOT, file)))])];
   const violations = files.flatMap((file) => findings(file, fs.readFileSync(path.join(ROOT, file), "utf8")));
   assert.deepEqual(violations, [], `Browser-side Admin mutations must use typed server boundaries:\n${violations.join("\n")}`);
 });
