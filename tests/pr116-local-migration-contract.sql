@@ -118,7 +118,7 @@ begin
     raise exception 'pr116_gateway_preview_write_guard_missing';
   end if;
 
-  -- Internal write RPCs and legacy lookups may only be reached through the
+  -- Internal write/guard RPCs and legacy lookups may only be reached through the
   -- service-role gateway. This prevents browser-role GRANT drift.
   foreach v_boundary_fn in array array[
     to_regprocedure('public.pr99_submit_application(jsonb,text,timestamp with time zone,text)')::oid,
@@ -126,6 +126,9 @@ begin
     to_regprocedure('public.pr99_submit_contact(jsonb,text,timestamp with time zone,text)')::oid,
     to_regprocedure('public.pr99_submit_ai_support(jsonb,text,timestamp with time zone,text)')::oid,
     to_regprocedure('public.pr99_submit_job_application(jsonb,text,timestamp with time zone,text)')::oid,
+    to_regprocedure('public.pr99_guard_submission(text,text,jsonb,timestamp with time zone,text)')::oid,
+    to_regprocedure('public.pr100_guard_ai_answer(text,jsonb)')::oid,
+    to_regprocedure('public.pr100_guard_password_reset(text,jsonb,timestamp with time zone,text)')::oid,
     to_regprocedure('public.lookup_public_agency_application(text,text)')::oid,
     to_regprocedure('public.lookup_public_service_request(text)')::oid
   ] loop

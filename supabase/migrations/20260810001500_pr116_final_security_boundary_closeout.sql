@@ -13,6 +13,15 @@ grant execute on function public.pr99_submit_contact(jsonb,text,timestamptz,text
 grant execute on function public.pr99_submit_ai_support(jsonb,text,timestamptz,text) to service_role;
 grant execute on function public.pr99_submit_job_application(jsonb,text,timestamptz,text) to service_role;
 
+-- Submission/rate-limit guards are internal helpers. Browser code calls /api/public-submit,
+-- and the OIDC gateway / internal submit functions invoke these guards server-side.
+revoke execute on function public.pr99_guard_submission(text,text,jsonb,timestamptz,text) from public, anon, authenticated;
+revoke execute on function public.pr100_guard_ai_answer(text,jsonb) from public, anon, authenticated;
+revoke execute on function public.pr100_guard_password_reset(text,jsonb,timestamptz,text) from public, anon, authenticated;
+grant execute on function public.pr99_guard_submission(text,text,jsonb,timestamptz,text) to service_role;
+grant execute on function public.pr100_guard_ai_answer(text,jsonb) to service_role;
+grant execute on function public.pr100_guard_password_reset(text,jsonb,timestamptz,text) to service_role;
+
 -- Legacy lookup functions predate the PR100 fingerprint/rate-limit wrappers and must
 -- no longer be directly callable by browser roles. SECURITY DEFINER wrappers owned
 -- by postgres continue to call them internally.
@@ -150,6 +159,9 @@ begin
     to_regprocedure('public.pr99_submit_contact(jsonb,text,timestamp with time zone,text)')::oid,
     to_regprocedure('public.pr99_submit_ai_support(jsonb,text,timestamp with time zone,text)')::oid,
     to_regprocedure('public.pr99_submit_job_application(jsonb,text,timestamp with time zone,text)')::oid,
+    to_regprocedure('public.pr99_guard_submission(text,text,jsonb,timestamp with time zone,text)')::oid,
+    to_regprocedure('public.pr100_guard_ai_answer(text,jsonb)')::oid,
+    to_regprocedure('public.pr100_guard_password_reset(text,jsonb,timestamp with time zone,text)')::oid,
     to_regprocedure('public.lookup_public_agency_application(text,text)')::oid,
     to_regprocedure('public.lookup_public_service_request(text)')::oid
   ] loop
@@ -165,6 +177,6 @@ end
 $pr116_final_security_contract$;
 
 comment on function public.pr100_oidc_gateway(text,bigint,text,text,text,text,text,text,text,text,text,text,bigint,bigint)
-  is 'Vercel OIDC service-role gateway. Preview is denied for production-sensitive submissions; browser roles cannot execute internal write RPCs directly.';
+  is 'Vercel OIDC service-role gateway. Preview is denied for production-sensitive submissions; browser roles cannot execute internal write or guard RPCs directly.';
 
 commit;
