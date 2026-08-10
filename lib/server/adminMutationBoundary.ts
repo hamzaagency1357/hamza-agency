@@ -3,7 +3,6 @@ import "server-only";
 import type { AdminModule, AdminPermissionAction, AdminRole } from "@/lib/adminAccess";
 import {
   supabaseRestAsUser,
-  supabaseServerUrl,
   verifySupabaseBearer,
   type VerifiedSupabaseUser,
 } from "@/lib/server/supabaseUser";
@@ -116,76 +115,13 @@ export async function authorizeAdminMutation(
     return { ok: false, status: 403, message: "لا تملك صلاحية تنفيذ هذا الإجراء." };
   }
 
-  // Security boundary: preview is read-only at runtime. This happens before
-  // creating or using a privileged writer and therefore before any write I/O.
+  // First mandatory defense-in-depth layer. The Supabase PR116 OIDC gateway
+  // independently checks the Vercel OIDC environment claim and accepts only production.
   if (process.env.VERCEL_ENV === "preview") {
     return { ok: false, status: 403, message: PREVIEW_READ_ONLY_MESSAGE };
   }
 
   return { ok: true, actor };
-}
-
-function getServiceRoleKey(): string | null {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null;
-}
-
-export async function privilegedSupabaseRest<T>(
-  path: string,
-  init: RequestInit,
-): Promise<{ ok: boolean; status: number; data: T | null }> {
-  const url = supabaseServerUrl();
-  const key = getServiceRoleKey();
-  if (!url || !key || !path.startsWith("/")) return { ok: false, status: 503, data: null };
-
-  try {
-    const response = await fetch(`${url}/rest/v1${path}`, {
-      ...init,
-      cache: "no-store",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-        ...(init.headers || {}),
-      },
-      signal: AbortSignal.timeout(5000),
-    });
-    const text = await response.text();
-    let data: T | null = null;
-    if (text) {
-      try { data = JSON.parse(text) as T; } catch { data = null; }
-    }
-    return { ok: response.ok, status: response.status, data };
-  } catch {
-    return { ok: false, status: 503, data: null };
-  }
-}
-
-export async function writeServerAdminAudit(input: {
-  actor: AuthorizedAdminMutation;
-  action: string;
-  entityType: string;
-  entityId?: string | number | null;
-  oldData?: unknown;
-  newData?: unknown;
-  metadata?: Record<string, unknown>;
-  sourceRoute: string;
-}) {
-  return privilegedSupabaseRest<unknown[]>("/activity_logs", {
-    method: "POST",
-    body: JSON.stringify({
-      admin_email: input.actor.profile.email || input.actor.user.email || null,
-      actor_user_id: input.actor.user.id,
-      action: input.action,
-      entity_type: input.entityType,
-      entity_id: input.entityId === null || input.entityId === undefined ? null : String(input.entityId),
-      old_data: input.oldData === undefined ? null : JSON.stringify(input.oldData),
-      new_data: input.newData === undefined ? null : JSON.stringify(input.newData),
-      metadata: input.metadata || {},
-      source_route: input.sourceRoute,
-      outcome: "success",
-    }),
-  });
 }
 
 export function normalizeProgramScope(value: string | null | undefined) {
