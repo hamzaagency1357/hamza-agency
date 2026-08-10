@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import Image from "next/image";
 import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
@@ -451,7 +453,7 @@ export default function AdminGalleryPage() {
       let successText = "";
 
       if (editingItem) {
-        const { error } = await supabase.from("gallery_items").update(payload).eq("id", editingItem.id);
+        const { error } = await adminBoundaryMutation("pr116_gallery_page_entity_gallery_items_update", { values: payload, filters: [{ op: "eq", field: "id", value: editingItem.id }], select: undefined, returnMode: "many", options: undefined });
 
         if (error) {
           setMessageType("error");
@@ -471,7 +473,7 @@ export default function AdminGalleryPage() {
 
         successText = "تم حفظ تعديلات عنصر المعرض بنجاح.";
       } else {
-        const { error } = await supabase.from("gallery_items").insert(payload);
+        const { error } = await adminBoundaryMutation("pr116_gallery_page_entity_gallery_items_insert", { values: payload, filters: [], select: undefined, returnMode: "many", options: undefined });
 
         if (error) {
           setMessageType("error");
@@ -513,10 +515,7 @@ export default function AdminGalleryPage() {
     const updatePayload = { is_visible: visible, status: nextStatus, updated_at: new Date().toISOString() };
 
     try {
-      const { error } = await supabase
-        .from("gallery_items")
-        .update(updatePayload)
-        .eq("id", item.id);
+      const { error } = await adminBoundaryMutation("pr116_gallery_page_entity_gallery_items_update", { values: updatePayload, filters: [{ op: "eq", field: "id", value: item.id }], select: undefined, returnMode: "many", options: undefined });
 
       if (error) {
         setMessageType("error");
@@ -553,10 +552,7 @@ export default function AdminGalleryPage() {
     const updatePayload = { is_featured: nextValue, updated_at: new Date().toISOString() };
 
     try {
-      const { error } = await supabase
-        .from("gallery_items")
-        .update(updatePayload)
-        .eq("id", item.id);
+      const { error } = await adminBoundaryMutation("pr116_gallery_page_entity_gallery_items_update", { values: updatePayload, filters: [{ op: "eq", field: "id", value: item.id }], select: undefined, returnMode: "many", options: undefined });
 
       if (error) {
         setMessageType("error");
@@ -605,10 +601,7 @@ export default function AdminGalleryPage() {
     };
 
     try {
-      const { error } = await supabase
-        .from("gallery_items")
-        .update(archivePayload)
-        .eq("id", item.id);
+      const { error } = await adminBoundaryMutation("pr116_gallery_page_entity_gallery_items_update", { values: archivePayload, filters: [{ op: "eq", field: "id", value: item.id }], select: undefined, returnMode: "many", options: undefined });
 
       if (error) {
         setMessageType("error");

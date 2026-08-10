@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "npm:jose@6.1.0";
+import { GENERATED_ACTIONS, GENERATED_PERMISSIONS, dispatchGeneratedAdminAction } from "./generated-dispatch.ts";
 
 const ISSUER = "https://oidc.vercel.com/hamzaagencysy-3009s-projects";
 const AUDIENCE = "https://vercel.com/hamzaagencysy-3009s-projects";
@@ -11,6 +12,7 @@ const JWKS = createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks`));
 const encoder = new TextEncoder();
 
 const ACTIONS = new Set([
+  ...GENERATED_ACTIONS,
   "application_status_update",
   "application_internal_notes_update",
   "support_action",
@@ -22,6 +24,7 @@ const ACTIONS = new Set([
 ]);
 
 const ACTION_PERMISSIONS: Record<string, { module: string; permission: string }> = {
+  ...GENERATED_PERMISSIONS,
   application_status_update: { module: "applications", permission: "can_edit" },
   application_internal_notes_update: { module: "applications", permission: "can_edit" },
   support_action: { module: "ai_support", permission: "can_edit" },
@@ -243,6 +246,12 @@ Deno.serve(async (request: Request) => {
       return json(200, { ok: true, data: updated });
     }
 
+    const generated = await dispatchGeneratedAdminAction({ action, payload, supabaseUrl, serviceRole, admin, user });
+    if (generated) {
+      if (generated.ok) await audit(supabaseUrl, serviceRole, user, action, action, null, { action });
+      return json(generated.status, generated.body);
+    }
+
     const rpc = async (name: string, rpcBody: Record<string, unknown>) => {
       const response = await serviceFetch(supabaseUrl, serviceRole, `/rpc/${name}`, { method: "POST", body: JSON.stringify(rpcBody) });
       const text = await response.text();
@@ -259,17 +268,17 @@ Deno.serve(async (request: Request) => {
       if (!requestId || !supportAction || !["accept", "priority", "assign", "status", "reply", "note"].includes(supportAction) || value === undefined || note === undefined) return json(400, { ok: false, code: "invalid_request" });
       result = await rpc("pr4_support_action", { p_request_id: requestId, p_action: supportAction, p_value: value, p_note: note });
     } else if (action === "knowledge_save") {
-      result = await rpc("pr4_knowledge_upsert", payload.rpc as Record<string, unknown>);
+      result = await rpc("pr4_save_knowledge", payload.rpc as Record<string, unknown>);
     } else if (action === "knowledge_promote") {
       const suggestionId = positiveInt(payload.suggestionId);
       if (!suggestionId) return json(400, { ok: false, code: "invalid_request" });
-      result = await rpc("pr4_knowledge_promote_suggestion", { p_suggestion_id: suggestionId });
+      result = await rpc("pr4_promote_suggestion", { p_suggestion_id: suggestionId });
     } else if (action === "translation_save") {
-      result = await rpc("pr99_translation_upsert_candidate", payload.rpc as Record<string, unknown>);
+      result = await rpc("save_translation_candidate_fields", payload.rpc as Record<string, unknown>);
     } else if (action === "translation_review") {
-      result = await rpc("pr99_translation_review_candidate", payload.rpc as Record<string, unknown>);
+      result = await rpc("review_translation_candidate", payload.rpc as Record<string, unknown>);
     } else {
-      result = await rpc("pr99_translation_publish_candidate", payload.rpc as Record<string, unknown>);
+      result = await rpc("publish_translation_candidate", payload.rpc as Record<string, unknown>);
     }
     if (!result.ok) return json(502, { ok: false, code: "database_contract_rejected" });
     await audit(supabaseUrl, serviceRole, user, action, action, null, { action });

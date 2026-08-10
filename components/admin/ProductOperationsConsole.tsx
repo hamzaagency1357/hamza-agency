@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireTenantAdmin } from "@/lib/productExpansion/tenantAccess";
@@ -85,36 +87,36 @@ export default function ProductOperationsConsole() {
 
   async function audit(action: string, entityType: string, entityId: string | null, afterData?: Row) {
     if (!supabase || !tenantId || !actorId) return;
-    await supabase.from("tenant_admin_audit").insert({ tenant_id: tenantId, actor_id: actorId, action, entity_type: entityType, entity_id: entityId, after_data: afterData ?? null });
+    await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_tenant_admin_audit_insert", { values: { tenant_id: tenantId, actor_id: actorId, action, entity_type: entityType, entity_id: entityId, after_data: afterData ?? null }, filters: [], select: undefined, returnMode: "many", options: undefined });
   }
 
   async function createTask() {
     if (!supabase || !tenantId || !taskDraft.title.trim()) return;
-    const result = await supabase.from("tasks").insert({ tenant_id: tenantId, title: taskDraft.title.trim(), description: taskDraft.description.trim() || null, priority: taskDraft.priority, due_at: taskDraft.due_at ? new Date(taskDraft.due_at).toISOString() : null, created_by: actorId }).select("id").single();
+    const result = await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_tasks_insert", { values: { tenant_id: tenantId, title: taskDraft.title.trim(), description: taskDraft.description.trim() || null, priority: taskDraft.priority, due_at: taskDraft.due_at ? new Date(taskDraft.due_at).toISOString() : null, created_by: actorId }, filters: [], select: "id", returnMode: "single", options: undefined });
     if (result.error) return setMessage(result.error.message);
     const taskId = text((result.data as Row | null)?.id);
-    if (taskDraft.assignee && /^[0-9a-f-]{36}$/i.test(taskDraft.assignee)) await supabase.from("task_assignments").insert({ tenant_id: tenantId, task_id: taskId, user_id: taskDraft.assignee, assignment_type: "assignee" });
+    if (taskDraft.assignee && /^[0-9a-f-]{36}$/i.test(taskDraft.assignee)) await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_task_assignments_insert", { values: { tenant_id: tenantId, task_id: taskId, user_id: taskDraft.assignee, assignment_type: "assignee" }, filters: [], select: undefined, returnMode: "many", options: undefined });
     await audit("task.created", "task", taskId, { title: taskDraft.title, priority: taskDraft.priority });
     setTaskDraft(emptyTask); setMessage("تم إنشاء المهمة."); await load();
   }
 
   async function updateTaskStatus(id: string, status: string) {
     if (!supabase) return;
-    const result = await supabase.from("tasks").update({ status, updated_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("id", id);
+    const result = await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_tasks_update", { values: { status, updated_at: new Date().toISOString() }, filters: [{ op: "eq", field: "tenant_id", value: tenantId }, { op: "eq", field: "id", value: id }], select: undefined, returnMode: "many", options: undefined });
     if (result.error) return setMessage(result.error.message);
     await audit("task.status_updated", "task", id, { status }); setMessage("تم تحديث المهمة."); await load();
   }
 
   async function addTaskComment(id: string) {
     if (!supabase || !commentDraft[id]?.trim()) return;
-    const result = await supabase.from("task_comments").insert({ tenant_id: tenantId, task_id: id, author_id: actorId, body: commentDraft[id].trim(), is_internal: true });
+    const result = await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_task_comments_insert", { values: { tenant_id: tenantId, task_id: id, author_id: actorId, body: commentDraft[id].trim(), is_internal: true }, filters: [], select: undefined, returnMode: "many", options: undefined });
     if (result.error) return setMessage(result.error.message);
     setCommentDraft((current) => ({ ...current, [id]: "" })); await audit("task.comment_added", "task", id); setMessage("تمت إضافة التعليق.");
   }
 
   async function createSla() {
     if (!supabase || !slaDraft.name.trim()) return;
-    const result = await supabase.from("sla_policies").insert({ tenant_id: tenantId, name: slaDraft.name.trim(), entity_type: slaDraft.entity_type, first_response_minutes: Number(slaDraft.first_response_minutes), resolution_minutes: Number(slaDraft.resolution_minutes), business_hours: { timezone: "Europe/Istanbul", days: [1,2,3,4,5], start: "09:00", end: "18:00" }, pause_statuses: ["waiting_customer"], active: true }).select("id").single();
+    const result = await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_sla_policies_insert", { values: { tenant_id: tenantId, name: slaDraft.name.trim(), entity_type: slaDraft.entity_type, first_response_minutes: Number(slaDraft.first_response_minutes), resolution_minutes: Number(slaDraft.resolution_minutes), business_hours: { timezone: "Europe/Istanbul", days: [1,2,3,4,5], start: "09:00", end: "18:00" }, pause_statuses: ["waiting_customer"], active: true }, filters: [], select: "id", returnMode: "single", options: undefined });
     if (result.error) return setMessage(result.error.message);
     await audit("sla.created", "sla_policy", text((result.data as Row | null)?.id), { name: slaDraft.name }); setSlaDraft(emptySla); setMessage("تم إنشاء سياسة SLA."); await load();
   }
@@ -122,19 +124,19 @@ export default function ProductOperationsConsole() {
   async function createWorkflow() {
     if (!supabase || !workflowDraft.name.trim()) return;
     const definition = { trigger: workflowDraft.trigger_type, steps: [{ key: "create_task", type: "create_task" }, { key: "notify", type: "notify" }], arbitraryCode: false };
-    const result = await supabase.from("workflow_definitions").insert({ tenant_id: tenantId, name: workflowDraft.name.trim(), trigger_type: workflowDraft.trigger_type, status: "draft", version: 1, definition, created_by: actorId }).select("id").single();
+    const result = await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_workflow_definitions_insert", { values: { tenant_id: tenantId, name: workflowDraft.name.trim(), trigger_type: workflowDraft.trigger_type, status: "draft", version: 1, definition, created_by: actorId }, filters: [], select: "id", returnMode: "single", options: undefined });
     if (result.error) return setMessage(result.error.message);
     const workflowId = text((result.data as Row | null)?.id);
-    await supabase.from("workflow_steps").insert([
+    await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_workflow_steps_insert", { values: [
       { tenant_id: tenantId, workflow_id: workflowId, step_key: "create_task", step_type: "create_task", position: 0, configuration: {}, retry_limit: 3 },
       { tenant_id: tenantId, workflow_id: workflowId, step_key: "notify", step_type: "notify", position: 1, configuration: {}, retry_limit: 3 },
-    ]);
+    ], filters: [], select: undefined, returnMode: "many", options: undefined });
     await audit("workflow.created", "workflow", workflowId, { name: workflowDraft.name }); setWorkflowDraft(emptyWorkflow); setMessage("تم إنشاء Workflow آمن كمسودة."); await load();
   }
 
   async function publishWorkflow(id: string) {
     if (!supabase) return;
-    const result = await supabase.from("workflow_definitions").update({ status: "published", updated_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("id", id).eq("status", "draft");
+    const result = await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_workflow_definitions_update", { values: { status: "published", updated_at: new Date().toISOString() }, filters: [{ op: "eq", field: "tenant_id", value: tenantId }, { op: "eq", field: "id", value: id }, { op: "eq", field: "status", value: "draft" }], select: undefined, returnMode: "many", options: undefined });
     if (result.error) return setMessage(result.error.message);
     await audit("workflow.published", "workflow", id); setMessage("تم نشر Workflow."); await load();
   }
@@ -143,56 +145,56 @@ export default function ProductOperationsConsole() {
     if (!supabase) return;
     const slug = prompt("Category slug")?.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
     if (!slug) return;
-    const result = await supabase.from("marketplace_categories").insert({ tenant_id: tenantId, slug, translations: { ar: { title: slug }, en: { title: slug }, tr: { title: slug } }, active: true });
+    const result = await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_marketplace_categories_insert", { values: { tenant_id: tenantId, slug, translations: { ar: { title: slug }, en: { title: slug }, tr: { title: slug } }, active: true }, filters: [], select: undefined, returnMode: "many", options: undefined });
     if (result.error) return setMessage(result.error.message);
     await audit("marketplace.category_created", "marketplace_category", slug); await load();
   }
 
   async function createListing() {
     if (!supabase || !listingDraft.slug.trim() || !listingDraft.title_ar.trim()) return;
-    const result = await supabase.from("marketplace_listings").insert({ tenant_id: tenantId, category_id: listingDraft.category_id || null, listing_type: listingDraft.listing_type, status: "draft", slug: listingDraft.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-"), translations: {}, media_ids: [], price_amount: listingDraft.price_amount ? Number(listingDraft.price_amount) : null, currency: listingDraft.currency || null, availability: { mode: "on_request" } }).select("id").single();
+    const result = await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_marketplace_listings_insert", { values: { tenant_id: tenantId, category_id: listingDraft.category_id || null, listing_type: listingDraft.listing_type, status: "draft", slug: listingDraft.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-"), translations: {}, media_ids: [], price_amount: listingDraft.price_amount ? Number(listingDraft.price_amount) : null, currency: listingDraft.currency || null, availability: { mode: "on_request" } }, filters: [], select: "id", returnMode: "single", options: undefined });
     if (result.error) return setMessage(result.error.message);
     const listingId = text((result.data as Row | null)?.id);
     const translations = (["ar","en","tr"] as const).map((locale) => ({ listing_id: listingId, tenant_id: tenantId, locale, title: listingDraft[`title_${locale}`], summary: null, description: null })).filter((item) => item.title.trim());
-    if (translations.length) await supabase.from("marketplace_listing_translations").insert(translations);
+    if (translations.length) await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_marketplace_listing_translations_insert", { values: translations, filters: [], select: undefined, returnMode: "many", options: undefined });
     await audit("marketplace.listing_created", "marketplace_listing", listingId, { slug: listingDraft.slug }); setListingDraft(emptyListing); setMessage("تم إنشاء العنصر كمسودة."); await load();
   }
 
   async function setListingStatus(id: string, status: string) {
     if (!supabase) return;
-    const result = await supabase.from("marketplace_listings").update({ status, updated_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("id", id);
+    const result = await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_marketplace_listings_update", { values: { status, updated_at: new Date().toISOString() }, filters: [{ op: "eq", field: "tenant_id", value: tenantId }, { op: "eq", field: "id", value: id }], select: undefined, returnMode: "many", options: undefined });
     if (result.error) return setMessage(result.error.message);
     await audit("marketplace.listing_status", "marketplace_listing", id, { status }); await load();
   }
 
   async function setOrderStatus(id: string, status: string) {
     if (!supabase) return;
-    const result = await supabase.from("marketplace_orders").update({ status, updated_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("id", id);
+    const result = await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_marketplace_orders_update", { values: { status, updated_at: new Date().toISOString() }, filters: [{ op: "eq", field: "tenant_id", value: tenantId }, { op: "eq", field: "id", value: id }], select: undefined, returnMode: "many", options: undefined });
     if (result.error) return setMessage(result.error.message);
     await audit("marketplace.order_status", "marketplace_order", id, { status }); await load();
   }
 
   async function setPrivacyStatus(id: string, status: string) {
     if (!supabase) return;
-    const result = await supabase.from("privacy_requests").update({ status, completed_at: status === "completed" ? new Date().toISOString() : null }).eq("tenant_id", tenantId).eq("id", id);
+    const result = await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_privacy_requests_update", { values: { status, completed_at: status === "completed" ? new Date().toISOString() : null }, filters: [{ op: "eq", field: "tenant_id", value: tenantId }, { op: "eq", field: "id", value: id }], select: undefined, returnMode: "many", options: undefined });
     if (result.error) return setMessage(result.error.message);
     await audit("privacy.request_status", "privacy_request", id, { status }); await load();
   }
 
   async function createIncident() {
     if (!supabase || !incidentDraft.title.trim()) return;
-    const result = await supabase.from("incidents").insert({ tenant_id: tenantId, title: incidentDraft.title.trim(), severity: incidentDraft.severity, status: "investigating", owner_id: actorId }).select("id").single();
+    const result = await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_incidents_insert", { values: { tenant_id: tenantId, title: incidentDraft.title.trim(), severity: incidentDraft.severity, status: "investigating", owner_id: actorId }, filters: [], select: "id", returnMode: "single", options: undefined });
     if (result.error) return setMessage(result.error.message);
     const incidentId = text((result.data as Row | null)?.id);
-    await supabase.from("incident_updates").insert({ tenant_id: tenantId, incident_id: incidentId, status: "investigating", message: "بدأ فريق التشغيل التحقق من الحالة.", is_public: true, created_by: actorId });
+    await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_incident_updates_insert", { values: { tenant_id: tenantId, incident_id: incidentId, status: "investigating", message: "بدأ فريق التشغيل التحقق من الحالة.", is_public: true, created_by: actorId }, filters: [], select: undefined, returnMode: "many", options: undefined });
     await audit("incident.created", "incident", incidentId, { severity: incidentDraft.severity }); setIncidentDraft(emptyIncident); await load();
   }
 
   async function setIncidentStatus(id: string, status: string) {
     if (!supabase) return;
-    const result = await supabase.from("incidents").update({ status, resolved_at: status === "resolved" ? new Date().toISOString() : null }).eq("tenant_id", tenantId).eq("id", id);
+    const result = await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_incidents_update", { values: { status, resolved_at: status === "resolved" ? new Date().toISOString() : null }, filters: [{ op: "eq", field: "tenant_id", value: tenantId }, { op: "eq", field: "id", value: id }], select: undefined, returnMode: "many", options: undefined });
     if (result.error) return setMessage(result.error.message);
-    await supabase.from("incident_updates").insert({ tenant_id: tenantId, incident_id: id, status, message: status === "resolved" ? "تم حل الحالة ومراقبة الاستقرار." : `تحديث الحالة: ${status}`, is_public: true, created_by: actorId });
+    await adminBoundaryMutation("pr116_component_productoperationsconsole_entity_incident_updates_insert", { values: { tenant_id: tenantId, incident_id: id, status, message: status === "resolved" ? "تم حل الحالة ومراقبة الاستقرار." : `تحديث الحالة: ${status}`, is_public: true, created_by: actorId }, filters: [], select: undefined, returnMode: "many", options: undefined });
     await audit("incident.status_updated", "incident", id, { status }); await load();
   }
 

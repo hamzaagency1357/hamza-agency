@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -166,12 +168,7 @@ export default function AdminFaqsPage() {
     const payload = toPayload(form);
 
     if (editingItem) {
-      const { data, error: updateError } = await supabase
-        .from("faqs")
-        .update(payload as never)
-        .eq("id", editingItem.id)
-        .select("id, question, answer, category, sort_order, is_published")
-        .single();
+      const { data, error: updateError } = await adminBoundaryMutation("pr116_faqs_page_entity_faqs_update", { values: payload as never, filters: [{ op: "eq", field: "id", value: editingItem.id }], select: "id, question, answer, category, sort_order, is_published", returnMode: "single", options: undefined });
 
       setIsSaving(false);
 
@@ -198,11 +195,7 @@ export default function AdminFaqsPage() {
       return;
     }
 
-    const { data, error: insertError } = await supabase
-      .from("faqs")
-      .insert(payload as never)
-      .select("id, question, answer, category, sort_order, is_published")
-      .single();
+    const { data, error: insertError } = await adminBoundaryMutation("pr116_faqs_page_entity_faqs_insert", { values: payload as never, filters: [], select: "id, question, answer, category, sort_order, is_published", returnMode: "single", options: undefined });
 
     setIsSaving(false);
 
@@ -233,12 +226,7 @@ export default function AdminFaqsPage() {
     setError("");
 
     const nextValue = item.is_published === false;
-    const { data, error: updateError } = await supabase
-      .from("faqs")
-      .update({ is_published: nextValue } as never)
-      .eq("id", item.id)
-      .select("id, question, answer, category, sort_order, is_published")
-      .single();
+    const { data, error: updateError } = await adminBoundaryMutation("pr116_faqs_page_entity_faqs_update", { values: { is_published: nextValue } as never, filters: [{ op: "eq", field: "id", value: item.id }], select: "id, question, answer, category, sort_order, is_published", returnMode: "single", options: undefined });
 
     if (updateError || !data) {
       setError("فشل تغيير حالة ظهور السؤال.");

@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -220,8 +222,8 @@ export default function AdminProgramsPage() {
     };
 
     const result = editingProgram
-      ? await supabase.from("programs").update(payload).eq("id", editingProgram.id)
-      : await supabase.from("programs").insert(payload);
+      ? await adminBoundaryMutation("pr116_programs_page_entity_programs_update", { values: payload, filters: [{ op: "eq", field: "id", value: editingProgram.id }], select: undefined, returnMode: "many", options: undefined })
+      : await adminBoundaryMutation("pr116_programs_page_entity_programs_insert", { values: payload, filters: [], select: undefined, returnMode: "many", options: undefined });
 
     if (result.error) {
       setMessage("فشل حفظ البرنامج. تأكد من عدم تكرار slug.");
@@ -247,10 +249,7 @@ export default function AdminProgramsPage() {
     if (!supabase) return;
 
     const nextValue = !program[key];
-    const { error } = await supabase
-      .from("programs")
-      .update({ [key]: nextValue, updated_at: new Date().toISOString() })
-      .eq("id", program.id);
+    const { error } = await adminBoundaryMutation("pr116_programs_page_entity_programs_update", { values: { [key]: nextValue, updated_at: new Date().toISOString() }, filters: [{ op: "eq", field: "id", value: program.id }], select: undefined, returnMode: "many", options: undefined });
 
     if (error) {
       alert("فشل تحديث حالة البرنامج");
@@ -304,14 +303,11 @@ export default function AdminProgramsPage() {
         return;
       }
 
-      const { error } = await supabase
-        .from("programs")
-        .update({
+      const { error } = await adminBoundaryMutation("pr116_programs_page_entity_programs_update", { values: {
           is_visible: false,
           is_active: false,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", program.id);
+        }, filters: [{ op: "eq", field: "id", value: program.id }], select: undefined, returnMode: "many", options: undefined });
 
       if (error) {
         setMessage(

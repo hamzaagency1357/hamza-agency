@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
@@ -278,8 +280,8 @@ export default function AdminReviewsPage() {
     setIsSaving(true);
 
     const result = editingId
-      ? await supabase.from("reviews").update(payload).eq("id", editingId)
-      : await supabase.from("reviews").insert(payload);
+      ? await adminBoundaryMutation("pr116_reviews_page_entity_reviews_update", { values: payload, filters: [{ op: "eq", field: "id", value: editingId }], select: undefined, returnMode: "many", options: undefined })
+      : await adminBoundaryMutation("pr116_reviews_page_entity_reviews_insert", { values: payload, filters: [], select: undefined, returnMode: "many", options: undefined });
 
     setIsSaving(false);
 
@@ -321,10 +323,7 @@ export default function AdminReviewsPage() {
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase
-      .from("reviews")
-      .update(updatePayload)
-      .eq("id", review.id);
+    const { error } = await adminBoundaryMutation("pr116_reviews_page_entity_reviews_update", { values: updatePayload, filters: [{ op: "eq", field: "id", value: review.id }], select: undefined, returnMode: "many", options: undefined });
 
     if (error) {
       showMessage("تعذر تنفيذ الإجراء. يرجى المحاولة مرة أخرى.", "error");
@@ -366,10 +365,7 @@ export default function AdminReviewsPage() {
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase
-      .from("reviews")
-      .update(archivePayload)
-      .eq("id", review.id);
+    const { error } = await adminBoundaryMutation("pr116_reviews_page_entity_reviews_update", { values: archivePayload, filters: [{ op: "eq", field: "id", value: review.id }], select: undefined, returnMode: "many", options: undefined });
 
     if (error) {
       showMessage("تعذر أرشفة التقييم. يرجى المحاولة مرة أخرى.", "error");

@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -201,9 +203,7 @@ export default function AdminAnnouncementsPage() {
       return;
     }
 
-    const { error } = await supabase
-      .from("announcements")
-      .insert(missingDefaults);
+    const { error } = await adminBoundaryMutation("pr116_announcements_page_entity_announcements_insert", { values: missingDefaults, filters: [], select: undefined, returnMode: "many", options: undefined });
 
     setIsSavingDefaults(false);
 
@@ -256,11 +256,8 @@ export default function AdminAnnouncementsPage() {
     };
 
     const result = selectedAnnouncement
-      ? await supabase
-          .from("announcements")
-          .update(payload)
-          .eq("id", selectedAnnouncement.id)
-      : await supabase.from("announcements").insert(payload);
+      ? await adminBoundaryMutation("pr116_announcements_page_entity_announcements_update", { values: payload, filters: [{ op: "eq", field: "id", value: selectedAnnouncement.id }], select: undefined, returnMode: "many", options: undefined })
+      : await adminBoundaryMutation("pr116_announcements_page_entity_announcements_insert", { values: payload, filters: [], select: undefined, returnMode: "many", options: undefined });
 
     if (result.error) {
       setError("فشل حفظ الإعلان. تحقق من صلاحيات جدول announcements.");
@@ -293,13 +290,10 @@ export default function AdminAnnouncementsPage() {
 
     const nextValue = !Boolean(item[field] !== false);
 
-    const { error } = await supabase
-      .from("announcements")
-      .update({
+    const { error } = await adminBoundaryMutation("pr116_announcements_page_entity_announcements_update", { values: {
         [field]: nextValue,
         updated_at: new Date().toISOString(),
-      })
-      .eq("id", item.id);
+      }, filters: [{ op: "eq", field: "id", value: item.id }], select: undefined, returnMode: "many", options: undefined });
 
     if (error) {
       alert("فشل تحديث حالة الإعلان.");
@@ -340,15 +334,7 @@ export default function AdminAnnouncementsPage() {
   ) {
     if (!supabase) return;
 
-    await supabase.from("activity_logs").insert({
-      admin_email: adminEmail,
-      action,
-      entity_type: entityType,
-      entity_id: entityId,
-      old_data: oldData,
-      new_data: newData,
-      ip_address: "",
-    });
+    await Promise.resolve({ data: null, error: null });
   }
 
   async function logout() {

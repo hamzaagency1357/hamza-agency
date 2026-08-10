@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
@@ -396,10 +398,7 @@ export default function AdminJobsPage() {
     setIsSavingJob(true);
 
     if (editingId) {
-      const { error } = await supabase
-        .from("jobs")
-        .update(payload)
-        .eq("id", editingId);
+      const { error } = await adminBoundaryMutation("pr116_jobs_page_entity_jobs_update", { values: payload, filters: [{ op: "eq", field: "id", value: editingId }], select: undefined, returnMode: "many", options: undefined });
 
       setIsSavingJob(false);
 
@@ -424,7 +423,7 @@ export default function AdminJobsPage() {
       return;
     }
 
-    const { error } = await supabase.from("jobs").insert(payload);
+    const { error } = await adminBoundaryMutation("pr116_jobs_page_entity_jobs_insert", { values: payload, filters: [], select: undefined, returnMode: "many", options: undefined });
 
     setIsSavingJob(false);
 
@@ -451,10 +450,7 @@ export default function AdminJobsPage() {
   async function quickUpdateJob(job: Job, changes: Partial<Job>) {
     if (!supabase) return;
 
-    const { error } = await supabase
-      .from("jobs")
-      .update(changes)
-      .eq("id", job.id);
+    const { error } = await adminBoundaryMutation("pr116_jobs_page_entity_jobs_update", { values: changes, filters: [{ op: "eq", field: "id", value: job.id }], select: undefined, returnMode: "many", options: undefined });
 
     if (error) {
       setMessage(`تعذر تحديث الوظيفة: ${error.message}`);
@@ -486,10 +482,7 @@ export default function AdminJobsPage() {
 
     setUpdatingApplicationId(application.id);
 
-    const { error } = await supabase
-      .from("job_applications")
-      .update(changes)
-      .eq("id", application.id);
+    const { error } = await adminBoundaryMutation("pr116_jobs_page_entity_job_applications_update", { values: changes, filters: [{ op: "eq", field: "id", value: application.id }], select: undefined, returnMode: "many", options: undefined });
 
     setUpdatingApplicationId(null);
 

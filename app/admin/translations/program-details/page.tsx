@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -374,9 +376,7 @@ export default function ProgramDetailTranslationsPage() {
       updated_by: adminEmail,
     }));
 
-    const { error: saveError } = await supabase
-      .from("content_translations")
-      .upsert(rows, { onConflict: "source_type,source_id,field_name,language" });
+    const { error: saveError } = await adminBoundaryMutation("pr116_translations_program_details_page_entity_content_translations_upsert", { values: rows, filters: [], select: undefined, returnMode: "many", options: { onConflict: "source_type,source_id,field_name,language" } });
 
     setIsSaving(false);
 

@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireTenantAdmin } from "@/lib/productExpansion/tenantAccess";
@@ -26,7 +28,7 @@ export default function ProductAnalyticsConsole() {
     if (!access.authorized || !access.membership) { setMessage("لا تملك صلاحية تحليلات المنتج."); setLoading(false); return; }
     const id = String(access.membership.tenant_id);
     setTenantId(id);
-    await supabase.rpc("refresh_product_kpis", { p_tenant: id, p_metric_date: metricDate });
+    await adminBoundaryMutation("pr116_component_productanalyticsconsole_rpc_refresh_product_kpis_call", { args: { p_tenant: id, p_metric_date: metricDate } });
     const [kpiResult, eventResult] = await Promise.all([
       supabase.from("product_kpi_daily").select("metric_date,metric_key,metric_value,dimensions,updated_at").eq("tenant_id", id).eq("metric_date", metricDate).order("metric_key"),
       supabase.from("provider_message_events").select("provider_type,status").eq("tenant_id", id).gte("created_at", `${metricDate}T00:00:00.000Z`).lt("created_at", `${metricDate}T23:59:59.999Z`).limit(1000),

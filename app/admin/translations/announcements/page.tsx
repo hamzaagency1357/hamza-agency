@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -289,8 +291,7 @@ export default function AnnouncementsTranslationsPage() {
     setMessage("");
     setError("");
 
-    const { error: saveError } = await client.from("content_translations").upsert(
-      fields.map((field) => ({
+    const { error: saveError } = await adminBoundaryMutation("pr116_translations_announcements_page_entity_content_translations_upsert", { values: fields.map((field) => ({
         source_type: "announcements",
         source_id: selectedAnnouncement.id,
         field_name: field.key,
@@ -302,9 +303,7 @@ export default function AnnouncementsTranslationsPage() {
         created_by: adminEmail,
         updated_by: adminEmail,
         updated_at: new Date().toISOString(),
-      })),
-      { onConflict: "source_type,source_id,field_name,language" }
-    );
+      })), filters: [], select: undefined, returnMode: "many", options: { onConflict: "source_type,source_id,field_name,language" } });
 
     setIsSaving(false);
 

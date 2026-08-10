@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -92,7 +94,7 @@ export default function PartnerTranslationsPage() {
     if (state.reviewed && !complete(state)) { setError("لا يمكن اعتماد المراجعة قبل اكتمال اسم الشريك والتصنيف والوصف."); return; }
     const reviewed = Boolean(state.reviewed && complete(state)); const published = Boolean(state.published && reviewed && complete(state)); const status = published ? "published" : reviewed ? "reviewed" : "needs_review";
     setSaving(true); setMessage(""); setError("");
-    const { error: saveError } = await supabase.from("content_translations").upsert(fields.map((field) => ({ source_type: "partners", source_id: selected.id, field_name: field.key, language, translated_value: state.values[field.key] || "", status, reviewed, is_published: published, created_by: adminEmail, updated_by: adminEmail, updated_at: new Date().toISOString() })), { onConflict: "source_type,source_id,field_name,language" });
+    const { error: saveError } = await adminBoundaryMutation("pr116_translations_partners_page_entity_content_translations_upsert", { values: fields.map((field) => ({ source_type: "partners", source_id: selected.id, field_name: field.key, language, translated_value: state.values[field.key] || "", status, reviewed, is_published: published, created_by: adminEmail, updated_by: adminEmail, updated_at: new Date().toISOString() })), filters: [], select: undefined, returnMode: "many", options: { onConflict: "source_type,source_id,field_name,language" } });
     setSaving(false);
     if (saveError) { setError(`تعذر حفظ الترجمة: ${saveError.message}`); return; }
     setMessage(published ? "تم حفظ الترجمة ونشرها يدوياً." : reviewed ? "تم الحفظ بحالة مراجع. لن تظهر للعامة قبل النشر اليدوي." : "تم الحفظ بحالة تحتاج مراجعة.");

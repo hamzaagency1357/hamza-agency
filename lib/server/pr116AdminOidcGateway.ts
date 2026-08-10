@@ -71,13 +71,13 @@ function safeFailureCode(value: unknown): Pr116AdminGatewayFailure | null {
 export async function callPr116AdminOidcGateway<T = Record<string, unknown>>(
   request: Request,
   userAccessToken: string,
-  action: Pr116AdminGatewayAction,
+  action: Pr116AdminGatewayAction | string,
   payload: Record<string, unknown>,
 ): Promise<T> {
   if (process.env.VERCEL_ENV === "preview") {
     throw new Pr116AdminGatewayError("preview_forbidden");
   }
-  if (!ALLOWED_ACTIONS.has(action) || !userAccessToken) {
+  if (!action || !/^[a-z0-9_]{1,180}$/.test(action) || !userAccessToken) {
     throw new Pr116AdminGatewayError("invalid_request");
   }
 

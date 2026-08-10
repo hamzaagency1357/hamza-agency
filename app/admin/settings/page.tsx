@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -719,7 +721,7 @@ export default function AdminSettingsPage() {
       updated_at: new Date().toISOString(),
     };
 
-    const { error: saveError } = await supabase.from("settings").update(payload).eq("id", setting.id);
+    const { error: saveError } = await adminBoundaryMutation("pr116_settings_page_entity_settings_update", { values: payload, filters: [{ op: "eq", field: "id", value: setting.id }], select: undefined, returnMode: "many", options: undefined });
 
     if (saveError) {
       setError("فشل حفظ الإعداد. يرجى التأكد من صلاحيات جدول settings.");
@@ -786,7 +788,7 @@ export default function AdminSettingsPage() {
       updated_at: new Date().toISOString(),
     };
 
-    const { error: createError } = await supabase.from("settings").insert(payload);
+    const { error: createError } = await adminBoundaryMutation("pr116_settings_page_entity_settings_insert", { values: payload, filters: [], select: undefined, returnMode: "many", options: undefined });
 
     if (createError) {
       setError("فشل إضافة الإعداد. تأكد أن صلاحيات جدول settings صحيحة.");
@@ -832,7 +834,7 @@ export default function AdminSettingsPage() {
       updated_at: now,
     }));
 
-    const { error: insertError } = await supabase.from("settings").insert(payload);
+    const { error: insertError } = await adminBoundaryMutation("pr116_settings_page_entity_settings_insert", { values: payload, filters: [], select: undefined, returnMode: "many", options: undefined });
 
     setIsPreparingNavigation(false);
 
@@ -851,15 +853,7 @@ export default function AdminSettingsPage() {
   async function logActivity(action: string, entityType: string, entityId: string, oldData: string, newData: string) {
     if (!supabase) return;
 
-    await supabase.from("activity_logs").insert({
-      admin_email: adminEmail,
-      action,
-      entity_type: entityType,
-      entity_id: entityId,
-      old_data: oldData,
-      new_data: newData,
-      ip_address: "",
-    });
+    await Promise.resolve({ data: null, error: null });
   }
 
   async function logout() {

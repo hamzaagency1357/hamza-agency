@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { requireTenantAdmin } from "@/lib/productExpansion/tenantAccess";
@@ -62,17 +64,17 @@ export default function ProductExpansionConsole() {
 
   async function toggleFlag(flag: FeatureFlag) {
     if (!supabase) return;
-    const { error: updateError } = await supabase.from("tenant_feature_flags").update({ enabled: !flag.enabled, updated_at: new Date().toISOString() }).eq("tenant_id", flag.tenant_id).eq("feature_key", flag.feature_key);
+    const { error: updateError } = await adminBoundaryMutation("pr116_component_productexpansionconsole_entity_tenant_feature_flags_update", { values: { enabled: !flag.enabled, updated_at: new Date().toISOString() }, filters: [{ op: "eq", field: "tenant_id", value: flag.tenant_id }, { op: "eq", field: "feature_key", value: flag.feature_key }], select: undefined, returnMode: "many", options: undefined });
     if (updateError) return setError(updateError.message);
-    await supabase.from("tenant_admin_audit").insert({ tenant_id: flag.tenant_id, action: "feature_flag.updated", entity_type: "tenant_feature_flag", entity_id: flag.feature_key, before_data: { enabled: flag.enabled }, after_data: { enabled: !flag.enabled } });
+    await adminBoundaryMutation("pr116_component_productexpansionconsole_entity_tenant_admin_audit_insert", { values: { tenant_id: flag.tenant_id, action: "feature_flag.updated", entity_type: "tenant_feature_flag", entity_id: flag.feature_key, before_data: { enabled: flag.enabled }, after_data: { enabled: !flag.enabled } }, filters: [], select: undefined, returnMode: "many", options: undefined });
     setFlags((current) => current.map((item) => item.feature_key === flag.feature_key ? { ...item, enabled: !item.enabled } : item));
   }
 
   async function saveBranding() {
     if (!supabase || !branding) return;
-    const { error: saveError } = await supabase.from("tenant_branding").upsert({ ...branding, updated_at: new Date().toISOString() });
+    const { error: saveError } = await adminBoundaryMutation("pr116_component_productexpansionconsole_entity_tenant_branding_upsert", { values: { ...branding, updated_at: new Date().toISOString() }, filters: [], select: undefined, returnMode: "many", options: undefined });
     if (saveError) return setError(saveError.message);
-    await supabase.from("tenant_admin_audit").insert({ tenant_id: branding.tenant_id, action: "branding.updated", entity_type: "tenant_branding", entity_id: branding.tenant_id, after_data: branding });
+    await adminBoundaryMutation("pr116_component_productexpansionconsole_entity_tenant_admin_audit_insert", { values: { tenant_id: branding.tenant_id, action: "branding.updated", entity_type: "tenant_branding", entity_id: branding.tenant_id, after_data: branding }, filters: [], select: undefined, returnMode: "many", options: undefined });
   }
 
   if (loading) return <div className="p-6 text-white">جارٍ تحميل إدارة المنصة…</div>;

@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -241,7 +243,7 @@ export default function AdminPage() {
     if (!supabase) return;
     setMessage(""); setError("");
     const currentApplication = applications.find((app) => app.id === id) || (selectedApplication?.id === id ? selectedApplication : null);
-    const { error: updateError } = await supabase.from("agency_applications").update({ status }).eq("id", id);
+    const { error: updateError } = await adminBoundaryMutation("pr116_page_entity_agency_applications_update", { values: { status }, filters: [{ op: "eq", field: "id", value: id }], select: undefined, returnMode: "many", options: undefined });
     if (updateError) { setError("فشل تحديث حالة الطلب."); return; }
     await logAdminActivity({ action:"update_application_status_from_dashboard",module:"agency_applications",adminEmail,recordId:id,details:`تغيير حالة طلب الانضمام من لوحة الإدارة الرئيسية إلى ${statusLabel[status] || status}`,oldData:currentApplication?getApplicationSnapshot(currentApplication):{id},newData:currentApplication?{...getApplicationSnapshot(currentApplication),status}:{id,status} });
     setApplications((current) => current.map((app) => app.id === id ? { ...app, status } : app));
@@ -253,7 +255,7 @@ export default function AdminPage() {
     if (!supabase || !selectedApplication) return;
     setMessage(""); setError("");
     const oldApplication = selectedApplication;
-    const { error: updateError } = await supabase.from("agency_applications").update({ internal_notes: internalNotes }).eq("id", selectedApplication.id);
+    const { error: updateError } = await adminBoundaryMutation("pr116_page_entity_agency_applications_update", { values: { internal_notes: internalNotes }, filters: [{ op: "eq", field: "id", value: selectedApplication.id }], select: undefined, returnMode: "many", options: undefined });
     if (updateError) { setError("فشل حفظ الملاحظات الداخلية."); return; }
     await logAdminActivity({ action:"update_application_internal_notes_from_dashboard",module:"agency_applications",adminEmail,recordId:selectedApplication.id,details:"تحديث الملاحظات الداخلية لطلب الانضمام من لوحة الإدارة الرئيسية",oldData:getApplicationSnapshot(oldApplication),newData:{...getApplicationSnapshot(oldApplication),internal_notes:internalNotes} });
     setApplications((current) => current.map((app) => app.id === selectedApplication.id ? { ...app, internal_notes: internalNotes } : app));

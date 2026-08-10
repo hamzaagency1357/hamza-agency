@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import Image from "next/image";
 import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
@@ -364,7 +366,7 @@ export default function AdminPartnersPage() {
       let successText = "";
 
       if (editingPartner) {
-        const { error } = await supabase.from("partners").update(payload).eq("id", editingPartner.id);
+        const { error } = await adminBoundaryMutation("pr116_partners_page_entity_partners_update", { values: payload, filters: [{ op: "eq", field: "id", value: editingPartner.id }], select: undefined, returnMode: "many", options: undefined });
 
         if (error) {
           setMessageType("error");
@@ -384,7 +386,7 @@ export default function AdminPartnersPage() {
 
         successText = "تم حفظ تعديلات الشريك أو البرنامج بنجاح.";
       } else {
-        const { error } = await supabase.from("partners").insert(payload);
+        const { error } = await adminBoundaryMutation("pr116_partners_page_entity_partners_insert", { values: payload, filters: [], select: undefined, returnMode: "many", options: undefined });
 
         if (error) {
           setMessageType("error");
@@ -426,10 +428,7 @@ export default function AdminPartnersPage() {
     const updatePayload = { is_visible: visible, status: nextStatus, updated_at: new Date().toISOString() };
 
     try {
-      const { error } = await supabase
-        .from("partners")
-        .update(updatePayload)
-        .eq("id", partner.id);
+      const { error } = await adminBoundaryMutation("pr116_partners_page_entity_partners_update", { values: updatePayload, filters: [{ op: "eq", field: "id", value: partner.id }], select: undefined, returnMode: "many", options: undefined });
 
       if (error) {
         setMessageType("error");
@@ -466,10 +465,7 @@ export default function AdminPartnersPage() {
     const updatePayload = { is_featured: nextValue, updated_at: new Date().toISOString() };
 
     try {
-      const { error } = await supabase
-        .from("partners")
-        .update(updatePayload)
-        .eq("id", partner.id);
+      const { error } = await adminBoundaryMutation("pr116_partners_page_entity_partners_update", { values: updatePayload, filters: [{ op: "eq", field: "id", value: partner.id }], select: undefined, returnMode: "many", options: undefined });
 
       if (error) {
         setMessageType("error");
@@ -518,10 +514,7 @@ export default function AdminPartnersPage() {
     };
 
     try {
-      const { error } = await supabase
-        .from("partners")
-        .update(archivePayload)
-        .eq("id", partner.id);
+      const { error } = await adminBoundaryMutation("pr116_partners_page_entity_partners_update", { values: archivePayload, filters: [{ op: "eq", field: "id", value: partner.id }], select: undefined, returnMode: "many", options: undefined });
 
       if (error) {
         setMessageType("error");
