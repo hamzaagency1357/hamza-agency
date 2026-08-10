@@ -86,7 +86,7 @@ export default function PublicQuickNav({ open, onOpenChange, mobileDockMode = fa
   useEffect(() => { let isMounted = true; async function loadNavigation() { const config = await getPublicNavigationConfig(); if (isMounted) setQuickNavGroups(sanitizePublicQuickNavGroups(config.quickNavGroups)); } void loadNavigation(); return () => { isMounted = false; }; }, []);
   useEffect(() => { if (mobileDockMode) return; document.body.classList.toggle("public-quick-nav-open", isOpen); return () => document.body.classList.remove("public-quick-nav-open"); }, [isOpen, mobileDockMode]);
   useEffect(() => { if (mobileDockMode || isControlled) return; setInternalOpen(false); }, [pathname, mobileDockMode, isControlled]);
-  const visibleGroups = useMemo(() => { const sanitizedGroups = sanitizePublicQuickNavGroups(quickNavGroups); return sanitizedGroups.length ? sanitizedGroups : defaultPublicNavigationConfig.quickNavGroups; }, [quickNavGroups]);
+  const visibleGroups = useMemo(() => sanitizePublicQuickNavGroups(quickNavGroups), [quickNavGroups]);
   if (shouldHidePublicQuickNav(pathname)) return null;
   const panel = isOpen ? (
     <div id={panelId} className="hamza-quick-nav-panel max-h-[calc(100svh-var(--public-mobile-dock-height)-2rem)] w-full overflow-y-auto overscroll-contain rounded-3xl border border-purple-400/25 bg-[#09000f]/95 p-3 pt-4 shadow-[0_0_70px_rgba(124,58,237,0.35)] backdrop-blur-xl md:mb-3 md:w-[min(340px,calc(100vw-2rem))]">

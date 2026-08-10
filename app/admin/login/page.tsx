@@ -60,7 +60,7 @@ export default function AdminLoginPage() {
       dir="rtl"
       className="min-h-screen bg-[#070009] text-white flex items-center justify-center p-6"
     >
-      <div className="w-full max-w-md rounded-3xl border border-purple-500/20 bg-black/40 p-6 shadow-2xl">
+      <div className="w-full max-w-md rounded-3xl border border-purple-400/25 bg-[linear-gradient(160deg,rgba(16,4,28,.96),rgba(5,0,8,.98))] p-6 shadow-[0_24px_80px_rgba(124,58,237,.2)]">
         <h1 className="text-3xl font-bold mb-2 text-center">
           تسجيل دخول الإدارة
         </h1>
@@ -119,7 +119,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full rounded-xl bg-purple-600 py-3 font-bold hover:bg-purple-500 disabled:opacity-60"
+            className="w-full rounded-xl border border-yellow-300/20 bg-gradient-to-r from-purple-700 via-purple-600 to-fuchsia-700 py-3 font-bold text-white shadow-[0_12px_32px_rgba(124,58,237,.22)] hover:brightness-110 disabled:opacity-60"
           >
             {isLoading ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
           </button>

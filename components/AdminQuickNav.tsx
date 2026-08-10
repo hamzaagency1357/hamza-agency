@@ -39,6 +39,7 @@ const adminGroups: AdminGroup[] = [
     accent: "border-violet-400/25 bg-violet-400/10 text-violet-100",
     links: [
       { label: "الصفحات", description: "إدارة بيانات الصفحات الأساسية وحالة نشرها.", href: "/admin/pages" },
+      { label: "المدونة", description: "إدارة المقالات ومسوداتها وحالة نشرها.", href: "/admin/blog" },
       { label: "منشئ الصفحات المتقدم", description: "بناء الأقسام وترتيبها ومعاينتها ونشرها.", href: "/admin/page-builder" },
       { label: "الأقسام المنشورة", description: "تنظيم أقسام المحتوى الظاهرة وترتيبها.", href: "/admin/sections" },
       { label: "البرامج", description: "إدارة البرامج وشروطها وصورها وحالة ظهورها.", href: "/admin/programs" },

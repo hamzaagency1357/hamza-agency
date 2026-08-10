@@ -53,15 +53,19 @@ type AdminLink = {
 const statusLabel: Record<string, string> = {
   new: "جديد",
   under_review: "قيد المراجعة",
+  contacted: "تم التواصل",
   accepted: "مقبول",
   rejected: "مرفوض",
+  archived: "مؤرشف",
 };
 
 const statusTone: Record<string, Tone> = {
   new: "blue",
   under_review: "amber",
+  contacted: "cyan",
   accepted: "green",
   rejected: "red",
+  archived: "slate",
 };
 
 const quickActions: AdminLink[] = [
@@ -118,6 +122,12 @@ const contentLinks: AdminLink[] = [
     description: "إدارة أقسام الصفحات وترتيب المحتوى الظاهر للزوار.",
     href: "/admin/sections",
     tone: "gold",
+  },
+  {
+    title: "المدونة",
+    description: "إدارة المقالات والمسودات والنشر من مكان واحد.",
+    href: "/admin/blog",
+    tone: "purple",
   },
   {
     title: "الوسائط",

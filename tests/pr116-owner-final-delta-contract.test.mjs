@@ -7,9 +7,9 @@ test("PR116 owner final delta contracts are closed",()=>{
  for(const token of ["home_stat_4_number","home_stat_4_label_ar","home_stat_4_label_en","home_stat_4_label_tr"]) assert.ok(adminHome.includes(token),token);
  assert.ok(home.includes("+50")); assert.ok(home.includes("home_stat_${item.key}_number"));
  for(const path of ["/digital-services","/apply"]) { assert.ok(settings.includes(path),path); assert.ok(nav.includes(path)||settings.includes(path),path); }
- assert.ok(apply.includes("getPublicNavigationConfig")||apply.includes("localizePublicHref"));
+ assert.ok(apply.includes("getPublicNavigationConfig")||apply.includes("localizePublicHref")); assert.ok(nav.includes("const headerLinks=[...config.headerLinks]"));
  assert.ok(digital.includes("digital")||digital.includes("الخدمات الرقمية"));
- assert.ok(blog.includes("AdminBlogManager"));
+ assert.ok(blog.includes("AdminBlogManager")); assert.ok(quick.includes("/admin/blog"));
  for(const group of ["border-sky-400/25","border-violet-400/25","border-emerald-400/25","border-amber-400/25","border-rose-400/25","border-fuchsia-400/25","border-slate-400/25"]) assert.ok(quick.includes(group),group);
  assert.ok(login.includes("bg-[#070009]")); assert.ok(program.includes("font-black")||program.includes("font-bold")); assert.ok(agent.includes("font-black")||agent.includes("font-bold")); assert.ok(dock.includes("tenant-primary")||dock.includes("purple"));
  for(const status of ["'new'","'under_review'","'contacted'","'accepted'","'rejected'","'archived'"]) assert.ok(migration.includes(status),status);
