@@ -3,7 +3,7 @@ import type { SiteLanguage } from "@/lib/i18n/locale";
 /**
  * Only explicit guarantees or unsupported partnership claims are rewritten.
  * Numeric values are intentionally excluded from sanitization.
- * The homepage statistics 7000+ / 5+ / 24/7 / 7 are explicit Owner-approved
+ * The homepage statistics 7000+ / 5+ / 24/7 / +50 / 7 are explicit Owner-approved
  * marketing content and must remain unchanged unless the Owner changes them.
  */
 const exactReplacements: Record<
@@ -43,8 +43,7 @@ const exactReplacements: Record<
     ["5+ منصات متاحة", "5+ منصات متاحة"],
     ["24/7 دعم ومتابعة", "24/7 دعم ومتابعة"],
     ["7 سنوات خبرة", "7 سنوات خبرة"],
-    ["50+ فرصة نجاح شهرية", "50+ فرصة نجاح شهرية"],
-    ["500+ فرصة نجاح شهرية", "500+ فرصة نجاح شهرية"],
+    ["+50 فرصة نجاح شهريًا", "+50 فرصة نجاح شهريًا"],
   ],
   en: [
     [
@@ -71,8 +70,7 @@ const exactReplacements: Record<
     ["24/7 Support & follow-up", "24/7 Support & follow-up"],
     ["7 Years of experience", "7 Years of experience"],
     ["24/7 support and follow-up", "24/7 support and follow-up"],
-    ["50+ monthly success opportunities", "50+ monthly success opportunities"],
-    ["500+ monthly success opportunities", "500+ monthly success opportunities"],
+    ["+50 Monthly success opportunities", "+50 Monthly success opportunities"],
   ],
   tr: [
     [
@@ -95,8 +93,7 @@ const exactReplacements: Record<
     ["24/7 Destek ve takip", "24/7 Destek ve takip"],
     ["7 Yıllık deneyim", "7 Yıllık deneyim"],
     ["7/24 destek ve takip", "7/24 destek ve takip"],
-    ["50+ aylık başarı fırsatı", "50+ aylık başarı fırsatı"],
-    ["500+ aylık başarı fırsatı", "500+ aylık başarı fırsatı"],
+    ["+50 Aylık başarı fırsatı", "+50 Aylık başarı fırsatı"],
   ],
 };
 

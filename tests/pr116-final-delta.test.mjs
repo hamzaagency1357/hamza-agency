@@ -19,13 +19,14 @@ test("desktop Smart Support button uses the active locale copy",()=>{
 
 test("homepage preserves Owner-approved marketing statistics exactly",()=>{
   const source=read("app/page.tsx");
-  for(const value of ['number:"7000+"','number:"5+"','number:"24/7"','number:"7"']) assert.ok(source.includes(value));
+  for(const value of ['number:"7000+"','number:"5+"','number:"24/7"','number:"+50"','number:"7"']) assert.ok(source.includes(value));
   assert.ok(source.includes('number:"7000+",label:"صانع محتوى"'));
   assert.ok(source.includes('number:"5+",label:"منصات متاحة"'));
   assert.ok(source.includes('number:"24/7",label:"دعم ومتابعة"'));
+  assert.ok(source.includes('number:"+50",label:"فرصة نجاح شهريًا"'));
   assert.ok(source.includes('number:"7",label:"سنوات خبرة"'));
   assert.equal(compact(source).includes('item.key===2?String(programs.length)'),false);
-  assert.ok(compact(source).includes('conststats=t.stats.map((item)=>[item.number,item.label]asconst)'));
+  assert.ok(compact(source).includes('conststats=t.stats.map((item)=>[setting(settings,[`home_stat_${item.key}_number`],item.number),setting(settings,[`home_stat_${item.key}_label_${language}`],item.label)]asconst)'));
   assert.ok(source.includes('text-yellow-200'));
 });
 

@@ -845,7 +845,7 @@ export default function AdminSettingsPage() {
 
     await logActivity("create_navigation_settings", "settings", "navigation", "", JSON.stringify(payload));
 
-    setMessage(`تم تجهيز ${payload.length} إعدادات لروابط الموقع داخل Settings CMS.`);
+    setMessage(`تم تجهيز ${payload.length} إعدادات لروابط الموقع داخل إعدادات الموقع.`);
     setActiveGroup("navigation");
     await loadSettings();
   }
@@ -1010,10 +1010,10 @@ export default function AdminSettingsPage() {
             <div>
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 <span className="rounded-full border border-purple-400/30 bg-purple-500/15 px-4 py-2 text-sm font-bold text-purple-100">
-                  17B — Navigation Settings Foundation
+                  إعداد روابط الموقع
                 </span>
                 <span className="rounded-full border border-emerald-400/25 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-100">
-                  Settings CMS
+                  إعدادات الموقع
                 </span>
               </div>
 
@@ -1062,7 +1062,7 @@ export default function AdminSettingsPage() {
         <section className="mb-6 grid gap-4 md:grid-cols-4">
           <StatCard title="كل الإعدادات" value={settings.length} note="إجمالي القيم" />
           <StatCard title="عامة للموقع" value={publicCount} note="تقرأها الواجهة لاحقاً" />
-          <StatCard title="إعدادات التنقل" value={navigationCount} note="أساس No-Code Navigation" />
+          <StatCard title="إعدادات التنقل" value={navigationCount} note="إدارة روابط الموقع دون تعديل برمجي" />
           <StatCard title="التواصل والفوتر" value={footerAndContactCount} note="جاهزة للإدارة" />
         </section>
 

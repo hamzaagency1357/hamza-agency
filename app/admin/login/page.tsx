@@ -29,7 +29,7 @@ export default function AdminLoginPage() {
     setNotice("");
 
     if (!isSupabaseConfigured || !supabase) {
-      setError("Supabase غير متصل حالياً.");
+      setError("خدمة تسجيل الدخول غير متاحة حاليًا. حاول مرة أخرى بعد قليل.");
       return;
     }
 

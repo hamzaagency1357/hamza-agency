@@ -23,7 +23,7 @@ $pr116_tables$;
 do $pr116_rpcs$
 declare r record;
 begin
-  for r in select p.oid::regprocedure as signature from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname = any(array['pr4_promote_suggestion', 'pr4_save_knowledge', 'pr4_support_action', 'publish_translation_candidate', 'refresh_product_kpis', 'review_translation_candidate', 'save_translation_candidate_fields']) loop
+  for r in select p.oid::regprocedure as signature from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname = any(array['pr3_publish_blog_post', 'pr3_save_blog_post', 'pr3_unpublish_blog_post', 'pr4_notification_action', 'pr4_promote_suggestion', 'pr4_save_knowledge', 'pr4_support_action', 'pr99_backup_dry_run', 'pr99_create_private_backup', 'pr99_mark_notifications_read', 'pr99_permanent_delete_trash', 'pr99_restore_backup', 'pr99_restore_trash', 'pr99_unpublish_page', 'pr116_moderate_review_submission', 'publish_page_builder_page', 'publish_translation_candidate', 'refresh_product_kpis', 'review_translation_candidate', 'save_page_builder_draft', 'save_translation_candidate_fields']) loop
     execute format('revoke execute on function %s from public, anon, authenticated', r.signature);
     execute format('grant execute on function %s to service_role', r.signature);
   end loop;

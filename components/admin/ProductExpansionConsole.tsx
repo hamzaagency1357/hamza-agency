@@ -84,7 +84,7 @@ export default function ProductExpansionConsole() {
     <main className="min-h-screen bg-[#09050f] p-4 text-white md:p-8" dir="rtl">
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="rounded-3xl border border-violet-400/20 bg-white/5 p-6">
-          <p className="text-sm text-violet-200">PR101 Product Expansion</p>
+          <p className="text-sm text-violet-200">إدارة توسع الوكالة</p>
           <h1 className="mt-2 text-3xl font-black">إدارة المستأجرين والهوية والميزات</h1>
           <select value={activeTenant} onChange={(event) => setActiveTenant(event.target.value)} className="mt-4 min-h-12 rounded-xl border border-white/15 bg-black/50 px-4">
             {tenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.name}</option>)}
@@ -115,7 +115,7 @@ export default function ProductExpansionConsole() {
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
-          <h2 className="text-xl font-bold">Feature flags</h2>
+          <h2 className="text-xl font-bold">خيارات الميزات</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {flags.map((flag) => <button key={flag.feature_key} onClick={() => void toggleFlag(flag)} className="flex min-h-14 items-center justify-between rounded-xl border border-white/10 bg-black/30 px-4 text-right"><span>{flag.feature_key}</span><span className={flag.enabled ? "text-emerald-300" : "text-white/40"}>{flag.enabled ? "مفعّل" : "معطّل"}</span></button>)}
           </div>

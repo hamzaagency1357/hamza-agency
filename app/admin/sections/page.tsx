@@ -709,7 +709,7 @@ export default function AdminPublishedSectionsPage() {
         )}
 
         <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="صفحات CMS" value={stats.pages} />
+          <StatCard label="صفحات الموقع" value={stats.pages} />
           <StatCard label="أقسام هذه الصفحة" value={stats.total} />
           <StatCard label="أقسام ظاهرة" value={stats.visible} />
           <StatCard label="أقسام مخفية" value={stats.hidden} />
