@@ -2,7 +2,7 @@ import type { SiteLanguage } from "@/lib/i18n/locale";
 
 /**
  * Only explicit guarantees or unsupported partnership claims are rewritten.
- * Numeric marketing values are intentionally excluded from sanitization.
+ * Numeric values are intentionally excluded from sanitization.
  * The homepage statistics 7000+ / 5+ / 24/7 / 7 are explicit Owner-approved
  * marketing content and must remain unchanged unless the Owner changes them.
  */
