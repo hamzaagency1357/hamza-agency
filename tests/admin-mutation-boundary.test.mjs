@@ -5,6 +5,7 @@ import test from "node:test";
 
 const ROOT = process.cwd();
 const SCAN_ROOTS = ["app/admin", "components/admin"];
+const SHARED_ADMIN_ROOT = "components";
 const EXTRA_FILES = ["lib/adminAccess.ts", "lib/adminActivityLogger.ts", "lib/adminTrash.ts"];
 const EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx"]);
 
@@ -33,7 +34,9 @@ function compact(source) {
 function rpcViolations(file, text) {
   const allowed = READONLY_BROWSER_RPCS.get(file) || new Set();
   const names = [...text.matchAll(/\.rpc\s*\(\s*["'`]([^"'`]+)["'`]/g)].map((match) => match[1]);
-  return names.filter((name) => !allowed.has(name)).map((name) => `${file}: stateful/unclassified RPC ${name}`);
+  const violations = names.filter((name) => !allowed.has(name)).map((name) => `${file}: stateful/unclassified RPC ${name}`);
+  if (/\.rpc\s*\(\s*(?!["'`])/.test(text)) violations.push(`${file}: dynamic/unclassified RPC`);
+  return violations;
 }
 
 function findings(file, source) {
@@ -53,7 +56,8 @@ function findings(file, source) {
 }
 
 test("Admin browser code contains no direct state-changing Supabase path", () => {
-  const files = [...new Set([...SCAN_ROOTS.flatMap(walk), ...EXTRA_FILES.filter((file) => fs.existsSync(path.join(ROOT, file)))])];
+  const sharedAdminFiles = walk(SHARED_ADMIN_ROOT).filter((file) => { const source = fs.readFileSync(path.join(ROOT, file), "utf8"); return /^Admin[A-Z0-9_].*\.(?:js|jsx|ts|tsx)$/.test(path.basename(file)) || source.includes("requireAdminModuleAccess(") || source.includes("@/lib/adminAccess"); });
+  const files = [...new Set([...SCAN_ROOTS.flatMap(walk), ...sharedAdminFiles, ...EXTRA_FILES.filter((file) => fs.existsSync(path.join(ROOT, file)))])];
   const violations = files.flatMap((file) => findings(file, fs.readFileSync(path.join(ROOT, file), "utf8")));
   assert.deepEqual(violations, [], `Browser-side Admin mutations must use typed server boundaries:\n${violations.join("\n")}`);
 });

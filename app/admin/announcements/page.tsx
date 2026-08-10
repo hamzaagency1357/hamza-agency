@@ -59,7 +59,6 @@ export default function AdminAnnouncementsPage() {
 
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [adminEmail, setAdminEmail] = useState("");
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [selectedAnnouncement, setSelectedAnnouncement] =
@@ -79,8 +78,6 @@ export default function AdminAnnouncementsPage() {
         router.replace("/admin/login");
         return;
       }
-
-      setAdminEmail(access.profile.email || access.user?.email || "");
       setIsAuthorized(true);
       setIsCheckingAuth(false);
     }
@@ -332,6 +329,7 @@ export default function AdminAnnouncementsPage() {
     oldData: string,
     newData: string
   ) {
+    void action; void entityType; void entityId; void oldData; void newData;
     if (!supabase) return;
 
     await Promise.resolve({ data: null, error: null });

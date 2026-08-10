@@ -6,6 +6,221 @@ export type Pr116AdminActionContract =
   | { kind: "trash"; itemType: string; module: string; permission: string; allowedFields: readonly string[] };
 
 export const PR116_ADMIN_ACTION_CONTRACTS = {
+  "pr116_admin_backup_create": {
+    "kind": "rpc",
+    "rpcName": "pr99_create_private_backup",
+    "module": "backups",
+    "permission": "can_manage",
+    "allowedFields": [
+      "p_mode",
+      "p_notes",
+      "p_scope"
+    ]
+  },
+  "pr116_admin_backup_dry_run": {
+    "kind": "rpc",
+    "rpcName": "pr99_backup_dry_run",
+    "module": "backups",
+    "permission": "can_manage",
+    "allowedFields": [
+      "p_backup",
+      "p_scope"
+    ]
+  },
+  "pr116_admin_backup_restore": {
+    "kind": "rpc",
+    "rpcName": "pr99_restore_backup",
+    "module": "backups",
+    "permission": "can_manage",
+    "allowedFields": [
+      "p_backup",
+      "p_scope"
+    ]
+  },
+  "pr116_admin_blog_publish": {
+    "kind": "rpc",
+    "rpcName": "pr3_publish_blog_post",
+    "module": "pages",
+    "permission": "can_edit",
+    "allowedFields": [
+      "p_post_id"
+    ]
+  },
+  "pr116_admin_blog_save": {
+    "kind": "rpc",
+    "rpcName": "pr3_save_blog_post",
+    "module": "pages",
+    "permission": "can_edit",
+    "allowedFields": [
+      "p_category",
+      "p_featured_image_url",
+      "p_post_id",
+      "p_scheduled_at",
+      "p_slug",
+      "p_status",
+      "p_tags",
+      "p_translations"
+    ]
+  },
+  "pr116_admin_blog_unpublish": {
+    "kind": "rpc",
+    "rpcName": "pr3_unpublish_blog_post",
+    "module": "pages",
+    "permission": "can_edit",
+    "allowedFields": [
+      "p_post_id"
+    ]
+  },
+  "pr116_admin_cms_translation_upsert": {
+    "kind": "entity",
+    "table": "content_translations",
+    "method": "upsert",
+    "module": "settings",
+    "permission": "can_edit",
+    "allowedFields": [
+      "field_name",
+      "is_published",
+      "language",
+      "reviewed",
+      "source_id",
+      "source_type",
+      "status",
+      "translated_value",
+      "updated_at"
+    ],
+    "allowedFilters": [],
+    "allowedSelects": [],
+    "returnFields": []
+  },
+  "pr116_admin_notification_action": {
+    "kind": "rpc",
+    "rpcName": "pr4_notification_action",
+    "module": "notifications",
+    "permission": "can_edit",
+    "allowedFields": [
+      "p_action",
+      "p_ids"
+    ]
+  },
+  "pr116_admin_notifications_mark_read": {
+    "kind": "rpc",
+    "rpcName": "pr99_mark_notifications_read",
+    "module": "notifications",
+    "permission": "can_edit",
+    "allowedFields": [
+      "p_ids"
+    ]
+  },
+  "pr116_admin_page_builder_publish": {
+    "kind": "rpc",
+    "rpcName": "publish_page_builder_page",
+    "module": "pages",
+    "permission": "can_edit",
+    "allowedFields": [
+      "p_language",
+      "p_notes",
+      "p_page_id"
+    ]
+  },
+  "pr116_admin_page_builder_save": {
+    "kind": "rpc",
+    "rpcName": "save_page_builder_draft",
+    "module": "pages",
+    "permission": "can_edit",
+    "allowedFields": [
+      "p_language",
+      "p_page_id",
+      "p_page_patch",
+      "p_sections"
+    ]
+  },
+  "pr116_admin_page_builder_unpublish": {
+    "kind": "rpc",
+    "rpcName": "pr99_unpublish_page",
+    "module": "pages",
+    "permission": "can_edit",
+    "allowedFields": [
+      "p_language",
+      "p_page_id"
+    ]
+  },
+  "pr116_admin_review_moderate": {
+    "kind": "rpc",
+    "rpcName": "pr116_moderate_review_submission",
+    "module": "reviews",
+    "permission": "can_edit",
+    "allowedFields": [
+      "p_decision",
+      "p_submission_id"
+    ]
+  },
+  "pr116_admin_review_setting_insert": {
+    "kind": "entity",
+    "table": "settings",
+    "method": "insert",
+    "module": "reviews",
+    "permission": "can_create",
+    "allowedFields": [
+      "description",
+      "group_name",
+      "input_type",
+      "is_public",
+      "label_ar",
+      "label_en",
+      "setting_group",
+      "setting_key",
+      "setting_value",
+      "sort_order",
+      "updated_at"
+    ],
+    "allowedFilters": [],
+    "allowedSelects": [
+      "id"
+    ],
+    "returnFields": [
+      "id"
+    ]
+  },
+  "pr116_admin_review_setting_update": {
+    "kind": "entity",
+    "table": "settings",
+    "method": "update",
+    "module": "reviews",
+    "permission": "can_edit",
+    "allowedFields": [
+      "is_public",
+      "setting_value",
+      "updated_at"
+    ],
+    "allowedFilters": [
+      "id"
+    ],
+    "allowedSelects": [
+      "id"
+    ],
+    "returnFields": [
+      "id"
+    ]
+  },
+  "pr116_admin_trash_permanent_delete": {
+    "kind": "rpc",
+    "rpcName": "pr99_permanent_delete_trash",
+    "module": "trash",
+    "permission": "can_delete",
+    "allowedFields": [
+      "p_confirmation",
+      "p_trash_id"
+    ]
+  },
+  "pr116_admin_trash_restore": {
+    "kind": "rpc",
+    "rpcName": "pr99_restore_trash",
+    "module": "trash",
+    "permission": "can_edit",
+    "allowedFields": [
+      "p_trash_id"
+    ]
+  },
   "pr116_ai_support_page_rpc_pr4_support_action_call": {
     "kind": "rpc",
     "rpcName": "pr4_support_action",
@@ -96,7 +311,7 @@ export const PR116_ADMIN_ACTION_CONTRACTS = {
       "contact_email",
       "contact_phone",
       "updated_at"
-],
+    ],
     "allowedFilters": [],
     "allowedSelects": [],
     "returnFields": []

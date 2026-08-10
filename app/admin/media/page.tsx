@@ -13,7 +13,7 @@ import { supabase } from "@/lib/supabase";
 
 type MediaItem={id:number;created_at:string;updated_at:string|null;name:string|null;file_url:string|null;file_type:string|null;category:string|null;alt_text:string|null;page_slug:string|null;is_active:boolean|null;uploaded_by:string|null};
 type MediaForm={name:string;fileUrl:string;fileType:string;category:string;altText:string;pageSlug:string;isActive:boolean};
-const BUCKET="media-library";const MAX=5*1024*1024;const allowed=new Set(["image/jpeg","image/png","image/webp","image/avif"]);const extensions:Record<string,string>={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/avif":"avif"};
+const MAX=5*1024*1024;const allowed=new Set(["image/jpeg","image/png","image/webp","image/avif"]);const extensions:Record<string,string>={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/avif":"avif"};
 const empty:MediaForm={name:"",fileUrl:"",fileType:"image",category:"general",altText:"",pageSlug:"",isActive:true};
 const types={image:"صورة",logo:"شعار",icon:"أيقونة",generated_background:"خلفية برمجية",video:"فيديو خارجي",background_video:"فيديو خلفية خارجي",document:"مستند خارجي"};
 const categories={general:"عام",logo:"الشعارات العامة","program-logo":"شعارات البرامج",background:"الخلفيات",section_visual:"صور الأقسام",programs:"البرامج",services:"الخدمات",seo:"SEO / Open Graph",legal:"الصفحات القانونية",gallery:"المعرض"};

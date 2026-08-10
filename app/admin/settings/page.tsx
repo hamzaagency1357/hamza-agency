@@ -851,6 +851,7 @@ export default function AdminSettingsPage() {
   }
 
   async function logActivity(action: string, entityType: string, entityId: string, oldData: string, newData: string) {
+    void action; void entityType; void entityId; void oldData; void newData;
     if (!supabase) return;
 
     await Promise.resolve({ data: null, error: null });

@@ -595,6 +595,11 @@ export default function AdminPublishedSectionsPage() {
     oldData: string,
     newData: string
   ) {
+    void action;
+    void entityType;
+    void entityId;
+    void oldData;
+    void newData;
     if (!isSupabaseConfigured || !supabase) return;
 
     await Promise.resolve({ data: null, error: null });

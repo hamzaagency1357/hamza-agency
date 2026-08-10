@@ -34,7 +34,6 @@ type Form = {
   blur: number; focal: string; autoplay: boolean; loop: boolean; publishAt: string; unpublishAt: string;
 };
 
-const BUCKET = "media-library";
 const IMAGE_MAX = 5 * 1024 * 1024;
 const VIDEO_MAX = 25 * 1024 * 1024;
 const labels: Record<Status, string> = {

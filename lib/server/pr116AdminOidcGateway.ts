@@ -35,16 +35,6 @@ export class Pr116AdminGatewayError extends Error {
   }
 }
 
-const ALLOWED_ACTIONS = new Set<Pr116AdminGatewayAction>([
-  "application_status_update",
-  "application_internal_notes_update",
-  "support_action",
-  "knowledge_save",
-  "knowledge_promote",
-  "translation_save",
-  "translation_review",
-  "translation_publish",
-]);
 
 function getRuntimeOidcToken(request: Request) {
   return request.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
