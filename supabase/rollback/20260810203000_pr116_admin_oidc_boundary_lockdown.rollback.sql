@@ -1,0 +1,6 @@
+-- PR116 emergency rollback companion. Run only after verified backup review and explicit Owner approval.
+-- Restores the pre-lockdown Supabase default browser DML grants for the exact migrated table set.
+begin;
+do $rollback$ declare t text; begin foreach t in array array["admin_permissions", "agency_applications", "announcements", "contact_messages", "content_translations", "faqs", "gallery_items", "incident_updates", "incidents", "job_applications", "jobs", "marketplace_categories", "marketplace_listing_translations", "marketplace_listings", "marketplace_orders", "media", "pages", "partners", "privacy_requests", "programs", "reviews", "sections", "service_requests", "settings", "sla_policies", "success_stories", "task_assignments", "task_comments", "tasks", "tenant_branding", "tenant_domains", "tenant_feature_flags", "tenant_settings", "tenants", "visual_experience_settings", "white_label_projects", "workflow_definitions", "workflow_steps"] loop execute format('grant insert, update, delete on table public.%I to authenticated', t); end loop; end $rollback$;
+-- Storage policies and function grants must be restored from the verified pre-migration schema snapshot; they are intentionally not recreated generically.
+rollback; -- safety default: change to COMMIT only during an approved rollback procedure.

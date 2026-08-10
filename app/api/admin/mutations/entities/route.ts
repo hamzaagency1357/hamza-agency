@@ -33,6 +33,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "عملية الحفظ غير معتمدة." }, { status: 400 });
   }
   const contract = PR116_ADMIN_ACTION_CONTRACTS[body.action as keyof typeof PR116_ADMIN_ACTION_CONTRACTS] as Pr116AdminActionContract;
+  if (contract.kind === "entity" && contract.table === "tenant_admin_audit") {
+    return NextResponse.json({ ok: false, message: "سجل التدقيق يُنشأ تلقائيًا من البوابة الموثوقة ولا يقبل إدخالًا من المتصفح." }, { status: 400 });
+  }
   if (!validatePayload(contract, body.payload)) return NextResponse.json({ ok: false, message: "بيانات الحفظ لا تطابق العقد المعتمد." }, { status: 400 });
   const auth = await authorizeAdminMutation(request, contract.module as AdminModule, contract.permission as AdminPermissionAction);
   if (!auth.ok) return NextResponse.json({ ok: false, message: auth.message }, { status: auth.status });

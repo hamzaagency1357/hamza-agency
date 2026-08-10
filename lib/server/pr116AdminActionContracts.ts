@@ -89,8 +89,14 @@ export const PR116_ADMIN_ACTION_CONTRACTS = {
     "module": "settings",
     "permission": "can_edit",
     "allowedFields": [
+      "tenant_id",
+      "primary_color",
+      "secondary_color",
+      "accent_color",
+      "contact_email",
+      "contact_phone",
       "updated_at"
-    ],
+],
     "allowedFilters": [],
     "allowedSelects": [],
     "returnFields": []
