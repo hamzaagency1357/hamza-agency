@@ -1,150 +1,109 @@
 # HAMZA AGENCY — Final Pre-Launch Manual Checklist
 
-This checklist contains only manual/external release gates that remain relevant to PR #116. It is not a feature backlog and does not resurrect PR1–PR5 roadmap items. The detailed programmatic state lives in `docs/CURRENT_CLOSEOUT_LEDGER.md`.
+Only manual/external/Production gates remain here. This is not a development backlog.
 
-## 1. Administrator security — mandatory
+## 1. Administrator security
 
-- Enable MFA for the primary administrator and verify a factor is enrolled successfully.
-- Store recovery material securely outside GitHub, logs, chat, and shared staff devices.
-- Create a **separate** Backup Administrator using a real Owner-controlled identity.
-- Grant only the intended backup role/permissions.
-- Enable MFA for the Backup Administrator.
-- Test primary and backup login, logout, password reset/recovery, session refresh, and session revocation.
-- Verify neither account sees modules/actions beyond its permissions.
+- Enable MFA for the primary real administrator and verify login with the factor.
+- Store recovery material privately outside GitHub/chat/logs.
+- Create a real independent Owner-controlled Backup Administrator with least privilege.
+- Enable Backup Admin MFA.
+- Verify primary + backup login, logout, recovery/password-reset path, session refresh/revocation and permission boundaries.
 
-Current read-only Production audit found one active admin and zero verified MFA factors, so this section is not complete.
+Current Production audit: 1 active admin, 0 verified MFA, no independent backup admin verified.
 
 ### Leaked Password Protection
 
-The current Supabase organization is on the Free plan. Supabase documents Leaked Password Protection as available on Pro and above. Under the current Owner directive this remains an external plan/security blocker unless the plan changes or the requirement is explicitly superseded. Do not misreport it as enabled.
+Current Supabase plan is Free. Required protection is unavailable under the current no-billing policy. Record: **External Plan Limitation — Owner Decision Required**. Do not fake PASS or silently upgrade.
 
 ## 2. Exact Preview Owner QA
 
-Use only a Vercel Preview whose deployment SHA exactly matches the final PR #116 Head.
+Use only the Vercel Preview whose SHA equals the final PR #116 Head.
 
-### Public — desktop and mobile
+### Public AR/EN/TR — desktop + mobile
 
-Review Arabic, English, and Turkish for:
+Check only current closeout items:
 
-- Home, Header, Footer, navigation, Agent page;
-- Programs and Program Media fallbacks;
-- Digital Services and Smart Support;
-- Contact;
-- Blog, Reviews, Success Stories, Jobs and honest empty states;
-- Install App;
-- Cookie banner and preference reopening;
-- Marketplace/Platform Status/Portal visibility;
-- forms, buttons, modals, mobile dock, floating actions, safe areas;
-- exact Arabic decorated Agent rendering;
-- no superseded EN/TR Agent titles or mixed-locale visible fallback.
+- Desktop Smart Support: AR `الدعم الذكي`, EN `Smart Support`, TR `Akıllı Destek`.
+- Mobile Menu + Smart Support + WhatsApp availability.
+- no overlay/safe-area/close-button breakage;
+- Cookie controls and reopening;
+- Reviews honest empty/submission state;
+- Program Media fallback;
+- decorated Arabic Agent and EN/TR Agent identity;
+- no Arabic residue in EN/TR;
+- color hierarchy in available presets;
+- no developer wording / public commit SHA/internal status details.
 
-Confirm Mobile Dock exposes Menu, Smart Support, and WhatsApp without covering content.
+### Admin authenticated — desktop + mobile
 
-### Admin — authenticated, desktop and mobile
+- Unified Requests opens the intended Application and Service Request.
+- Job/Contact routes do not rely on invalid fragments.
+- Blog/guide floating controls do not cover content.
+- tables/cards/forms do not destructively clip on mobile.
+- no visitor-marketing copy in Admin.
+- one active navigation item only.
+- direct URL + important action authorization samples respect permissions.
+- visible Admin copy is human-readable and not developer/database UI.
 
-Review:
+If a finding is not reproduced, do not redesign it.
 
-- Dashboard and daily-work hierarchy;
-- sidebar/quick navigation and one active item only;
-- Applications, Service Requests, Jobs, Contact and unified Requests center;
-- opening/viewing the intended request from the unified center;
-- forms, filters, cards, tables, actions and responsive overflow;
-- Programs, Program Media, Content, Blog, Reviews and Translations;
-- Settings, identity, visibility, Preview/Publish where applicable;
-- Permissions and direct-URL denial for unauthorized accounts;
-- Trash/Restore where supported;
-- Backup and System Status pages;
-- no floating control covering actionable content;
-- no raw developer/database wording in daily Admin UI unless intentionally inside technical details for the highest-privilege role.
+## 3. Android Chrome PWA real-device gate
 
-Owner Final QA must be explicitly recorded as `PASS` before the migration/merge sequence can continue.
+- Open the final public release candidate on Android Chrome.
+- Where direct install is supported, verify **تثبيت التطبيق** (and EN/TR equivalents) starts the real install flow.
+- Where direct prompt is unavailable, verify a short nontechnical localized fallback only.
+- Verify installed standalone launch/icon/manifest/language/mobile layout.
+- No visitor-facing `beforeinstallprompt` or implementation/event wording.
 
-## 3. Android PWA real-device check
+## 4. Production backup gate
 
-On a real Android device using Chrome:
+Before any Production migration:
 
-- open the exact release Preview/public deployment as appropriate;
-- verify the Install App page in AR/EN/TR;
-- where `beforeinstallprompt`/browser installation is available, verify the visible install button starts the real browser installation flow;
-- where direct installation is unavailable, verify only the professional localized fallback is shown;
-- verify standalone launch, icon/manifest behavior, language routing and safe mobile layout;
-- confirm no technical implementation wording is exposed to the visitor.
+- create a fresh private Production backup;
+- verify it exists and its safe identifier/time;
+- verify schema/scope/integrity evidence;
+- perform the supported isolated restore/dry-run/recovery validation;
+- document rollback/recovery for the exact PR116 migrations;
+- do not mutate Production business rows for testing.
 
-## 4. Production backup before any DB change
+## 5. Production Migration Gate
 
-Before the Production Migration Gate:
-
-- create a fresh private Production backup using the approved backup workflow;
-- confirm the backup exists and record its safe identifier/time without posting secrets;
-- verify schema/version/scope and the workflow's integrity evidence;
-- run the supported dry-run/restore validation in an isolated or disposable context;
-- confirm the rollback/recovery path for the exact PR116 migrations;
-- do not mutate Production business rows to create evidence.
-
-No Production migration may proceed without this section and explicit Owner approval.
-
-## 5. Production Migration Gate — only after Owner QA PASS
-
-Present to the Owner before execution:
+After Owner QA PASS, present and then STOP:
 
 - exact final Head;
-- exact migration files;
-- why each migration is still required;
-- tables/functions affected;
+- migration files and reasons;
+- affected functions/tables;
 - RLS/security effect;
-- isolated verification result;
+- isolated proof;
 - backup status;
 - rollback/recovery path.
 
-Current expected migrations:
+Expected files:
 
 - `20260809095000_pr116_owner_approved_reviews_program_media.sql`
 - `20260810001500_pr116_final_security_boundary_closeout.sql`
 
-Then **STOP and wait for explicit Owner Production Migration approval**.
+No Production migration without explicit Owner approval.
 
-After approval, verify only affected Production flows, including Program Media/Reviews where applicable, direct internal RPC denial, legitimate OIDC public submission, protected public lookups, RLS and Admin moderation.
+## 6. Merge/deployment gate
 
-## 6. Merge Gate
+No Ready-for-Review conversion and no merge without separate explicit Owner approval after all required gates.
 
-Merge only after:
+After an approved merge:
 
-- Current Closeout Ledger Open = 0;
-- exact final CI is green;
-- Owner Final QA = PASS;
-- Production Migration PASS if still required;
-- security verification PASS;
-- explicit Owner merge approval.
+- Vercel Production = READY;
+- Production commit = merge commit;
+- `/api/health` = OK and `commitSha` = exact merge commit;
+- smoke Home, Admin login, Applications, Service Request and PR116-affected flows;
+- verify direct browser execution of internal submission/guard RPCs and legacy bypasses is denied;
+- verify legitimate Production OIDC path succeeds;
+- review relevant logs without exposing secrets.
 
-Do not add a feature between Owner PASS and merge.
+## 7. Search/SEO operational check
 
-## 7. Production deployment and final smoke
+After final Production merge, verify sitemap/canonical/hreflang/indexing directives and submit/inspect key URLs where Owner Search Console access permits. Do not wait for Google's independent indexing decision after the technical/submission work is complete.
 
-After the approved merge:
+## 8. Final declaration
 
-- verify Vercel Production deployment is `READY`;
-- verify Production commit equals the merge commit;
-- verify `/api/health` is OK and its `commitSha` equals that commit;
-- smoke Home, Admin login, Applications, Service Request and every flow changed in PR #116;
-- verify direct browser invocation of internal PR99 write RPCs is denied;
-- verify legacy lookup bypass is denied;
-- verify the legitimate Production Vercel OIDC path succeeds;
-- review relevant Vercel/Supabase logs without exposing secrets;
-- verify primary MFA, Backup Administrator/recovery, Production backup and critical forms are still confirmed.
-
-## 8. Search/SEO operational check
-
-After the final Production merge:
-
-- verify sitemap is accessible;
-- verify canonical/hreflang/indexing directives for key public URLs;
-- submit/inspect key URLs in Search Console where Owner access permits;
-- do not block Code Complete waiting for Google's independent indexing decision after the technical/submission work is complete.
-
-## 9. Final declaration
-
-Only when every applicable ledger item and the gates above are closed may the final record state:
-
-**HAMZA AGENCY — CODE COMPLETE — DEVELOPMENT CLOSED — PRODUCTION READY — DELIVERY READY — REVENUE READY**
-
-After that declaration, stop development. Future bugs or new requirements are separate new work.
+Only after every applicable ledger/manual/Production/Owner gate is truly closed may the project be declared Code Complete / Development Closed / Production Ready / Delivery Ready / Revenue Ready. Then stop development; later bugs/new requirements are separate work.

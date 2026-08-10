@@ -1,8 +1,8 @@
 # HAMZA AGENCY
 
-HAMZA AGENCY is a production-oriented multilingual platform for creator management, live-streaming programs, client services, tracking, support, administration, privacy, and digital operations. The public experience is available in Arabic, English, and Turkish and is deployed at `https://hamza-agency.com`.
+HAMZA AGENCY is a production-oriented multilingual platform for creator management, live-streaming programs, client services, tracking, support, administration, privacy, and digital operations. Public routes are Arabic, English, and Turkish and Production is `https://hamza-agency.com`.
 
-> **Release status:** PR1, PR2, PR3, PR4, and PR5 are completed. PR #115 is merged and the Production baseline entering the final professional closeout is `6d648a17ee95731413f2651d9188a6858d3f923f`. PR #116 is the single **Final Production Professional Closeout** PR and remains Draft/unmerged until every final gate is satisfied. It must not be described as Fully Launched, Code Complete, Delivery Ready, or Revenue Ready before those gates close.
+> **Release status:** PR1–PR5 are historical completed phases. PR #116 is the single Final Production Professional Closeout PR and remains **Draft / unmerged**. It is not Code Complete, Production Ready, Delivery Ready, or Revenue Ready until the remaining Owner/Production gates close.
 
 ## Platform
 
@@ -14,35 +14,39 @@ HAMZA AGENCY is a production-oriented multilingual platform for creator manageme
 | Database/Auth | Supabase/PostgreSQL/Auth/Storage |
 | Hosting | Vercel |
 | Languages | Arabic, English, Turkish |
-| Security gateway | Server-only Vercel OIDC to Supabase Edge Function/RPC |
+| Security gateway | Server-only Vercel OIDC → Supabase gateway/internal RPCs |
 | Web app | Installable PWA with privacy-safe offline shell |
 
-## Current production capabilities
+## Current final-closeout boundaries
 
-- AR / EN / TR public routes with locale-aware canonical, hreflang, Open Graph, Twitter metadata, sitemap, robots, and structured data.
-- Programs and creator applications with tracking codes and non-guaranteed acceptance messaging.
-- Service requests and service tracking.
-- Contact, privacy, cookie controls, legal pages, blog, knowledge, jobs, reviews, success stories, gallery, and public support surfaces.
-- Smart Support, knowledge lookup, SUP tracking, human handoff, staff queue, and notifications from PR4.
-- Admin operations with role/permission enforcement and direct-link authorization controls.
-- Blog sanitizer/security controls and published-content boundaries.
-- Installable PWA with real browser install-prompt gating and safe fallback guidance.
-- Production database/RLS/security hardening from the completed production closeout phases.
-- Cinematic media management from PR5 while the current public background remains the default experience; cinematic media is opt-in and published-only.
+Production/main baseline entering PR #116: `6d648a17ee95731413f2651d9188a6858d3f923f`.
 
-## Final closeout boundaries
+Production remains read-only during this PR. No Production migration, Production business-data mutation, Billing/plan change, force push, Ready-for-Review conversion, or merge is authorized by the existence of code in the PR.
 
-Production Supabase project: `fvaurkfnsvsfohpzguho`.
+Verified final-delta work includes:
 
-Production remains read-only while PR #116 is being prepared and reviewed. No Production migration, data deletion, business-row mutation, Edge Function deployment, or merge is authorized merely because the migration/code exists in the PR.
+- final Agent identity AR/EN/TR without superseded EN/TR titles;
+- public Platform Status without public commit/runtime metadata;
+- localized Smart Support access, including the corrected Desktop floating label (`الدعم الذكي` / `Smart Support` / `Akıllı Destek`);
+- Preview fail-closed production-sensitive writes;
+- AdminQuickNav one-active-item fix and bounded Unified Requests deep-link fix;
+- removal of unsupported homepage `+7000` and `24/7` numeric fallbacks, data-derived platform count, and preserved Owner-approved 7 years;
+- additive least-privilege migration covering five internal PR99 submit RPCs, two legacy lookup bypasses, and three internal guard RPCs while preserving the service-role/OIDC path;
+- isolated migration regression contracts for browser-role denial and internal service access.
 
-Read-only verification during the final closeout proved remaining Production privilege gaps on internal PR99 write RPCs and legacy lookup RPCs. PR #116 therefore contains a narrowly scoped additive security migration and an updated isolated verification contract. Those changes must pass the exact-Head tests, Owner QA and the explicit Production Migration Gate before any Production application.
+Production still has the direct RPC exposure until the approved migration is actually applied and verified.
 
-The current Supabase organization is on the Free plan. Leaked Password Protection is a Pro-and-above Auth control and is therefore an external plan/security blocker under the current Owner directive. Primary-admin MFA and a real independent Backup Administrator also remain manual release gates until verified.
+## Administrator security gates
 
-Real paid AI providers, payment providers, paid WhatsApp/provider integrations, billing-dependent services, and app-store publication remain intentionally disabled or deferred and are not current development gaps. Major dependency/toolchain upgrades and unrelated Dependabot maintenance are outside this closeout unless they become a verified release blocker.
+Current read-only Production audit:
 
-No fake reviews, success stories, articles, metrics, partnerships, jobs, marketplace listings, earnings, acceptance, results, or external-platform approval claims may be introduced.
+- active admins: **1**;
+- verified MFA factors: **0**;
+- independent Backup Admin: **not verified / absent**.
+
+These are Owner manual gates. Recovery codes must never be committed or posted in chat/logs.
+
+Supabase organization plan is **Free**. Leaked Password Protection is therefore recorded as **External Plan Limitation — Owner Decision Required** under the current no-billing policy. No upgrade is authorized.
 
 ## Final Agent identity
 
@@ -51,27 +55,18 @@ No fake reviews, success stories, articles, metrics, partnerships, jobs, marketp
 - English: `Agent Hamza` — `Agent and Manager at HAMZA AGENCY`
 - Turkish: `Temsilci Hamza` — `Hamza Ajansı Temsilcisi ve Yöneticisi`
 
-Superseded titles such as `Godfather of Syria`, `Arrab Syria`, and `Suriye'nin Vaftiz Babası` are not approved current identity.
+Never reintroduce `Godfather of Syria`, `Arrab Syria`, or `Suriye'nin Vaftiz Babası`.
 
-## Environment variables
+## Current migrations
 
-Copy `.env.example` to `.env.local` for local development. Never commit real values.
+- `supabase/migrations/20260809095000_pr116_owner_approved_reviews_program_media.sql`
+- `supabase/migrations/20260810001500_pr116_final_security_boundary_closeout.sql`
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_OR_ANON_KEY
-NEXT_PUBLIC_SITE_URL=https://hamza-agency.com
-NEXT_PUBLIC_WHATSAPP_NUMBER=YOUR_PUBLIC_WHATSAPP_NUMBER
-NEXT_PUBLIC_DEFAULT_LANGUAGE=ar
-NEXT_PUBLIC_SUPPORTED_LANGUAGES=ar,en,tr
-NEXT_PUBLIC_AI_SUPPORT_ENABLED=true
-```
-
-Vercel OIDC identity is obtained server-side from the deployment environment. Do not create or copy a shared RPC secret and do not expose Service Role or provider secrets through browser code or `NEXT_PUBLIC_*` variables.
+Production application: **NO**. A fresh verified backup/recovery package and explicit Owner Production Migration approval are mandatory before application.
 
 ## Verification
 
-Core repository verification includes:
+Core local/repository commands include:
 
 ```bash
 npm ci
@@ -86,31 +81,28 @@ npm run verify:product-expansion
 npm run verify:pr4
 ```
 
-Protected CI also runs the HAMZA AGENCY Quality Gate, PR99 Management Quality Gate, Current-State Schema Verify, Full Project Closeout, isolated migration/security runtime suites, exact-preview evidence, Vercel Preview checks, and repository-specific contracts.
+Protected CI includes Quality Gate, PR99 Management Quality Gate, Current-State Schema Verify, Full Project Closeout, exact-preview, public/translation/security/permission/admin evidence, and isolated migration/security suites.
 
-Final evidence must belong to the exact final Head. Evidence from an older Head does not close a changed requirement.
+**Final evidence is valid only for the exact current PR Head.** Read final workflow conclusions from GitHub and the exact deployment ID/URL/SHA/READY state from Vercel; do not reuse evidence from an older commit.
 
 ## Important documentation
 
-- `docs/CURRENT_CLOSEOUT_LEDGER.md` — single authoritative final Closeout Ledger.
-- `docs/HAMZA_AGENCY_FINAL_DELIVERY.md` — current delivery/release record.
-- `docs/PRELAUNCH_MANUAL_CHECKLIST.md` — only the manual/external gates that still apply.
-- `PROJECT_PENDING_TASKS.md` — compact current release-gate summary; not a feature backlog.
-- `.env.example` — public environment variable template.
+- `docs/CURRENT_CLOSEOUT_LEDGER.md` — authoritative closeout ledger.
+- `PROJECT_PENDING_TASKS.md` — compact current release gates, not a feature backlog.
+- `docs/HAMZA_AGENCY_FINAL_DELIVERY.md` — delivery/release state.
+- `docs/PRELAUNCH_MANUAL_CHECKLIST.md` — manual/Production/Owner gates.
 
 ## Release rule
 
-For PR #116:
-
-1. Close only verified current requirements; preserve already-correct work.
-2. Freeze an exact final Head and pass the required exact-Head automated verification and exact Vercel Preview.
-3. Close mandatory administrator-security/manual blockers.
-4. Owner Final QA must explicitly equal `PASS` on that exact Preview.
-5. If a Production migration is still required, present backup/migration/security/rollback evidence and wait for separate explicit Owner Production Migration approval.
-6. No merge may occur without separate explicit Owner merge approval.
-7. After merge, Vercel Production must be `READY`, `/api/health` must report the exact merge commit, and final smoke checks must pass.
-8. Only when the governing Definition of Done is satisfied may HAMZA AGENCY be declared **CODE COMPLETE — DEVELOPMENT CLOSED**.
-9. After that declaration, stop development; later bugs/requirements are separate work.
+1. Freeze final Head and pass exact-Head automated evidence.
+2. Complete Owner/manual Admin security, authenticated QA and Android real-device PWA gates.
+3. Owner Final Visual QA must explicitly equal `PASS`.
+4. If Production migrations remain required, present backup/migration/security/rollback evidence and STOP for explicit Owner approval.
+5. Apply only approved migrations and verify affected Production flows.
+6. Obtain separate explicit Owner merge approval.
+7. Merge; verify Vercel Production READY, exact `/api/health` commit and final smoke.
+8. Only then may HAMZA AGENCY be declared Code Complete / Development Closed / Production Ready / Delivery Ready / Revenue Ready.
+9. After true closeout, stop development; later bugs/new Owner requirements are separate work.
 
 ## License
 

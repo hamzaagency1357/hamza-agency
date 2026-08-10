@@ -1,30 +1,35 @@
 # HAMZA AGENCY — Current Pending Release Gates
 
-This file is no longer a feature backlog. The authoritative detailed status is `docs/CURRENT_CLOSEOUT_LEDGER.md`.
+This is not a feature backlog. The authoritative detailed state is `docs/CURRENT_CLOSEOUT_LEDGER.md`.
 
-## Programmatic closeout completed or implemented in PR #116
+## Verified programmatic delta implemented in PR #116
 
-- `/ai-support` has a clear localized entry from Digital Services.
-- Partners, Terms, AI Policy, and the other governed public pages use the current request-aware metadata system.
-- Reviews use an honest empty state and no fabricated fallback review data.
-- Final EN/TR Agent identity is `Agent Hamza` / `Temsilci Hamza`; superseded titles are removed from current public source and SEO contracts.
-- Public Platform Status is human-readable and no longer renders commit/runtime internals.
-- Preview production-sensitive public submissions fail closed before the Supabase gateway.
-- A new additive security migration revokes browser-role EXECUTE from internal PR99 write RPCs and legacy lookup bypasses. It is **not applied to Production without the explicit Production Migration Gate**.
-- Unified Admin request links no longer rely on invalid deep-link fragments; application and service-request entries target the exact request card.
-- Admin Quick Navigation selects one most-specific active item rather than marking parent and child items active together.
+- Desktop Smart Support now uses the active locale: AR `الدعم الذكي`, EN `Smart Support`, TR `Akıllı Destek`; Mobile Dock was already correct.
+- Unsupported homepage numeric fallbacks `+7000` and `24/7` were removed; platform count is derived from current program data; Owner-approved 7 years remains.
+- Final security migration now includes the five internal PR99 submission RPCs, the two legacy lookup bypasses, and the three internal guard RPCs (`pr99_guard_submission`, `pr100_guard_ai_answer`, `pr100_guard_password_reset`) in the browser-role deny boundary while preserving the internal `service_role` path.
+- Preview production-sensitive submissions remain fail-closed.
+- Final Agent identity, public Platform Status, Digital Services Smart Support entry, AdminQuickNav fix, and Unified Requests source fixes are preserved.
+- No fake content, paid provider activation, Billing change, plan upgrade, Production business-row mutation, Production migration, merge, or force push occurred.
 
-## Current manual / external blockers before release
+## Current Owner/manual gates
 
-- Enable and verify MFA for the primary administrator. Current read-only Production audit found no verified MFA factor.
-- Create and verify a separate Backup Administrator and recovery path. Current read-only Production audit found only one active admin account.
-- Supabase Leaked Password Protection is unavailable on the current Free organization plan; it requires Pro or above. This remains an external security-plan blocker under the Owner final directive unless the Owner changes the operating policy or explicitly supersedes the requirement.
-- Complete exact-Head automated verification and exact Vercel Preview evidence after the final documentation commit.
-- Complete Owner Final QA on the exact Preview, including authenticated Admin desktop/mobile review and Android Chrome PWA installation.
-- Before any Production database change: create and verify a real Production backup and complete the required backup/restore evidence.
-- If the PR116 migrations remain required after Owner QA PASS, obtain explicit Owner Production Migration approval, apply only the approved migrations, and verify the affected security/schema flows.
-- Obtain explicit Owner merge approval. Then verify Vercel Production READY, exact `/api/health` commit, and final smoke checks.
+- Primary Admin MFA: current Production audit = 1 active admin, 0 verified MFA.
+- Independent Backup Admin + MFA + recovery/login verification: not yet present.
+- Supabase Leaked Password Protection: **External Plan Limitation — Owner Decision Required** under the current Free/no-billing policy.
+- Authenticated Admin desktop/mobile QA for Unified Requests, floating controls, mobile fit, human wording, and direct URL/action spot checks.
+- Android Chrome real-device PWA install QA.
+- Owner Final Visual QA on the exact final Preview; current state is not PASS.
 
-## Not current development gaps
+## Current Production gates
 
-Paid AI/WhatsApp/payment providers, app-store publication, theoretical refactors, performance-only optimization, and superseded PR1–PR5 roadmap items are not pending development work for this release unless a current verified bug makes one directly necessary.
+- Fresh verified Production backup + recovery/dry-run evidence.
+- Explicit Owner approval before applying:
+  - `20260809095000_pr116_owner_approved_reviews_program_media.sql`
+  - `20260810001500_pr116_final_security_boundary_closeout.sql`
+- After an approved migration: verify direct browser RPC denial, legitimate OIDC path, lookups, RLS, Reviews/Program Media and Admin moderation as applicable.
+- Separate explicit Owner merge approval.
+- After merge only: Vercel Production READY, exact `/api/health` commit, final affected-flow smoke.
+
+## Not pending development work
+
+No PR7, cleanup phase, refactor phase, performance-only phase, paid-provider phase, or resurrection of superseded PR1–PR5 work is planned. Any future work after true closeout must be a later bug or new Owner requirement.
