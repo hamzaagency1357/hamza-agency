@@ -6,6 +6,13 @@ const ROOT = process.cwd();
 const basePath = path.join(ROOT, "scripts/pr116-browser-mutation-codemod.mjs");
 const v2Path = path.join(ROOT, "scripts/pr116-browser-mutation-codemod-v2.mjs");
 
+for (const mediaFile of ["app/admin/media/page.tsx", "app/admin/media/cinematic/page.tsx"]) {
+  const mediaPath = path.join(ROOT, mediaFile);
+  let media = fs.readFileSync(mediaPath, "utf8");
+  media = media.replaceAll('supabase.storage.from(BUCKET)', 'supabase.storage.from("media-library")');
+  fs.writeFileSync(mediaPath, media);
+}
+
 let base = fs.readFileSync(basePath, "utf8");
 const marker = 'const failures = [];\n';
 if (!base.includes(marker)) throw new Error("v3 base marker missing");
