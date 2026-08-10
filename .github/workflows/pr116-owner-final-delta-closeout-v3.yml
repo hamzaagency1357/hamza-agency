@@ -1,0 +1,40 @@
+name: PR116 Owner Final Delta Closeout v3
+on:
+  push:
+    branches: [fix/final-production-professional-closeout]
+    paths:
+      - scripts/pr116-owner-final-delta-closeout-v3.mjs
+      - .github/workflows/pr116-owner-final-delta-closeout-v3.yml
+permissions:
+  contents: write
+jobs:
+  closeout:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/final-production-professional-closeout
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Apply identifier-safe Owner Final Delta
+        run: node scripts/pr116-owner-final-delta-closeout-v3.mjs
+      - name: Focused validation
+        run: |
+          npm run lint
+          npm run typecheck
+          node --test tests/admin-mutation-boundary.test.mjs tests/pr116-final-delta.test.mjs tests/pr116-owner-directives.test.mjs tests/pr116-owner-final-delta-contract.test.mjs
+          node scripts/verify-public-translations.mjs
+      - name: Commit validated Owner Final Delta
+        run: |
+          rm -f scripts/pr116-owner-final-delta-closeout.mjs scripts/pr116-owner-final-delta-closeout-v2.mjs scripts/pr116-owner-final-delta-closeout-v3.mjs
+          rm -f .github/workflows/pr116-owner-final-delta-closeout.yml .github/workflows/pr116-owner-final-delta-closeout-v3.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "fix(closeout): complete owner final delta"
+          git push origin HEAD:fix/final-production-professional-closeout
