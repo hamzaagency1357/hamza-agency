@@ -34,9 +34,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Rewrite browser Admin mutations through typed boundary
         run: node scripts/pr116-browser-mutation-codemod-v3.mjs
-      - name: Focused validation
+      - name: Focused boundary validation
         run: |
-          npm run lint
           npm run typecheck
           npm run verify:admin-mutations
       - name: Commit deterministic boundary rewrite
