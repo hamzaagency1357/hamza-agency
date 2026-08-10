@@ -1,50 +1,9 @@
 import { readFile } from "node:fs/promises";
 
-const readProjectFile = (path) =>
-  readFile(new URL(`../${path}`, import.meta.url), "utf8");
+const readProjectFile = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-const [
-  runtimeSurface,
-  runtimeDictionary,
-  approvedTranslations,
-  publicLocales,
-  publicSeo,
-  serverMetadata,
-  middleware,
-  siteLanguageProvider,
-  languageSwitcher,
-  globalHeader,
-  publicIdentity,
-  runtimeTranslator,
-  cmsTranslations,
-  announcement,
-  marketingSafety,
-  homePage,
-  contactUi,
-  supportCopy,
-  ownerQaCss,
-  rootLayout,
-] = await Promise.all([
-  readProjectFile("lib/i18n/siteRuntimeTranslations.ts"),
-  readProjectFile("lib/i18n/siteRuntimeTranslationsLegacy.ts"),
-  readProjectFile("lib/i18n/approvedPublishedTranslations.ts"),
-  readProjectFile("lib/i18n/publicLocales.ts"),
-  readProjectFile("lib/i18n/publicSeo.ts"),
-  readProjectFile("lib/i18n/serverPublicMetadata.ts"),
-  readProjectFile("middleware.ts"),
-  readProjectFile("lib/i18n/useSiteLanguage.tsx"),
-  readProjectFile("components/LanguageSwitcher.tsx"),
-  readProjectFile("components/PublicGlobalHeader.tsx"),
-  readProjectFile("lib/publicIdentity.ts"),
-  readProjectFile("components/PublicSiteRuntimeTranslator.tsx"),
-  readProjectFile("components/CmsPublishedTranslations.tsx"),
-  readProjectFile("components/PublishedAnnouncementBar.tsx"),
-  readProjectFile("lib/i18n/marketingSafety.ts"),
-  readProjectFile("app/page.tsx"),
-  readProjectFile("components/ContactStaticUi.tsx"),
-  readProjectFile("lib/i18n/supportCopy.ts"),
-  readProjectFile("app/owner-final-qa.css"),
-  readProjectFile("app/layout.tsx"),
+const [runtimeSurface,runtimeDictionary,approvedTranslations,publicLocales,publicSeo,serverMetadata,middleware,siteLanguageProvider,languageSwitcher,globalHeader,publicIdentity,runtimeTranslator,cmsTranslations,announcement,marketingSafety,homePage,contactUi,supportCopy,ownerQaCss,rootLayout] = await Promise.all([
+  readProjectFile("lib/i18n/siteRuntimeTranslations.ts"),readProjectFile("lib/i18n/siteRuntimeTranslationsLegacy.ts"),readProjectFile("lib/i18n/approvedPublishedTranslations.ts"),readProjectFile("lib/i18n/publicLocales.ts"),readProjectFile("lib/i18n/publicSeo.ts"),readProjectFile("lib/i18n/serverPublicMetadata.ts"),readProjectFile("middleware.ts"),readProjectFile("lib/i18n/useSiteLanguage.tsx"),readProjectFile("components/LanguageSwitcher.tsx"),readProjectFile("components/PublicGlobalHeader.tsx"),readProjectFile("lib/publicIdentity.ts"),readProjectFile("components/PublicSiteRuntimeTranslator.tsx"),readProjectFile("components/CmsPublishedTranslations.tsx"),readProjectFile("components/PublishedAnnouncementBar.tsx"),readProjectFile("lib/i18n/marketingSafety.ts"),readProjectFile("app/page.tsx"),readProjectFile("components/ContactStaticUi.tsx"),readProjectFile("lib/i18n/supportCopy.ts"),readProjectFile("app/owner-final-qa.css"),readProjectFile("app/layout.tsx"),
 ]);
 
 const errors = [];
@@ -97,7 +56,7 @@ for (const route of requiredRoutes) { const routeToken=route==="/"?'"/": {':`"${
 for (const slug of ["tiktok", "bigo-live", "yaahlan", "xena", "catchii"]) { const token=slug.includes("-")?`"${slug}": {`:`${slug}: {`; if (!runtimeDictionary.includes(token)) errors.push(`Program metadata translation missing: ${slug}`); }
 for (const token of ["canonical", "getLanguageAlternates", "openGraph", "twitter"]) if (!serverMetadata.includes(token)) errors.push(`Server locale metadata is missing: ${token}`);
 
-for (const token of ["hamza-marquee-group","hamzaAnnouncementRight","hamzaAnnouncementLeft",'data-marquee-mechanics="ltr"',"data-marquee-language={language}",'data-marquee-language="ar"','data-marquee-language="en"','data-marquee-language="tr"',"from { transform: translate3d(-50%, 0, 0); }","to { transform: translate3d(0, 0, 0); }","from { transform: translate3d(0, 0, 0); }","to { transform: translate3d(-50%, 0, 0); }","✦"]) if (!announcement.includes(token)) errors.push(`Localized ticker direction is missing: ${token}`);
+for (const token of ["hamza-marquee-group","hamzaAnnouncementRight","hamzaAnnouncementLeft",'data-marquee-mechanics="ltr"',"data-marquee-language={language}",'data-marquee-language="ar"','data-marquee-language="en"','data-marquee-language="tr"',"from { transform: translate3d(-50%, 0, 0); }","to { transform: translate3d(0, 0, 0); }","from { transform: translate3d(0, 0, 0); }","to { transform: translate3d(-50%, 0, 0, 0); }","✦"]) if (!announcement.includes(token)) errors.push(`Localized ticker direction is missing: ${token}`);
 if (announcement.includes("justify-around") || announcement.includes("direction: rtl")) errors.push("Ticker track must remain mechanically LTR without distributed spacing.");
 if ((announcement.match(/hamza-marquee-group/g) || []).length !== 2) errors.push("Ticker must render exactly two identical marquee groups.");
 
@@ -105,10 +64,27 @@ const approvedSupportCopy = ["فريقنا متواجد لمتابعة طلبا�
 for (const copy of approvedSupportCopy) if (!supportCopy.includes(copy) || !contactUi.includes(copy)) errors.push(`Approved support copy missing: ${copy}`);
 for (const forbidden of ["قد تختلف سرعة الرد حسب ضغط الطلبات ونوع البرنامج أو الخدمة.","Response times may vary depending on request volume and the type of program or service.","Yanıt süresi, talep yoğunluğuna ve program ya da hizmet türüne göre değişebilir."]) if (contactUi.includes(forbidden)) errors.push(`Removed support qualifier returned: ${forbidden}`);
 
-for (const token of ["home_stat_${item.key}_number","home_stat_${item.key}_label_${language}","key:5","Content creators","Available platforms","Support & follow-up","Years of experience","İçerik üreticileri","Mevcut platformlar","Destek ve takip","Yıllık deneyim"]) if (!homePage.includes(token)) errors.push(`Homepage statistics settings/localization contract is missing: ${token}`);
+const ownerApprovedStatistics = [
+  'number:"7000+",label:"صانع محتوى"',
+  'number:"5+",label:"منصات متاحة"',
+  'number:"24/7",label:"دعم ومتابعة"',
+  'number:"7",label:"سنوات خبرة"',
+  'number:"7000+",label:"Content creators"',
+  'number:"5+",label:"Available platforms"',
+  'number:"24/7",label:"Support & follow-up"',
+  'number:"7",label:"Years of experience"',
+  'number:"7000+",label:"İçerik üreticisi"',
+  'number:"5+",label:"Mevcut platformlar"',
+  'number:"24/7",label:"Destek ve takip"',
+  'number:"7",label:"Yıllık deneyim"',
+];
+for (const token of ownerApprovedStatistics) if (!homePage.includes(token)) errors.push(`Owner-approved homepage statistic is missing: ${token}`);
+if (homePage.replace(/\s+/g,"").includes("item.key===2?String(programs.length)")) errors.push("Owner-approved platform marketing statistic must not be replaced by the runtime program count.");
+if (!homePage.includes("text-yellow-200")) errors.push("Owner-approved statistic numbers are missing the restrained gold emphasis.");
 if (!marketingSafety.includes("Numeric values are intentionally excluded")) errors.push("Owner-managed numeric preservation documentation is missing.");
 if (!rootLayout.includes('import "./owner-final-qa.css"')) errors.push("Owner final QA stylesheet is not mounted.");
+if (!rootLayout.includes('import "./owner-verified-delta.css"')) errors.push("Owner-verified visual hierarchy stylesheet is not mounted.");
 for (const token of ["safe-area-inset-bottom", "--public-mobile-dock-clearance", "scroll-padding-bottom"]) if (!ownerQaCss.includes(token)) errors.push(`Mobile dock clearance is missing: ${token}`);
 
 if (errors.length) { console.error("Public translation verification failed:\n"); errors.forEach((error)=>console.error(`- ${error}`)); process.exit(1); }
-console.log(`Public experience verification passed: ${entries.length} translations, ${requiredRoutes.length} routes × 3 URL-owned locales, centrally managed approved header identity and dropdown language switching, approved support copy, localized homepage statistics, safe runtime fallbacks, localized ticker direction, and mobile dock clearance.`);
+console.log(`Public experience verification passed: ${entries.length} translations, ${requiredRoutes.length} routes × 3 URL-owned locales, centrally managed approved header identity and dropdown language switching, approved support copy, Owner-approved homepage statistics, safe runtime fallbacks, localized ticker direction, and mobile dock clearance.`);
