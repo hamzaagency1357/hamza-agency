@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { authorizeAdminMutation, privilegedSupabaseRest, writeServerAdminAudit } from "@/lib/server/adminMutationBoundary";
+import { authorizeAdminMutation } from "@/lib/server/adminMutationBoundary";
+import {
+  callPr116AdminOidcGateway,
+  Pr116AdminGatewayError,
+  type Pr116AdminGatewayAction,
+} from "@/lib/server/pr116AdminOidcGateway";
 
 const SUPPORT_ACTIONS = new Set(["accept", "priority", "assign", "status", "reply", "note"]);
 const KNOWLEDGE_STATUSES = new Set(["draft", "review", "published", "disabled", "archived"]);
@@ -19,8 +24,23 @@ function positiveInt(value: unknown): number | null {
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
-async function rpc(name: string, body: Record<string, unknown>) {
-  return privilegedSupabaseRest<unknown>(`/rpc/${name}`, { method: "POST", body: JSON.stringify(body) });
+async function invoke(
+  request: Request,
+  token: string,
+  action: Pr116AdminGatewayAction,
+  payload: Record<string, unknown>,
+) {
+  try {
+    const result = await callPr116AdminOidcGateway<{ ok: true; data: unknown }>(request, token, action, payload);
+    return { ok: true as const, data: result.data };
+  } catch (gatewayError) {
+    if (gatewayError instanceof Pr116AdminGatewayError) {
+      if (gatewayError.reason === "preview_forbidden") return { ok: false as const, status: 403, message: "المعاينة مخصصة للعرض والتحقق فقط، ولا تحفظ تغييرات على البيانات الفعلية." };
+      if (gatewayError.reason === "unauthorized") return { ok: false as const, status: 401, message: "انتهت جلسة الإدارة. سجل الدخول مجددًا." };
+      if (gatewayError.reason === "forbidden") return { ok: false as const, status: 403, message: "لا تملك صلاحية تنفيذ هذا الإجراء." };
+    }
+    return { ok: false as const, status: 503, message: "تعذر تنفيذ الإجراء الآن. حاول مرة أخرى." };
+  }
 }
 
 export async function POST(request: Request) {
@@ -43,10 +63,8 @@ export async function POST(request: Request) {
     if (!requestId || !action || !SUPPORT_ACTIONS.has(action) || value === undefined || note === undefined) return error("بيانات إجراء الدعم غير صالحة.", 400);
     const auth = await authorizeAdminMutation(request, "ai_support", "can_edit");
     if (!auth.ok) return error(auth.message, auth.status);
-    const result = await rpc("pr4_support_action", { p_request_id: requestId, p_action: action, p_value: value, p_note: note });
-    if (!result.ok) return error("تعذر حفظ إجراء الدعم الآن.", result.status >= 500 ? 503 : 400);
-    await writeServerAdminAudit({ actor: auth.actor, action: `support_${action}`, entityType: "pr4_support_requests", entityId: requestId, metadata: { operation }, sourceRoute: "/api/admin/mutations/workflows" });
-    return NextResponse.json({ ok: true, data: result.data });
+    const result = await invoke(request, auth.actor.user.accessToken, "support_action", { requestId, action, value, note });
+    return result.ok ? NextResponse.json({ ok: true, data: result.data }) : error(result.message, result.status);
   }
 
   if (operation === "saveKnowledge") {
@@ -59,31 +77,37 @@ export async function POST(request: Request) {
     const status = text(body.status, 30);
     const alternatives = Array.isArray(body.alternatives) ? body.alternatives.filter((v): v is string => typeof v === "string" && v.length <= 1000).slice(0, 50) : null;
     const keywords = Array.isArray(body.keywords) ? body.keywords.filter((v): v is string => typeof v === "string" && v.length <= 200).slice(0, 100) : null;
-    if ((body.id !== null && !id) || question === undefined || answer === undefined || !language || !["ar", "en", "tr"].includes(language) || !category || !sourceType || !status || !KNOWLEDGE_STATUSES.has(status) || !alternatives || !keywords) return error("بيانات المعرفة غير صالحة.", 400);
+    const programSlug = text(body.programSlug, 160, true);
+    const serviceSlug = text(body.serviceSlug, 160, true);
+    const pagePath = text(body.pagePath, 500, true);
+    const sourceLabel = text(body.sourceLabel, 300, true);
+    const sourceUrl = text(body.sourceUrl, 1500, true);
+    const startAt = text(body.startAt, 50, true);
+    const expiresAt = text(body.expiresAt, 50, true);
+    if ((body.id !== null && !id) || question === undefined || answer === undefined || !language || !["ar", "en", "tr"].includes(language) || !category || !sourceType || !status || !KNOWLEDGE_STATUSES.has(status) || !alternatives || !keywords || programSlug === undefined || serviceSlug === undefined || pagePath === undefined || sourceLabel === undefined || sourceUrl === undefined || startAt === undefined || expiresAt === undefined) return error("بيانات المعرفة غير صالحة.", 400);
     const auth = await authorizeAdminMutation(request, "knowledge_base", "can_edit");
     if (!auth.ok) return error(auth.message, auth.status);
-    const result = await rpc("pr4_save_knowledge", {
+    const rpc = {
       p_id: id,
       p_question: question,
       p_answer: answer,
       p_alternatives: alternatives,
       p_keywords: keywords,
       p_language: language,
-      p_program_slug: text(body.programSlug, 160, true),
-      p_service_slug: text(body.serviceSlug, 160, true),
-      p_page_path: text(body.pagePath, 500, true),
+      p_program_slug: programSlug,
+      p_service_slug: serviceSlug,
+      p_page_path: pagePath,
       p_category: category,
       p_source_type: sourceType,
-      p_source_label: text(body.sourceLabel, 300, true),
-      p_source_url: text(body.sourceUrl, 1500, true),
+      p_source_label: sourceLabel,
+      p_source_url: sourceUrl,
       p_priority: typeof body.priority === "number" && Number.isFinite(body.priority) && body.priority >= -100 && body.priority <= 100 ? body.priority : 0,
-      p_start_at: text(body.startAt, 50, true),
-      p_expires_at: text(body.expiresAt, 50, true),
+      p_start_at: startAt,
+      p_expires_at: expiresAt,
       p_status: status,
-    });
-    if (!result.ok) return error("تعذر حفظ المعرفة الآن.", result.status >= 500 ? 503 : 400);
-    await writeServerAdminAudit({ actor: auth.actor, action: "save_knowledge", entityType: "pr4_knowledge_base", entityId: id, metadata: { operation, status, language }, sourceRoute: "/api/admin/mutations/workflows" });
-    return NextResponse.json({ ok: true, data: result.data });
+    };
+    const result = await invoke(request, auth.actor.user.accessToken, "knowledge_save", { rpc });
+    return result.ok ? NextResponse.json({ ok: true, data: result.data }) : error(result.message, result.status);
   }
 
   if (operation === "promoteKnowledgeSuggestion") {
@@ -91,10 +115,8 @@ export async function POST(request: Request) {
     if (!suggestionId) return error("بيانات الاقتراح غير صالحة.", 400);
     const auth = await authorizeAdminMutation(request, "knowledge_base", "can_create");
     if (!auth.ok) return error(auth.message, auth.status);
-    const result = await rpc("pr4_promote_suggestion", { p_suggestion_id: suggestionId });
-    if (!result.ok) return error("تعذر إنشاء المسودة من الاقتراح الآن.", result.status >= 500 ? 503 : 400);
-    await writeServerAdminAudit({ actor: auth.actor, action: "promote_knowledge_suggestion", entityType: "pr4_knowledge_suggestions", entityId: suggestionId, metadata: { operation }, sourceRoute: "/api/admin/mutations/workflows" });
-    return NextResponse.json({ ok: true, data: result.data });
+    const result = await invoke(request, auth.actor.user.accessToken, "knowledge_promote", { suggestionId });
+    return result.ok ? NextResponse.json({ ok: true, data: result.data }) : error(result.message, result.status);
   }
 
   if (TRANSLATION_OPERATIONS.has(operation)) {
@@ -102,21 +124,24 @@ export async function POST(request: Request) {
     if (!revisionId) return error("معرف إصدار الترجمة غير صالح.", 400);
     const auth = await authorizeAdminMutation(request, "settings", "can_edit");
     if (!auth.ok) return error(auth.message, auth.status);
-    let result;
+    let action: Pr116AdminGatewayAction;
+    let rpc: Record<string, unknown>;
     if (operation === "saveTranslationCandidate") {
       const fields = body.fields;
       if (!fields || typeof fields !== "object" || Array.isArray(fields) || Object.keys(fields).length > 100 || Object.entries(fields as Record<string, unknown>).some(([k, v]) => !/^[a-z0-9_]{1,80}$/i.test(k) || typeof v !== "string" || v.length > 20000)) return error("حقول الترجمة غير صالحة.", 400);
-      result = await rpc("save_translation_candidate_fields", { p_translation_revision_id: revisionId, p_translated_fields: fields });
+      action = "translation_save";
+      rpc = { p_translation_revision_id: revisionId, p_translated_fields: fields };
     } else if (operation === "reviewTranslationCandidate") {
       const reviewNotes = text(body.reviewNotes, 5000, true);
       if (reviewNotes === undefined) return error("ملاحظات المراجعة غير صالحة.", 400);
-      result = await rpc("review_translation_candidate", { p_translation_revision_id: revisionId, p_review_notes: reviewNotes });
+      action = "translation_review";
+      rpc = { p_translation_revision_id: revisionId, p_review_notes: reviewNotes };
     } else {
-      result = await rpc("publish_translation_candidate", { p_translation_revision_id: revisionId });
+      action = "translation_publish";
+      rpc = { p_translation_revision_id: revisionId };
     }
-    if (!result.ok) return error("تعذر تنفيذ إجراء الترجمة الآن.", result.status >= 500 ? 503 : 400);
-    await writeServerAdminAudit({ actor: auth.actor, action: operation, entityType: "content_translation_revisions", entityId: revisionId, metadata: { operation }, sourceRoute: "/api/admin/mutations/workflows" });
-    return NextResponse.json({ ok: true, data: result.data });
+    const result = await invoke(request, auth.actor.user.accessToken, action, { rpc });
+    return result.ok ? NextResponse.json({ ok: true, data: result.data }) : error(result.message, result.status);
   }
 
   return error("العملية المطلوبة غير مدعومة.", 400);
