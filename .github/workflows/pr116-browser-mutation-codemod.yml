@@ -6,6 +6,7 @@ on:
       - fix/final-production-professional-closeout
     paths:
       - scripts/pr116-browser-mutation-codemod.mjs
+      - scripts/pr116-browser-mutation-codemod-v2.mjs
       - .github/workflows/pr116-browser-mutation-codemod.yml
 
 permissions:
@@ -31,7 +32,7 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
       - name: Rewrite browser Admin mutations through typed boundary
-        run: node scripts/pr116-browser-mutation-codemod.mjs
+        run: node scripts/pr116-browser-mutation-codemod-v2.mjs
       - name: Focused validation
         run: |
           npm run lint
@@ -39,7 +40,7 @@ jobs:
           npm run verify:admin-mutations
       - name: Commit deterministic boundary rewrite
         run: |
-          rm -f scripts/pr116-browser-mutation-codemod.mjs .github/workflows/pr116-browser-mutation-codemod.yml
+          rm -f scripts/pr116-browser-mutation-codemod.mjs scripts/pr116-browser-mutation-codemod-v2.mjs .github/workflows/pr116-browser-mutation-codemod.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
