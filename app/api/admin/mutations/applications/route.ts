@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
+import { authorizeAdminMutation } from "@/lib/server/adminMutationBoundary";
 import {
-  authorizeAdminMutation,
-  normalizeProgramScope,
-  privilegedSupabaseRest,
-  writeServerAdminAudit,
-} from "@/lib/server/adminMutationBoundary";
-import { supabaseRestAsUser } from "@/lib/server/supabaseUser";
+  callPr116AdminOidcGateway,
+  Pr116AdminGatewayError,
+} from "@/lib/server/pr116AdminOidcGateway";
 
 const APPLICATION_STATUSES = new Set([
   "new",
@@ -15,13 +13,6 @@ const APPLICATION_STATUSES = new Set([
   "rejected",
   "archived",
 ]);
-
-type ApplicationRow = {
-  id: number;
-  platform: string | null;
-  status: string | null;
-  internal_notes: string | null;
-};
 
 type MutationBody =
   | { operation: "updateApplicationStatus"; applicationId: number; status: string }
@@ -68,46 +59,28 @@ export async function POST(request: Request) {
 
   const authorization = await authorizeAdminMutation(request, "applications", "can_edit");
   if (!authorization.ok) return jsonError(authorization.message, authorization.status);
-  const { actor } = authorization;
 
-  // Read the exact target using the user's own bearer token. This preserves
-  // row visibility and gives us the old value before the privileged write.
-  const target = await supabaseRestAsUser<ApplicationRow[]>(
-    `/agency_applications?select=id,platform,status,internal_notes&id=eq.${payload.applicationId}&limit=1`,
-    actor.user,
-  );
-  const current = target.ok && Array.isArray(target.data) ? target.data[0] : null;
-  if (!current) return jsonError("تعذر العثور على الطلب أو لا تملك صلاحية إدارته.", 404);
-
-  if (actor.profile.role === "program_admin") {
-    const assigned = normalizeProgramScope(actor.profile.assignedProgram);
-    const targetProgram = normalizeProgramScope(current.platform);
-    if (!assigned || !targetProgram.includes(assigned)) {
-      return jsonError("هذا الطلب خارج البرنامج المسموح لهذا الحساب.", 403);
+  try {
+    const action = payload.operation === "updateApplicationStatus"
+      ? "application_status_update"
+      : "application_internal_notes_update";
+    const data = await callPr116AdminOidcGateway<{ ok: true; data: unknown }>(
+      request,
+      authorization.actor.user.accessToken,
+      action,
+      payload.operation === "updateApplicationStatus"
+        ? { applicationId: payload.applicationId, status: payload.status }
+        : { applicationId: payload.applicationId, internalNotes: payload.internalNotes },
+    );
+    return NextResponse.json({ ok: true, data: data.data });
+  } catch (error) {
+    if (error instanceof Pr116AdminGatewayError) {
+      if (error.reason === "preview_forbidden") {
+        return jsonError("المعاينة مخصصة للعرض والتحقق فقط، ولا تحفظ تغييرات على البيانات الفعلية.", 403);
+      }
+      if (error.reason === "unauthorized") return jsonError("انتهت جلسة الإدارة. سجل الدخول مجددًا.", 401);
+      if (error.reason === "forbidden") return jsonError("لا تملك صلاحية تنفيذ هذا الإجراء.", 403);
     }
+    return jsonError("تعذر حفظ التعديل الآن. حاول مرة أخرى.", 503);
   }
-
-  const patch = payload.operation === "updateApplicationStatus"
-    ? { status: payload.status }
-    : { internal_notes: payload.internalNotes || null };
-
-  const mutation = await privilegedSupabaseRest<ApplicationRow[]>(
-    `/agency_applications?id=eq.${payload.applicationId}`,
-    { method: "PATCH", body: JSON.stringify(patch) },
-  );
-  if (!mutation.ok) return jsonError("تعذر حفظ التعديل الآن. حاول مرة أخرى.", mutation.status >= 500 ? 503 : 400);
-
-  const updated = Array.isArray(mutation.data) ? mutation.data[0] || null : null;
-  await writeServerAdminAudit({
-    actor,
-    action: payload.operation === "updateApplicationStatus" ? "update_application_status" : "update_application_notes",
-    entityType: "agency_applications",
-    entityId: payload.applicationId,
-    oldData: current,
-    newData: updated || { ...current, ...patch },
-    metadata: { operation: payload.operation },
-    sourceRoute: "/api/admin/mutations/applications",
-  });
-
-  return NextResponse.json({ ok: true, data: updated || patch });
 }
