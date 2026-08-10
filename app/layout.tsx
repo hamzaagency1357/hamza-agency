@@ -25,6 +25,7 @@ import "./final-fixes.css";
 import "./public-modal-fixes.css";
 import "./owner-final-qa.css";
 import "./pr5-cinematic.css";
+import "./owner-verified-delta.css";
 
 export const generateMetadata=generatePublicMetadataForRequest;
 export const viewport:Viewport={themeColor:[{media:"(prefers-color-scheme: light)",color:"#7C3AED"},{media:"(prefers-color-scheme: dark)",color:"#7C3AED"}],colorScheme:"dark",width:"device-width",initialScale:1};

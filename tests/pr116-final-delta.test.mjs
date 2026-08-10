@@ -17,13 +17,26 @@ test("desktop Smart Support button uses the active locale copy",()=>{
   assert.ok(copy.includes('widgetOpen:"Akıllı Destek"'));
 });
 
-test("homepage statistics do not publish unsupported numeric fallbacks",()=>{
+test("homepage preserves Owner-approved marketing statistics exactly",()=>{
   const source=read("app/page.tsx");
-  assert.equal(source.includes('number:"+7000"'),false);
-  assert.equal(source.includes('number:"+5"'),false);
-  assert.equal(source.includes('number:"24/7"'),false);
-  assert.ok(compact(source).includes('item.key===2?String(programs.length)'));
-  assert.ok(source.includes('number:"7",label:"سنوات خبرة",key:5'));
+  for(const value of ['number:"7000+"','number:"5+"','number:"24/7"','number:"7"']) assert.ok(source.includes(value));
+  assert.ok(source.includes('number:"7000+",label:"صانع محتوى"'));
+  assert.ok(source.includes('number:"5+",label:"منصات متاحة"'));
+  assert.ok(source.includes('number:"24/7",label:"دعم ومتابعة"'));
+  assert.ok(source.includes('number:"7",label:"سنوات خبرة"'));
+  assert.equal(compact(source).includes('item.key===2?String(programs.length)'),false);
+  assert.ok(compact(source).includes('conststats=t.stats.map((item)=>[item.number,item.label]asconst)'));
+  assert.ok(source.includes('text-yellow-200'));
+});
+
+test("admin-only controls and public support copy are route-gated away from admin login",()=>{
+  const blogLink=read("components/AdminBlogQuickLink.tsx");
+  const quickNav=read("components/AdminQuickNav.tsx");
+  const support=read("components/PublicSupportAvailability.tsx");
+  assert.ok(blogLink.includes('pathname === "/admin/login"'));
+  assert.equal(blogLink.includes('fixed bottom-24'),false);
+  assert.ok(quickNav.includes('pathname === "/admin/login"'));
+  assert.ok(support.includes('pathname.startsWith("/admin")'));
 });
 
 test("final security migration closes direct browser access to internal guard RPCs",()=>{
