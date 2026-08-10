@@ -21,7 +21,9 @@ if (run.status !== 0) process.exit(run.status || 2);
 
 const contractsPath = path.join(ROOT, "lib/server/pr116AdminActionContracts.ts");
 let contracts = fs.readFileSync(contractsPath, "utf8");
-contracts = contracts.replace("type Pr116AdminActionContract =", "export type Pr116AdminActionContract =");
+if (!contracts.includes("export type Pr116AdminActionContract")) {
+  contracts = contracts.replace("type Pr116AdminActionContract =", "export type Pr116AdminActionContract =");
+}
 fs.writeFileSync(contractsPath, contracts);
 
 const clientPath = path.join(ROOT, "lib/adminBoundaryMutationClient.ts");
