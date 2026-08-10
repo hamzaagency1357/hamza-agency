@@ -1,6 +1,6 @@
 # HAMZA AGENCY — Final Pre-Launch Manual Checklist
 
-Only manual/external/Production gates remain here. This is not a development backlog.
+Only manual/external/Production gates remain here after the current repository delta. This is not a development backlog.
 
 ## 1. Administrator security
 
@@ -24,27 +24,41 @@ Use only the Vercel Preview whose SHA equals the final PR #116 Head.
 
 Check only current closeout items:
 
-- Desktop Smart Support: AR `الدعم الذكي`, EN `Smart Support`, TR `Akıllı Destek`.
-- Mobile Menu + Smart Support + WhatsApp availability.
+- exact Owner-approved homepage statistics are visible: `7000+` Content Creators, `5+` Available Platforms, `24/7` Support & Follow-up, `7` Years of Experience;
+- statistic numbers use visible restrained Gold;
+- Black/Near-black remains the base, Royal Purple is clear but does not wash the whole page, and Gold is present without dominating all text;
+- headings, body, secondary text, metadata, links, CTAs and important numbers have visibly different hierarchy;
+- Desktop Smart Support: AR `الدعم الذكي`, EN `Smart Support`, TR `Akıllı Destek`;
+- Mobile Menu + Smart Support + WhatsApp availability;
 - no overlay/safe-area/close-button breakage;
 - Cookie controls and reopening;
 - Reviews honest empty/submission state;
 - Program Media fallback;
 - decorated Arabic Agent and EN/TR Agent identity;
 - no Arabic residue in EN/TR;
-- color hierarchy in available presets;
+- visual hierarchy remains coherent across available Owner presets, RTL/LTR and desktop/mobile;
 - no developer wording / public commit SHA/internal status details.
+
+### Admin unauthenticated login
+
+- `/admin/login` shows Login UI and only elements necessary for sign-in.
+- `إدارة المدونة` is absent.
+- `دليل الإدارة` and other internal admin shortcuts are absent.
+- the public support phrase is absent.
 
 ### Admin authenticated — desktop + mobile
 
+- On the main Dashboard, press `عرض التفاصيل` for the first Joining Application: the same request details open.
+- Close it and press `عرض التفاصيل` for a second Joining Application: the second request data opens correctly.
+- No dead navigation, invalid fragment, silent no-op, or stale first-request content.
+- Blog management shortcut does not cover tables, content, buttons or menus.
+- public support copy does not appear anywhere in `/admin*`.
+- visible daily Admin wording does not expose `Supabase`, `SEO`, `CMS`, `Page Builder`, RPC/SQL/JSON/raw database names or raw backend errors.
 - Unified Requests opens the intended Application and Service Request.
 - Job/Contact routes do not rely on invalid fragments.
-- Blog/guide floating controls do not cover content.
 - tables/cards/forms do not destructively clip on mobile.
-- no visitor-marketing copy in Admin.
 - one active navigation item only.
 - direct URL + important action authorization samples respect permissions.
-- visible Admin copy is human-readable and not developer/database UI.
 
 If a finding is not reproduced, do not redesign it.
 

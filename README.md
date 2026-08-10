@@ -30,7 +30,12 @@ Verified final-delta work includes:
 - localized Smart Support access, including the corrected Desktop floating label (`الدعم الذكي` / `Smart Support` / `Akıllı Destek`);
 - Preview fail-closed production-sensitive writes;
 - AdminQuickNav one-active-item fix and bounded Unified Requests deep-link fix;
-- removal of unsupported homepage `+7000` and `24/7` numeric fallbacks, data-derived platform count, and preserved Owner-approved 7 years;
+- Owner-approved homepage marketing statistics preserved exactly as content: `7000+` Content Creators, `5+` Available Platforms, `24/7` Support & Follow-up, `7` Years of Experience; these are not derived database metrics and must not be removed/reinterpreted without an explicit Owner decision;
+- Joining Applications dashboard details hardened against admin-overlay stacking and stale-selection behavior;
+- Blog management shortcut changed from floating overlay to in-flow admin access and hidden on `/admin/login`;
+- public support availability route-gated away from `/admin*` without removing the approved public copy;
+- humanized daily Admin Dashboard wording without `Supabase`, `SEO`, `CMS`, or `Page Builder` UI residue in the corrected surface;
+- shared Black/Near-black + Royal Purple + restrained Gold hierarchy with differentiated text hierarchy while preserving semantic status colors and visual presets;
 - additive least-privilege migration covering five internal PR99 submit RPCs, two legacy lookup bypasses, and three internal guard RPCs while preserving the service-role/OIDC path;
 - isolated migration regression contracts for browser-role denial and internal service access.
 
@@ -95,14 +100,15 @@ Protected CI includes Quality Gate, PR99 Management Quality Gate, Current-State 
 ## Release rule
 
 1. Freeze final Head and pass exact-Head automated evidence.
-2. Complete Owner/manual Admin security, authenticated QA and Android real-device PWA gates.
-3. Owner Final Visual QA must explicitly equal `PASS`.
-4. If Production migrations remain required, present backup/migration/security/rollback evidence and STOP for explicit Owner approval.
-5. Apply only approved migrations and verify affected Production flows.
-6. Obtain separate explicit Owner merge approval.
-7. Merge; verify Vercel Production READY, exact `/api/health` commit and final smoke.
-8. Only then may HAMZA AGENCY be declared Code Complete / Development Closed / Production Ready / Delivery Ready / Revenue Ready.
-9. After true closeout, stop development; later bugs/new Owner requirements are separate work.
+2. Complete authenticated Admin Owner QA and visual/mobile/preset QA on that exact Preview.
+3. Complete Owner/manual Admin security and Android real-device PWA gates.
+4. Owner Final Visual QA must explicitly equal `PASS`.
+5. If Production migrations remain required, present backup/migration/security/rollback evidence and STOP for explicit Owner approval.
+6. Apply only approved migrations and verify affected Production flows.
+7. Obtain separate explicit Owner merge approval.
+8. Merge; verify Vercel Production READY, exact `/api/health` commit and final smoke.
+9. Only then may HAMZA AGENCY be declared Code Complete / Development Closed / Production Ready / Delivery Ready / Revenue Ready.
+10. After true closeout, stop development; later bugs/new Owner requirements are separate work.
 
 ## License
 

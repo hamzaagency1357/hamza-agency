@@ -23,10 +23,14 @@ PR #116 preserves already-correct work and only corrects verified remaining gaps
 - public Platform Status contains no public commit/runtime detail;
 - Digital Services has localized Smart Support access;
 - AdminQuickNav selects one most-specific active item;
-- Unified Admin Requests source deep-links are valid for Application/Service Request and do not fabricate fragment targets for types without one;
 - Vercel Preview production-sensitive public writes fail closed;
-- Desktop floating Smart Support now uses locale copy instead of hard-coded English; AR runtime evidence on the code-head Preview rendered `الدعم الذكي`;
-- unsupported homepage `+7000` and `24/7` fallback claims were removed; platform count comes from current program data and 7 years remains Owner-approved;
+- Desktop Smart Support uses locale copy instead of hard-coded English;
+- Owner-approved homepage marketing content is restored and protected exactly: `7000+` Content Creators, `5+` Available Platforms, `24/7` Support & Follow-up, `7` Years of Experience. These values are Owner-controlled marketing content, not database metrics, and must not be reinterpreted or removed without an explicit Owner decision;
+- Joining Applications dashboard detail interaction is hardened with explicit non-submit buttons, per-application modal identity, and a dialog layer above admin floating controls;
+- the Blog management shortcut is removed from floating overlay behavior and cannot render on `/admin/login`;
+- public support availability copy remains on public pages but is route-gated from `/admin*`;
+- corrected Admin Dashboard descriptions use human business wording rather than `Supabase`, `SEO`, `CMS`, or `Page Builder` terminology;
+- shared visual hierarchy now keeps Black/Near-black as the base, Royal Purple as controlled primary depth/CTA emphasis, Gold as a visible restrained premium accent, and softer body/secondary text hierarchy while preserving semantic Success/Warning/Error/Info colors and the visual-preset architecture;
 - the final least-privilege migration covers internal PR99 submission RPCs, legacy lookup bypasses, and the three internal guard RPCs while preserving the service-role/OIDC path;
 - isolated migration contracts explicitly require `anon=denied`, `authenticated=denied`, `service_role=allowed` for those internal boundaries.
 
@@ -64,24 +68,26 @@ Before any Production DB change: fresh backup, backup verification, isolated res
 - Routes remain `/` AR, `/en` EN, `/tr` TR.
 - Arabic decorated Agent remains `⚔عܓོراب✴سܓོوريا⚔`; readable/SEO name remains `عراب سوريا`.
 - No `Godfather of Syria`, `Arrab Syria`, or `Suriye'nin Vaftiz Babası` reintroduction.
-- No fake reviews, stories, articles, jobs, marketplace offers, earnings, approvals, results, or statistics may be introduced.
+- Owner-approved homepage statistics are valid marketing content and are not classified as unsupported claims.
+- No fake reviews, stories, articles, jobs, marketplace offers, earnings, approvals, or guaranteed-results claims may be introduced.
 - Marketplace remains non-prominent while Production has no listings.
 - Cinematic background decision and current Program Media architecture remain unchanged.
 - PWA install must use a real browser install opportunity or a short nontechnical localized fallback.
 
 ## Evidence rule
 
-Final automated status belongs only to the **current PR Head** after this documentation batch. Read Quality Gate, PR99 Management Quality Gate, Current-State Schema Verify, Full Project Closeout, exact-preview and evidence jobs from GitHub; read exact deployment ID/URL/SHA/READY from Vercel. An older Head is never final evidence after a commit.
+Final automated status belongs only to the **current PR Head** after the final documentation commit. Read Quality Gate, PR99 Management Quality Gate, Current-State Schema Verify, Full Project Closeout, exact-preview and evidence jobs from GitHub; read exact deployment ID/URL/SHA/READY from Vercel. An older Head is never final evidence after a commit.
 
 ## Remaining sequence
 
-1. Freeze this documentation Head and complete exact-Head automated evidence once.
-2. Complete Owner/manual security and authenticated/real-device QA.
-3. Owner Final Visual QA must explicitly become `PASS`.
-4. If migrations remain required, present the Production Migration Gate package and STOP for explicit approval.
-5. Apply only approved migration(s), verify affected Production security/schema/runtime flows.
-6. Obtain separate explicit Owner merge approval.
-7. Merge; verify Vercel Production READY, exact `/api/health` commit and final smoke.
-8. Only then may the project be declared Code Complete / Development Closed / Production Ready / Revenue Ready.
+1. Freeze the final documentation Head and complete exact-Head automated evidence once.
+2. Complete authenticated Admin runtime QA and Owner visual/mobile/preset QA on that exact Preview.
+3. Complete Owner/manual security and Android real-device QA.
+4. Owner Final Visual QA must explicitly become `PASS`.
+5. If migrations remain required, present the Production Migration Gate package and STOP for explicit approval.
+6. Apply only approved migration(s), verify affected Production security/schema/runtime flows.
+7. Obtain separate explicit Owner merge approval.
+8. Merge; verify Vercel Production READY, exact `/api/health` commit and final smoke.
+9. Only then may the project be declared Code Complete / Development Closed / Production Ready / Revenue Ready.
 
 Until then, no such declaration is authorized.
