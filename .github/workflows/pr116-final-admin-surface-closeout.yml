@@ -4,6 +4,7 @@ on:
     branches: [fix/final-production-professional-closeout]
     paths:
       - scripts/pr116-final-admin-surface-closeout.mjs
+      - scripts/pr116-final-admin-surface-closeout-fix.mjs
       - .github/workflows/pr116-final-admin-surface-closeout.yml
 permissions:
   contents: write
@@ -21,7 +22,9 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Apply focused closeout patch
-        run: node scripts/pr116-final-admin-surface-closeout.mjs
+        run: |
+          node scripts/pr116-final-admin-surface-closeout.mjs
+          node scripts/pr116-final-admin-surface-closeout-fix.mjs
       - name: Focused validation
         run: |
           npm run lint
@@ -29,7 +32,7 @@ jobs:
           node --test tests/admin-mutation-boundary.test.mjs
       - name: Commit validated closeout changes
         run: |
-          rm -f scripts/pr116-final-admin-surface-closeout.mjs .github/workflows/pr116-final-admin-surface-closeout.yml
+          rm -f scripts/pr116-final-admin-surface-closeout.mjs scripts/pr116-final-admin-surface-closeout-fix.mjs .github/workflows/pr116-final-admin-surface-closeout.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
