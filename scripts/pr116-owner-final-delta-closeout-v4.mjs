@@ -2,10 +2,8 @@ import fs from "node:fs";
 
 const read=(file)=>fs.readFileSync(file,"utf8");
 const write=(file,value)=>fs.writeFileSync(file,value);
-const replace=(file,before,after,label)=>{const source=read(file);if(!source.includes(before))throw new Error(`Missing ${label} in ${file}`);write(file,source.replace(before,after));};
 
-// Apply the validated Owner delta runner first.
-await import("./pr116-owner-final-delta-closeout-v3.mjs");
+// The validated base Owner delta is already committed in this branch. This runner adds only the remaining current-head refinements.
 
 // Replace the stale four-stat test assertion with the new Admin -> Public contract.
 {
@@ -61,7 +59,7 @@ await import("./pr116-owner-final-delta-closeout-v3.mjs");
  source=source.replace('  rejected: "red",\n};','  rejected: "red",\n  archived: "slate",\n};');
  const marker='  {\n    title: "الأقسام",\n    description: "إدارة أقسام الصفحات وترتيب المحتوى الظاهر للزوار.",\n    href: "/admin/sections",\n    tone: "gold",\n  },';
  if(!source.includes(marker)) throw new Error("Admin dashboard content marker missing");
- source=source.replace(marker,`${marker}\n  {\n    title: "المدونة",\n    description: "إدارة المقالات والمسودات والنشر من مكان واحد.",\n    href: "/admin/blog",\n    tone: "purple",\n  },`);
+ source=source.replace(marker,`${marker}\n  {\n    title: "المدونة",\n    description: "إدارة المقالات والمسودات والنشر من مكان واحد.\",\n    href: "/admin/blog",\n    tone: "purple",\n  },`);
  write(file,source);
 }
 
@@ -91,10 +89,10 @@ await import("./pr116-owner-final-delta-closeout-v3.mjs");
 // Lock the exact Owner section color map and key cross-surface contracts.
 {
  const file="tests/pr116-owner-final-delta-contract.test.mjs";let source=read(file);
- source=source.replace('assert.ok(dock.includes("tenant-primary")||dock.includes("purple"));','assert.ok(dock.includes("purple-300/20")); assert.ok(dock.includes("yellow-300/15")); assert.ok(dock.includes("green-300/20"));');
+ source=source.replace('assert.ok(dock.includes("purple-300/20")); assert.ok(dock.includes("yellow-300/15")); assert.ok(dock.includes("green-300/20"));','assert.ok(dock.includes("purple-300/20")); assert.ok(dock.includes("yellow-300/15")); assert.ok(dock.includes("green-300/20"));');
  source=source.replace('assert.ok(blog.includes("AdminBlogManager"));','assert.ok(blog.includes("AdminBlogManager")); assert.ok(quick.includes("/admin/blog"));');
  source=source.replace('assert.ok(apply.includes("getPublicNavigationConfig")||apply.includes("localizePublicHref"));','assert.ok(apply.includes("getPublicNavigationConfig")||apply.includes("localizePublicHref")); assert.ok(nav.includes("const headerLinks=[...config.headerLinks]"));');
  write(file,source);
 }
 
-console.log("PR116 Owner Final Delta v4 supplemental closeout applied.");
+console.log("PR116 Owner Final Delta v4 supplemental closeout applied from current head.");
