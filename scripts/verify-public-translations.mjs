@@ -56,7 +56,7 @@ for (const route of requiredRoutes) { const routeToken=route==="/"?'"/": {':`"${
 for (const slug of ["tiktok", "bigo-live", "yaahlan", "xena", "catchii"]) { const token=slug.includes("-")?`"${slug}": {`:`${slug}: {`; if (!runtimeDictionary.includes(token)) errors.push(`Program metadata translation missing: ${slug}`); }
 for (const token of ["canonical", "getLanguageAlternates", "openGraph", "twitter"]) if (!serverMetadata.includes(token)) errors.push(`Server locale metadata is missing: ${token}`);
 
-for (const token of ["hamza-marquee-group","hamzaAnnouncementRight","hamzaAnnouncementLeft",'data-marquee-mechanics="ltr"',"data-marquee-language={language}",'data-marquee-language="ar"','data-marquee-language="en"','data-marquee-language="tr"',"from { transform: translate3d(-50%, 0, 0); }","to { transform: translate3d(0, 0, 0); }","from { transform: translate3d(0, 0, 0); }","to { transform: translate3d(-50%, 0, 0, 0); }","✦"]) if (!announcement.includes(token)) errors.push(`Localized ticker direction is missing: ${token}`);
+for (const token of ["hamza-marquee-group","hamzaAnnouncementRight","hamzaAnnouncementLeft",'data-marquee-mechanics="ltr"',"data-marquee-language={language}",'data-marquee-language="ar"','data-marquee-language="en"','data-marquee-language="tr"',"from { transform: translate3d(-50%, 0, 0); }","to { transform: translate3d(0, 0, 0); }","from { transform: translate3d(0, 0, 0); }","to { transform: translate3d(-50%, 0, 0); }","✦"]) if (!announcement.includes(token)) errors.push(`Localized ticker direction is missing: ${token}`);
 if (announcement.includes("justify-around") || announcement.includes("direction: rtl")) errors.push("Ticker track must remain mechanically LTR without distributed spacing.");
 if ((announcement.match(/hamza-marquee-group/g) || []).length !== 2) errors.push("Ticker must render exactly two identical marquee groups.");
 
@@ -74,7 +74,7 @@ const ownerApprovedStatistics = [
   'number:"24/7",label:"Support & follow-up"',
   'number:"7",label:"Years of experience"',
   'number:"7000+",label:"İçerik üreticisi"',
-  'number:"5+",label:"Mevcut platformlar"',
+  'number:"5+",label:"Mevcut platform"',
   'number:"24/7",label:"Destek ve takip"',
   'number:"7",label:"Yıllık deneyim"',
 ];
