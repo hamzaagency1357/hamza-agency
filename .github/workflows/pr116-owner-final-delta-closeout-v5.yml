@@ -1,0 +1,38 @@
+name: PR116 Owner Final Delta Closeout v5
+on:
+  push:
+    branches: [fix/final-production-professional-closeout]
+    paths:
+      - .github/workflows/pr116-owner-final-delta-closeout-v5.yml
+permissions:
+  contents: write
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/final-production-professional-closeout
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Focused final-delta validation
+        run: |
+          npm run lint
+          npm run typecheck
+          node --test tests/admin-mutation-boundary.test.mjs tests/pr116-final-delta.test.mjs tests/pr116-owner-directives.test.mjs tests/pr116-owner-final-delta-contract.test.mjs
+          node scripts/verify-public-translations.mjs
+      - name: Remove one-shot tooling and commit clean state
+        run: |
+          rm -f scripts/pr116-owner-final-delta-closeout.mjs scripts/pr116-owner-final-delta-closeout-v2.mjs scripts/pr116-owner-final-delta-closeout-v3.mjs scripts/pr116-owner-final-delta-closeout-v4.mjs scripts/pr116-owner-final-delta-closeout-v5.mjs
+          rm -f scripts/pr116-owner-delta-discovery.mjs scripts/pr116-final-admin-surface-closeout-fix.mjs
+          rm -f .github/workflows/pr116-owner-final-delta-closeout.yml .github/workflows/pr116-owner-final-delta-closeout-v3.yml .github/workflows/pr116-owner-final-delta-closeout-v4.yml .github/workflows/pr116-owner-final-delta-closeout-v5.yml .github/workflows/pr116-owner-delta-discovery.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(closeout): remove one-shot PR116 tooling"
+          git push origin HEAD:fix/final-production-professional-closeout
