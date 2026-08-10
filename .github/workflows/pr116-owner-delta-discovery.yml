@@ -1,0 +1,18 @@
+name: PR116 Owner Delta Discovery
+on:
+  push:
+    branches: [fix/final-production-professional-closeout]
+    paths:
+      - scripts/pr116-owner-delta-discovery.mjs
+      - .github/workflows/pr116-owner-delta-discovery.yml
+permissions:
+  contents: read
+jobs:
+  discover:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: fix/final-production-professional-closeout}
+      - uses: actions/setup-node@v4
+        with: {node-version: 24}
+      - run: node scripts/pr116-owner-delta-discovery.mjs
