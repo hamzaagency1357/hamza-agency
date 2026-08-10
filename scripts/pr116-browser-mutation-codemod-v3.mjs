@@ -14,6 +14,12 @@ const fieldsBefore = '              const fields = mutation.name === "delete" ? 
 const fieldsAfter = '              const fields = mutation.name === "delete" ? new Set() : valueFields(mutation.args[0], declarations);\n              const override = FIELD_OVERRIDES[`${file}|${table}|${mutation.name}`];\n              if (mutation.name !== "delete" && override) for (const field of override) fields.add(field);\n              if (mutation.name !== "delete" && fields.size === 0) failures.push(`${file}: could not infer mutation fields for ${table}.${mutation.name} from ${mutation.args[0] ? sourceText(sf, mutation.args[0]) : "<missing>"}`);';
 if (!base.includes(fieldsBefore)) throw new Error("v3 fields marker missing");
 base = base.replace(fieldsBefore, fieldsAfter);
+const chainBefore = '      const { methods } = parseCallChain(node);';
+if (!base.includes(chainBefore)) throw new Error("v3 call-chain marker missing");
+base = base.replaceAll(chainBefore, '      const { methods, cursor } = parseCallChain(node);');
+const storageBefore = '        if (storageFromIndex >= 0 && methods.slice(0, storageFromIndex).some((m) => m.name === "storage")) {';
+if (!base.includes(storageBefore)) throw new Error("v3 storage marker missing");
+base = base.replace(storageBefore, '        if (storageFromIndex >= 0 && (methods.slice(0, storageFromIndex).some((m) => m.name === "storage") || sourceText(sf, cursor).endsWith(".storage"))) {');
 fs.writeFileSync(basePath, base);
 
 const run = spawnSync(process.execPath, [v2Path], { cwd: ROOT, stdio: "inherit" });
