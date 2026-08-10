@@ -17,6 +17,7 @@ type AdminActivityInput = {
  * records, so this former client-side audit transport intentionally performs
  * no write.
  */
-export async function logAdminActivity(_input: AdminActivityInput) {
+export async function logAdminActivity(input: AdminActivityInput) {
+  void input;
   return;
 }
