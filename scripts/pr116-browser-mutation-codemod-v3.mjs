@@ -18,3 +18,33 @@ fs.writeFileSync(basePath, base);
 
 const run = spawnSync(process.execPath, [v2Path], { cwd: ROOT, stdio: "inherit" });
 if (run.status !== 0) process.exit(run.status || 2);
+
+const contractsPath = path.join(ROOT, "lib/server/pr116AdminActionContracts.ts");
+let contracts = fs.readFileSync(contractsPath, "utf8");
+contracts = contracts.replace("type Pr116AdminActionContract =", "export type Pr116AdminActionContract =");
+fs.writeFileSync(contractsPath, contracts);
+
+const clientPath = path.join(ROOT, "lib/adminBoundaryMutationClient.ts");
+let client = fs.readFileSync(clientPath, "utf8");
+client = client.replace("adminBoundaryMutation<T = unknown>", "adminBoundaryMutation<T = Record<string, unknown>>");
+client = client.replace("adminStorageMutation<T = unknown>", "adminStorageMutation<T = Record<string, unknown>>");
+fs.writeFileSync(clientPath, client);
+
+const routePath = path.join(ROOT, "app/api/admin/mutations/entities/route.ts");
+let route = fs.readFileSync(routePath, "utf8");
+route = route.replace(
+  'import { PR116_ADMIN_ACTION_CONTRACTS } from "@/lib/server/pr116AdminActionContracts";',
+  'import { PR116_ADMIN_ACTION_CONTRACTS, type Pr116AdminActionContract } from "@/lib/server/pr116AdminActionContracts";',
+);
+route = route.replace(
+  'function validatePayload(contract: (typeof PR116_ADMIN_ACTION_CONTRACTS)[keyof typeof PR116_ADMIN_ACTION_CONTRACTS], payload: Record<string, unknown>)',
+  'function validatePayload(contract: Pr116AdminActionContract, payload: Record<string, unknown>)',
+);
+route = route.replace(
+  'const contract = PR116_ADMIN_ACTION_CONTRACTS[body.action as keyof typeof PR116_ADMIN_ACTION_CONTRACTS];',
+  'const contract = PR116_ADMIN_ACTION_CONTRACTS[body.action as keyof typeof PR116_ADMIN_ACTION_CONTRACTS] as Pr116AdminActionContract;',
+);
+route = route.replace("auth.actor.accessToken", "auth.actor.user.accessToken");
+fs.writeFileSync(routePath, route);
+
+console.log("PR116 v3 finalized generated TypeScript boundary contracts.");
