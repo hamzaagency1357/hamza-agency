@@ -24,9 +24,9 @@ import "./globals.css";
 import "./final-fixes.css";
 import "./public-modal-fixes.css";
 import "./owner-final-qa.css";
+import "./owner-qa-fix-batch.css";
 import "./pr5-cinematic.css";
 import "./owner-verified-delta.css";
-
 export const generateMetadata=generatePublicMetadataForRequest;
 export const viewport:Viewport={themeColor:[{media:"(prefers-color-scheme: light)",color:"#7C3AED"},{media:"(prefers-color-scheme: dark)",color:"#7C3AED"}],colorScheme:"dark",width:"device-width",initialScale:1};
 export default async function RootLayout({children}:{children:React.ReactNode}){const[siteContext,tenant]=await Promise.all([getRequestSiteContext(),getServerTenantRuntime()]);const tenantStyle={"--tenant-primary":tenant.branding.primary_color,"--tenant-secondary":tenant.branding.secondary_color,"--tenant-accent":tenant.branding.accent_color} as React.CSSProperties;return <html lang={siteContext.language} dir={siteContext.direction} data-tenant={tenant.slug} data-tenant-id={tenant.id??"fallback"} style={tenantStyle} suppressHydrationWarning><body dir={siteContext.direction} data-site-language={siteContext.language} suppressHydrationWarning><SiteLanguageProvider initialLanguage={siteContext.language}><StructuredData/><AuthRecoveryRedirect/><SiteLanguageDocumentSync/><PublicSiteRuntimeTranslator/><PublicDesktopEnhancer/><CinematicSiteBackground/><VisualBackgroundPresets/><PublicGlobalHeader/><PwaRuntime/>{children}<PublicFooterLinks/><PublicSupportAvailability/><PublicHeaderDesktopClickGuard/><PublicMobileDock/><PublicAiSupport/><PublicQuickNav/><AdminBlogQuickLink/><AdminQuickNav/><CookieConsent/></SiteLanguageProvider></body></html>}

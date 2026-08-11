@@ -1,0 +1,5 @@
+/* Owner QA batch: neutral program fallback and stable public form rendering. */
+[data-testid="program-media-fallback"]>span[aria-hidden="true"]{font-size:0;position:relative;background:color-mix(in srgb,var(--tenant-primary,#7c3aed) 16%,rgba(255,255,255,.05));}
+[data-testid="program-media-fallback"]>span[aria-hidden="true"]::before{content:"";width:2rem;height:2rem;border-radius:.55rem;transform:rotate(45deg);background:linear-gradient(135deg,color-mix(in srgb,var(--tenant-primary,#7c3aed) 82%,white 18%),color-mix(in srgb,var(--tenant-secondary,#d4af37) 72%,white 28%));box-shadow:0 0 22px color-mix(in srgb,var(--tenant-primary,#7c3aed) 28%,transparent)}
+body.public-site-page textarea:empty::after{content:none!important}
+@media(max-width:768px){body.public-site-page form{scroll-margin-bottom:var(--public-mobile-dock-clearance)}body.public-site-page form button[type="submit"]{scroll-margin-bottom:var(--public-mobile-dock-clearance)}}
