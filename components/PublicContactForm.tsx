@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import TrackingReceipt from "@/components/TrackingReceipt";
 import { getLanguageDirection } from "@/lib/i18n/locale";
