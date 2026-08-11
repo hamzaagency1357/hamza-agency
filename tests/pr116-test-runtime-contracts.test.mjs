@@ -63,6 +63,10 @@ test("PR116 local isolated workload auth is ephemeral, loopback-only, and fail c
   assert.match(proxy, /closeout_stateful_supabase_boundary_mismatch/);
   assert.match(proxy, /process\.env\.CLOSEOUT_SUPABASE_ENV_FILE/);
   assert.match(proxy, /closeout_supabase_env_file_required/);
+  assert.match(proxy, /function parseEnvValue\(rawValue\)/);
+  assert.match(proxy, /const first = raw\[0\]/);
+  assert.match(proxy, /const last = raw\[raw\.length - 1\]/);
+  assert.match(proxy, /return raw\.slice\(1, -1\)/);
   assert.match(proxy, /process\.env\.PR116_LOCAL_WORKLOAD_SECRET/);
   assert.match(proxy, /\^\[a-f0-9\]\{64\}\$/);
   assert.match(proxy, /timingSafeEqual/);
