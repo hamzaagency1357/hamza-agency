@@ -4,13 +4,32 @@ This is the final code/documentation handoff before Owner Final QA. It does **no
 
 ## Frozen code-side state before final documentation
 
-- Last code-changing Head: `74c5b8dad339a78f69a43e859a3b6ae89ed78335`.
+- Last code/runtime reconciliation Head: `b764dc8f5cfddd28044b3744072f3858537b2d20`.
 - Base/main baseline: `6d648a17ee95731413f2651d9188a6858d3f923f`.
 - PR #116 remains Open / Draft / Unmerged / Mergeable.
 - Full Browser Admin mutation boundary uses the existing `Browser → typed Vercel route → PR116 OIDC Admin Gateway → authorized Supabase operation` path.
 - No second gateway and no generic database proxy were introduced.
 - Exact reviewed Browser read-only RPC exceptions remain only `pr100_admin_requests_index` and `pr99_backup_schedule_status`.
-- Focused Lint, Typecheck, expanded Admin Mutation Guard, Owner Delta tests, and public translation verification passed before this documentation freeze.
+- Local-isolated PR116 positive runtime reconciliation is complete: the quoted Supabase env parser now removes only matched surrounding quotes, preserving the local service credential; a contract guards this behavior.
+- Verified Supabase actor UUID context remains bound to authenticated user resolution, Admin authorization, action allowlisting and trusted RPC actor headers.
+
+## Candidate evidence completed before this final documentation freeze
+
+Candidate Head `b764dc8f5cfddd28044b3744072f3858537b2d20` completed successfully with:
+
+- HAMZA AGENCY Quality Gate.
+- PR99 Management Quality Gate.
+- HAMZA Current-State Schema Verify.
+- HAMZA AGENCY Full Project Closeout.
+- Validate: structure contracts, closeout contracts, Lint, Typecheck, unit/integration tests and Build.
+- Exact Preview gate.
+- Public / translations / security / permissions evidence.
+- Admin / Notifications / Page Builder / Trash / Backup-Restore authenticated macro-runtime evidence.
+- Tracking / Tasks / SLA / Commerce / Workflows macro-runtime evidence.
+- PR1 isolated runtime evidence.
+- Preview public / security / translations evidence with Preview state-changing behavior remaining fail-closed.
+
+This candidate proof closes the previous shared 403 runtime blocker without weakening the production or Preview security boundary. Because this documentation reconciliation changes the PR Head, the final exact frozen Head must receive the same required exact-head evidence once more before READY FOR OWNER FINAL QA is declared.
 
 ## Owner Final Delta closed code-side
 
@@ -35,10 +54,14 @@ A fresh verified Production backup/recovery package and explicit Owner approval 
 
 ## Final exact-head evidence rule
 
-After this documentation commit becomes the exact frozen Head, only CI and Preview evidence for that exact SHA is final. Required evidence includes Lint, Typecheck, Tests, Build, expanded Admin Mutation Guard, HAMZA AGENCY Quality Gate, PR99 Management Quality Gate, Current-State Schema Verify, HAMZA AGENCY Full Project Closeout, aggregate/fail-closed, public/translations/security/permissions/admin evidence, local-isolated PR116 migration proof, and an exact Vercel Preview whose SHA matches the frozen Head and is READY.
+This documentation commit is the intended final freeze point. Only CI and Preview evidence for the resulting exact frozen SHA is final. Required evidence includes Lint, Typecheck, Tests, Build, expanded Admin Mutation Guard, HAMZA AGENCY Quality Gate, PR99 Management Quality Gate, Current-State Schema Verify, HAMZA AGENCY Full Project Closeout, aggregate/fail-closed, public/translations/security/permissions/admin evidence, local-isolated PR116 migration proof, and an exact Vercel Preview whose SHA matches the frozen Head and is READY.
+
+No additional code or documentation edits are authorized after the final frozen Head unless a real exact-head regression is discovered; any such regression would create a new candidate and require the full exact-head evidence cycle again.
 
 ## STOP state
 
 When exact-head CI and Preview are green, stop at **READY FOR OWNER FINAL QA**.
 
 Manual Owner gates remain: authenticated Admin first+second Joining Application detail checks, authenticated Admin desktop/mobile visual and permission spot-checks, AR/EN/TR + RTL/LTR + mobile/desktop/preset visual QA, Primary Admin MFA, independent Backup Admin + MFA/recovery, Android Chrome PWA real-device QA, and the Free-plan leaked-password-protection decision.
+
+**Merge = NO · Production Migration = NO · Ready for Review = NO · Production business-data writes = NO · Billing/plan changes = NO**
