@@ -86,7 +86,9 @@ export async function dispatchTrustedRpcAction(input: Input): Promise<Result> {
     return { status: 400, body: { ok: false, code: "invalid_request" }, ok: false };
   }
   const actorEmail = (input.admin.email || input.user.email || "").trim().toLowerCase();
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.user.id) || !actorEmail || actorEmail.length > 320) {
+  // Supabase Auth is the source of truth for the authenticated actor. Accept the full
+  // UUID syntax here instead of rejecting otherwise-valid Auth identities by UUID version.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.user.id) || !actorEmail || actorEmail.length > 320) {
     return { status: 403, body: { ok: false, code: "forbidden" }, ok: false };
   }
   const response = await fetch(`${input.supabaseUrl}/rest/v1/rpc/${contract.rpcName}`, {
