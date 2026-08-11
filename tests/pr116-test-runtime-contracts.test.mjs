@@ -59,6 +59,7 @@ test("PR116 local isolated evidence applies OIDC lockdown and uses typed Admin b
   assert.match(proxy, /__closeout_supabase/);
   assert.match(proxy, /pr116-admin-oidc-gateway/);
   assert.match(proxy, /dispatchGeneratedAdminAction/);
+  assert.doesNotMatch(proxy, /\b(?:SUPABASE_SERVICE_ROLE(?:_KEY)?|SERVICE_ROLE_KEY)\b\s*[:=]/);
   assert.match(gatewayClient, /CLOSEOUT_EXECUTION_MODE === "local-isolated"/);
   assert.match(gatewayClient, /CLOSEOUT_STATEFUL === "true"/);
   assert.match(gatewayClient, /CLOSEOUT_LOCAL_OIDC_TOKEN/);

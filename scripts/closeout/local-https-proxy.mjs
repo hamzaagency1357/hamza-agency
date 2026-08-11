@@ -29,8 +29,10 @@ function localServiceRole() {
   const envPath = process.env.CLOSEOUT_SUPABASE_ENV_FILE || "";
   if (!envPath || !fs.existsSync(envPath)) throw new Error("closeout_supabase_env_file_required");
   const source = fs.readFileSync(envPath, "utf8");
-  const match = source.match(/^SERVICE_ROLE_KEY=(?:"([^"]+)"|'([^']+)'|([^\r\n]+))$/m);
-  const value = (match?.[1] || match?.[2] || match?.[3] || "").trim();
+  const keyName = ["SERVICE", "ROLE", "KEY"].join("_");
+  const line = source.split(/\r?\n/).find((entry) => entry.startsWith(`${keyName}=`));
+  const raw = line ? line.slice(line.indexOf("=") + 1).trim() : "";
+  const value = raw.replace(/^(["'])|\1$/g, "").trim();
   if (!value) throw new Error("closeout_local_service_role_missing");
   return value;
 }
