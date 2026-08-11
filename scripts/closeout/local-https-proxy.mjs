@@ -25,14 +25,23 @@ function localUpstream(name, rawValue, expectedPort) {
   }
   return url;
 }
+function parseEnvValue(rawValue) {
+  const raw = rawValue.trim();
+  if (raw.length >= 2) {
+    const first = raw[0];
+    const last = raw[raw.length - 1];
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) return raw.slice(1, -1);
+  }
+  return raw;
+}
 function localServiceRole() {
   const envPath = process.env.CLOSEOUT_SUPABASE_ENV_FILE || "";
   if (!envPath || !fs.existsSync(envPath)) throw new Error("closeout_supabase_env_file_required");
   const source = fs.readFileSync(envPath, "utf8");
   const keyName = ["SERVICE", "ROLE", "KEY"].join("_");
   const line = source.split(/\r?\n/).find((entry) => entry.startsWith(`${keyName}=`));
-  const raw = line ? line.slice(line.indexOf("=") + 1).trim() : "";
-  const value = raw.replace(/^(["'])|\1$/g, "").trim();
+  const raw = line ? line.slice(line.indexOf("=") + 1) : "";
+  const value = parseEnvValue(raw).trim();
   if (!value) throw new Error("closeout_local_service_role_missing");
   return value;
 }
