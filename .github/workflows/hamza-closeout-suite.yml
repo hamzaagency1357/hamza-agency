@@ -127,6 +127,10 @@ jobs:
               SERVICE_ROLE_KEY) : ;;
             esac
           done < /tmp/closeout-supabase.env
+          echo "CLOSEOUT_SUPABASE_ENV_FILE=/tmp/closeout-supabase.env" >> "$GITHUB_ENV"
+          workload_secret="$(openssl rand -hex 32)"
+          echo "::add-mask::$workload_secret"
+          echo "PR116_LOCAL_WORKLOAD_SECRET=$workload_secret" >> "$GITHUB_ENV"
           set -a; . /tmp/closeout-supabase.env; set +a
           node scripts/closeout/portal-local-fixtures.mjs setup
       - name: Build isolated local application
@@ -144,8 +148,13 @@ jobs:
           curl -fsS http://127.0.0.1:3000/ >/dev/null
           if [ "${CLOSEOUT_STATEFUL:-false}" = "true" ]; then
             supabase_upstream="http://127.0.0.1:54321"
+            test -n "${CLOSEOUT_SUPABASE_ENV_FILE:-}"
+            test -f "$CLOSEOUT_SUPABASE_ENV_FILE"
+            test -n "${PR116_LOCAL_WORKLOAD_SECRET:-}"
           else
             supabase_upstream=""
+            test -z "${CLOSEOUT_SUPABASE_ENV_FILE:-}"
+            test -z "${PR116_LOCAL_WORKLOAD_SECRET:-}"
           fi
           CLOSEOUT_TLS_KEY=/tmp/hamza-closeout-tls/key.pem CLOSEOUT_TLS_CERT=/tmp/hamza-closeout-tls/cert.pem CLOSEOUT_UPSTREAM_URL=http://127.0.0.1:3000 CLOSEOUT_SUPABASE_UPSTREAM_URL="$supabase_upstream" CLOSEOUT_HTTPS_PORT=3443 node scripts/closeout/local-https-proxy.mjs >/tmp/hamza-closeout-proxy.log 2>&1 &
           echo $! >/tmp/hamza-closeout-proxy.pid
@@ -212,6 +221,7 @@ jobs:
           if [ -f /tmp/hamza-closeout-next.pid ]; then kill "$(cat /tmp/hamza-closeout-next.pid)" 2>/dev/null; fi
           if [ -f /tmp/hamza-closeout-proxy.pid ]; then kill "$(cat /tmp/hamza-closeout-proxy.pid)" 2>/dev/null; fi
           if [ -d "$CLOSEOUT_PORTAL_WORKDIR" ] && [ -n "${SUPABASE_BIN:-}" ]; then cd "$CLOSEOUT_PORTAL_WORKDIR" && "$SUPABASE_BIN" stop --no-backup >/dev/null 2>&1; cd "$GITHUB_WORKSPACE"; fi
+          unset PR116_LOCAL_WORKLOAD_SECRET CLOSEOUT_SUPABASE_ENV_FILE
           rm -rf artifacts/raw /tmp/hamza-closeout-* /tmp/closeout-supabase* "$CLOSEOUT_PORTAL_FIXTURE_FILE" "$CLOSEOUT_PORTAL_WORKDIR" supabase/.temp
           test ! -e artifacts/raw
           test ! -e "$CLOSEOUT_PORTAL_FIXTURE_FILE"

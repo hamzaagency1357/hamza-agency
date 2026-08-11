@@ -4,7 +4,6 @@ import https from "node:https";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { GENERATED_ACTIONS, GENERATED_PERMISSIONS, dispatchGeneratedAdminAction } from "../../supabase/functions/pr116-admin-oidc-gateway/generated-dispatch.ts";
 
-const LOCAL_OIDC_TOKEN = "pr116-closeout-local-isolated-oidc-token";
 const keyPath = process.env.CLOSEOUT_TLS_KEY || "";
 const certPath = process.env.CLOSEOUT_TLS_CERT || "";
 if (!keyPath || !certPath) throw new Error("closeout_tls_files_required");
@@ -37,6 +36,11 @@ function localServiceRole() {
   if (!value) throw new Error("closeout_local_service_role_missing");
   return value;
 }
+function localWorkloadSecret() {
+  const value = process.env.PR116_LOCAL_WORKLOAD_SECRET || "";
+  if (!/^[a-f0-9]{64}$/.test(value)) throw new Error("closeout_local_workload_secret_required");
+  return value;
+}
 
 const applicationUpstream = localUpstream("application_upstream", process.env.CLOSEOUT_UPSTREAM_URL, 3000);
 const supabaseValue = process.env.CLOSEOUT_SUPABASE_UPSTREAM_URL || "";
@@ -45,9 +49,10 @@ if (closeoutStateful !== Boolean(supabaseUpstream)) {
   throw new Error("closeout_stateful_supabase_boundary_mismatch");
 }
 const supabasePrefix = "/__closeout_supabase";
-const localGatewayPath = `${supabasePrefix}/functions/v1/pr116-admin-oidc-gateway`;
+const localGatewayPath = "/functions/v1/pr116-admin-oidc-gateway";
 const localAnonKey = process.env.ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const serviceRole = supabaseUpstream ? localServiceRole() : "";
+const workloadSecret = supabaseUpstream ? localWorkloadSecret() : "";
 const generatedActions = new Set(GENERATED_ACTIONS);
 
 if (supabaseUpstream && !localAnonKey) throw new Error("closeout_local_anon_key_missing");
@@ -87,7 +92,7 @@ async function readBody(request, maxBytes = 70_000) {
 }
 function exactLocalToken(value) {
   const actual = Buffer.from(value || "", "utf8");
-  const expected = Buffer.from(LOCAL_OIDC_TOKEN, "utf8");
+  const expected = Buffer.from(workloadSecret, "utf8");
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 async function serviceFetch(path, init = {}) {
@@ -195,16 +200,7 @@ async function handleLocalGateway(request, response) {
   return sendJson(response, result.status, result.body);
 }
 
-const server = https.createServer({ key, cert }, async (request, response) => {
-  const pathname = new URL(request.url || "/", `https://127.0.0.1:${port}`).pathname;
-  if (pathname === localGatewayPath) {
-    try { return await handleLocalGateway(request, response); }
-    catch (error) {
-      console.error("closeout local Admin gateway error", error instanceof Error ? error.message : "unknown");
-      return sendJson(response, 503, { ok: false, code: "gateway_unavailable" });
-    }
-  }
-
+const server = https.createServer({ key, cert }, (request, response) => {
   const selected = targetFor(request.url);
   const proxy = http.request({
     hostname: selected.upstream.hostname,
@@ -227,6 +223,21 @@ const server = https.createServer({ key, cert }, async (request, response) => {
   request.pipe(proxy);
 });
 
+const gatewayServer = http.createServer(async (request, response) => {
+  const pathname = new URL(request.url || "/", "http://127.0.0.1:3444").pathname;
+  if (pathname !== localGatewayPath) return sendJson(response, 404, { ok: false, code: "not_found" });
+  try { return await handleLocalGateway(request, response); }
+  catch (error) {
+    console.error("closeout local Admin gateway error", error instanceof Error ? error.message : "unknown");
+    return sendJson(response, 503, { ok: false, code: "gateway_unavailable" });
+  }
+});
+
 server.listen(port, "127.0.0.1", () => {
   console.log(`Closeout HTTPS proxy listening on https://127.0.0.1:${port}`);
 });
+if (closeoutStateful) {
+  gatewayServer.listen(3444, "127.0.0.1", () => {
+    console.log("Closeout trusted Admin gateway listening on loopback");
+  });
+}
