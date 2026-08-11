@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { annotations, fixture, projectFixture, rest, rpc, token } from "./real-runtime-helper.mjs";
+import { adminAction, annotations, fixture, projectFixture, rest, token } from "./real-runtime-helper.mjs";
 
 test("real trash restore and two-step permanent deletion are tenant-authorized and persistent", async ({ request }, testInfo) => {
   const f = fixture();
@@ -8,29 +8,35 @@ test("real trash restore and two-step permanent deletion are tenant-authorized a
   const client = await token(request, f.accounts.client);
   const otherTenant = await token(request, f.accounts.otherTenant);
 
-  await rpc(request, client, "pr99_restore_trash", { p_trash_id: project.trashRestore }, [400, 403]);
-  await rpc(request, otherTenant, "pr99_restore_trash", { p_trash_id: project.trashRestore }, [400, 403]);
+  await adminAction(request, client, "pr116_admin_trash_restore", { args: { p_trash_id: project.trashRestore } }, 403);
+  await adminAction(request, otherTenant, "pr116_admin_trash_restore", { args: { p_trash_id: project.trashRestore } }, 403);
 
-  const restored = await rpc(request, admin, "pr99_restore_trash", { p_trash_id: project.trashRestore });
+  const restored = await adminAction(request, admin, "pr116_admin_trash_restore", { args: { p_trash_id: project.trashRestore } });
   expect(JSON.stringify(restored)).toMatch(/restored|pages/i);
   const page = await rest(request, admin, `pages?id=eq.${project.trashRestorePage}&select=id,title`);
   expect(page).toHaveLength(1);
   const restoredTrash = await rest(request, admin, `trash_items?id=eq.${project.trashRestore}&select=restore_status`);
   expect(restoredTrash[0].restore_status).toMatch(/restored/i);
 
-  await rpc(request, admin, "pr99_permanent_delete_trash", {
-    p_trash_id: project.trashDelete,
-    p_confirmation: "DELETE",
-  }, [400, 403]);
+  await adminAction(request, admin, "pr116_admin_trash_permanent_delete", {
+    args: {
+      p_trash_id: project.trashDelete,
+      p_confirmation: "DELETE",
+    },
+  }, 503);
 
-  await rpc(request, client, "pr99_permanent_delete_trash", {
-    p_trash_id: project.trashDelete,
-    p_confirmation: "DELETE PERMANENTLY",
-  }, [400, 403]);
+  await adminAction(request, client, "pr116_admin_trash_permanent_delete", {
+    args: {
+      p_trash_id: project.trashDelete,
+      p_confirmation: "DELETE PERMANENTLY",
+    },
+  }, 403);
 
-  const deleted = await rpc(request, admin, "pr99_permanent_delete_trash", {
-    p_trash_id: project.trashDelete,
-    p_confirmation: "DELETE PERMANENTLY",
+  const deleted = await adminAction(request, admin, "pr116_admin_trash_permanent_delete", {
+    args: {
+      p_trash_id: project.trashDelete,
+      p_confirmation: "DELETE PERMANENTLY",
+    },
   });
   expect(JSON.stringify(deleted)).toMatch(/permanently_deleted|deleted/i);
 

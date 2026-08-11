@@ -3,6 +3,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 
 const EDGE_FUNCTION_NAME = "pr116-admin-oidc-gateway";
+const CLOSEOUT_LOCAL_OIDC_TOKEN = "pr116-closeout-local-isolated-oidc-token";
 
 export type Pr116AdminGatewayAction =
   | "application_status_update"
@@ -35,8 +36,12 @@ export class Pr116AdminGatewayError extends Error {
   }
 }
 
+function isStatefulLocalIsolated() {
+  return process.env.CLOSEOUT_EXECUTION_MODE === "local-isolated" && process.env.CLOSEOUT_STATEFUL === "true";
+}
 
 function getRuntimeOidcToken(request: Request) {
+  if (isStatefulLocalIsolated()) return CLOSEOUT_LOCAL_OIDC_TOKEN;
   return request.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
 }
 
