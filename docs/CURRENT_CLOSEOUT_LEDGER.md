@@ -8,7 +8,8 @@ This is the single authoritative closeout ledger for PR #116. It records only cu
 - PR: `#116`
 - Branch: `fix/final-production-professional-closeout`
 - Production/main baseline: `6d648a17ee95731413f2651d9188a6858d3f923f`
-- Last completed code/UX delta Head before this documentation reconciliation: `74c5b8dad339a78f69a43e859a3b6ae89ed78335`
+- Last completed code/runtime reconciliation Head before final documentation freeze: `b764dc8f5cfddd28044b3744072f3858537b2d20`
+- On that candidate Head: HAMZA AGENCY Quality Gate, PR99 Management Quality Gate, Current-State Schema Verify, and HAMZA AGENCY Full Project Closeout all completed successfully; the previously blocked Notifications, Admin, Page Builder, Trash, Backup/Restore and PR1 runtime evidence also completed successfully.
 - PR must remain Open / Draft / Unmerged until explicit Owner approval.
 - Production remains read-only during this closeout.
 - Forbidden before explicit Owner approval: Merge, Ready for Review, Production migration, Production business-data mutation, Billing/plan change, force push/history rewrite.
@@ -42,7 +43,9 @@ This is the single authoritative closeout ledger for PR #116. It records only cu
 | CL-023 | Admin Blog/login overlay residue | P1 | Closed code-side / Owner visual gate open. Blog control is not a login overlay and remains accessible through Admin IA. |
 | CL-024 | Public support copy absent from Admin | P1 | Closed code-side / Owner authenticated spot-check open. Public support component is route-gated away from `/admin*`. |
 | CL-025 | Security migration package | P0 | Closed code-side / Production gate open. Additive migration and rollback are prepared; **not applied to Production**. |
-| CL-026 | One-shot implementation tooling cleanup | P1 | Documentation/final-freeze cleanup requirement. Temporary closeout/discovery scripts and workflows must not remain on the frozen Head. |
+| CL-026 | Closeout tooling classification / cleanup | P1 | Closed. No unregistered ad-hoc discovery tooling remains. The retained closeout workflows, fixtures, proxy and E2E harnesses are the registered exact-head release-evidence system required by this ledger and are intentionally retained; they are not Production runtime features. |
+| CL-027 | Local-isolated PR116 gateway positive runtime reconciliation | P0 | Closed. Root cause was the local Supabase env parser stripping only the opening quote from quoted `SERVICE_ROLE_KEY` values, corrupting the local trusted credential and causing false 403 results after valid Admin authorization. Parsing now removes only matched surrounding quotes and is contract-guarded. Candidate exact-head Full Project Closeout proved positive Notifications, Admin, Page Builder, Trash and Backup/Restore runtime actions successfully while preserving Preview denial and direct protected-RPC denial. |
+| CL-028 | Verified Supabase actor context in trusted RPC bridge | P0 | Closed. Trusted RPC actor validation accepts verified Supabase UUID actor identities while retaining authenticated user resolution, Admin authorization, action allowlisting, trusted service boundary and actor-context headers. |
 
 ## Prepared migrations — NOT applied to Production
 
@@ -51,6 +54,23 @@ This is the single authoritative closeout ledger for PR #116. It records only cu
 - `20260810203000_pr116_admin_oidc_boundary_lockdown.sql`
 
 The PR116 Admin OIDC boundary migration includes the six application statuses and targeted revoke/grant changes for migrated Admin stateful paths while preserving the two reviewed read-only RPC exceptions. No Production migration has been executed.
+
+## Candidate automated evidence before final documentation freeze
+
+Candidate Head `b764dc8f5cfddd28044b3744072f3858537b2d20` completed successfully with:
+
+- HAMZA AGENCY Quality Gate.
+- PR99 Management Quality Gate, including the unchanged-strength secret scan.
+- HAMZA Current-State Schema Verify.
+- HAMZA AGENCY Full Project Closeout.
+- Validate: structure contracts, closeout contracts, Lint, Typecheck, unit/integration tests and Build.
+- Exact Preview gate.
+- Public, translations, security and permissions evidence.
+- Admin, Notifications, Page Builder, Trash, Backup/Restore, Tracking, Tasks, SLA, Commerce and Workflows macro-runtime evidence.
+- PR1 isolated runtime evidence.
+- Preview public/security/translations evidence, including fail-closed Preview mutation behavior.
+
+This candidate evidence establishes that code/runtime reconciliation is complete. Because documentation reconciliation changes the Head, the exact final frozen Head must receive the same required exact-head evidence once more before READY FOR OWNER FINAL QA is declared.
 
 ## Current release gates
 
@@ -74,7 +94,7 @@ The PR116 Admin OIDC boundary migration includes the six application statuses an
 
 ## Final freeze rule
 
-After documentation reconciliation and removal of temporary one-shot tooling, freeze the exact Head and run the required exact-Head automated evidence once: Lint, Typecheck, Tests, Build, expanded Admin Mutation Guard, HAMZA AGENCY Quality Gate, PR99 Management Quality Gate, Current-State Schema Verify, HAMZA AGENCY Full Project Closeout, aggregate/fail-closed, public/translations/security/permissions/admin evidence, and local-isolated PR116 migration proof. The Vercel Preview Deployment ID/URL/SHA must match that exact frozen Head and be `READY`.
+After this documentation reconciliation, freeze the exact Head and run the required exact-Head automated evidence once: Lint, Typecheck, Tests, Build, expanded Admin Mutation Guard, HAMZA AGENCY Quality Gate, PR99 Management Quality Gate, Current-State Schema Verify, HAMZA AGENCY Full Project Closeout, aggregate/fail-closed, public/translations/security/permissions/admin evidence, and local-isolated PR116 migration proof. The Vercel Preview Deployment ID/URL/SHA must match that exact frozen Head and be `READY`.
 
 The stopping point for this execution is **READY FOR OWNER FINAL QA**. Source inspection must not fabricate manual Owner PASS results.
 
