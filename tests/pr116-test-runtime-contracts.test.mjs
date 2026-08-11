@@ -54,7 +54,9 @@ test("PR116 trusted RPC bridge preserves browser denial and verified actor conte
 test("PR116 local isolated evidence applies OIDC lockdown and uses typed Admin boundary", () => {
   assert.match(localContract, /20260810203000_pr116_admin_oidc_boundary_lockdown\.sql/);
   assert.match(proxy, /CLOSEOUT_EXECUTION_MODE !== "local-isolated"/);
-  assert.match(proxy, /CLOSEOUT_STATEFUL !== "true"/);
+  assert.match(proxy, /const closeoutStateful = process\.env\.CLOSEOUT_STATEFUL === "true"/);
+  assert.match(proxy, /closeoutStateful !== Boolean\(supabaseUpstream\)/);
+  assert.match(proxy, /closeout_stateful_supabase_boundary_mismatch/);
   const gatewayClient = readFileSync(join(root, "lib/server/pr116AdminOidcGateway.ts"), "utf8");
   assert.match(proxy, /__closeout_supabase/);
   assert.match(proxy, /pr116-admin-oidc-gateway/);
