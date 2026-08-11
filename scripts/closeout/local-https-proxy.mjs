@@ -8,9 +8,10 @@ const LOCAL_OIDC_TOKEN = "pr116-closeout-local-isolated-oidc-token";
 const keyPath = process.env.CLOSEOUT_TLS_KEY || "";
 const certPath = process.env.CLOSEOUT_TLS_CERT || "";
 if (!keyPath || !certPath) throw new Error("closeout_tls_files_required");
-if (process.env.CLOSEOUT_EXECUTION_MODE !== "local-isolated" || process.env.CLOSEOUT_STATEFUL !== "true") {
-  throw new Error("closeout_local_admin_boundary_requires_stateful_local_isolated");
+if (process.env.CLOSEOUT_EXECUTION_MODE !== "local-isolated") {
+  throw new Error("closeout_https_proxy_requires_local_isolated");
 }
+const closeoutStateful = process.env.CLOSEOUT_STATEFUL === "true";
 
 const key = fs.readFileSync(keyPath);
 const cert = fs.readFileSync(certPath);
@@ -40,6 +41,9 @@ function localServiceRole() {
 const applicationUpstream = localUpstream("application_upstream", process.env.CLOSEOUT_UPSTREAM_URL, 3000);
 const supabaseValue = process.env.CLOSEOUT_SUPABASE_UPSTREAM_URL || "";
 const supabaseUpstream = supabaseValue ? localUpstream("supabase_upstream", supabaseValue, 54321) : null;
+if (closeoutStateful !== Boolean(supabaseUpstream)) {
+  throw new Error("closeout_stateful_supabase_boundary_mismatch");
+}
 const supabasePrefix = "/__closeout_supabase";
 const localGatewayPath = `${supabasePrefix}/functions/v1/pr116-admin-oidc-gateway`;
 const localAnonKey = process.env.ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
