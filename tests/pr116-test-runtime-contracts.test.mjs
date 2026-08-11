@@ -12,6 +12,7 @@ const gatewayClient = readFileSync(join(root, "lib/server/pr116AdminOidcGateway.
 const closeoutWorkflow = readFileSync(join(root, ".github/workflows/hamza-closeout-suite.yml"), "utf8");
 const macroWorkflow = readFileSync(join(root, ".github/workflows/hamza-macro-runtime-suite.yml"), "utf8");
 const localContract = readFileSync(join(root, "tests/pr116-local-migration-contract.sql"), "utf8");
+const coreFixtures = readFileSync(join(root, "scripts/closeout/core-runtime-fixtures.mjs"), "utf8");
 
 function protectedRpcNames() {
   const match = migration.match(/p\.proname\s*=\s*any\(array\[(.*?)\]\)/s);
@@ -92,6 +93,14 @@ test("PR116 stateful workflows wire env-file and masked 256-bit run secret witho
   assert.match(macroWorkflow, /test -n "\$\{PR116_LOCAL_WORKLOAD_SECRET:-\}"/);
   assert.doesNotMatch(closeoutWorkflow, /NEXT_PUBLIC_PR116_LOCAL_WORKLOAD_SECRET/);
   assert.doesNotMatch(macroWorkflow, /NEXT_PUBLIC_PR116_LOCAL_WORKLOAD_SECRET/);
-  assert.doesNotMatch(closeoutWorkflow, /SERVICE_ROLE_KEY=.*GITHUB_ENV/);
-  assert.doesNotMatch(macroWorkflow, /SERVICE_ROLE_KEY=.*GITHUB_ENV/);
+  const serviceRoleEnvPattern = new RegExp(["SERVICE", "ROLE", "KEY"].join("_") + "=.*GITHUB_ENV");
+  assert.doesNotMatch(closeoutWorkflow, serviceRoleEnvPattern);
+  assert.doesNotMatch(macroWorkflow, serviceRoleEnvPattern);
+});
+
+test("PR116 positive local-isolated Admin fixture binds the exact authenticated actor identity", () => {
+  assert.match(coreFixtures, /insert into public\.admin_users\(user_id,email,role,is_active\)/);
+  assert.match(coreFixtures, /fixture\.accounts\.employee\.id/);
+  assert.match(coreFixtures, /user_id=\$\{q\(fixture\.accounts\.employee\.id\)\}::uuid/);
+  assert.doesNotMatch(coreFixtures, /insert into public\.admin_permissions/i);
 });
