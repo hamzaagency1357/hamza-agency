@@ -26,6 +26,10 @@ function validatePayload(contract: Pr116AdminActionContract, payload: Record<str
   return false;
 }
 
+function localDiagnostic(reason: string) {
+  return process.env.CLOSEOUT_EXECUTION_MODE === "local-isolated" ? { closeoutDiagnostic: reason } : {};
+}
+
 export async function POST(request: Request) {
   let body: { action?: unknown; payload?: unknown } = {};
   try { body = await request.json(); } catch { return NextResponse.json({ ok: false, message: "بيانات الحفظ غير صالحة." }, { status: 400 }); }
@@ -44,7 +48,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, data: result.data ?? null });
   } catch (error) {
     if (error instanceof Pr116AdminGatewayError && error.reason === "preview_forbidden") return NextResponse.json({ ok: false, message: PREVIEW_READ_ONLY_MESSAGE }, { status: 403 });
-    if (error instanceof Pr116AdminGatewayError && (error.reason === "unauthorized" || error.reason === "forbidden")) return NextResponse.json({ ok: false, message: "لا تملك صلاحية تنفيذ هذا التغيير." }, { status: 403 });
-    return NextResponse.json({ ok: false, message: "تعذر حفظ التغيير الإداري بأمان." }, { status: 503 });
+    if (error instanceof Pr116AdminGatewayError && (error.reason === "unauthorized" || error.reason === "forbidden")) return NextResponse.json({ ok: false, message: "لا تملك صلاحية تنفيذ هذا التغيير.", ...localDiagnostic(error.reason) }, { status: 403 });
+    return NextResponse.json({ ok: false, message: "تعذر حفظ التغيير الإداري بأمان.", ...(error instanceof Pr116AdminGatewayError ? localDiagnostic(error.reason) : {}) }, { status: 503 });
   }
 }
