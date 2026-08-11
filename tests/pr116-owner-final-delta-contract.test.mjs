@@ -12,7 +12,12 @@ test("PR116 owner final delta contracts are closed",()=>{
  assert.ok(blog.includes("AdminBlogManager")); assert.ok(quick.includes("/admin/blog"));
  for(const group of ["border-sky-400/25","border-violet-400/25","border-emerald-400/25","border-amber-400/25","border-rose-400/25","border-fuchsia-400/25","border-slate-400/25"]) assert.ok(quick.includes(group),group);
  assert.ok(login.includes("bg-[#070009]")); assert.ok(program.includes("font-black")||program.includes("font-bold")); assert.ok(agent.includes("font-black")||agent.includes("font-bold")); assert.ok(dock.includes("tenant-primary")||dock.includes("purple"));
+ assert.match(migration,/alter table public\.agency_applications drop constraint if exists applications_status_check/);
+ assert.match(migration,/alter table public\.agency_applications add constraint applications_status_check/);
+ assert.match(migration,/alter table public\.agency_applications validate constraint applications_status_check/);
+ assert.doesNotMatch(migration,/\bpublic\.applications\b/);
  for(const status of ["'new'","'under_review'","'contacted'","'accepted'","'rejected'","'archived'"]) assert.ok(migration.includes(status),status);
+ assert.doesNotMatch(migration,/\b(?:update\s+public\.agency_applications|delete\s+from\s+public\.agency_applications|insert\s+into\s+public\.agency_applications|truncate\s+(?:table\s+)?public\.agency_applications)\b/i);
  for(const rpc of ["pr3_save_blog_post","pr4_notification_action","pr99_restore_trash","pr116_moderate_review_submission","save_page_builder_draft"]) assert.ok(migration.includes(rpc),rpc);
  assert.ok(!migration.includes("pr100_admin_requests_index")); assert.ok(!migration.includes("pr99_backup_schedule_status"));
 });

@@ -1,5 +1,12 @@
 \set ON_ERROR_STOP on
 
+-- Capture the authoritative Joining Applications row count before the prepared
+-- PR116 migration. The migration is a constraint expansion only and must not
+-- rewrite or delete existing legal rows.
+create temp table pr116_application_preflight as
+select count(*)::bigint as row_count
+from public.agency_applications;
+
 -- The macro-runtime harness is built from an authoritative snapshot, so apply the
 -- final prepared OIDC boundary before asserting the current PR116 contract.
 \ir ../supabase/migrations/20260810203000_pr116_admin_oidc_boundary_lockdown.sql
@@ -12,7 +19,57 @@ declare
   v_boundary_fn oid;
   v_rpc record;
   v_actor oid;
+  v_application_constraint oid;
+  v_application_constraint_def text;
 begin
+  if to_regclass('public.agency_applications') is null then
+    raise exception 'pr116_agency_applications_relation_missing';
+  end if;
+  if to_regclass('public.applications') is not null then
+    raise exception 'pr116_legacy_applications_relation_unexpected';
+  end if;
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='agency_applications' and column_name='status'
+  ) then raise exception 'pr116_agency_applications_status_missing'; end if;
+
+  if (select count(*) from public.agency_applications) <>
+     (select row_count from pr116_application_preflight) then
+    raise exception 'pr116_application_rows_rewritten';
+  end if;
+
+  select c.oid, pg_get_constraintdef(c.oid)
+  into v_application_constraint, v_application_constraint_def
+  from pg_constraint c
+  where c.conrelid='public.agency_applications'::regclass
+    and c.conname='applications_status_check'
+  limit 1;
+
+  if v_application_constraint is null then
+    raise exception 'pr116_application_status_constraint_missing';
+  end if;
+  if not (select convalidated from pg_constraint where oid=v_application_constraint) then
+    raise exception 'pr116_application_status_constraint_not_validated';
+  end if;
+  if exists (
+    select 1 from unnest(array['new','under_review','contacted','accepted','rejected','archived']) status
+    where position(quote_literal(status) in v_application_constraint_def)=0
+  ) then raise exception 'pr116_application_status_contract_incomplete'; end if;
+
+  create temp table pr116_application_status_probe(status text) on commit drop;
+  execute format(
+    'alter table pg_temp.pr116_application_status_probe add constraint pr116_application_status_probe_check %s',
+    v_application_constraint_def
+  );
+  insert into pr116_application_status_probe(status)
+  values ('new'),('under_review'),('contacted'),('accepted'),('rejected'),('archived');
+  begin
+    insert into pr116_application_status_probe(status) values ('invalid_status');
+    raise exception 'pr116_application_invalid_status_accepted';
+  exception when check_violation then
+    null;
+  end;
+
   if not exists (
     select 1 from information_schema.columns
     where table_schema='public' and table_name='programs'

@@ -4,10 +4,10 @@ begin;
 -- Browser Admin writes have been migrated to Vercel typed routes -> PR116 OIDC Edge gateway.
 
 -- Six-state owner-approved application lifecycle.
-alter table public.applications drop constraint if exists applications_status_check;
-alter table public.applications add constraint applications_status_check
+alter table public.agency_applications drop constraint if exists applications_status_check;
+alter table public.agency_applications add constraint applications_status_check
   check (status in ('new','under_review','contacted','accepted','rejected','archived')) not valid;
-alter table public.applications validate constraint applications_status_check;
+alter table public.agency_applications validate constraint applications_status_check;
 
 -- Revoke direct browser-role DML only from tables whose Admin mutation paths are now gateway-owned.
 do $pr116_tables$
