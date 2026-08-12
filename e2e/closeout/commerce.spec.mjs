@@ -52,12 +52,12 @@ test("PR116 generated entity gateway proves INSERT, UPDATE, UPSERT, DELETE, filt
   const sourceId = `pr116-${suffix}`;
   const upsert = await adminAction(request, admin, "pr116_admin_cms_translation_upsert", {
     values: {
-      source_type: "pr116_gateway_qa",
+      source_type: "jobs",
       source_id: sourceId,
       field_name: "title",
       language: "en",
       translated_value: "PR116 local isolated gateway proof",
-      status: "approved",
+      status: "reviewed",
       reviewed: true,
       is_published: false,
     },
