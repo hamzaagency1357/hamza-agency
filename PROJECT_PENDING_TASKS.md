@@ -1,40 +1,102 @@
 # HAMZA AGENCY — Current Pending Release Gates
 
-This is not a feature backlog. The authoritative detailed state is `docs/CURRENT_CLOSEOUT_LEDGER.md`.
+This file is a concise current-state release checklist, not a feature backlog. The detailed authoritative state is `docs/CURRENT_CLOSEOUT_LEDGER.md`.
 
-## Verified programmatic delta implemented in PR #116
+## Current PR state
 
-- Desktop Smart Support uses the active locale: AR `الدعم الذكي`, EN `Smart Support`, TR `Akıllı Destek`; Mobile Dock remains localized.
-- Owner-approved homepage marketing statistics are preserved exactly as content: `7000+` Content Creators, `5+` Available Platforms, `24/7` Support & Follow-up, `7` Years of Experience. They are not runtime metrics and must not be neutralized or replaced by the current database record count without an explicit Owner decision.
-- Joining Applications dashboard detail interaction was hardened so the selected application opens in an isolated high-layer dialog; every detail button is a real `type="button"`, the modal resets by application id, and it no longer sits below admin floating controls.
-- The Blog management shortcut is no longer a floating overlay and is explicitly hidden on `/admin/login`.
-- Public support availability copy is route-gated away from `/admin*` while remaining unchanged on public pages.
-- Daily Admin Dashboard wording no longer exposes `Supabase`, `SEO`, `CMS`, or `Page Builder` terminology in the corrected surfaces.
-- Public/Admin color hierarchy now uses a near-black base, restrained Royal Purple depth, visible controlled Gold accents, and differentiated text hierarchy while preserving semantic status colors and visual preset architecture.
-- Final security migration includes the five internal PR99 submission RPCs, the two legacy lookup bypasses, and the three internal guard RPCs (`pr99_guard_submission`, `pr100_guard_ai_answer`, `pr100_guard_password_reset`) in the browser-role deny boundary while preserving the internal `service_role` path.
-- Preview production-sensitive submissions remain fail-closed.
-- Final Agent identity, public Platform Status, Digital Services Smart Support entry, AdminQuickNav active-item behavior, current Header/Mobile Dock/Cinematic/Program Media/Cookie/PWA architecture are preserved.
-- No paid provider activation, Billing change, plan upgrade, Production business-row mutation, Production migration, merge, Ready-for-Review conversion, force push, or history rewrite occurred.
+- Repository: `hamzaagency1357/hamza-agency`
+- PR `#116`
+- Branch: `fix/final-production-professional-closeout`
+- Production/main baseline: `6d648a17ee95731413f2651d9188a6858d3f923f`
+- Pre-fix frozen Head: `38d88caf9497484e35f2476dff37174dadc59f64`
+- PR remains **Open / Draft / Unmerged**.
+- Production migrations are **NOT YET APPLIED**.
+- Merge is **NOT YET APPROVED**.
+- No Production business-data write, Billing/plan change, Ready-for-Review conversion, force push, or history rewrite is authorized.
 
-## Current Owner/manual gates
+## Closed / accepted Owner gates
 
-- Authenticated Admin mobile/desktop runtime QA: open first and second Joining Applications detail records, verify correct content, no dead click/no-op, no overlay collisions, responsive tables/forms, and permission spot checks.
-- Owner Visual QA on the exact final Preview: verify public statistics, Gold/Purple/Dark balance, text hierarchy, Admin/Login cleanliness, presets, RTL/LTR and mobile/desktop.
-- Primary Admin MFA: current Production audit = 1 active admin, 0 verified MFA.
-- Independent Backup Admin + MFA + recovery/login verification: not yet present.
-- Supabase Leaked Password Protection: **External Plan Limitation — Owner Decision Required** under the current Free/no-billing policy.
-- Android Chrome real-device PWA install QA.
+- Admin Login: **PASS**
+- Two distinct Joining Application detail records: **PASS**
+- Android installed PWA installation/open/navigation: **PASS**
+- Mobile Dock current release check: **ACCEPTED FOR RELEASE**
+- Broad Manual Visual QA: moved to **POST-RELEASE QA** rather than remaining an endless PR #116 gate.
+- Primary Admin MFA: **DEFERRED BY OWNER**, post-release operational/security follow-up, not a current merge blocker.
+- Independent Backup Admin + MFA + recovery: **DEFERRED BY OWNER**, post-release operational follow-up, not a current merge blocker.
 
-## Current Production gates
+## Current P0 release work
 
-- Fresh verified Production backup + recovery/dry-run evidence.
-- Explicit Owner approval before applying:
-  - `20260809095000_pr116_owner_approved_reviews_program_media.sql`
-  - `20260810001500_pr116_final_security_boundary_closeout.sql`
-- After an approved migration: verify direct browser RPC denial, legitimate OIDC path, lookups, RLS, Reviews/Program Media and Admin moderation as applicable.
-- Separate explicit Owner merge approval.
-- After merge only: Vercel Production READY, exact `/api/health` commit, final affected-flow smoke.
+The accepted P0 is the generated Admin gateway privilege contradiction.
 
-## Not pending development work
+Migration #3 must keep the approved architecture and atomically enforce:
+- Browser `authenticated` direct Admin DML denied;
+- runtime-generated entity actions dispatched server-side through `service_role`;
+- exact table `SELECT` + only generated mutation verbs;
+- only required sequence `USAGE`;
+- fail-closed privilege assertions;
+- CI contract drift detection;
+- local-isolated positive gateway mutations and negative Browser/Preview proofs.
 
-No PR7, cleanup phase, redesign phase, performance-only phase, paid-provider phase, or resurrection of superseded PR1–PR5 work is planned. Any future work after true closeout must be a later bug or a new Owner requirement.
+No Production migration may be applied until this is green.
+
+## Migration package — current state
+
+1. `20260809095000_pr116_owner_approved_reviews_program_media.sql`
+   - **PREPARED / REVIEW REQUIRED / NOT YET APPLIED TO PRODUCTION**
+2. `20260810001500_pr116_final_security_boundary_closeout.sql`
+   - **PREPARED / REVIEW REQUIRED / NOT YET APPLIED TO PRODUCTION**
+3. `20260810203000_pr116_admin_oidc_boundary_lockdown.sql`
+   - **PREPARED / P0 PRIVILEGE CORRECTION INCLUDED / REVIEW REQUIRED / NOT YET APPLIED TO PRODUCTION**
+
+Migration #1 must preserve the public `reviewer_name` requirement through the approved server/OIDC boundary.
+Migration #2 must preserve service-role-only internal submission/guard/legacy RPCs and Preview write denial.
+Migration #3 must preserve the six exact statuses:
+`new`, `under_review`, `contacted`, `accepted`, `rejected`, `archived`.
+
+## Backup / rollback gates
+
+- Existing scoped evidence: `AUTO-20260812-030801` — completed, checksum verified, all 15 approved scopes.
+- This is a **scoped migration-safety backup**, not a full PostgreSQL disaster-recovery dump.
+- After the blocker fix and migration review complete, create **one new fresh all-15-scope private backup immediately before Owner Production Migration Approval**.
+- Rollback SQL must restore exact pre-migration table/sequence privileges and preserve fail-closed data-safety preconditions.
+- Full off-site logical backup is deferred to Post-Release Production Continuity Hardening.
+
+## Exact-head gates still required
+
+- Lint
+- Typecheck
+- Tests
+- Build
+- Migration verification
+- Admin Mutation Guard
+- Secrets verification
+- security/permissions evidence
+- local-isolated PR116 gateway proof
+- HAMZA AGENCY Quality Gate
+- PR99 Management Quality Gate
+- Current-State Schema Verify
+- HAMZA AGENCY Full Project Closeout
+- aggregate/fail-closed
+- exact Preview `READY` and exact SHA match
+
+## Owner approvals still required
+
+1. **Owner Production Migration Approval** after the migration package, rollback, newest backup and exact-head gates are green.
+2. Apply only the migrations Owner approves and verify Production boundaries.
+3. **Separate Owner Merge Approval**.
+4. After merge: Vercel Production `READY`, exact `/api/health` SHA, affected-flow Production smoke.
+5. Only after all above: record `CODE COMPLETE / DEVELOPMENT CLOSED / PRODUCTION RELEASED` outside repo code.
+
+## Non-blocking Post-Release items
+
+- Optional Mobile Dock visual/color refinement.
+- Optional Arabic Hero `وكالة حمزة` color refinement.
+- Localized installed PWA name: AR `وكالة حمزة`, EN `HAMZA AGENCY`, TR `Hamza Ajansı`.
+- Owner-deferred MFA / Backup Admin recovery hardening.
+- Full off-site Supabase logical backup / continuity hardening.
+
+Owner-locked facts remain unchanged: `+500`, `⚔عܓོراب✴سܓོوريا⚔`, reviewer name required, six statuses, services distinction, default visual background + Admin-controlled cinematic mode, no fake content, Free/no-billing policy.
+
+No PR #117 or documentation-only follow-up PR is planned.
+
+**Merge = NO · Production Migration = NO · Ready for Review = NO · Billing = NO · Production business-data writes = NO**
