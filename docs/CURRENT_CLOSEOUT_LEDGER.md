@@ -17,7 +17,7 @@ This is the single authoritative current-state ledger for PR #116. It records re
 
 ## Owner-locked product facts
 
-- Monthly success opportunity statistic remains **`+500`**.
+- Monthly success opportunity statistic is **`+500`**.
 - Decorated Arabic agent identity remains exactly **`⚔عܓོراب✴سܓོوريا⚔`**; SEO identity remains `عراب سوريا`.
 - Public reviewer name is **REQUIRED**. `/api/public-submit` must reject a missing/blank `reviewer_name`; no approved public path may bypass this boundary.
 - Application lifecycle is exactly: `new`, `under_review`, `contacted`, `accepted`, `rejected`, `archived`.
