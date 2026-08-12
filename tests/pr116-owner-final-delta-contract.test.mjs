@@ -21,3 +21,23 @@ test("PR116 owner final delta contracts are closed",()=>{
  for(const rpc of ["pr3_save_blog_post","pr4_notification_action","pr99_restore_trash","pr116_moderate_review_submission","save_page_builder_draft"]) assert.ok(migration.includes(rpc),rpc);
  assert.ok(!migration.includes("pr100_admin_requests_index")); assert.ok(!migration.includes("pr99_backup_schedule_status"));
 });
+
+test("mobile Dock release-candidate surfaces remain semantically distinct",()=>{
+ const dock=read("components/PublicMobileDock.tsx");
+ const css=read("app/owner-verified-delta.css");
+ for(const id of ["mobile-quick-navigation","mobile-ai-support","mobile-whatsapp"]){
+  assert.ok(dock.includes(`data-testid=\"${id}\"`),id);
+  assert.ok(css.includes(`[data-testid=\"${id}\"]`),id);
+ }
+ const menu=css.slice(css.indexOf('[data-testid="mobile-quick-navigation"]'),css.indexOf('[data-testid="mobile-ai-support"]'));
+ const support=css.slice(css.indexOf('[data-testid="mobile-ai-support"]'),css.indexOf('[data-testid="mobile-whatsapp"]'));
+ const whatsapp=css.slice(css.indexOf('[data-testid="mobile-whatsapp"]'));
+ assert.match(menu,/linear-gradient[\s\S]*rgba\(10,6,12/);
+ assert.match(menu,/242,207,100/);
+ assert.match(support,/109,40,217|124,58,237/);
+ assert.match(whatsapp,/22,163,74|34,197,94/);
+ for(const block of [menu,support,whatsapp]) assert.doesNotMatch(block,/background:\s*(?:white|#fff(?:fff)?|rgba\(255,255,255)/i);
+ assert.notEqual(menu,support);
+ assert.notEqual(support,whatsapp);
+ assert.notEqual(menu,whatsapp);
+});
