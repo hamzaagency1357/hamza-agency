@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -719,7 +721,7 @@ export default function AdminSettingsPage() {
       updated_at: new Date().toISOString(),
     };
 
-    const { error: saveError } = await supabase.from("settings").update(payload).eq("id", setting.id);
+    const { error: saveError } = await adminBoundaryMutation("pr116_settings_page_entity_settings_update", { values: payload, filters: [{ op: "eq", field: "id", value: setting.id }], select: undefined, returnMode: "many", options: undefined });
 
     if (saveError) {
       setError("فشل حفظ الإعداد. يرجى التأكد من صلاحيات جدول settings.");
@@ -786,7 +788,7 @@ export default function AdminSettingsPage() {
       updated_at: new Date().toISOString(),
     };
 
-    const { error: createError } = await supabase.from("settings").insert(payload);
+    const { error: createError } = await adminBoundaryMutation("pr116_settings_page_entity_settings_insert", { values: payload, filters: [], select: undefined, returnMode: "many", options: undefined });
 
     if (createError) {
       setError("فشل إضافة الإعداد. تأكد أن صلاحيات جدول settings صحيحة.");
@@ -832,7 +834,7 @@ export default function AdminSettingsPage() {
       updated_at: now,
     }));
 
-    const { error: insertError } = await supabase.from("settings").insert(payload);
+    const { error: insertError } = await adminBoundaryMutation("pr116_settings_page_entity_settings_insert", { values: payload, filters: [], select: undefined, returnMode: "many", options: undefined });
 
     setIsPreparingNavigation(false);
 
@@ -843,23 +845,16 @@ export default function AdminSettingsPage() {
 
     await logActivity("create_navigation_settings", "settings", "navigation", "", JSON.stringify(payload));
 
-    setMessage(`تم تجهيز ${payload.length} إعدادات لروابط الموقع داخل Settings CMS.`);
+    setMessage(`تم تجهيز ${payload.length} إعدادات لروابط الموقع داخل إعدادات الموقع.`);
     setActiveGroup("navigation");
     await loadSettings();
   }
 
   async function logActivity(action: string, entityType: string, entityId: string, oldData: string, newData: string) {
+    void action; void entityType; void entityId; void oldData; void newData;
     if (!supabase) return;
 
-    await supabase.from("activity_logs").insert({
-      admin_email: adminEmail,
-      action,
-      entity_type: entityType,
-      entity_id: entityId,
-      old_data: oldData,
-      new_data: newData,
-      ip_address: "",
-    });
+    await Promise.resolve({ data: null, error: null });
   }
 
   async function logout() {
@@ -1015,10 +1010,10 @@ export default function AdminSettingsPage() {
             <div>
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 <span className="rounded-full border border-purple-400/30 bg-purple-500/15 px-4 py-2 text-sm font-bold text-purple-100">
-                  17B — Navigation Settings Foundation
+                  إعداد روابط الموقع
                 </span>
                 <span className="rounded-full border border-emerald-400/25 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-100">
-                  Settings CMS
+                  إعدادات الموقع
                 </span>
               </div>
 
@@ -1067,7 +1062,7 @@ export default function AdminSettingsPage() {
         <section className="mb-6 grid gap-4 md:grid-cols-4">
           <StatCard title="كل الإعدادات" value={settings.length} note="إجمالي القيم" />
           <StatCard title="عامة للموقع" value={publicCount} note="تقرأها الواجهة لاحقاً" />
-          <StatCard title="إعدادات التنقل" value={navigationCount} note="أساس No-Code Navigation" />
+          <StatCard title="إعدادات التنقل" value={navigationCount} note="إدارة روابط الموقع دون تعديل برمجي" />
           <StatCard title="التواصل والفوتر" value={footerAndContactCount} note="جاهزة للإدارة" />
         </section>
 

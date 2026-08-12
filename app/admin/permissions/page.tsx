@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -278,9 +280,7 @@ export default function AdminPermissionsPage() {
       return permissionEmail === email && moduleKey === form.module_key;
     });
 
-    const { error: saveError } = await supabase
-      .from("admin_permissions")
-      .upsert(payload, { onConflict: "admin_email,module_key" });
+    const { error: saveError } = await adminBoundaryMutation("pr116_permissions_page_entity_admin_permissions_upsert", { values: payload, filters: [], select: undefined, returnMode: "many", options: { onConflict: "admin_email,module_key" } });
 
     setIsSaving(false);
 
@@ -320,11 +320,7 @@ export default function AdminPermissionsPage() {
     setError("");
     setMessage("");
 
-    const { error: deleteError } = await supabase
-      .from("admin_permissions")
-      .delete()
-      .eq("admin_email", email)
-      .eq("module_key", moduleKey);
+    const { error: deleteError } = await adminBoundaryMutation("pr116_permissions_page_entity_admin_permissions_delete", { values: undefined, filters: [{ op: "eq", field: "admin_email", value: email }, { op: "eq", field: "module_key", value: moduleKey }], select: undefined, returnMode: "many", options: undefined });
 
     if (deleteError) {
       setError(`تعذر حذف الصلاحية: ${deleteError.message}`);

@@ -39,6 +39,7 @@ const adminGroups: AdminGroup[] = [
     accent: "border-violet-400/25 bg-violet-400/10 text-violet-100",
     links: [
       { label: "الصفحات", description: "إدارة بيانات الصفحات الأساسية وحالة نشرها.", href: "/admin/pages" },
+      { label: "المدونة", description: "إدارة المقالات ومسوداتها وحالة نشرها.", href: "/admin/blog" },
       { label: "منشئ الصفحات المتقدم", description: "بناء الأقسام وترتيبها ومعاينتها ونشرها.", href: "/admin/page-builder" },
       { label: "الأقسام المنشورة", description: "تنظيم أقسام المحتوى الظاهرة وترتيبها.", href: "/admin/sections" },
       { label: "البرامج", description: "إدارة البرامج وشروطها وصورها وحالة ظهورها.", href: "/admin/programs" },
@@ -174,6 +175,13 @@ export default function AdminQuickNav() {
     [role]
   );
 
+  const activeHref = useMemo(() => {
+    return visibleGroups
+      .flatMap((group) => group.links)
+      .filter((link) => link.href === "/admin" ? pathname === "/admin" : pathname === link.href || pathname.startsWith(`${link.href}/`))
+      .sort((left, right) => right.href.length - left.href.length)[0]?.href ?? null;
+  }, [pathname, visibleGroups]);
+
   if (!pathname.startsWith("/admin") || pathname === "/admin/login" || isCheckingAccess || !canShowNav) return null;
 
   return (
@@ -195,7 +203,7 @@ export default function AdminQuickNav() {
                 </div>
                 <div className="grid gap-2">
                   {group.links.map((link) => {
-                    const active = link.href === "/admin" ? pathname === "/admin" : pathname.startsWith(link.href);
+                    const active = link.href === activeHref;
                     return (
                       <Link
                         key={link.href}

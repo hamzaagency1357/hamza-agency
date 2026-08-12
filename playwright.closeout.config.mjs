@@ -3,6 +3,27 @@ import { assertCloseoutEnvironment } from "./scripts/closeout/environment-guard.
 
 const guard = assertCloseoutEnvironment();
 const suiteFile = `${guard.suite}.spec.mjs`;
+const translationsCanRunParallel = guard.suite === "translations";
+const ownerViewportProjects = ["public", "translations"].includes(guard.suite)
+  ? [
+      {
+        name: "owner-mobile-390x844",
+        use: {
+          ...devices["Pixel 7"],
+          viewport: { width: 390, height: 844 },
+          screen: { width: 390, height: 844 },
+        },
+      },
+      {
+        name: "owner-mobile-narrow-320x720",
+        use: {
+          ...devices["Pixel 7"],
+          viewport: { width: 320, height: 720 },
+          screen: { width: 320, height: 720 },
+        },
+      },
+    ]
+  : [];
 
 export default defineConfig({
   testDir: "./e2e/closeout",
@@ -10,9 +31,9 @@ export default defineConfig({
   timeout: 45_000,
   expect: { timeout: 10_000 },
   retries: process.env.CLOSEOUT_DISABLE_RETRIES === "1" ? 0 : process.env.CI ? 1 : 0,
-  workers: guard.mode === "local-isolated" ? 1 : undefined,
+  workers: guard.mode === "local-isolated" && !translationsCanRunParallel ? 1 : undefined,
   forbidOnly: true,
-  fullyParallel: guard.mode !== "local-isolated",
+  fullyParallel: guard.mode !== "local-isolated" || translationsCanRunParallel,
   reporter: [
     ["line"],
     ["html", { outputFolder: "artifacts/raw/playwright-report", open: "never" }],
@@ -33,5 +54,6 @@ export default defineConfig({
   projects: [
     { name: "desktop-chromium", use: { ...devices["Desktop Chrome"] } },
     { name: "mobile-chromium", use: { ...devices["Pixel 7"] } },
+    ...ownerViewportProjects,
   ],
 });

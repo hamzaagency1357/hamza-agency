@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { annotations, fixture, rest, rpc, token } from "./real-runtime-helper.mjs";
+import { adminAction, annotations, fixture, rest, rpc, token } from "./real-runtime-helper.mjs";
 
 test("real notifications paginate, deduplicate failures, persist read state, and deny clients", async ({ request }, testInfo) => {
   const f = fixture();
@@ -31,7 +31,8 @@ test("real notifications paginate, deduplicate failures, persist read state, and
   expect(pageTwo).toHaveLength(1);
   expect(pageOne[0].id).not.toBe(pageTwo[0].id);
 
-  expect(await rpc(request, admin, "pr99_mark_notifications_read", { p_ids: [deduplicated[0].id] })).toBe(1);
+  await adminAction(request, client, "pr116_admin_notifications_mark_read", { args: { p_ids: [deduplicated[0].id] } }, 403);
+  expect(await adminAction(request, admin, "pr116_admin_notifications_mark_read", { args: { p_ids: [deduplicated[0].id] } })).toBe(1);
   const selected = await rest(request, admin, `notifications?id=eq.${deduplicated[0].id}&select=is_read`);
   expect(selected[0].is_read).toBe(true);
 
@@ -42,9 +43,9 @@ test("real notifications paginate, deduplicate failures, persist read state, and
     p_entity_id: secondEntity,
     p_route: "/admin/page-builder",
   }, 204);
-  const marked = await rpc(request, admin, "pr99_mark_notifications_read", { p_ids: null });
+  const marked = await adminAction(request, admin, "pr116_admin_notifications_mark_read", { args: { p_ids: null } });
   expect(marked).toBeGreaterThanOrEqual(1);
   const unread = await rest(request, admin, "notifications?recipient_role=eq.admin&is_read=eq.false&select=id");
   expect(unread).toHaveLength(0);
-  annotations(testInfo, 22);
+  annotations(testInfo, 23);
 });

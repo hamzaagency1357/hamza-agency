@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -126,10 +128,10 @@ export default function TranslationRevisionsPage() {
     if (kind === "publish" && (!window.confirm("سيتم نشر هذه النسخة يدوياً واستبدال النسخة السابقة فقط. متابعة؟"))) return;
     setBusy(true); setError(""); setMessage("");
     const result = kind === "save"
-      ? await supabase.rpc("save_translation_candidate_fields", { p_translation_revision_id: selected.id, p_translated_fields: values })
+      ? await adminBoundaryMutation("pr116_translations_revisions_page_rpc_save_translation_candidate_fields_call", { args: { p_translation_revision_id: selected.id, p_translated_fields: values } })
       : kind === "review"
-        ? await supabase.rpc("review_translation_candidate", { p_translation_revision_id: selected.id, p_review_notes: notes.trim() || null })
-        : await supabase.rpc("publish_translation_candidate", { p_translation_revision_id: selected.id });
+        ? await adminBoundaryMutation("pr116_translations_revisions_page_rpc_review_translation_candidate_call", { args: { p_translation_revision_id: selected.id, p_review_notes: notes.trim() || null } })
+        : await adminBoundaryMutation("pr116_translations_revisions_page_rpc_publish_translation_candidate_call", { args: { p_translation_revision_id: selected.id } });
     setBusy(false);
     if (result.error) { setError(`تعذرت العملية: ${result.error.message}`); return; }
     setMessage(kind === "save" ? "تم حفظ Draft بحالة تحتاج مراجعة. لم يتغير أي محتوى ظاهر للعامة." : kind === "review" ? "تم اعتماد المراجعة. لا تزال الترجمة غير منشورة للعامة." : "تم النشر الذري. أصبحت هذه النسخة هي النسخة العامة المعتمدة.");

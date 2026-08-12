@@ -1,80 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect,useMemo,useRef,useState } from "react";
 import { usePathname } from "next/navigation";
 import PublicAiSupport from "@/components/PublicAiSupport";
 import PublicQuickNav from "@/components/PublicQuickNav";
-import { FALLBACK_PUBLIC_WHATSAPP, normalizeWhatsAppNumber } from "@/config/whatsapp";
+import { FALLBACK_PUBLIC_WHATSAPP,normalizeWhatsAppNumber } from "@/config/whatsapp";
 import { getAiSupportCopy } from "@/lib/i18n/aiSupport";
 import { getLanguageDirection } from "@/lib/i18n/locale";
 import { getStaticCopy } from "@/lib/i18n/staticCopy";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { isSupabaseConfigured,supabase } from "@/lib/supabase";
 
-type OpenPanel = "ai" | "quick-nav" | null;
-type PublicSettingRow = { setting_key: string | null; setting_value: string | null };
-const whatsappSettingKeys = ["primary_whatsapp", "support_whatsapp"];
+type OpenPanel="ai"|"quick-nav"|null;type PublicSettingRow={setting_key:string|null;setting_value:string|null};const whatsappSettingKeys=["primary_whatsapp","support_whatsapp"];
+function shouldHideDock(pathname:string){return pathname.startsWith("/admin")||pathname.startsWith("/portal")||pathname==="/maintenance"}
+function SupportIcon(){return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6.4 15.5a6.4 6.4 0 1 1 11.2 0"/><path d="M5 14.5v3a2 2 0 0 0 2 2h1.5v-6H7a2 2 0 0 0-2 2Zm14 0v3a2 2 0 0 1-2 2h-1.5v-6H17a2 2 0 0 1 2 2Z"/><path d="M15.5 19.5c-.6 1-1.7 1.5-3.5 1.5"/></svg>}
+function MenuIcon(){return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 7h14M5 12h14M5 17h14"/></svg>}
+function WhatsAppIcon(){return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M20 11.5A8 8 0 0 1 8.1 18.5L4 20l1.4-4A8 8 0 1 1 20 11.5Z"/><path d="M9 8.5c.5 2.3 2.2 4 4.5 5l1.2-1.1 2 .8c-.4 1.7-1.7 2.5-3.2 2.2-3.8-.8-6.2-3.4-6.9-6.6-.3-1.3.5-2.4 1.7-2.8L9 8.5Z"/></svg>}
 
-function shouldHideDock(pathname: string) { return pathname.startsWith("/admin") || pathname.startsWith("/portal") || pathname === "/maintenance"; }
-
-export default function PublicMobileDock() {
-  const pathname = usePathname();
-  const language = useSiteLanguage();
-  const dockRef = useRef<HTMLDivElement>(null);
-  const [openPanel, setOpenPanel] = useState<OpenPanel>(null);
-  const [whatsappNumber, setWhatsappNumber] = useState(FALLBACK_PUBLIC_WHATSAPP);
-  const aiCopy = getAiSupportCopy(language);
-  const quickNavOpenLabel = getStaticCopy(language, "quickNavOpen");
-  const quickNavCloseLabel = getStaticCopy(language, "quickNavClose");
-  const whatsappLabel = getStaticCopy(language, "whatsapp");
-
-  useEffect(() => setOpenPanel(null), [pathname]);
-  useEffect(() => {
-    const dock = dockRef.current; if (!dock) return;
-    let frame = 0; let active = true; const root = document.documentElement;
-    const updateHeight = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => { if (active) root.style.setProperty("--public-mobile-dock-height", `${Math.ceil(dock.getBoundingClientRect().height)}px`); }); };
-    updateHeight(); const observer = new ResizeObserver(updateHeight); observer.observe(dock);
-    window.addEventListener("resize", updateHeight); window.addEventListener("orientationchange", updateHeight); window.visualViewport?.addEventListener("resize", updateHeight); window.visualViewport?.addEventListener("scroll", updateHeight); void document.fonts?.ready.then(updateHeight).catch(() => undefined);
-    return () => { active = false; cancelAnimationFrame(frame); observer.disconnect(); window.removeEventListener("resize", updateHeight); window.removeEventListener("orientationchange", updateHeight); window.visualViewport?.removeEventListener("resize", updateHeight); window.visualViewport?.removeEventListener("scroll", updateHeight); root.style.removeProperty("--public-mobile-dock-height"); };
-  }, [openPanel, language, quickNavOpenLabel, whatsappLabel]);
-
-  useEffect(() => {
-    let mounted = true;
-    async function loadWhatsappNumber() {
-      if (!isSupabaseConfigured || !supabase) return;
-      const { data } = await supabase.from("settings").select("setting_key, setting_value").eq("is_public", true).in("setting_key", whatsappSettingKeys);
-      if (!mounted || !data) return;
-      const rows = data as PublicSettingRow[];
-      const configured = whatsappSettingKeys.map((key) => rows.find((row) => row.setting_key === key)?.setting_value || "").find((value) => value.trim());
-      setWhatsappNumber(normalizeWhatsAppNumber(configured) || FALLBACK_PUBLIC_WHATSAPP);
-    }
-    void loadWhatsappNumber(); return () => { mounted = false; };
-  }, []);
-
-  useEffect(() => {
-    if (!openPanel) return;
-    const keydown = (event: KeyboardEvent) => { if (event.key === "Escape") setOpenPanel(null); };
-    const pointerdown = (event: PointerEvent) => { if (event.target instanceof Node && !dockRef.current?.contains(event.target)) setOpenPanel(null); };
-    document.addEventListener("keydown", keydown); document.addEventListener("pointerdown", pointerdown);
-    return () => { document.removeEventListener("keydown", keydown); document.removeEventListener("pointerdown", pointerdown); };
-  }, [openPanel]);
-
-  const whatsappHref = useMemo(() => `https://wa.me/${whatsappNumber}`, [whatsappNumber]);
-  if (shouldHideDock(pathname)) return null;
-  const closeLabel = openPanel === "ai" ? aiCopy.widgetClose : quickNavCloseLabel;
-  const itemClass = "min-h-[44px] min-w-0 rounded-2xl px-1.5 py-2 text-[clamp(.58rem,2.45vw,.76rem)] font-black leading-tight focus-visible:outline-none focus-visible:ring-2";
-
-  return <>
-    <div className="hamza-mobile-dock-clearance print:hidden md:hidden" aria-hidden="true" data-testid="public-mobile-dock-clearance" />
-    <div ref={dockRef} dir={getLanguageDirection(language)} className="hamza-mobile-dock-shell fixed inset-x-2 bottom-[max(.5rem,env(safe-area-inset-bottom))] z-[170] print:hidden md:hidden" data-mobile-dock="public" data-testid="public-mobile-dock">
-      {openPanel && <div className="hamza-mobile-dock-panel absolute inset-x-0 bottom-[calc(100%+.5rem)]">{openPanel === "ai" ? <PublicAiSupport open onOpenChange={(open) => setOpenPanel(open ? "ai" : null)} mobileDockMode panelId="hamza-mobile-ai-support-panel" /> : <PublicQuickNav open onOpenChange={(open) => setOpenPanel(open ? "quick-nav" : null)} mobileDockMode panelId="hamza-mobile-quick-nav-panel" />}</div>}
-      <div className="hamza-mobile-dock-grid grid grid-cols-3 gap-1.5 rounded-[1.4rem] border border-white/10 bg-[#09000f]/96 p-2 shadow-[0_0_45px_rgba(124,58,237,.32)] backdrop-blur-xl">
-        {openPanel ? <button type="button" onClick={() => setOpenPanel(null)} className="col-span-3 min-h-[44px] rounded-2xl border border-white/15 bg-white/[.07] px-4 py-2 text-sm font-black text-white" aria-label={closeLabel}>{closeLabel}</button> : <>
-          <a href={whatsappHref} target="_blank" rel="noopener noreferrer" aria-label={whatsappLabel} className={`${itemClass} flex items-center justify-center border border-green-300/30 bg-green-500/15 text-center text-green-100 focus-visible:ring-green-300/70`} data-testid="mobile-whatsapp"><span className="min-w-0 text-balance break-words">{whatsappLabel}</span></a>
-          <button type="button" onClick={() => setOpenPanel("ai")} className={`${itemClass} border border-fuchsia-300/30 bg-fuchsia-500/12 text-fuchsia-100 focus-visible:ring-fuchsia-300/70`} aria-label={aiCopy.widgetOpenAria} aria-controls="hamza-mobile-ai-support-panel" aria-expanded={openPanel === "ai"} data-testid="mobile-ai-support"><span className="text-balance break-words">{aiCopy.widgetOpen}</span></button>
-          <button type="button" onClick={() => setOpenPanel("quick-nav")} className={`${itemClass} border border-yellow-300/30 bg-yellow-500/12 text-yellow-100 focus-visible:ring-yellow-300/70`} aria-label={quickNavOpenLabel} aria-controls="hamza-mobile-quick-nav-panel" aria-expanded={openPanel === "quick-nav"} data-testid="mobile-quick-navigation"><span className="text-balance break-words">{quickNavOpenLabel}</span></button>
-        </>}
-      </div>
-    </div>
-  </>;
+export default function PublicMobileDock(){
+ const pathname=usePathname();const language=useSiteLanguage();const dockRef=useRef<HTMLDivElement>(null);const dockBarRef=useRef<HTMLDivElement>(null);const[openPanel,setOpenPanel]=useState<OpenPanel>(null);const[whatsappNumber,setWhatsappNumber]=useState(FALLBACK_PUBLIC_WHATSAPP);const aiCopy=getAiSupportCopy(language);const quickNavOpenLabel=getStaticCopy(language,"quickNavOpen");const quickNavCloseLabel=getStaticCopy(language,"quickNavClose");const whatsappLabel=getStaticCopy(language,"whatsapp");
+ useEffect(()=>setOpenPanel(null),[pathname]);
+ useEffect(()=>{const dockBar=dockBarRef.current;if(!dockBar)return;let frame=0;let active=true;const root=document.documentElement;const updateHeight=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{if(!active)return;const measured=Math.ceil(dockBar.getBoundingClientRect().height);root.style.setProperty("--public-mobile-dock-height",`${Math.max(0,measured)}px`)})};updateHeight();const observer=new ResizeObserver(updateHeight);observer.observe(dockBar);window.addEventListener("resize",updateHeight);window.addEventListener("orientationchange",updateHeight);window.visualViewport?.addEventListener("resize",updateHeight);return()=>{active=false;cancelAnimationFrame(frame);observer.disconnect();window.removeEventListener("resize",updateHeight);window.removeEventListener("orientationchange",updateHeight);window.visualViewport?.removeEventListener("resize",updateHeight);root.style.removeProperty("--public-mobile-dock-height")}},[openPanel,language]);
+ useEffect(()=>{let mounted=true;void(async()=>{if(!isSupabaseConfigured||!supabase)return;const{data}=await supabase.from("settings").select("setting_key,setting_value").eq("is_public",true).in("setting_key",whatsappSettingKeys);if(!mounted||!data)return;const rows=data as PublicSettingRow[];const configured=whatsappSettingKeys.map((key)=>rows.find((row)=>row.setting_key===key)?.setting_value||"").find((value)=>value.trim());setWhatsappNumber(normalizeWhatsAppNumber(configured)||FALLBACK_PUBLIC_WHATSAPP)})();return()=>{mounted=false}},[]);
+ useEffect(()=>{if(!openPanel)return;const key=(event:KeyboardEvent)=>{if(event.key==="Escape")setOpenPanel(null)};const pointer=(event:PointerEvent)=>{if(event.target instanceof Node&&!dockRef.current?.contains(event.target))setOpenPanel(null)};document.addEventListener("keydown",key);document.addEventListener("pointerdown",pointer);return()=>{document.removeEventListener("keydown",key);document.removeEventListener("pointerdown",pointer)}},[openPanel]);
+ const whatsappHref=useMemo(()=>`https://wa.me/${whatsappNumber}`,[whatsappNumber]);if(shouldHideDock(pathname))return null;const closeLabel=openPanel==="ai"?aiCopy.widgetClose:quickNavCloseLabel;const itemClass="flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-transparent px-1 py-1.5 text-[10px] font-bold leading-none text-purple-50/80 transition hover:border-yellow-300/20 hover:bg-purple-500/15 hover:text-yellow-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200/70";
+ return <><div className="hamza-mobile-dock-clearance print:hidden md:hidden" aria-hidden="true" data-testid="public-mobile-dock-clearance"/><div ref={dockRef} dir={getLanguageDirection(language)} className="hamza-mobile-dock-shell fixed inset-x-3 bottom-[max(.45rem,env(safe-area-inset-bottom))] z-[170] print:hidden md:hidden" data-mobile-dock="public" data-testid="public-mobile-dock">{openPanel&&<div className="hamza-mobile-dock-panel absolute inset-x-0 bottom-[calc(100%+.5rem)] max-h-[min(68vh,34rem)] overflow-auto">{openPanel==="ai"?<PublicAiSupport open onOpenChange={(open)=>setOpenPanel(open?"ai":null)} mobileDockMode panelId="hamza-mobile-ai-support-panel"/>:<PublicQuickNav open onOpenChange={(open)=>setOpenPanel(open?"quick-nav":null)} mobileDockMode panelId="hamza-mobile-quick-nav-panel"/>}</div>}<div ref={dockBarRef} className="hamza-mobile-dock-grid grid grid-cols-3 gap-1 rounded-[1.15rem] border border-yellow-300/20 bg-[radial-gradient(circle_at_top,rgba(124,58,237,.22),transparent_58%),rgba(5,0,8,.94)] p-1.5 shadow-[0_14px_40px_rgba(0,0,0,.42)] backdrop-blur-xl" data-testid="public-mobile-dock-bar">{openPanel?<button type="button" onClick={()=>setOpenPanel(null)} className="col-span-3 min-h-11 rounded-xl border border-yellow-300/20 bg-purple-500/15 px-4 text-sm font-black text-purple-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-200/70" aria-label={closeLabel}>{closeLabel}</button>:<><button type="button" onClick={()=>setOpenPanel("quick-nav")} className={`${itemClass} border border-yellow-300/15 text-yellow-100/90 hover:bg-yellow-300/[.08]`} aria-label={quickNavOpenLabel} aria-controls="hamza-mobile-quick-nav-panel" data-testid="mobile-quick-navigation"><MenuIcon/><span>{quickNavOpenLabel}</span></button><button type="button" onClick={()=>setOpenPanel("ai")} className={`${itemClass} border border-purple-300/20 text-purple-100 hover:bg-purple-500/[.12]`} aria-label={aiCopy.widgetOpenAria} aria-controls="hamza-mobile-ai-support-panel" data-testid="mobile-ai-support"><SupportIcon/><span>{aiCopy.widgetOpen}</span></button><a href={whatsappHref} target="_blank" rel="noopener noreferrer" aria-label={whatsappLabel} className={`${itemClass} border border-green-300/20 text-green-100 hover:bg-green-500/[.12]`} data-testid="mobile-whatsapp"><WhatsAppIcon/><span>{whatsappLabel}</span></a></>}</div></div></>
 }

@@ -50,10 +50,10 @@ delete from public.page_builder_sections where page_id in (${pageIds.join(",")})
 delete from public.pages where id in (${pageIds.join(",")});
 delete from public.service_requests where request_code=${q(serviceCode)};
 delete from public.agency_applications where tracking_code=${q(applicationCode)};
-delete from public.admin_users where lower(email)=lower(${q(fixture.accounts.employee.email)});
+delete from public.admin_users where user_id=${q(fixture.accounts.employee.id)}::uuid or lower(email)=lower(${q(fixture.accounts.employee.email)});
 
-insert into public.admin_users(email,role,is_active)
-values (${q(fixture.accounts.employee.email)},'super_admin',true);
+insert into public.admin_users(user_id,email,role,is_active)
+values (${q(fixture.accounts.employee.id)}::uuid,${q(fixture.accounts.employee.email)},'super_admin',true);
 
 insert into public.agency_applications(full_name,country,whatsapp,platform,status,tracking_code)
 values ('Closeout Applicant','TR','+900000000001','tiktok','new',${q(applicationCode)});
@@ -104,7 +104,7 @@ values
 
 do $core_contract$
 begin
-  if not exists(select 1 from public.admin_users where lower(email)=lower(${q(fixture.accounts.employee.email)}) and role='super_admin' and is_active=true) then raise exception 'core_admin_fixture_invalid'; end if;
+  if not exists(select 1 from public.admin_users where user_id=${q(fixture.accounts.employee.id)}::uuid and lower(email)=lower(${q(fixture.accounts.employee.email)}) and role='super_admin' and is_active=true) then raise exception 'core_admin_fixture_invalid'; end if;
   if not exists(select 1 from public.agency_applications where tracking_code=${q(applicationCode)} and status='new') then raise exception 'core_application_fixture_invalid'; end if;
   if not exists(select 1 from public.service_requests where request_code=${q(serviceCode)} and status='new') then raise exception 'core_service_fixture_invalid'; end if;
   if (select count(*) from public.page_builder_sections where page_id in(${ids.page},${ids.pageMobile}) and language in('ar','en','tr') and section_type='text') <> 6 then raise exception 'core_page_translations_invalid'; end if;
@@ -136,7 +136,7 @@ fixture.core = {
     mobileChromium: {
       page: ids.pageMobile,
       slug: "fixture-page-mobile",
-      copies: { ar: "محتوى عربي حقيقي للجوال من قاعدة البيانات", en: "Real mobile English database content", tr: "Gerçek mobil Türkçe veritabanı içeriği" },
+      copies: { ar: "محتوى عربي حقيقي للجوال", en: "Real mobile English database content", tr: "Gerçek mobil Türkçe veritabanı içeriği" },
       trashRestorePage: ids.trashRestorePageMobile,
       trashDeletePage: ids.trashDeletePageMobile,
       trashRestore: ids.trashRestoreMobile,

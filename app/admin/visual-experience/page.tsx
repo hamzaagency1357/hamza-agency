@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -284,17 +286,8 @@ export default function AdminVisualExperiencePage() {
 
     const payload = draftToPayload(draft, adminEmail);
     const result = presetId
-      ? await supabase
-          .from("visual_experience_settings")
-          .update(payload)
-          .eq("id", presetId)
-          .select("id, preset_name, background, motion, glow, glass, animated_cards, cards_scope, cards, notes, status, apply_to_public, approved_by, approved_at, created_at, updated_at")
-          .maybeSingle()
-      : await supabase
-          .from("visual_experience_settings")
-          .insert({ ...payload, created_by: adminEmail || null })
-          .select("id, preset_name, background, motion, glow, glass, animated_cards, cards_scope, cards, notes, status, apply_to_public, approved_by, approved_at, created_at, updated_at")
-          .maybeSingle();
+      ? await adminBoundaryMutation("pr116_visual_experience_page_entity_visual_experience_settings_update", { values: payload, filters: [{ op: "eq", field: "id", value: presetId }], select: "id, preset_name, background, motion, glow, glass, animated_cards, cards_scope, cards, notes, status, apply_to_public, approved_by, approved_at, created_at, updated_at", returnMode: "maybeSingle", options: undefined })
+      : await adminBoundaryMutation("pr116_visual_experience_page_entity_visual_experience_settings_insert", { values: { ...payload, created_by: adminEmail || null }, filters: [], select: "id, preset_name, background, motion, glow, glass, animated_cards, cards_scope, cards, notes, status, apply_to_public, approved_by, approved_at, created_at, updated_at", returnMode: "maybeSingle", options: undefined });
 
     setIsSaving(false);
 

@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation, adminStorageMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -32,7 +34,6 @@ type Form = {
   blur: number; focal: string; autoplay: boolean; loop: boolean; publishAt: string; unpublishAt: string;
 };
 
-const BUCKET = "media-library";
 const IMAGE_MAX = 5 * 1024 * 1024;
 const VIDEO_MAX = 25 * 1024 * 1024;
 const labels: Record<Status, string> = {
@@ -127,9 +128,9 @@ export default function AdminCinematicMediaPage() {
     if ((detected.video && file.size > VIDEO_MAX) || (!detected.video && file.size > IMAGE_MAX)) throw new Error(detected.video ? "حجم الفيديو يتجاوز 25MB." : "حجم الصورة يتجاوز 5MB.");
     if ((slot === "desktop_fallback_url" || slot === "mobile_fallback_url") && detected.mime !== "video/mp4") throw new Error("الفيديو البديل يجب أن يكون MP4.");
     const path = `pr5/${safeSlug(form.pageSlug)}/${safeSlug(slot)}/${Date.now()}-${crypto.randomUUID()}.${detected.ext}`;
-    const result = await supabase.storage.from(BUCKET).upload(path, file, { cacheControl: "31536000", contentType: detected.mime, upsert: false });
+    const result = await adminStorageMutation("pr116_media_cinematic_page_storage_media_library_upload", [path, file, { cacheControl: "31536000", contentType: detected.mime, upsert: false }]);
     if (result.error) throw new Error("تعذر رفع الملف إلى مكتبة الوسائط.");
-    return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    return supabase.storage.from("media-library").getPublicUrl(path).data.publicUrl;
   }
 
   async function save() {
@@ -157,7 +158,7 @@ export default function AdminCinematicMediaPage() {
         focal_position: form.focal, autoplay: form.autoplay, loop: form.loop,
         publish_at: iso(form.publishAt), unpublish_at: iso(form.unpublishAt), updated_at: new Date().toISOString(),
       };
-      const result = editing ? await supabase.from("media").update(payload).eq("id", editing) : await supabase.from("media").insert(payload);
+      const result = editing ? await adminBoundaryMutation("pr116_media_cinematic_page_entity_media_update", { values: payload, filters: [{ op: "eq", field: "id", value: editing }], select: undefined, returnMode: "many", options: undefined }) : await adminBoundaryMutation("pr116_media_cinematic_page_entity_media_insert", { values: payload, filters: [], select: undefined, returnMode: "many", options: undefined });
       if (result.error) throw new Error("تعذر حفظ الأصل. راجع الصلاحيات ثم أعد المحاولة.");
       setMessage(form.status === "published" ? "تم الحفظ والنشر وفق الجدولة." : "تم الحفظ دون نشره للزوار.");
       setEditing(null); setForm(emptyForm); setUploads({}); await load();
@@ -169,7 +170,7 @@ export default function AdminCinematicMediaPage() {
     if (!supabase) return;
     if (row.status === "published") { setError("الأصل منشور ومستخدم. عطّله واحفظ بديلاً قبل الأرشفة."); return; }
     if (!window.confirm("أرشفة الأصل مع إبقاء ملفات التخزين لمنع كسر الروابط؟")) return;
-    const result = await supabase.from("media").update({ status: "archived", is_active: false, updated_at: new Date().toISOString() }).eq("id", row.id);
+    const result = await adminBoundaryMutation("pr116_media_cinematic_page_entity_media_update", { values: { status: "archived", is_active: false, updated_at: new Date().toISOString() }, filters: [{ op: "eq", field: "id", value: row.id }], select: undefined, returnMode: "many", options: undefined });
     if (result.error) setError("تعذر أرشفة الأصل."); else { setMessage("تمت الأرشفة الآمنة."); await load(); }
   }
 
@@ -177,7 +178,7 @@ export default function AdminCinematicMediaPage() {
     if (!supabase) return;
     if (row.status !== "archived" || row.is_active !== false) { setError("الحذف الآمن متاح فقط للأصل المؤرشف والمعطّل."); return; }
     if (!window.confirm("حذف سجل الأصل المؤرشف؟ ستبقى الملفات في التخزين كنسخة أمان.")) return;
-    const result = await supabase.from("media").delete().eq("id", row.id);
+    const result = await adminBoundaryMutation("pr116_media_cinematic_page_entity_media_delete", { values: undefined, filters: [{ op: "eq", field: "id", value: row.id }], select: undefined, returnMode: "many", options: undefined });
     if (result.error) setError("تعذر حذف السجل."); else { setMessage("تم حذف السجل بأمان مع إبقاء ملفات التخزين."); await load(); }
   }
 

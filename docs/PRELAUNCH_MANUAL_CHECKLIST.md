@@ -1,246 +1,123 @@
 # HAMZA AGENCY — Final Pre-Launch Manual Checklist
 
-This checklist is performed only after PR #105 is ready, explicitly approved, merged, and deployed to Production. CI, database migrations, Preview verification, backups, and mobile artifacts do not replace checks that require the owner's real accounts, devices, recovery material, provider accounts, and Production environment.
-
-Do not execute `supabase/postdeploy/pr100_revoke_legacy_public_rpcs.sql` until every replacement Production route passes and the owner separately approves that one-time action.
+Only manual/external/Production gates remain here after the current repository delta. This is not a development backlog.
 
 ## 1. Administrator security
 
-- Sign in with the primary administrator account.
-- Confirm the account is linked to the expected Supabase `user_id` and primary tenant membership.
-- Enable MFA for the primary administrator.
-- Generate recovery codes and store them outside GitHub, Vercel, Supabase, devices shared with staff, and chat history.
-- Create the backup administrator using a separate email address.
-- Link the backup administrator to its correct `user_id`.
-- Assign `deputy_super_admin` or tenant role only when intended.
-- Enable MFA for the backup administrator.
-- Test login, logout, password reset, session refresh, and session revocation for both accounts.
-- Confirm each account sees only the expected modules, tenants, programs, and actions.
-- Enable Supabase leaked-password protection when available on the selected plan.
+- Enable MFA for the primary real administrator and verify login with the factor.
+- Store recovery material privately outside GitHub/chat/logs.
+- Create a real independent Owner-controlled Backup Administrator with least privilege.
+- Enable Backup Admin MFA.
+- Verify primary + backup login, logout, recovery/password-reset path, session refresh/revocation and permission boundaries.
 
-## 2. Tenant and permission verification
+Current Production audit: 1 active admin, 0 verified MFA, no independent backup admin verified.
 
-Use separate non-super-admin accounts where possible.
+### Leaked Password Protection
 
-- Confirm HAMZA AGENCY is the primary tenant and the official domains resolve to it.
-- Confirm tenant branding, locale settings, contact data, legal overrides, and feature flags render correctly.
-- Create a disposable second tenant only for QA when necessary.
-- Confirm a tenant administrator cannot read or change another tenant.
-- Confirm a partner, employee, creator, or client cannot select or forge another `tenant_id`.
-- Confirm `can_view`, `can_edit`, `can_export`, task, workflow, SLA, marketplace, privacy, session, and incident permissions control the intended actions.
-- Confirm a `program_admin` sees only applications for the assigned program.
-- Confirm malformed or unknown roles fail closed.
-- Remove only disposable QA tenant records after evidence is saved.
+Current Supabase plan is Free. Required protection is unavailable under the current no-billing policy. Record: **External Plan Limitation — Owner Decision Required**. Do not fake PASS or silently upgrade.
 
-## 3. Portal verification
+## 2. Exact Preview Owner QA
 
-Create or use one controlled account for each role:
+Use only the Vercel Preview whose SHA equals the final PR #116 Head.
 
-- Creator Portal.
-- Client Portal.
-- Employee Portal.
-- Partner Portal.
+### Public AR/EN/TR — desktop + mobile
 
-For each role:
+Check only current closeout items:
 
-- verify email confirmation and password reset;
-- verify signed-out redirect to `/portal/login`;
-- verify suspended membership denial;
-- verify profile update and locale preference;
-- verify notifications and communications preferences;
-- verify files are visible only to the owner or authorized staff;
-- verify privacy request submission;
-- verify active-session list and one/all session revocation;
-- verify another portal user cannot read the account's rows;
-- verify mobile and desktop navigation in Arabic, English, and Turkish where exposed.
+- exact Owner-approved homepage statistics are visible: `7000+` Content Creators, `5+` Available Platforms, `24/7` Support & Follow-up, `7` Years of Experience;
+- statistic numbers use visible restrained Gold;
+- Black/Near-black remains the base, Royal Purple is clear but does not wash the whole page, and Gold is present without dominating all text;
+- headings, body, secondary text, metadata, links, CTAs and important numbers have visibly different hierarchy;
+- Desktop Smart Support: AR `الدعم الذكي`, EN `Smart Support`, TR `Akıllı Destek`;
+- Mobile Menu + Smart Support + WhatsApp availability;
+- no overlay/safe-area/close-button breakage;
+- Cookie controls and reopening;
+- Reviews honest empty/submission state;
+- Program Media fallback;
+- decorated Arabic Agent and EN/TR Agent identity;
+- no Arabic residue in EN/TR;
+- visual hierarchy remains coherent across available Owner presets, RTL/LTR and desktop/mobile;
+- no developer wording / public commit SHA/internal status details.
 
-## 4. Tasks, SLA, and workflows
+### Admin unauthenticated login
 
-- Create a task related to each relevant entity type: APP, SR, JOB, CNT, creator, client, partner, and order when applicable.
-- Assign and reassign an employee.
-- Add a watcher, comment, and safe attachment.
-- Change status and confirm immutable status history.
-- Confirm task notifications and audit entries.
-- Confirm unauthorized portal users cannot open or edit the task.
-- Test first-response and resolution SLA deadlines.
-- Test pause, resume, warning, breach, and escalation.
-- Publish one declarative workflow, trigger it once, and confirm idempotent rerun behavior.
-- Confirm no arbitrary code or SQL can be entered as a workflow step.
-- Remove only disposable QA rows according to the operating policy.
+- `/admin/login` shows Login UI and only elements necessary for sign-in.
+- `إدارة المدونة` is absent.
+- `دليل الإدارة` and other internal admin shortcuts are absent.
+- the public support phrase is absent.
 
-## 5. Marketplace and payments foundation
+### Admin authenticated — desktop + mobile
 
-- Create one category and one listing with complete AR/EN/TR content and approved media.
-- Test draft, review, publish, archive, search, filter, and SEO behavior.
-- Place an order from the client portal using manual/offline payment mode.
-- Confirm order code, totals, items, status, notification, and audit evidence.
-- Confirm a client cannot read another client's order.
-- Test dispute and refund states without charging real money.
-- Test duplicate signed webhook rejection using provider mock fixtures only.
-- Confirm no card data is stored.
-- Confirm no live provider, billing, trial, crypto, or USDT mode is enabled.
-- Remove only disposable marketplace QA records.
+- On the main Dashboard, press `عرض التفاصيل` for the first Joining Application: the same request details open.
+- Close it and press `عرض التفاصيل` for a second Joining Application: the second request data opens correctly.
+- No dead navigation, invalid fragment, silent no-op, or stale first-request content.
+- Blog management shortcut does not cover tables, content, buttons or menus.
+- public support copy does not appear anywhere in `/admin*`.
+- visible daily Admin wording does not expose `Supabase`, `SEO`, `CMS`, `Page Builder`, RPC/SQL/JSON/raw database names or raw backend errors.
+- Unified Requests opens the intended Application and Service Request.
+- Job/Contact routes do not rely on invalid fragments.
+- tables/cards/forms do not destructively clip on mobile.
+- one active navigation item only.
+- direct URL + important action authorization samples respect permissions.
 
-## 6. WhatsApp, push, and AI providers
+If a finding is not reproduced, do not redesign it.
 
-No provider is activated merely because the adapter exists.
+## 3. Android Chrome PWA real-device gate
 
-### WhatsApp
+- Open the final public release candidate on Android Chrome.
+- Where direct install is supported, verify **تثبيت التطبيق** (and EN/TR equivalents) starts the real install flow.
+- Where direct prompt is unavailable, verify a short nontechnical localized fallback only.
+- Verify installed standalone launch/icon/manifest/language/mobile layout.
+- No visitor-facing `beforeinstallprompt` or implementation/event wording.
 
-- Select an approved provider and confirm an acceptable free or commercial decision.
-- Complete business verification outside the repository.
-- Add server-only credentials without posting them in chat.
-- Verify approved templates and variables.
-- Verify opt-in before sending and opt-out stops future sends.
-- Test tracking receipt, request update, support follow-up, order update, and SLA escalation.
-- Confirm no sensitive content appears unnecessarily in stored payloads.
+## 4. Production backup gate
 
-### Push
+Before any Production migration:
 
-- Configure server-only push material when activation is approved.
-- Test opt-in, opt-out, expired-subscription cleanup, and deep links.
-- Confirm lock-screen text is generic for sensitive events.
-- Confirm another user never receives the notification.
+- create a fresh private Production backup;
+- verify it exists and its safe identifier/time;
+- verify schema/scope/integrity evidence;
+- perform the supported isolated restore/dry-run/recovery validation;
+- document rollback/recovery for the exact PR116 migrations;
+- do not mutate Production business rows for testing.
 
-### AI
+## 5. Production Migration Gate
 
-- Keep the rule-based/tenant-knowledge fallback active unless an external provider is approved.
-- When activating a provider, use server-only credentials and an approved free or commercial plan.
-- Test tenant knowledge isolation, PII redaction, prompt-injection refusal, rate limits, retention, consent, opt-out, and human escalation.
-- Confirm AI suggestions cannot change status, delete data, charge money, or send messages without authorized confirmation.
+After Owner QA PASS, present and then STOP:
 
-## 7. Privacy, cookies, and legal policies
+- exact final Head;
+- migration files and reasons;
+- affected functions/tables;
+- RLS/security effect;
+- isolated proof;
+- backup status;
+- rollback/recovery path.
 
-- Review and publish current Privacy, Cookie, AI, and Terms versions in AR/EN/TR.
-- Confirm published dates and tenant overrides.
-- Confirm only necessary scripts run before consent.
-- Test analytics, preferences, and marketing opt-in separately.
-- Reopen settings, withdraw consent, and verify versioned history.
-- Submit access, download, correction, deletion, and consent-withdrawal requests.
-- Verify identity before processing a privacy request.
-- Confirm privacy SLA, notes, export, and audit evidence.
-- Confirm user data is not deleted automatically before authorized review.
+Expected files:
 
-## 8. PWA and mobile
+- `20260809095000_pr116_owner_approved_reviews_program_media.sql`
+- `20260810001500_pr116_final_security_boundary_closeout.sql`
 
-### PWA
+No Production migration without explicit Owner approval.
 
-- Install the PWA on supported Android/desktop browsers.
-- Test manifest, icons, shortcuts, standalone mode, offline shell, and update prompt.
-- Confirm public offline pages work as documented.
-- Confirm admin, portal, API, auth, tracking, and authenticated responses are absent from browser caches.
-- Test push opt-in/out only after provider material is configured.
+## 6. Merge/deployment gate
 
-### Android
+No Ready-for-Review conversion and no merge without separate explicit Owner approval after all required gates.
 
-- Download the exact-head Android debug artifact from the successful PR101 Mobile Readiness run.
-- Verify its recorded SHA-256 before installation.
-- Install on a controlled Android device.
-- Test HTTPS-only navigation, auth callback, portal navigation, logout/revoke, offline fallback, and privacy screens.
-- Confirm no cleartext traffic, debug web contents, or embedded secrets.
+After an approved merge:
 
-### iOS
+- Vercel Production = READY;
+- Production commit = merge commit;
+- `/api/health` = OK and `commitSha` = exact merge commit;
+- smoke Home, Admin login, Applications, Service Request and PR116-affected flows;
+- verify direct browser execution of internal submission/guard RPCs and legacy bypasses is denied;
+- verify legitimate Production OIDC path succeeds;
+- review relevant logs without exposing secrets.
 
-- Confirm project/readiness configuration on macOS when available.
-- Test signing only after an Apple Developer decision.
-- Do not claim App Store launch without paid enrollment, signing, review, and publication.
+## 7. Search/SEO operational check
 
-## 9. Media Library
+After final Production merge, verify sitemap/canonical/hreflang/indexing directives and submit/inspect key URLs where Owner Search Console access permits. Do not wait for Google's independent indexing decision after the technical/submission work is complete.
 
-On the exact release deployment:
+## 8. Final declaration
 
-- Upload a valid JPEG, PNG, WebP, and AVIF under 5 MB.
-- Confirm preview and use in public content, tenant branding, marketplace, and permitted portal files.
-- Reject an image over 5 MB.
-- Reject a renamed executable/document with an image extension.
-- Reject a MIME/magic-byte mismatch.
-- Confirm unsupported video/document files cannot enter the image bucket.
-- Confirm tenant and owner storage policies.
-- Delete only temporary QA assets.
-
-## 10. Public submissions and tracking
-
-Create one temporary record for each type:
-
-- APP application;
-- SR service request;
-- JOB job application;
-- CNT contact request.
-
-For each record:
-
-- confirm the expected prefix and year;
-- copy the tracking code;
-- open the localized tracking link;
-- verify Arabic, English, and Turkish tracking pages;
-- verify only approved public status fields are returned;
-- update status from admin;
-- confirm public status, notifications, activity log, search, and permission-controlled export;
-- delete or clearly mark disposable QA records according to the operating policy.
-
-## 11. Public, monitoring, and incident behavior
-
-- Open all major public routes while signed out.
-- Confirm admin routes redirect signed-out visitors to login.
-- Confirm portal routes redirect or deny safely.
-- Test AR → EN → TR → AR on desktop and mobile.
-- Confirm URL remains the locale source.
-- Confirm mobile dock and AI support panels open and close correctly.
-- Confirm tracking pages remain absent from sitemap and carry no indexing path.
-- Verify `/status` exposes only public incident fields.
-- Create a disposable incident, add public and private updates, and confirm private updates, owner IDs, and postmortems never appear publicly.
-- Check Vercel runtime errors, Supabase API/Auth/Postgres/Edge Function logs, backup health, OIDC gateway health, provider health, schedule health, and SLA monitoring.
-- Remove only disposable incident QA data.
-
-## 12. Backup and recovery
-
-- Create a fresh private backup immediately before merge/launch.
-- Store it outside the public repository.
-- Verify project, schema version, scope, row counts, and checksum.
-- Run dry-run validation.
-- Run a limited restore using temporary rehydration or disposable fixture data.
-- Confirm no Production business row is changed unintentionally.
-- Confirm activity log and restore-operation evidence.
-- Remove only disposable fixture data.
-
-## 13. Production deployment gate
-
-After explicit merge approval and merge:
-
-- Confirm the expected PR head was merged.
-- Confirm Vercel Production deploys the exact merge commit.
-- Confirm deployment state is `READY`.
-- Confirm the official domain points to that deployment.
-- Repeat public, admin, portal, tenant, APP/SR/JOB/CNT, task/SLA/workflow, marketplace, privacy/cookie, PWA, session, and status-page smoke tests.
-- Confirm server-only OIDC actions succeed in Production.
-- Confirm no OIDC token, Service Role key, provider secret, payment secret, or private data appears in browser assets, cache, logs, or responses.
-- Record remaining advisor findings and why they are accepted or assigned.
-
-## 14. Guarded post-deploy revocation
-
-Only after all replacement Production routes pass and the owner gives a separate explicit approval:
-
-- review `supabase/postdeploy/pr100_revoke_legacy_public_rpcs.sql`;
-- confirm legacy clients are no longer required;
-- execute the guarded revocation once;
-- verify the revoke result;
-- repeat APP/SR/JOB/CNT, portal, provider gateway, and marketplace smoke tests;
-- record execution date, operator, merge SHA, Production deployment ID, and result.
-
-## 15. Final release evidence
-
-Record:
-
-- PR #105 final head and merge commit;
-- Production deployment ID and URL;
-- Supabase project ID and migration versions;
-- final backup, checksum, dry-run, and limited-restore evidence;
-- MFA completion without storing recovery codes;
-- owner QA result for all product modules;
-- provider activation state;
-- Android/iOS/store state without overclaiming;
-- advisor findings and assigned follow-up;
-- post-deploy state;
-- final owner launch approval.
-
-Public launch is approved only when every applicable item is complete or explicitly documented as not applicable. Only then may the release record state **HAMZA AGENCY — Fully Launched**.
+Only after every applicable ledger/manual/Production/Owner gate is truly closed may the project be declared Code Complete / Development Closed / Production Ready / Delivery Ready / Revenue Ready. Then stop development; later bugs/new requirements are separate work.

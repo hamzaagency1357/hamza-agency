@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -163,7 +165,7 @@ export default function AdminResetPasswordPage() {
 
     setIsSaving(true);
 
-    const { error } = await supabase.auth.updateUser({ password });
+    const { error } = await adminBoundaryMutation("pr116_reset_password_page_auth_self_update", { values: { password } });
 
     if (error) {
       setIsSaving(false);

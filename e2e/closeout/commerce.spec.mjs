@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { annotations, fixture, rest, rpc, token } from "./real-runtime-helper.mjs";
+import { adminAction, annotations, fixture, rest, rpc, token } from "./real-runtime-helper.mjs";
 
 const run = `${(process.env.CLOSEOUT_EXPECTED_SHA || "local").slice(0, 8)}-${Date.now()}`;
 let orderId = "";
@@ -7,6 +7,105 @@ let refundId = "";
 let disputeId = "";
 
 test.describe.configure({ mode: "serial" });
+
+test("PR116 generated entity gateway proves INSERT, UPDATE, UPSERT, DELETE, filters, representation, and Browser denial", async ({ request }, testInfo) => {
+  const f = fixture();
+  const admin = await token(request, f.accounts.employee);
+  const client = await token(request, f.accounts.client);
+  const suffix = `${Date.now()}-${testInfo.project.name}`.replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+
+  const direct = await request.post(`${f.apiUrl}/rest/v1/jobs`, {
+    headers: {
+      apikey: process.env.ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${admin}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+    },
+    data: { title: `Blocked ${suffix}`, slug: `blocked-${suffix}` },
+  });
+  expect([401, 403], await direct.text()).toContain(direct.status());
+
+  const forbidden = await request.post("/api/admin/mutations/entities", {
+    headers: { Authorization: `Bearer ${client}`, "Content-Type": "application/json" },
+    data: {
+      action: "pr116_jobs_page_entity_jobs_insert",
+      payload: { values: { title: `Forbidden ${suffix}`, slug: `forbidden-${suffix}` } },
+    },
+  });
+  expect(forbidden.status()).toBe(403);
+
+  const jobs = await adminAction(request, admin, "pr116_jobs_page_entity_jobs_insert", {
+    values: { title: `Gateway ${suffix}`, slug: `gateway-${suffix}`, status: "open", is_visible: false },
+  });
+  expect(Array.isArray(jobs)).toBeTruthy();
+  expect(jobs.length).toBe(1);
+  const jobId = jobs[0].id;
+  expect(jobId).toBeTruthy();
+
+  const updatedJobs = await adminAction(request, admin, "pr116_jobs_page_entity_jobs_update", {
+    values: { status: "closed", is_visible: false },
+    filters: [{ field: "id", op: "eq", value: jobId }],
+  });
+  expect(Array.isArray(updatedJobs)).toBeTruthy();
+  expect(updatedJobs[0]?.id).toBe(jobId);
+
+  const sourceId = `pr116-${suffix}`;
+  const upsert = await adminAction(request, admin, "pr116_admin_cms_translation_upsert", {
+    values: {
+      source_type: "jobs",
+      source_id: sourceId,
+      field_name: "title",
+      language: "en",
+      translated_value: "PR116 local isolated gateway proof",
+      status: "reviewed",
+      reviewed: true,
+      is_published: false,
+    },
+    options: { onConflict: "source_type,source_id,field_name,language", ignoreDuplicates: false },
+  });
+  expect(Array.isArray(upsert)).toBeTruthy();
+  expect(upsert.length).toBe(1);
+
+  const incident = await adminAction(request, admin, "pr116_component_productoperationsconsole_entity_incidents_insert", {
+    values: {
+      tenant_id: f.tenants.a,
+      title: `PR116 ${suffix}`,
+      severity: "low",
+      status: "investigating",
+    },
+    select: "id",
+    returnMode: "single",
+  });
+  expect(incident?.id).toBeTruthy();
+
+  const incidentUpdate = await adminAction(request, admin, "pr116_component_productoperationsconsole_entity_incidents_update", {
+    values: { status: "resolved", resolved_at: new Date().toISOString() },
+    filters: [
+      { field: "id", op: "eq", value: incident.id },
+      { field: "tenant_id", op: "eq", value: f.tenants.a },
+    ],
+  });
+  expect(Array.isArray(incidentUpdate)).toBeTruthy();
+
+  const media = await adminAction(request, admin, "pr116_media_cinematic_page_entity_media_insert", {
+    values: {
+      name: `PR116 ${suffix}`,
+      file_url: `https://example.invalid/${suffix}.png`,
+      file_type: "image",
+      is_active: false,
+    },
+  });
+  expect(Array.isArray(media)).toBeTruthy();
+  expect(media[0]?.id).toBeTruthy();
+
+  const deleted = await adminAction(request, admin, "pr116_media_cinematic_page_entity_media_delete", {
+    filters: [{ field: "id", op: "eq", value: media[0].id }],
+  });
+  expect(Array.isArray(deleted)).toBeTruthy();
+  expect(deleted[0]?.id).toBe(media[0].id);
+
+  annotations(testInfo, 24);
+});
 
 test("client favorites, carts, checks out idempotently, and cannot cross tenants", async ({ request }, testInfo) => {
   const f = fixture();

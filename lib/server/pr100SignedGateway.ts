@@ -17,6 +17,15 @@ const ALLOWED_ACTIONS = new Set([
   "job_application_submit",
   "contact_submit",
   "ai_support_submit",
+  "review_submit",
+]);
+const PRODUCTION_ONLY_ACTIONS = new Set([
+  "application_submit",
+  "service_request_submit",
+  "job_application_submit",
+  "contact_submit",
+  "ai_support_submit",
+  "review_submit",
 ]);
 
 function getRuntimeOidcToken(request: Request) {
@@ -29,6 +38,9 @@ export async function callOidcGateway<T = JsonObject>(
   body: JsonObject
 ): Promise<T> {
   if (!ALLOWED_ACTIONS.has(action)) throw new Error("oidc_gateway_invalid_action");
+  if (process.env.VERCEL_ENV === "preview" && PRODUCTION_ONLY_ACTIONS.has(action)) {
+    throw new Error("oidc_gateway_preview_write_denied");
+  }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
   const oidcToken = getRuntimeOidcToken(request);

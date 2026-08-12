@@ -4,6 +4,7 @@ import {
   DigitalHeroActions,
   DigitalStaticContent,
 } from "@/components/DigitalServicesStaticUi";
+import DigitalSmartSupportLink from "@/components/DigitalSmartSupportLink";
 import {
   CmsPublishedText,
   CmsPublishedTranslationsProvider,
@@ -90,6 +91,7 @@ export default async function DigitalServicesPage() {
             <h1 className="text-5xl font-black leading-tight md:text-7xl"><CmsPublishedText sourceKey="digital-services-page" field="title" fallback={title} /><span className="block bg-gradient-to-r from-yellow-300 via-white to-purple-300 bg-clip-text text-transparent"><CmsPublishedText sourceKey="digital-services-overview" field="summary" fallback={overview.subtitle} /></span></h1>
             <p className="mt-8 max-w-5xl text-xl leading-10 text-white/75">{hasPageContent ? <CmsPublishedText sourceKey="digital-services-page" field="content" fallback={page?.content || ""} /> : <CmsPublishedText sourceKey="digital-services-overview" field="content" fallback={overview.content} />}</p>
             <DigitalHeroActions cleanWhatsapp={cleanWhatsapp} />
+            <div className="mt-4"><DigitalSmartSupportLink /></div>
           </div>
           <DigitalStaticContent />
           <div className="mt-10 rounded-[2rem] border border-green-400/20 bg-green-500/10 p-7 text-center backdrop-blur">

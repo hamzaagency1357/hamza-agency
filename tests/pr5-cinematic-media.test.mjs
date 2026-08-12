@@ -8,6 +8,8 @@ const lib = readFileSync(join(root, "lib/siteVisualMedia.ts"), "utf8");
 const runtime = readFileSync(join(root, "components/CinematicSiteBackground.tsx"), "utf8");
 const api = readFileSync(join(root, "app/api/public/site-visual/route.ts"), "utf8");
 const admin = readFileSync(join(root, "app/admin/media/cinematic/page.tsx"), "utf8");
+const adminContracts = readFileSync(join(root, "lib/server/pr116AdminActionContracts.ts"), "utf8");
+const adminMutationRoute = readFileSync(join(root, "app/api/admin/mutations/entities/route.ts"), "utf8");
 const migration = readFileSync(join(root, "supabase/migrations/20260808233000_pr5_cinematic_visual_media.sql"), "utf8");
 
 test("PR5 maps all approved page scopes and AR EN TR locale stripping", () => {
@@ -56,7 +58,12 @@ test("PR5 upload allowlist excludes SVG and client service-role credentials", ()
 
 test("PR5 safe delete requires archive and never removes Storage objects", () => {
   assert.match(admin, /row\.status !== "archived"/);
-  assert.match(admin, /is_active: false/);
-  assert.match(admin, /from\("media"\)\.delete\(\)/);
-  assert.doesNotMatch(admin, /\.storage\.from\(BUCKET\)\.remove/);
+  assert.match(admin, /row\.is_active !== false/);
+  assert.match(admin, /adminBoundaryMutation\("pr116_media_cinematic_page_entity_media_delete"/);
+  assert.match(adminContracts, /"pr116_media_cinematic_page_entity_media_delete":\s*\{\s*"kind":\s*"entity",\s*"table":\s*"media",\s*"method":\s*"delete",\s*"module":\s*"media",\s*"permission":\s*"can_delete"/);
+  assert.match(adminMutationRoute, /PR116_ADMIN_ACTION_CONTRACTS, type Pr116AdminActionContract/);
+  assert.match(adminMutationRoute, /callPr116AdminOidcGateway/);
+  assert.doesNotMatch(admin, /supabase\.from\("media"\)\.delete\(\)/);
+  assert.doesNotMatch(admin, /\.storage\.from\([^)]*\)\.remove\(/);
+  assert.doesNotMatch(admin, /adminStorageMutation\(\s*["'][^"']*(?:remove|delete)[^"']*["']/i);
 });

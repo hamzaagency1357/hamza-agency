@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -244,17 +246,8 @@ export default function AdminWhiteLabelPage() {
 
     const payload = draftToPayload(draft, adminEmail);
     const result = projectId
-      ? await supabase
-          .from("white_label_projects")
-          .update(payload)
-          .eq("id", projectId)
-          .select("id, agency_name, owner_name, owner_email, domain, default_language, enabled_languages, primary_color, accent_color, package_type, status, notes, checklist, is_active, created_at, updated_at")
-          .maybeSingle()
-      : await supabase
-          .from("white_label_projects")
-          .insert({ ...payload, created_by: adminEmail || null })
-          .select("id, agency_name, owner_name, owner_email, domain, default_language, enabled_languages, primary_color, accent_color, package_type, status, notes, checklist, is_active, created_at, updated_at")
-          .maybeSingle();
+      ? await adminBoundaryMutation("pr116_white_label_page_entity_white_label_projects_update", { values: payload, filters: [{ op: "eq", field: "id", value: projectId }], select: "id, agency_name, owner_name, owner_email, domain, default_language, enabled_languages, primary_color, accent_color, package_type, status, notes, checklist, is_active, created_at, updated_at", returnMode: "maybeSingle", options: undefined })
+      : await adminBoundaryMutation("pr116_white_label_page_entity_white_label_projects_insert", { values: { ...payload, created_by: adminEmail || null }, filters: [], select: "id, agency_name, owner_name, owner_email, domain, default_language, enabled_languages, primary_color, accent_color, package_type, status, notes, checklist, is_active, created_at, updated_at", returnMode: "maybeSingle", options: undefined });
 
     setIsSaving(false);
 

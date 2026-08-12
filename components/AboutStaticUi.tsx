@@ -17,7 +17,7 @@ const copy = {
   },
   en: {
     back: "← Back to home", managementTitle: "Agency management",
-    managementBody: "HAMZA AGENCY is managed under the supervision of the Godfather of Syria, following professional standards focused on trust, privacy, and careful follow-up.",
+    managementBody: "HAMZA AGENCY is managed by Agent Hamza, following professional standards focused on trust, privacy, and careful follow-up.",
     values: [["Professional management", "We help content creators understand how programs work, organize their steps, and follow their progress clearly."], ["Support and follow-up", "We provide follow-up for applications and technical issues, with WhatsApp communication when needed."], ["Multiple programs", "We offer paths across TikTok, BIGO LIVE, Yaahlan, Xena, and Catchii, with options for different types of content."], ["An organized experience", "Program, application, and service information comes together in one clear visitor experience."]],
     missionTitle: "Our mission", missionText: "To provide applicants with a clear, easy experience and organized follow-up for applications, programs, and content.", systemTitle: "A clear agency journey",
     milestones: ["Explore available programs", "Submit clear application details", "Have the application reviewed for the selected program", "Follow up through official channels"],
@@ -25,7 +25,7 @@ const copy = {
   },
   tr: {
     back: "← Ana sayfaya dön", managementTitle: "Ajans yönetimi",
-    managementBody: "HAMZA AGENCY, güven, gizlilik ve titiz takibe odaklanan profesyonel standartlar doğrultusunda Suriye'nin Vaftiz Babası'nın gözetiminde yönetilir.",
+    managementBody: "HAMZA AGENCY, güven, gizlilik ve titiz takibe odaklanan profesyonel standartlar doğrultusunda Temsilci Hamza yönetiminde çalışır.",
     values: [["Profesyonel yönetim", "İçerik üreticilerinin programların nasıl çalıştığını anlamasına, adımlarını düzenlemesine ve ilerlemelerini açıkça takip etmesine yardımcı oluyoruz."], ["Destek ve takip", "Başvurular ve teknik sorunlar için takip sağlıyor, gerektiğinde WhatsApp üzerinden iletişim kuruyoruz."], ["Birden fazla program", "TikTok, BIGO LIVE, Yaahlan, Xena ve Catchii üzerinden farklı içerik alanlarına uygun yollar sunuyoruz."], ["Düzenli deneyim", "Program, başvuru ve hizmet bilgilerini ziyaretçiler için açık ve kolay bir deneyimde bir araya getiriyoruz."]],
     missionTitle: "Misyonumuz", missionText: "Başvuranlar için açık ve kolay bir deneyim, başvurular ve programlar için düzenli takip sunmak.", systemTitle: "Açık bir ajans yolculuğu",
     milestones: ["Mevcut programları inceleyin", "Başvuru bilgilerini açık şekilde gönderin", "Başvurunuz seçilen programa göre incelensin", "Resmî kanallardan takip alın"],

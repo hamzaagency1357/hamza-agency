@@ -1,5 +1,3 @@
-import { supabase } from "@/lib/supabase";
-
 type AdminActivityInput = {
   action: string;
   module: string;
@@ -10,72 +8,16 @@ type AdminActivityInput = {
   newData?: unknown;
 };
 
-type ActivityPayload = Record<string, unknown>;
-
-function cleanPayload(payload: ActivityPayload) {
-  return Object.fromEntries(
-    Object.entries(payload).filter(([, value]) => value !== undefined && value !== "")
-  );
-}
-
-function asSupabasePayload(payload: ActivityPayload) {
-  return cleanPayload(payload) as never;
-}
-
+/**
+ * Legacy compatibility shim.
+ *
+ * Admin mutations are now audited inside the trusted PR116 server/Edge
+ * mutation boundary after a successful authorized write. The browser must
+ * never be allowed to manufacture authoritative audit action/actor/old/new
+ * records, so this former client-side audit transport intentionally performs
+ * no write.
+ */
 export async function logAdminActivity(input: AdminActivityInput) {
-  if (!supabase) return;
-
-  try {
-    const recordId = input.recordId === null || input.recordId === undefined ? undefined : String(input.recordId);
-
-    const payloads: ActivityPayload[] = [
-      {
-        action: input.action,
-        module: input.module,
-        admin_email: input.adminEmail,
-        record_id: recordId,
-        details: input.details,
-        old_data: input.oldData,
-        new_data: input.newData,
-      },
-      {
-        action: input.action,
-        table_name: input.module,
-        admin_email: input.adminEmail,
-        record_id: recordId,
-        details: input.details,
-        old_values: input.oldData,
-        new_values: input.newData,
-      },
-      {
-        action: input.action,
-        entity_type: input.module,
-        actor_email: input.adminEmail,
-        entity_id: recordId,
-        metadata: {
-          details: input.details ?? null,
-          oldData: input.oldData ?? null,
-          newData: input.newData ?? null,
-        },
-      },
-      {
-        event: input.action,
-        resource: input.module,
-        user_email: input.adminEmail,
-        target_id: recordId,
-        payload: {
-          details: input.details ?? null,
-          oldData: input.oldData ?? null,
-          newData: input.newData ?? null,
-        },
-      },
-    ];
-
-    for (const payload of payloads) {
-      const { error } = await supabase.from("activity_logs").insert(asSupabasePayload(payload));
-      if (!error) return;
-    }
-  } catch {
-    return;
-  }
+  void input;
+  return;
 }

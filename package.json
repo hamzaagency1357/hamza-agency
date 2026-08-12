@@ -2,24 +2,44 @@
   "name": "hamza-agency",
   "version": "0.1.0",
   "private": true,
-  "engines": {"node": "24.x"},
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "next dev",
-    "prebuild": "npm run verify:translations && npm run verify:product-expansion && npm run verify:pr4",
+    "prebuild": "npm run verify:translations && npm run verify:product-expansion && npm run verify:pr4 && npm run verify:admin-mutations",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "verify:translations": "node scripts/verify-public-translations.mjs",
-    "verify:migrations": "node scripts/verify-safe-migrations.mjs",
+    "verify:migrations": "node scripts/verify-safe-migrations.mjs && node scripts/verify-pr116-admin-entity-privileges.mjs",
     "verify:product-expansion": "node scripts/verify-pr101-product-expansion.mjs",
     "verify:pr4": "node --test tests/pr4-smart-support.test.mjs",
+    "verify:admin-mutations": "node --test tests/admin-mutation-boundary.test.mjs",
     "verify:secrets": "node scripts/verify-no-client-secrets.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:smoke": "node scripts/runtime-smoke-test.mjs",
     "test:e2e": "playwright test --config=playwright.config.mjs",
     "test:closeout": "playwright test --config=playwright.closeout.config.mjs"
   },
-  "dependencies": {"@supabase/supabase-js": "^2.45.0","next": "^15.1.0","react": "^19.0.0","react-dom": "^19.0.0"},
-  "devDependencies": {"@eslint/eslintrc": "^3.3.5","@playwright/test": "1.55.0","@types/node": "^20.0.0","@types/react": "^19.0.0","@types/react-dom": "^19.0.0","autoprefixer": "^10.4.20","eslint": "^9.0.0","eslint-config-next": "^15.1.0","postcss": "^8.4.49","tailwindcss": "^3.4.17","typescript": "^5.0.0"}
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
+    "@playwright/test": "1.55.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.1.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.0.0"
+  }
 }

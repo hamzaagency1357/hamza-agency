@@ -1,4 +1,4 @@
-export type PublicSubmissionType = "application" | "service_request" | "job_application" | "contact" | "ai_support" | "password_reset";
+export type PublicSubmissionType = "application" | "service_request" | "job_application" | "contact" | "ai_support" | "password_reset" | "review";
 
 export type PublicSubmissionResult = { ok: boolean; code?: string; id?: number | string; trackingCode?: string };
 

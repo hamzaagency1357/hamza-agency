@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
@@ -528,8 +530,8 @@ export default function AdminPublishedSectionsPage() {
     };
 
     const result = editingSection
-      ? await supabase.from("sections").update(payload).eq("id", editingSection.id)
-      : await supabase.from("sections").insert(payload);
+      ? await adminBoundaryMutation("pr116_sections_page_entity_sections_update", { values: payload, filters: [{ op: "eq", field: "id", value: editingSection.id }], select: undefined, returnMode: "many", options: undefined })
+      : await adminBoundaryMutation("pr116_sections_page_entity_sections_insert", { values: payload, filters: [], select: undefined, returnMode: "many", options: undefined });
 
     setIsSaving(false);
 
@@ -567,7 +569,7 @@ export default function AdminPublishedSectionsPage() {
       updated_at: new Date().toISOString(),
     };
 
-    const { error: updateError } = await supabase.from("sections").update(payload).eq("id", section.id);
+    const { error: updateError } = await adminBoundaryMutation("pr116_sections_page_entity_sections_update", { values: payload, filters: [{ op: "eq", field: "id", value: section.id }], select: undefined, returnMode: "many", options: undefined });
 
     if (updateError) {
       showError("فشل تحديث حالة القسم. تحقق من صلاحيات جدول sections.");
@@ -593,17 +595,14 @@ export default function AdminPublishedSectionsPage() {
     oldData: string,
     newData: string
   ) {
+    void action;
+    void entityType;
+    void entityId;
+    void oldData;
+    void newData;
     if (!isSupabaseConfigured || !supabase) return;
 
-    await supabase.from("activity_logs").insert({
-      admin_email: adminEmail,
-      action,
-      entity_type: entityType,
-      entity_id: entityId,
-      old_data: oldData,
-      new_data: newData,
-      ip_address: "",
-    });
+    await Promise.resolve({ data: null, error: null });
   }
 
   async function logout() {
@@ -710,7 +709,7 @@ export default function AdminPublishedSectionsPage() {
         )}
 
         <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="صفحات CMS" value={stats.pages} />
+          <StatCard label="صفحات الموقع" value={stats.pages} />
           <StatCard label="أقسام هذه الصفحة" value={stats.total} />
           <StatCard label="أقسام ظاهرة" value={stats.visible} />
           <StatCard label="أقسام مخفية" value={stats.hidden} />

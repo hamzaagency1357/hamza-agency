@@ -1,8 +1,8 @@
 # HAMZA AGENCY
 
-HAMZA AGENCY is a production-oriented multilingual platform for operating a creator, client-services, partner, and digital-commerce agency. It combines a public Arabic/English/Turkish experience, tenant-aware white-label administration, role-specific portals, unified request tracking, tasks/SLA/workflows, marketplace and payment foundations, privacy controls, PWA/mobile readiness, operational analytics, backups, audit logs, and server-side security controls.
+HAMZA AGENCY is a production-oriented multilingual platform for creator management, live-streaming programs, client services, tracking, support, administration, privacy, and digital operations. Public routes are Arabic, English, and Turkish and Production is `https://hamza-agency.com`.
 
-> Status: **PR101 Product Expansion is implemented in actual GitHub PR #105.** Database migrations are applied additively with verified pre/post backups. PR #105 remains unmerged until final exact-head verification and explicit owner approval. Production launch and guarded PR #100 post-deploy revocation are separate later gates.
+> **Release status:** PR1–PR5 are historical completed phases. PR #116 is the single Final Production Professional Closeout PR and remains **Draft / unmerged**. It is not Code Complete, Production Ready, Delivery Ready, or Revenue Ready until the remaining Owner/Production gates close.
 
 ## Platform
 
@@ -14,116 +14,101 @@ HAMZA AGENCY is a production-oriented multilingual platform for operating a crea
 | Database/Auth | Supabase/PostgreSQL/Auth/Storage |
 | Hosting | Vercel |
 | Languages | Arabic, English, Turkish |
-| Tenant model | Trusted-domain resolution + tenant memberships + RLS |
-| Security gateway | Server-only Vercel OIDC to Supabase Edge Function/RPC |
+| Security gateway | Server-only Vercel OIDC → Supabase gateway/internal RPCs |
 | Web app | Installable PWA with privacy-safe offline shell |
-| Mobile | Capacitor Android debug artifact + iOS readiness |
 
-## Completed capabilities
+## Current final-closeout boundaries
 
-### Public experience and tracking
+Production/main baseline entering PR #116: `6d648a17ee95731413f2651d9188a6858d3f923f`.
 
-- Arabic, English, and Turkish URL-owned locales.
-- Programs, services, jobs, reviews, success stories, partners, gallery, knowledge, contact, FAQ, legal pages, marketplace, public status, and offline page.
-- Responsive language switcher, mobile navigation, AI-support escalation, SEO metadata, sitemap, robots, OpenGraph, JSON-LD, canonicals, and locale alternates.
-- Creator applications `APP-YYYY-XXXXXXXXXX`, service requests `SR-YYYY-XXXXXXXXXX`, job applications `JOB-YYYY-XXXXXXXXXX`, and contact requests `CNT-YYYY-XXXXXXXXXX`.
-- Tracking uses the issued code only and exposes no private applicant data.
+Production remains read-only during this PR. No Production migration, Production business-data mutation, Billing/plan change, force push, Ready-for-Review conversion, or merge is authorized by the existence of code in the PR.
 
-### Tenant and white-label administration
+Verified final-delta work includes:
 
-- Primary HAMZA AGENCY tenant plus trusted custom domains.
-- Tenant branding, logo/favicon references, colors, contact metadata, social links, locale settings, legal overrides, settings, and feature flags.
-- Super Admin tenant switcher, members, permissions, audit, provider status, backups, analytics, incidents, and system health.
-- Tenant/user isolation enforced by database RLS and explicit Data API grants.
-- Existing CMS, tracking, notifications, KPI, audit, backup, trash, translation, and Page Builder systems are extended rather than rebuilt.
+- final Agent identity AR/EN/TR without superseded EN/TR titles;
+- public Platform Status without public commit/runtime metadata;
+- localized Smart Support access, including the corrected Desktop floating label (`الدعم الذكي` / `Smart Support` / `Akıllı Destek`);
+- Preview fail-closed production-sensitive writes;
+- AdminQuickNav one-active-item fix and bounded Unified Requests deep-link fix;
+- Owner-approved homepage marketing statistics preserved exactly as content: `7000+` Content Creators, `5+` Available Platforms, `24/7` Support & Follow-up, `7` Years of Experience; these are not derived database metrics and must not be removed/reinterpreted without an explicit Owner decision;
+- Joining Applications dashboard details hardened against admin-overlay stacking and stale-selection behavior;
+- Blog management shortcut changed from floating overlay to in-flow admin access and hidden on `/admin/login`;
+- public support availability route-gated away from `/admin*` without removing the approved public copy;
+- humanized daily Admin Dashboard wording without `Supabase`, `SEO`, `CMS`, or `Page Builder` UI residue in the corrected surface;
+- shared Black/Near-black + Royal Purple + restrained Gold hierarchy with differentiated text hierarchy while preserving semantic status colors and visual presets;
+- additive least-privilege migration covering five internal PR99 submit RPCs, two legacy lookup bypasses, and three internal guard RPCs while preserving the service-role/OIDC path;
+- isolated migration regression contracts for browser-role denial and internal service access.
 
-### Role portals
+Production still has the direct RPC exposure until the approved migration is actually applied and verified.
 
-- Creator Portal: profile, application/tracking, tasks, announcements, knowledge, support, files, privacy, sessions, and notifications.
-- Client Portal: service requests, tracking, secure files, execution state, marketplace orders/payment state, support, privacy, sessions, and notifications.
-- Employee Portal: assigned tasks, queue, SLA, internal notes, escalations, notifications, and performance summary.
-- Partner Portal: profile, listings/offers, referrals/leads, documents, reports, communication, privacy, sessions, and notifications.
-- Signed-out and suspended accounts fail closed.
+## Administrator security gates
 
-### Operations and commerce
+Current read-only Production audit:
 
-- Tasks, assignments, watchers, comments, attachments, status history, related entities, filters, pagination foundation, notifications, audit, and KPI.
-- SLA policies/events for first response, resolution, business hours, warning, breach, pause, and escalation.
-- Declarative workflows with ordered steps, idempotent runs/events, bounded retries, and no arbitrary code execution.
-- Marketplace categories, AR/EN/TR listings, favorites, cart/direct order, orders/items, reviews, refunds, and disputes.
-- Provider-neutral payments with manual/offline mode, signed webhook evidence, idempotency, and no card storage.
+- active admins: **1**;
+- verified MFA factors: **0**;
+- independent Backup Admin: **not verified / absent**.
 
-### Providers, privacy, PWA, and mobile
+These are Owner manual gates. Recovery codes must never be committed or posted in chat/logs.
 
-- WhatsApp templates/consent/queue, Web Push preferences/subscriptions, and AI RAG/rule fallback with PII redaction and prompt-injection protection.
-- WhatsApp, push, external AI, and real payment providers are disabled by default and require server-only credentials.
-- Privacy request queue, consent history, sessions/devices, communications preferences, AI/marketing opt-out, and versioned legal policies.
-- Cookie consent for necessary, analytics, preferences, and marketing categories.
-- Installable PWA, offline shell, update prompt, app shortcuts, and service-worker cache denylist for authenticated/private paths.
-- HTTPS-only Capacitor wrapper, Android CI artifact, and iOS readiness without paid store publication.
+Supabase organization plan is **Free**. Leaked Password Protection is therefore recorded as **External Plan Limitation — Owner Decision Required** under the current no-billing policy. No upgrade is authorized.
 
-### Security and operations
+## Final Agent identity
 
-- Stable `user_id`-first administrator identity and fail-closed roles.
-- Server-only OIDC validation of issuer, audience, owner, project, environment, subject, timestamps, digest, and replay nonce.
-- No Service Role key, provider secret, payment secret, VAPID private key, or OIDC token reaches browser code.
-- Minimal device/session metadata, one/all revoke, suspicious-login alerts, and MFA requirement model.
-- Health/provider checks, public redacted incident status, runtime error rejection, structured operational evidence, backups, restore dry runs, and limited restores.
-- No hidden employee surveillance.
+- Arabic decorated: `⚔عܓོراب✴سܓོوريا⚔`
+- Arabic readable/SEO: `عراب سوريا`
+- English: `Agent Hamza` — `Agent and Manager at HAMZA AGENCY`
+- Turkish: `Temsilci Hamza` — `Hamza Ajansı Temsilcisi ve Yöneticisi`
 
-## Database delivery
+Never reintroduce `Godfather of Syria`, `Arrab Syria`, or `Suriye'nin Vaftiz Babası`.
 
-Supabase project: `fvaurkfnsvsfohpzguho`
+## Current migrations
 
-PR101 migrations were applied only after a fresh backup, checksum validation, restore dry run, and limited restore. A second full product-expansion backup, dry run, and limited restore succeeded after migration. No Production business rows were deleted.
+- `supabase/migrations/20260809095000_pr116_owner_approved_reviews_program_media.sql`
+- `supabase/migrations/20260810001500_pr116_final_security_boundary_closeout.sql`
 
-See `docs/PR101_PRODUCT_EXPANSION_INVENTORY.md` for migration names, checksums, RLS verification, Android artifact evidence, advisor status, and owner-only boundaries.
-
-## Environment variables
-
-Copy `.env.example` to `.env.local` for local development. Never commit real values.
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_OR_ANON_KEY
-NEXT_PUBLIC_SITE_URL=https://hamza-agency.com
-NEXT_PUBLIC_WHATSAPP_NUMBER=YOUR_PUBLIC_WHATSAPP_NUMBER
-NEXT_PUBLIC_DEFAULT_LANGUAGE=ar
-NEXT_PUBLIC_SUPPORTED_LANGUAGES=ar,en,tr
-NEXT_PUBLIC_AI_SUPPORT_ENABLED=true
-```
-
-Vercel OIDC identity is obtained server-side from the deployment environment. Do not create or copy a shared RPC secret.
+Production application: **NO**. A fresh verified backup/recovery package and explicit Owner Production Migration approval are mandatory before application.
 
 ## Verification
 
+Core local/repository commands include:
+
 ```bash
 npm ci
-npm run lint
 npm run typecheck
+npm run lint
+npm test
+npm run build
 npm run verify:translations
 npm run verify:migrations
 npm run verify:secrets
-npm run verify:pr101
-npm test
-npm run build
-npm run test:smoke
-npm run test:e2e
+npm run verify:product-expansion
+npm run verify:pr4
 ```
 
-Protected CI also checks exact checkout, localized runtime behavior, authenticated isolated browser E2E, runtime errors, provider mocks, mobile safety, Android build, and iOS readiness.
+Protected CI includes Quality Gate, PR99 Management Quality Gate, Current-State Schema Verify, Full Project Closeout, exact-preview, public/translation/security/permission/admin evidence, and isolated migration/security suites.
+
+**Final evidence is valid only for the exact current PR Head.** Read final workflow conclusions from GitHub and the exact deployment ID/URL/SHA/READY state from Vercel; do not reuse evidence from an older commit.
 
 ## Important documentation
 
-- `docs/HAMZA_AGENCY_FINAL_DELIVERY.md` — complete delivery and operating record.
-- `docs/PR101_PRODUCT_EXPANSION_INVENTORY.md` — PR101 architecture, security, migrations, backup/restore, verification, and provider boundaries.
-- `docs/PR100_FINAL_CLOSEOUT.md` — historical PR #100 scope and guarded post-deploy design.
-- `docs/PRELAUNCH_MANUAL_CHECKLIST.md` — owner/account and Production checks required before full launch.
-- `.env.example` — public environment variable template.
+- `docs/CURRENT_CLOSEOUT_LEDGER.md` — authoritative closeout ledger.
+- `PROJECT_PENDING_TASKS.md` — compact current release gates, not a feature backlog.
+- `docs/HAMZA_AGENCY_FINAL_DELIVERY.md` — delivery/release state.
+- `docs/PRELAUNCH_MANUAL_CHECKLIST.md` — manual/Production/Owner gates.
 
 ## Release rule
 
-Merging code and launching publicly are separate gates. PR #105 must not merge without explicit owner approval. After merge, the exact merge commit must reach Production `READY`, final Production and owner QA must pass, and a separate explicit approval is required before the guarded PR #100 post-deploy RPC revocation. Only after those gates may the platform be declared fully launched.
+1. Freeze final Head and pass exact-Head automated evidence.
+2. Complete authenticated Admin Owner QA and visual/mobile/preset QA on that exact Preview.
+3. Complete Owner/manual Admin security and Android real-device PWA gates.
+4. Owner Final Visual QA must explicitly equal `PASS`.
+5. If Production migrations remain required, present backup/migration/security/rollback evidence and STOP for explicit Owner approval.
+6. Apply only approved migrations and verify affected Production flows.
+7. Obtain separate explicit Owner merge approval.
+8. Merge; verify Vercel Production READY, exact `/api/health` commit and final smoke.
+9. Only then may HAMZA AGENCY be declared Code Complete / Development Closed / Production Ready / Delivery Ready / Revenue Ready.
+10. After true closeout, stop development; later bugs/new Owner requirements are separate work.
 
 ## License
 

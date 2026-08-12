@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -320,15 +322,12 @@ export default function AdminPagesPage() {
     };
 
     if (payload.is_homepage) {
-      await supabase
-        .from("pages")
-        .update({ is_homepage: false, updated_at: new Date().toISOString() })
-        .neq("id", selectedPage?.id || 0);
+      await adminBoundaryMutation("pr116_pages_page_entity_pages_update", { values: { is_homepage: false, updated_at: new Date().toISOString() }, filters: [{ op: "neq", field: "id", value: selectedPage?.id || 0 }], select: undefined, returnMode: "many", options: undefined });
     }
 
     const result = selectedPage
-      ? await supabase.from("pages").update(payload).eq("id", selectedPage.id)
-      : await supabase.from("pages").insert(payload);
+      ? await adminBoundaryMutation("pr116_pages_page_entity_pages_update", { values: payload, filters: [{ op: "eq", field: "id", value: selectedPage.id }], select: undefined, returnMode: "many", options: undefined })
+      : await adminBoundaryMutation("pr116_pages_page_entity_pages_insert", { values: payload, filters: [], select: undefined, returnMode: "many", options: undefined });
 
     setIsSaving(false);
 
@@ -362,19 +361,13 @@ export default function AdminPagesPage() {
     const nextValue = !Boolean(page[field]);
 
     if (field === "is_homepage" && nextValue) {
-      await supabase
-        .from("pages")
-        .update({ is_homepage: false, updated_at: new Date().toISOString() })
-        .neq("id", page.id);
+      await adminBoundaryMutation("pr116_pages_page_entity_pages_update", { values: { is_homepage: false, updated_at: new Date().toISOString() }, filters: [{ op: "neq", field: "id", value: page.id }], select: undefined, returnMode: "many", options: undefined });
     }
 
-    const { error } = await supabase
-      .from("pages")
-      .update({
+    const { error } = await adminBoundaryMutation("pr116_pages_page_entity_pages_update", { values: {
         [field]: nextValue,
         updated_at: new Date().toISOString(),
-      })
-      .eq("id", page.id);
+      }, filters: [{ op: "eq", field: "id", value: page.id }], select: undefined, returnMode: "many", options: undefined });
 
     if (error) {
       showError("فشل تحديث حالة الصفحة. تحقق من صلاحيات جدول pages.");
@@ -409,17 +402,10 @@ export default function AdminPagesPage() {
     oldData: string,
     newData: string
   ) {
+    void action; void entityType; void entityId; void oldData; void newData;
     if (!supabase) return;
 
-    await supabase.from("activity_logs").insert({
-      admin_email: adminEmail,
-      action,
-      entity_type: entityType,
-      entity_id: entityId,
-      old_data: oldData,
-      new_data: newData,
-      ip_address: "",
-    });
+    await Promise.resolve({ data: null, error: null });
   }
 
   async function logout() {

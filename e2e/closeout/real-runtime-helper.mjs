@@ -35,6 +35,15 @@ export async function rpc(request, accessToken, name, body, expected = 200) {
   });
   return decode(response, expected);
 }
+export async function adminAction(request, accessToken, action, payload, expected = 200) {
+  const response = await request.post("/api/admin/mutations/entities", {
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    data: { action, payload },
+  });
+  const body = await decode(response, expected);
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  return body.data ?? null;
+}
 export async function rest(request, accessToken, path, expected = 200) {
   const f = fixture();
   const anon = process.env.ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

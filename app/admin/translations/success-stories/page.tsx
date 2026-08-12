@@ -1,5 +1,7 @@
 "use client";
 
+
+import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -101,7 +103,7 @@ export default function SuccessStoriesTranslationsPage() {
     if (state.reviewed && !isComplete) { setError("لا يمكن اعتبار الترجمة مراجعة قبل اكتمال كل الحقول العربية المتوفرة."); return; }
     const reviewed = Boolean(state.reviewed && isComplete); const published = Boolean(state.published && reviewed && isComplete); const status = published ? "published" : reviewed ? "reviewed" : "needs_review";
     setSaving(true); setError(""); setMessage("");
-    const { error: saveError } = await client.from("content_translations").upsert(active.map((field) => ({ source_type: "success_stories", source_id: selectedStory.id, field_name: field.key, language, translated_value: state.values[field.key] || "", status, reviewed, is_published: published, created_by: adminEmail, updated_by: adminEmail, updated_at: new Date().toISOString() })), { onConflict: "source_type,source_id,field_name,language" });
+    const { error: saveError } = await adminBoundaryMutation("pr116_translations_success_stories_page_entity_content_translations_upsert", { values: active.map((field) => ({ source_type: "success_stories", source_id: selectedStory.id, field_name: field.key, language, translated_value: state.values[field.key] || "", status, reviewed, is_published: published, created_by: adminEmail, updated_by: adminEmail, updated_at: new Date().toISOString() })), filters: [], select: undefined, returnMode: "many", options: { onConflict: "source_type,source_id,field_name,language" } });
     setSaving(false);
     if (saveError) { setError(`تعذر حفظ ترجمة القصة: ${saveError.message}`); return; }
     setMessage(published ? "تم حفظ الترجمة ونشرها يدوياً. لن تظهر للعامة إلا إذا كانت القصة مكتملة." : reviewed ? "تم حفظ الترجمة بحالة مراجع. لن تظهر للعامة قبل تفعيل النشر اليدوي." : "تم الحفظ بحالة تحتاج مراجعة. لن تظهر للعامة.");

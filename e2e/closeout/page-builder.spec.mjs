@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { annotations, fixture, projectFixture, rest, rpc, token } from "./real-runtime-helper.mjs";
+import { adminAction, annotations, fixture, projectFixture, rest, rpc, token } from "./real-runtime-helper.mjs";
 
 test.describe.configure({ mode: "serial" });
 
@@ -39,12 +39,14 @@ test("draft, localized publish, version persistence, and public rendering", asyn
     await expectPublicState(request, project, 404);
   });
 
-  await test.step("publish AR EN TR and capture all version IDs", async () => {
+  await test.step("publish AR EN TR through the trusted Admin boundary and capture all version IDs", async () => {
     for (const route of paths(project)) {
-      const result = await rpc(request, admin, "publish_page_builder_page", {
-        p_page_id: project.page,
-        p_language: route.language,
-        p_notes: `closeout-${testInfo.project.name}-${route.language}`,
+      const result = await adminAction(request, admin, "pr116_admin_page_builder_publish", {
+        args: {
+          p_page_id: project.page,
+          p_language: route.language,
+          p_notes: `closeout-${testInfo.project.name}-${route.language}`,
+        },
       });
       expect(result.sections).toBe(1);
       expect(result.version_id).toBeTruthy();
@@ -75,7 +77,7 @@ test("restore Arabic version, return to draft, republish, and render again", asy
   const state = projectState(testInfo);
   expect(state?.versions).toHaveLength(3);
 
-  await test.step("restore the Arabic version", async () => {
+  await test.step("restore the Arabic version through its retained local database lifecycle contract", async () => {
     const restored = await rpc(request, admin, "restore_page_version", { p_version_id: state.versions[0] });
     expect(restored.status).toBe("draft");
   });
@@ -87,12 +89,14 @@ test("restore Arabic version, return to draft, republish, and render again", asy
     await expectPublicState(request, project, 404);
   });
 
-  await test.step("republish AR EN TR after restore", async () => {
+  await test.step("republish AR EN TR through the trusted Admin boundary after restore", async () => {
     for (const route of paths(project)) {
-      const republished = await rpc(request, admin, "publish_page_builder_page", {
-        p_page_id: project.page,
-        p_language: route.language,
-        p_notes: `republish-after-restore-${testInfo.project.name}-${route.language}`,
+      const republished = await adminAction(request, admin, "pr116_admin_page_builder_publish", {
+        args: {
+          p_page_id: project.page,
+          p_language: route.language,
+          p_notes: `republish-after-restore-${testInfo.project.name}-${route.language}`,
+        },
       });
       expect(republished.sections).toBe(1);
       expect(republished.version_id).toBeTruthy();
@@ -111,11 +115,13 @@ test("unpublish all locales and prove final database and public state", async ({
   const project = projectFixture(f, testInfo);
   const admin = await token(request, f.accounts.employee);
 
-  await test.step("unpublish AR EN TR", async () => {
+  await test.step("unpublish AR EN TR through the trusted Admin boundary", async () => {
     for (const route of paths(project)) {
-      const result = await rpc(request, admin, "pr99_unpublish_page", {
-        p_page_id: project.page,
-        p_language: route.language,
+      const result = await adminAction(request, admin, "pr116_admin_page_builder_unpublish", {
+        args: {
+          p_page_id: project.page,
+          p_language: route.language,
+        },
       });
       expect(result.status).toBe("unpublished");
     }

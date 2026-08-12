@@ -48,8 +48,8 @@ test("Support workflow is professional, explicit-save and keeps private notes pr
   assert.match(core,/pr4_support_history/);assert.match(integration,/close reason required/);assert.match(integration,/assigned_admin_id/);assert.match(supportAdmin,/ملاحظات داخلية — لفريق العمل فقط/);assert.match(supportAdmin,/حفظ التعيين/);assert.match(supportAdmin,/حفظ الحالة/);assert.match(supportAdmin,/حفظ الأولوية/);assert.match(supportAdmin,/الزائر/);assert.match(supportAdmin,/فريق الدعم/);assert.doesNotMatch(supportAdmin,/setMsg\(error\.message\)/);assert.doesNotMatch(supportAdmin,/>Human Handoff</);
 });
 
-test("Notifications preserve legacy read compatibility while adding PR4 workflow",()=>{
-  assert.match(inbox,/pr4_notification_inbox/);assert.match(inbox,/notifications/);assert.match(inbox,/pr99_mark_notifications_read/);assert.match(inbox,/تم تعليم الإشعار كمقروء/);assert.match(inbox,/مركز متابعة العمليات/);assert.doesNotMatch(inbox,/setMessage\(error\.message\)/);assert.doesNotMatch(inbox,/>Operations Inbox</);
+test("Notifications preserve legacy read compatibility while adding PR4 workflow through the trusted Admin boundary",()=>{
+  assert.match(inbox,/pr4_notification_inbox/);assert.match(inbox,/notifications/);assert.match(inbox,/pr116_admin_notifications_mark_read/);assert.match(inbox,/pr116_admin_notification_action/);assert.doesNotMatch(inbox,/\.rpc\s*\(\s*["'`]pr99_mark_notifications_read/);assert.match(inbox,/تم تعليم الإشعار كمقروء/);assert.match(inbox,/مركز متابعة العمليات/);assert.doesNotMatch(inbox,/setMessage\(error\.message\)/);assert.doesNotMatch(inbox,/>Operations Inbox</);
 });
 
 test("Notifications are deduplicated, permission-filtered, deep-linked, marketplace-aware and SLA-aware",()=>{

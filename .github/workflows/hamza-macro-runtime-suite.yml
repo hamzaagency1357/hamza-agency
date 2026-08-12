@@ -45,7 +45,6 @@ jobs:
         with:
           ref: ${{ inputs.expected_sha }}
           fetch-depth: 1
-
       - name: Assert exact safe dispatch
         shell: bash
         run: |
@@ -57,12 +56,10 @@ jobs:
           test -z "${HAMZA_PRODUCTION_READONLY_URL:-}"
           node scripts/closeout/environment-guard.mjs
           test -f "e2e/closeout/${{ inputs.suite }}.spec.mjs"
-
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-
       - name: Install locked dependencies and local tools
         shell: bash
         run: |
@@ -75,7 +72,6 @@ jobs:
           cli="$GITHUB_WORKSPACE/tools/pr101-local-e2e/node_modules/.bin/supabase"
           test "$($cli --version)" = "2.109.1"
           echo "SUPABASE_BIN=$cli" >> "$GITHUB_ENV"
-
       - name: Build isolated project and dependency-safe snapshot
         shell: bash
         run: |
@@ -91,7 +87,6 @@ jobs:
           printf '%s  %s\n' '3b1890376e3cca966b1dce0979dd2ed089f95237e1067febf4f58e8f1bf776f2' "$snapshot" | sha256sum -c -
           test "$(git hash-object "$snapshot")" = "65f45c04f7bd50e7751eb5f802f3ad0550c52bfc"
           node "$CLOSEOUT_BUILDER_FILE" "$snapshot" "$CLOSEOUT_APPLY_FILE"
-
       - name: Start isolated Supabase
         shell: bash
         run: |
@@ -107,6 +102,7 @@ jobs:
             case "$key" in
               API_URL)
                 echo "API_URL=$value" >> "$GITHUB_ENV"
+                echo "SUPABASE_SERVER_URL=$value" >> "$GITHUB_ENV"
                 echo "NEXT_PUBLIC_SUPABASE_URL=https://127.0.0.1:3443/__closeout_supabase" >> "$GITHUB_ENV"
                 ;;
               ANON_KEY)
@@ -116,7 +112,9 @@ jobs:
               DB_URL) echo "DB_URL=$value" >> "$GITHUB_ENV" ;;
             esac
           done < "$CLOSEOUT_SUPABASE_ENV_FILE"
-
+          workload_secret="$(openssl rand -hex 32)"
+          echo "::add-mask::$workload_secret"
+          echo "PR116_LOCAL_WORKLOAD_SECRET=$workload_secret" >> "$GITHUB_ENV"
       - name: Apply authoritative snapshot and additive macro migrations
         shell: bash
         run: |
@@ -131,14 +129,18 @@ jobs:
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803006000_pr105_commerce_lifecycle_hardening.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803007000_pr105_operational_depth_completion.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803008000_pr105_workflow_runtime_evidence_hardening.sql
+          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260809095000_pr116_owner_approved_reviews_program_media.sql
+          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260810001500_pr116_final_security_boundary_closeout.sql
+          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f tests/pr116-local-migration-contract.sql
           node scripts/closeout/macro-auth-fixtures.mjs setup
           node scripts/closeout/macro-runtime-fixtures.mjs setup
           node scripts/closeout/core-runtime-fixtures.mjs setup
-
       - name: Build and start local HTTPS application
         shell: bash
         run: |
           set -euo pipefail
+          test -f "$CLOSEOUT_SUPABASE_ENV_FILE"
+          test -n "${PR116_LOCAL_WORKLOAD_SECRET:-}"
           npm run build
           mkdir -p "$CLOSEOUT_TLS_DIR"
           openssl req -x509 -newkey rsa:2048 -nodes \
@@ -163,7 +165,6 @@ jobs:
             curl -kfsS https://127.0.0.1:3443/__closeout_supabase/auth/v1/settings >/dev/null && break
             sleep 2
           done
-
       - name: Run authenticated real suite without retries
         id: playwright
         continue-on-error: true
@@ -172,7 +173,6 @@ jobs:
           set -euo pipefail
           npx --no-install playwright install --with-deps chromium
           npx --no-install playwright test --config=playwright.closeout.config.mjs --retries=0
-
       - name: Validate and sanitize evidence
         id: validate
         if: always()
@@ -187,7 +187,6 @@ jobs:
           node scripts/closeout/sanitize-artifacts.mjs artifacts/raw artifacts/safe/reports || status=1
           node scripts/closeout/scan-safe-artifacts.mjs artifacts/safe || status=1
           exit "$status"
-
       - name: Upload sanitized evidence
         id: upload
         if: always()
@@ -198,7 +197,6 @@ jobs:
           path: artifacts/safe
           if-no-files-found: error
           retention-days: 14
-
       - name: Always cleanup and prove zero fixtures
         id: cleanup
         if: always()
@@ -207,104 +205,34 @@ jobs:
         run: |
           set +e
           status=0
-
-          run_cleanup() {
-            local name="$1"
-            shift
-            echo "::group::cleanup:${name}"
-            "$@"
-            local rc=$?
-            if [ "$rc" -ne 0 ]; then
-              echo "::error title=Cleanup failed::${name}"
-              status=1
-            fi
-            echo "::endgroup::"
-          }
-
-          stop_process() {
-            local pid_file="$1"
-            if [ ! -f "$pid_file" ]; then
-              return 0
-            fi
-            local pid
-            pid="$(cat "$pid_file")"
-            if kill -0 "$pid" 2>/dev/null; then
-              kill "$pid"
-            fi
-          }
-
-          stop_supabase() {
-            if [ ! -d "$CLOSEOUT_WORKDIR" ] || [ -z "${SUPABASE_BIN:-}" ]; then
-              return 1
-            fi
-            cd "$CLOSEOUT_WORKDIR" || return 1
-            "$SUPABASE_BIN" stop --no-backup
-          }
-
+          run_cleanup() { local name="$1"; shift; echo "::group::cleanup:${name}"; "$@"; local rc=$?; if [ "$rc" -ne 0 ]; then echo "::error title=Cleanup failed::${name}"; status=1; fi; echo "::endgroup::"; }
+          stop_process() { local pid_file="$1"; if [ ! -f "$pid_file" ]; then return 0; fi; local pid; pid="$(cat "$pid_file")"; if kill -0 "$pid" 2>/dev/null; then kill "$pid"; fi; }
+          stop_supabase() { if [ ! -d "$CLOSEOUT_WORKDIR" ] || [ -z "${SUPABASE_BIN:-}" ]; then return 1; fi; cd "$CLOSEOUT_WORKDIR" || return 1; "$SUPABASE_BIN" stop --no-backup; }
           remove_generated() {
             cd "$GITHUB_WORKSPACE" || return 1
-            rm -rf \
-              "$CLOSEOUT_WORKDIR" \
-              "$CLOSEOUT_PORTAL_FIXTURE_FILE" \
-              "$CLOSEOUT_SUPABASE_ENV_FILE" \
-              "$CLOSEOUT_BUILDER_FILE" \
-              "$CLOSEOUT_APPLY_FILE" \
-              "$CLOSEOUT_SUPABASE_LOG" \
-              "$CLOSEOUT_TLS_DIR" \
-              "$CLOSEOUT_NEXT_LOG" \
-              "$CLOSEOUT_NEXT_PID" \
-              "$CLOSEOUT_PROXY_LOG" \
-              "$CLOSEOUT_PROXY_PID" \
-              artifacts/raw \
-              artifacts/safe \
-              supabase/.temp
+            unset PR116_LOCAL_WORKLOAD_SECRET
+            rm -rf "$CLOSEOUT_WORKDIR" "$CLOSEOUT_PORTAL_FIXTURE_FILE" "$CLOSEOUT_SUPABASE_ENV_FILE" "$CLOSEOUT_BUILDER_FILE" "$CLOSEOUT_APPLY_FILE" "$CLOSEOUT_SUPABASE_LOG" "$CLOSEOUT_TLS_DIR" "$CLOSEOUT_NEXT_LOG" "$CLOSEOUT_NEXT_PID" "$CLOSEOUT_PROXY_LOG" "$CLOSEOUT_PROXY_PID" artifacts/raw artifacts/safe supabase/.temp
           }
-
-          prove_repository_clean() {
-            cd "$GITHUB_WORKSPACE" || return 1
-            local dirty
-            dirty="$(git status --porcelain --untracked-files=all)"
-            if [ -n "$dirty" ]; then
-              echo "::error title=Repository clean proof failed::Generated paths remain"
-              printf '%s\n' "$dirty" | sed -E 's/^.. //'
-              return 1
-            fi
-          }
-
+          prove_repository_clean() { cd "$GITHUB_WORKSPACE" || return 1; local dirty; dirty="$(git status --porcelain --untracked-files=all)"; if [ -n "$dirty" ]; then echo "::error title=Repository clean proof failed::Generated paths remain"; printf '%s\n' "$dirty" | sed -E 's/^.. //'; return 1; fi; }
           if [ -f "$CLOSEOUT_SUPABASE_ENV_FILE" ] && [ -f "$CLOSEOUT_PORTAL_FIXTURE_FILE" ]; then
-            set -a
-            . "$CLOSEOUT_SUPABASE_ENV_FILE"
-            set +a
+            set -a; . "$CLOSEOUT_SUPABASE_ENV_FILE"; set +a
             run_cleanup "core runtime fixtures" node scripts/closeout/core-runtime-fixtures.mjs cleanup
             run_cleanup "macro runtime fixtures" node scripts/closeout/macro-runtime-fixtures.mjs cleanup
             run_cleanup "macro auth fixtures" node scripts/closeout/macro-auth-fixtures.mjs cleanup
           else
-            echo "::error title=Cleanup failed::fixture environment unavailable"
-            status=1
+            echo "::error title=Cleanup failed::fixture environment unavailable"; status=1
           fi
-
           run_cleanup "Next process" stop_process "$CLOSEOUT_NEXT_PID"
           run_cleanup "HTTPS proxy process" stop_process "$CLOSEOUT_PROXY_PID"
           run_cleanup "Supabase stop" stop_supabase
           run_cleanup "generated report and runtime paths" remove_generated
           run_cleanup "repository clean proof" prove_repository_clean
           exit "$status"
-
       - name: Preserve conclusion
         if: always()
         shell: bash
         run: |
           set -euo pipefail
           outcomes='${{ steps.playwright.outcome }}:${{ steps.validate.outcome }}:${{ steps.upload.outcome }}:${{ steps.cleanup.outcome }}'
-          printf 'playwright=%s validate=%s upload=%s cleanup=%s\n' \
-            '${{ steps.playwright.outcome }}' \
-            '${{ steps.validate.outcome }}' \
-            '${{ steps.upload.outcome }}' \
-            '${{ steps.cleanup.outcome }}'
-          case "$outcomes" in
-            success:success:success:success) ;;
-            *)
-              echo "::error title=Macro runtime conclusion failed::${outcomes}"
-              exit 1
-              ;;
-          esac
+          printf 'playwright=%s validate=%s upload=%s cleanup=%s\n' '${{ steps.playwright.outcome }}' '${{ steps.validate.outcome }}' '${{ steps.upload.outcome }}' '${{ steps.cleanup.outcome }}'
+          case "$outcomes" in success:success:success:success) ;; *) echo "::error title=Macro runtime conclusion failed::${outcomes}"; exit 1 ;; esac

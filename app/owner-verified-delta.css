@@ -1,0 +1,89 @@
+/* Owner-verified PR116 visual hierarchy delta. Keeps visual presets and semantic status colors intact. */
+:root{
+  --hamza-surface-black:#050008;
+  --hamza-surface-near-black:#09000f;
+  --hamza-text-primary:#faf6fc;
+  --hamza-text-body:#e7deeb;
+  --hamza-text-secondary:#b9acc4;
+  --hamza-gold:#f2cf64;
+  --hamza-purple:#7c3aed;
+}
+
+body.public-site-page{
+  background:
+    radial-gradient(circle at 50% -12%,rgba(124,58,237,.18),transparent 34%),
+    radial-gradient(circle at 84% 24%,rgba(212,175,55,.07),transparent 28%),
+    linear-gradient(180deg,#050008 0%,#09000f 48%,#040006 100%) !important;
+  color:var(--hamza-text-body);
+}
+
+body.public-site-page main{
+  background:
+    radial-gradient(circle at 50% 10%,rgba(124,58,237,.13),transparent 34%),
+    radial-gradient(circle at 50% 78%,rgba(212,175,55,.045),transparent 34%),
+    linear-gradient(180deg,rgba(5,0,8,.74),rgba(9,0,15,.72)) !important;
+}
+
+body.public-site-page :where(h2,h3){color:var(--hamza-text-primary)}
+body.public-site-page :where(p:not(.text-green-100):not(.text-red-100):not(.text-amber-100):not(.text-yellow-100):not(.text-blue-100):not(.text-cyan-100)){text-wrap:pretty}
+body.public-site-page :where(a,button){text-underline-offset:.24em}
+body.public-site-page .hamza-public-utility-footer,
+body.public-site-page .hamza-approved-support-copy{background:rgba(5,0,8,.94)}
+body.public-site-page .hamza-approved-support-copy{color:rgba(231,222,235,.68)}
+
+/* Keep preset artwork visible above a dark premium base instead of a purple wash. */
+body.public-site-page .hamza-visual-background-presets{opacity:.88}
+body.public-site-page .hamza-visual-background-presets .hvb-base{filter:saturate(.9) brightness(.72)}
+
+/* Admin keeps section-specific semantic accents while sharing the brand base. */
+body.admin-site-page{background:linear-gradient(180deg,#050008,#09000f 58%,#040006);color:var(--hamza-text-body)}
+body.admin-site-page :where(h1,h2,h3){color:var(--hamza-text-primary)}
+body.admin-site-page :where(p){text-wrap:pretty}
+
+/* Owner-approved gold is an accent, not a full-page text color. */
+body.public-site-page :where(.text-yellow-200,.text-yellow-100),
+body.admin-site-page :where(.text-yellow-200,.text-yellow-100){text-shadow:0 0 18px rgba(242,207,100,.08)}
+
+/*
+ * Release-candidate mobile Dock contract.
+ * This layer is imported last so visual presets, shared button utilities and theme
+ * tokens cannot collapse the three actions back to the same neutral/white surface.
+ */
+.hamza-mobile-dock-grid [data-testid="mobile-quick-navigation"]{
+  background:linear-gradient(145deg,rgba(10,6,12,.98),rgba(2,2,4,.98)) !important;
+  border-color:rgba(242,207,100,.38) !important;
+  color:#f7dfa0 !important;
+}
+.hamza-mobile-dock-grid [data-testid="mobile-quick-navigation"]:hover,
+.hamza-mobile-dock-grid [data-testid="mobile-quick-navigation"]:active{
+  background:linear-gradient(145deg,rgba(18,12,22,.99),rgba(4,3,7,.99)) !important;
+  border-color:rgba(242,207,100,.56) !important;
+  color:#fff0bd !important;
+}
+.hamza-mobile-dock-grid [data-testid="mobile-ai-support"]{
+  background:linear-gradient(145deg,rgba(109,40,217,.96),rgba(76,29,149,.98)) !important;
+  border-color:rgba(196,181,253,.42) !important;
+  color:#faf5ff !important;
+}
+.hamza-mobile-dock-grid [data-testid="mobile-ai-support"]:hover,
+.hamza-mobile-dock-grid [data-testid="mobile-ai-support"]:active{
+  background:linear-gradient(145deg,rgba(124,58,237,.98),rgba(91,33,182,.99)) !important;
+  border-color:rgba(221,214,254,.52) !important;
+  color:#fff !important;
+}
+.hamza-mobile-dock-grid [data-testid="mobile-whatsapp"]{
+  background:linear-gradient(145deg,rgba(22,163,74,.94),rgba(21,128,61,.98)) !important;
+  border-color:rgba(134,239,172,.42) !important;
+  color:#f0fdf4 !important;
+}
+.hamza-mobile-dock-grid [data-testid="mobile-whatsapp"]:hover,
+.hamza-mobile-dock-grid [data-testid="mobile-whatsapp"]:active{
+  background:linear-gradient(145deg,rgba(34,197,94,.96),rgba(22,101,52,.99)) !important;
+  border-color:rgba(187,247,208,.54) !important;
+  color:#fff !important;
+}
+
+@media(max-width:768px){
+  body.public-site-page .hamza-visual-background-presets{opacity:.78}
+  body.public-site-page main{background:linear-gradient(180deg,rgba(5,0,8,.8),rgba(9,0,15,.76)) !important}
+}
