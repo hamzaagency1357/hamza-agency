@@ -1,0 +1,3 @@
+button[aria-controls="admin-mobile-navigation"][aria-expanded="true"] {
+  display: none !important;
+}
