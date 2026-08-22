@@ -16,6 +16,7 @@ const applications=[
 ];
 
 const tableCounts={agency_applications:12,service_requests:8,programs:3,pages:12,sections:9,media:24,announcements:2,settings:8,notifications:3,jobs:4,reviews:4,success_stories:6,partners:5,gallery_items:10,blog_posts:18};
+const corsHeaders={"access-control-allow-origin":"*","access-control-expose-headers":"Content-Range, Range-Unit, Preference-Applied"};
 
 function fixtureSession(){return{access_token:"eyJhbGciOiJub25lIn0.eyJzdWIiOiJ2aXN1YWwtb3duZXIiLCJleHAiOjQxMDI0NDQ4MDB9.",refresh_token:"visual-refresh-token",expires_at:4102444800,expires_in:3600,token_type:"bearer",user:{id:"visual-owner",aud:"authenticated",role:"authenticated",email:"owner@hamza-agency.test",email_confirmed_at:"2026-08-01T00:00:00.000Z",app_metadata:{provider:"email",providers:["email"]},user_metadata:{},created_at:"2026-08-01T00:00:00.000Z"}}}
 
@@ -24,16 +25,16 @@ async function installVisualFixture(page){
  await page.route(`${supabaseHost}/**`,async route=>{
   const request=route.request();const url=new URL(request.url());const path=url.pathname;const prefer=request.headers()["prefer"]||"";
   if(path.includes("/auth/v1/")){
-   if(path.endsWith("/user"))return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(fixtureSession().user)});
-   return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(fixtureSession())});
+   if(path.endsWith("/user"))return route.fulfill({status:200,headers:{...corsHeaders,"content-type":"application/json"},body:JSON.stringify(fixtureSession().user)});
+   return route.fulfill({status:200,headers:{...corsHeaders,"content-type":"application/json"},body:JSON.stringify(fixtureSession())});
   }
-  if(path.includes("/rest/v1/admin_users"))return route.fulfill({status:200,headers:{"content-type":"application/json"},body:JSON.stringify([{id:1,user_id:"visual-owner",email:"owner@hamza-agency.test",role:"super_admin",assigned_program:null,is_active:true}])});
+  if(path.includes("/rest/v1/admin_users"))return route.fulfill({status:200,headers:{...corsHeaders,"content-type":"application/json"},body:JSON.stringify([{id:1,user_id:"visual-owner",email:"owner@hamza-agency.test",role:"super_admin",assigned_program:null,is_active:true}])});
   const match=path.match(/\/rest\/v1\/([^/]+)/);const table=match?.[1];
   if(table&&(request.method()==="HEAD"||prefer.includes("count=exact"))){
-   const count=tableCounts[table]??0;return route.fulfill({status:200,headers:{"content-range":`0-0/${count}`,"range-unit":"items","preference-applied":"count=exact","content-type":"application/json"},body:request.method()==="HEAD"?"":"[]"});
+   const count=tableCounts[table]??0;return route.fulfill({status:200,headers:{...corsHeaders,"content-range":`0-0/${count}`,"range-unit":"items","preference-applied":"count=exact","content-type":"application/json"},body:request.method()==="HEAD"?"":"[]"});
   }
-  if(path.includes("/rest/v1/agency_applications"))return route.fulfill({status:200,headers:{"content-type":"application/json"},body:JSON.stringify(applications)});
-  return route.fulfill({status:200,headers:{"content-type":"application/json"},body:"[]"});
+  if(path.includes("/rest/v1/agency_applications"))return route.fulfill({status:200,headers:{...corsHeaders,"content-type":"application/json"},body:JSON.stringify(applications)});
+  return route.fulfill({status:200,headers:{...corsHeaders,"content-type":"application/json"},body:"[]"});
  });
 }
 
