@@ -29,7 +29,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   return (
     <div dir="rtl" className="min-h-screen bg-[#070009] text-white">
       <AdminQuickNav />
-      <div className="min-h-screen md:pr-[292px]">
+      <div className="min-h-screen lg:pr-[292px]">
         {isDashboard && (
           <section className="relative z-20 mx-auto max-w-7xl px-5 pt-6 md:px-8 md:pt-8">
             <div className="rounded-[2rem] border border-purple-400/20 bg-black/45 p-5 shadow-[0_0_70px_rgba(124,58,237,0.14)] backdrop-blur-xl sm:p-7">
