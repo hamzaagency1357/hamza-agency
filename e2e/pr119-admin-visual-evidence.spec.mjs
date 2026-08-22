@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 
+test.skip(process.env.PR119_VISUAL_EVIDENCE !== "1", "PR119 visual evidence runs only in its isolated screenshot workflow");
+
 const evidenceDir=process.env.PR119_EVIDENCE_DIR||"artifacts/admin-visual-evidence";
 const supabaseHost="https://visual-fixture.supabase.co";
 const authStorageKey="sb-visual-fixture-auth-token";
