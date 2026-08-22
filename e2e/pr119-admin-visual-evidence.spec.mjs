@@ -22,17 +22,17 @@ function fixtureSession(){return{access_token:"eyJhbGciOiJub25lIn0.eyJzdWIiOiJ2a
 async function installVisualFixture(page){
  await page.addInitScript(({key,session})=>{localStorage.setItem(key,JSON.stringify(session))},{key:authStorageKey,session:fixtureSession()});
  await page.route(`${supabaseHost}/**`,async route=>{
-  const request=route.request();const url=new URL(request.url());const path=url.pathname;
+  const request=route.request();const url=new URL(request.url());const path=url.pathname;const prefer=request.headers()["prefer"]||"";
   if(path.includes("/auth/v1/")){
    if(path.endsWith("/user"))return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(fixtureSession().user)});
    return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(fixtureSession())});
   }
   if(path.includes("/rest/v1/admin_users"))return route.fulfill({status:200,headers:{"content-type":"application/json"},body:JSON.stringify([{id:1,user_id:"visual-owner",email:"owner@hamza-agency.test",role:"super_admin",assigned_program:null,is_active:true}])});
-  if(path.includes("/rest/v1/agency_applications")&&request.method()!=="HEAD")return route.fulfill({status:200,headers:{"content-type":"application/json"},body:JSON.stringify(applications)});
   const match=path.match(/\/rest\/v1\/([^/]+)/);const table=match?.[1];
-  if(table&&request.method()==="HEAD"){
-   const count=tableCounts[table]??0;return route.fulfill({status:200,headers:{"content-range":`0-0/${count}`,"content-type":"application/json"},body:""});
+  if(table&&(request.method()==="HEAD"||prefer.includes("count=exact"))){
+   const count=tableCounts[table]??0;return route.fulfill({status:200,headers:{"content-range":`0-0/${count}`,"range-unit":"items","preference-applied":"count=exact","content-type":"application/json"},body:request.method()==="HEAD"?"":"[]"});
   }
+  if(path.includes("/rest/v1/agency_applications"))return route.fulfill({status:200,headers:{"content-type":"application/json"},body:JSON.stringify(applications)});
   return route.fulfill({status:200,headers:{"content-type":"application/json"},body:"[]"});
  });
 }
@@ -47,6 +47,9 @@ async function openDashboard(page,width,height){
  await expect(page.getByTestId("admin-quick-actions")).toBeVisible();
  await expect(page.getByTestId("admin-guidance")).toBeVisible();
  await expect(page.getByText("مرحبًا، لوحة تحكم")).toBeVisible();
+ await expect(page.getByTestId("summary-applications")).toContainText("12");
+ await expect(page.getByTestId("summary-services")).toContainText("8");
+ await expect(page.getByTestId("summary-reviews")).toContainText("4");
 }
 
 test.beforeAll(async()=>{await mkdir(evidenceDir,{recursive:true})});
