@@ -1,4 +1,5 @@
 import type { SiteLanguage } from "@/lib/i18n/locale";
+import { normalizeAcceptanceGuaranteeClaims } from "@/lib/i18n/acceptanceGuaranteeSafety.mjs";
 
 /**
  * Only explicit guarantees or unsupported partnership claims are rewritten.
@@ -113,6 +114,7 @@ export function sanitizeMarketingCopy(value: string, language: SiteLanguage) {
     .replaceAll("resmi ortaklık", "program yolu")
     .replaceAll("resmî ortak", "mevcut program")
     .replaceAll("resmi ortak", "mevcut program");
+  safeValue = normalizeAcceptanceGuaranteeClaims(safeValue, language);
   if (unsupportedClaimPatterns.some((pattern) => pattern.test(safeValue))) {
     return language === "ar" ? "معلومات موثقة مع دعم ومتابعة" : language === "tr" ? "Doğrulanmış bilgi, destek ve takip" : "Verified information with support and follow-up";
   }
