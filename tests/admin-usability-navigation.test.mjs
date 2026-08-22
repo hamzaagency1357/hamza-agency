@@ -129,3 +129,9 @@ test("owner dashboard keeps the approved operations-center hierarchy and guidanc
   assert.ok(source.includes("بحث في طلبات الانضمام"));
   assert.ok(source.includes('className="divide-y divide-white/[0.06] md:hidden"'));
 });
+
+test("public cookie consent never covers admin controls", async () => {
+  const source = await readFile(new URL("../components/CookieConsent.tsx", import.meta.url), "utf8");
+  assert.ok(source.includes('startsWith("/admin")'));
+  assert.ok(source.includes('if(isAdminPath||surface!=="banner")return null'));
+});
