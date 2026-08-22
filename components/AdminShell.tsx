@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import AdminQuickNav from "@/components/AdminQuickNav";
 
 const authPaths = new Set([
   "/admin/login",
@@ -17,7 +16,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#070009] text-white">
-      <AdminQuickNav />
       <div className="min-h-screen lg:pr-[276px]">{children}</div>
     </div>
   );
