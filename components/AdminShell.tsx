@@ -18,7 +18,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   return (
     <div dir="rtl" className="min-h-screen bg-[#070009] text-white">
       <AdminQuickNav />
-      <div className="min-h-screen lg:pr-[292px]">{children}</div>
+      <div className="min-h-screen lg:pr-[276px]">{children}</div>
     </div>
   );
 }
