@@ -118,7 +118,7 @@ test("mobile 390 final owner evidence",async({page})=>{
  await expect(contentToggle).toHaveAttribute("aria-expanded","false");
  await contentToggle.click();
  await expect(contentToggle).toHaveAttribute("aria-expanded","true");
- await expect(drawer.getByRole("link",{name:"البرامج"})).toBeVisible();
+ await expect(drawer.getByRole("link",{name:"البرامج",exact:true})).toBeVisible();
  await page.screenshot({path:`${evidenceDir}/07-mobile-390-drawer-content-expanded.png`});
 
  await closeDrawer(page);
