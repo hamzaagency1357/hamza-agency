@@ -218,14 +218,14 @@ export default function AdminQuickNav() {
 
   return (
     <>
-      <aside className="fixed inset-y-0 right-0 z-[70] hidden w-[292px] flex-col border-l border-purple-400/15 bg-[#09000f]/97 shadow-[-20px_0_70px_rgba(42,10,70,0.22)] backdrop-blur-xl md:flex" aria-label="التنقل الرئيسي للوحة التحكم">
+      <aside className="fixed inset-y-0 right-0 z-[70] hidden w-[292px] flex-col border-l border-purple-400/15 bg-[#09000f]/97 shadow-[-20px_0_70px_rgba(42,10,70,0.22)] backdrop-blur-xl lg:flex" aria-label="التنقل الرئيسي للوحة التحكم">
         {navContent}
       </aside>
 
       {isOpen && (
-        <div className="fixed inset-0 z-[90] md:hidden">
+        <div className="fixed inset-0 z-[90] lg:hidden">
           <button type="button" className="absolute inset-0 bg-black/70" aria-label="إغلاق قائمة لوحة التحكم" onClick={() => setIsOpen(false)} />
-          <aside className="absolute inset-y-3 right-3 flex w-[min(340px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-[1.75rem] border border-purple-400/25 bg-[#09000f] shadow-[0_0_70px_rgba(124,58,237,0.30)]" aria-label="قائمة لوحة التحكم على الجوال">
+          <aside id="admin-mobile-navigation" className="absolute inset-y-3 right-3 flex w-[min(340px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-[1.75rem] border border-purple-400/25 bg-[#09000f] shadow-[0_0_70px_rgba(124,58,237,0.30)]" aria-label="قائمة لوحة التحكم على الجوال">
             <div className="absolute left-3 top-3 z-10">
               <button type="button" onClick={() => setIsOpen(false)} aria-label="إغلاق قائمة لوحة التحكم" className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xl font-black text-white focus:outline-none focus:ring-2 focus:ring-purple-300">×</button>
             </div>
@@ -240,7 +240,7 @@ export default function AdminQuickNav() {
         aria-expanded={isOpen}
         aria-controls="admin-mobile-navigation"
         aria-label={isOpen ? "إغلاق قائمة لوحة التحكم" : "فتح قائمة لوحة التحكم"}
-        className="fixed bottom-4 left-4 z-[95] flex min-h-12 min-w-12 items-center justify-center rounded-full border border-purple-300/35 bg-purple-600 px-4 text-sm font-black text-white shadow-[0_0_35px_rgba(168,85,247,0.35)] transition hover:bg-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-300 md:hidden"
+        className="fixed bottom-4 left-4 z-[95] flex min-h-12 min-w-12 items-center justify-center rounded-full border border-purple-300/35 bg-purple-600 px-4 text-sm font-black text-white shadow-[0_0_35px_rgba(168,85,247,0.35)] transition hover:bg-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-300 lg:hidden"
       >
         {isOpen ? "إغلاق" : "القائمة"}
       </button>
