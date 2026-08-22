@@ -1,0 +1,75 @@
+name: PR119 Admin Visual Evidence
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr119-admin-visual-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  visual-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://visual-fixture.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: visual-evidence-public-anon-key
+      NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+      PR119_VISUAL_EVIDENCE: "1"
+      PR119_EVIDENCE_DIR: artifacts/admin-visual-evidence
+    steps:
+      - name: Checkout exact PR Head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build exact Head with isolated public fixture endpoint
+        run: npm run build
+
+      - name: Install locked Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start exact-Head local production build
+        run: |
+          npm run start > /tmp/pr119-visual-next.log 2>&1 &
+          echo $! > /tmp/pr119-visual-next.pid
+          for i in {1..40}; do
+            if curl -fsS http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/pr119-visual-next.log
+          exit 1
+
+      - name: Capture authenticated isolated Admin dashboard screenshots
+        env:
+          E2E_BASE_URL: http://127.0.0.1:3000
+        run: npx playwright test e2e/pr119-admin-visual-evidence.spec.mjs --config=playwright.config.mjs
+
+      - name: Reject browser/runtime errors
+        if: always()
+        run: |
+          if grep -E "Unhandled|Fatal|Hydration failed|permission denied|SUPABASE_SERVICE_ROLE" /tmp/pr119-visual-next.log; then
+            cat /tmp/pr119-visual-next.log
+            exit 1
+          fi
+
+      - name: Upload Admin visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr119-admin-visual-evidence-${{ github.event.pull_request.head.sha }}
+          path: artifacts/admin-visual-evidence
+          if-no-files-found: error
+          retention-days: 14
