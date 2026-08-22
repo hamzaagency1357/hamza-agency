@@ -9,6 +9,7 @@ async function login(page, account) {
   expect(response?.status()).toBe(200);
   expect(new URL(page.url()).pathname).toBe("/admin/login");
   await resolveNecessaryCookieConsent(page);
+  await expect(page.getByTestId("cookie-banner")).toHaveCount(0);
 
   const main = page.locator('main[dir="rtl"]');
   await expect(main).toHaveCount(1);

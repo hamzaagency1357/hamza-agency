@@ -28,6 +28,20 @@ export async function resolveNecessaryCookieConsent(
   { verifyPersistence = false } = {}
 ) {
   const banner = page.getByTestId("cookie-banner");
+  const isAdminPath = new URL(page.url()).pathname.startsWith("/admin");
+
+  if (isAdminPath) {
+    await expect(banner).toHaveCount(0);
+    await expectBodyScrollAvailable(page);
+
+    if (verifyPersistence) {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(banner).toHaveCount(0);
+      await expectBodyScrollAvailable(page);
+    }
+
+    return false;
+  }
 
   await waitForConsentHydration(page);
   const bannerWasVisible = await banner.isVisible().catch(() => false);
