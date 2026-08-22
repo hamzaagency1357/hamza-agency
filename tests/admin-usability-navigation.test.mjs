@@ -57,6 +57,10 @@ async function readNavigationSource() {
   return readFile(new URL("../components/AdminQuickNav.tsx", import.meta.url), "utf8");
 }
 
+async function readMobileNavigationSource() {
+  return readFile(new URL("../components/AdminMobileNavigation.tsx", import.meta.url), "utf8");
+}
+
 async function readDashboardSource() {
   return readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
 }
@@ -94,6 +98,56 @@ test("sensitive owner tools remain role-aware in navigation", async () => {
   }
 });
 
+test("mobile drawer preserves all 46 routes and role-aware items", async () => {
+  const source = await readMobileNavigationSource();
+  const adminHrefs = [...source.matchAll(/href:\s*"(\/admin(?:\/[^\"]*)?)"/g)].map((match) => match[1]);
+
+  assert.equal(adminHrefs.length, 46, "Mobile navigation must keep exactly the same 46 navigation entries");
+  assert.deepEqual(new Set(adminHrefs), new Set(expectedAdminLinks));
+
+  for (const href of [
+    "/admin/permissions",
+    "/admin/system-health",
+    "/admin/activity-logs",
+    "/admin/backups",
+    "/admin/trash",
+    "/admin/visual-experience",
+    "/admin/white-label",
+    "/admin/audit-mode",
+    "/admin/launch-checklist",
+  ]) {
+    const escaped = href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    assert.match(source, new RegExp(`href:\\s*"${escaped}"[^\\n]*superAdminOnly:\\s*true`));
+  }
+});
+
+test("mobile drawer groups are collapsible, accessible and active-group aware", async () => {
+  const source = await readMobileNavigationSource();
+
+  assert.ok(source.includes('"العمل اليومي": true'), "Daily-work group must be open by default");
+  assert.ok(source.includes("activeGroupTitle"), "Current-route group must be detected");
+  assert.ok(source.includes("setExpandedGroups"), "Group state must remain presentation-only");
+  assert.ok(source.includes("aria-expanded={expanded}"));
+  assert.ok(source.includes("aria-controls={panelId}"));
+  assert.ok(source.includes('role="region"'));
+  assert.ok(source.includes('aria-label="إغلاق قائمة لوحة التحكم"'));
+  assert.ok(source.includes('document.body.style.overflow = "hidden"'));
+});
+
+test("mobile menu uses in-flow bar and legacy floating trigger is suppressed", async () => {
+  const mobileSource = await readMobileNavigationSource();
+  const shellSource = await readFile(new URL("../components/AdminShell.tsx", import.meta.url), "utf8");
+  const cssSource = await readFile(new URL("../app/admin/admin-usability.css", import.meta.url), "utf8");
+
+  assert.ok(mobileSource.includes('data-testid="admin-mobile-bar"'));
+  assert.ok(mobileSource.includes('data-testid="admin-mobile-menu-trigger"'));
+  assert.ok(!mobileSource.includes("fixed bottom-"));
+  assert.ok(shellSource.includes("<AdminMobileNavigation />"));
+  assert.ok(shellSource.includes("data-admin-workspace"));
+  assert.ok(cssSource.includes('button[aria-controls="admin-mobile-navigation"]'));
+  assert.ok(cssSource.includes("display: none !important"));
+});
+
 test("owner dashboard keeps the approved operations-center hierarchy and guidance", async () => {
   const source = await readDashboardSource();
 
@@ -120,7 +174,7 @@ test("owner dashboard keeps the approved operations-center hierarchy and guidanc
     "المحتوى",
     "مهام تحتاج انتباهك",
   ]) {
-    assert.ok(source.includes(`title=\"${card}\"`), card);
+    assert.ok(source.includes(`title="${card}"`), card);
   }
 
   assert.ok(source.includes('getCount("blog_posts")') || source.includes('"blog_posts"'));
@@ -128,6 +182,16 @@ test("owner dashboard keeps the approved operations-center hierarchy and guidanc
   assert.ok(source.includes('href="/admin/contact"'));
   assert.ok(source.includes("بحث في طلبات الانضمام"));
   assert.ok(source.includes('className="divide-y divide-white/[0.06] md:hidden"'));
+});
+
+test("mobile summary density stays responsive without changing dashboard data", async () => {
+  const cssSource = await readFile(new URL("../app/admin/admin-usability.css", import.meta.url), "utf8");
+
+  assert.ok(cssSource.includes('@media (min-width: 375px) and (max-width: 639px)'));
+  assert.ok(cssSource.includes("grid-template-columns: repeat(2, minmax(0, 1fr))"));
+  assert.ok(cssSource.includes("@media (max-width: 374px)"));
+  assert.ok(cssSource.includes("grid-template-columns: minmax(0, 1fr)"));
+  assert.ok(cssSource.includes('[data-testid="admin-summary-cards"]'));
 });
 
 test("public cookie consent never covers admin controls", async () => {

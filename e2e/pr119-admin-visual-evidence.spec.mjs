@@ -6,6 +6,7 @@ test.skip(process.env.PR119_VISUAL_EVIDENCE !== "1", "PR119 visual evidence runs
 const evidenceDir=process.env.PR119_EVIDENCE_DIR||"artifacts/admin-visual-evidence";
 const supabaseHost="https://visual-fixture.supabase.co";
 const authStorageKey="sb-visual-fixture-auth-token";
+const mobileGroupNames=["العمل اليومي","المحتوى","الإدارة","الإعدادات","متقدم"];
 
 const applications=[
  {id:1,full_name:"ليان محمد",country:"سوريا",whatsapp:"+90 555 100 1001",platform:"TikTok",previous_experience:"خبرة في البث المباشر",notes:null,status:"new",internal_notes:null,created_at:"2026-08-22T07:24:00.000Z"},
@@ -38,6 +39,22 @@ async function installVisualFixture(page){
  });
 }
 
+async function expectNoHorizontalOverflow(page){
+ const dimensions=await page.evaluate(()=>({viewport:window.innerWidth,scroll:document.documentElement.scrollWidth}));
+ expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.viewport+1);
+}
+
+async function expectMenuInFlow(page){
+ const trigger=page.getByTestId("admin-mobile-menu-trigger");
+ const workspace=page.locator("[data-admin-workspace]").first();
+ await expect(trigger).toBeVisible();
+ const triggerBox=await trigger.boundingBox();
+ const workspaceBox=await workspace.boundingBox();
+ expect(triggerBox).not.toBeNull();
+ expect(workspaceBox).not.toBeNull();
+ expect((triggerBox?.y??0)+(triggerBox?.height??0)).toBeLessThanOrEqual((workspaceBox?.y??0)+1);
+}
+
 async function openDashboard(page,width,height){
  await page.setViewportSize({width,height});
  await installVisualFixture(page);
@@ -51,33 +68,93 @@ async function openDashboard(page,width,height){
  await expect(page.getByTestId("summary-applications")).toContainText("12");
  await expect(page.getByTestId("summary-services")).toContainText("8");
  await expect(page.getByTestId("summary-reviews")).toContainText("4");
+ await expectNoHorizontalOverflow(page);
+ if(width<1024){
+  await expect(page.getByTestId("admin-mobile-bar")).toBeVisible();
+  await expectMenuInFlow(page);
+ }
+}
+
+async function openDrawer(page){
+ const trigger=page.getByTestId("admin-mobile-menu-trigger");
+ await expect(trigger).toBeVisible();
+ await trigger.click();
+ const drawer=page.getByTestId("admin-mobile-drawer");
+ await expect(drawer).toBeVisible();
+ await expect(trigger).toHaveAttribute("aria-expanded","true");
+ await expect(page.getByTestId("admin-mobile-drawer-close")).toBeFocused();
+ return drawer;
+}
+
+async function closeDrawer(page){
+ await page.getByTestId("admin-mobile-drawer-close").click();
+ await expect(page.getByTestId("admin-mobile-drawer")).toHaveCount(0);
+ await expect(page.getByTestId("admin-mobile-menu-trigger")).toBeFocused();
 }
 
 test.beforeAll(async()=>{await mkdir(evidenceDir,{recursive:true})});
 
-test("desktop owner dashboard evidence",async({page})=>{
- await openDashboard(page,1920,1080);
- await page.screenshot({path:`${evidenceDir}/01-desktop-dashboard-full.png`,fullPage:true});
- await page.screenshot({path:`${evidenceDir}/02-desktop-sidebar-summary.png`});
- await page.getByTestId("admin-recent-applications").scrollIntoViewIfNeeded();
- await page.screenshot({path:`${evidenceDir}/03-desktop-recent-quick-guidance.png`});
-});
-
-test("mobile 390 owner dashboard evidence",async({page})=>{
+test("mobile 390 final owner evidence",async({page})=>{
  await openDashboard(page,390,844);
- await page.screenshot({path:`${evidenceDir}/04-mobile-390-top.png`});
- await page.getByTestId("admin-summary-cards").screenshot({path:`${evidenceDir}/05-mobile-390-summary-cards.png`});
- await page.getByTestId("admin-recent-applications").scrollIntoViewIfNeeded();
- await page.screenshot({path:`${evidenceDir}/06-mobile-390-recent-quick.png`});
- await page.getByRole("button",{name:"فتح قائمة لوحة التحكم"}).click();
- await expect(page.getByLabel("قائمة لوحة التحكم على الجوال")).toBeVisible();
- await page.screenshot({path:`${evidenceDir}/07-mobile-390-navigation-open.png`});
+ await page.screenshot({path:`${evidenceDir}/01-mobile-390-dashboard-top.png`});
+ await page.getByTestId("admin-summary-cards").screenshot({path:`${evidenceDir}/02-mobile-390-summary-cards.png`});
+ await page.getByTestId("admin-recent-applications").screenshot({path:`${evidenceDir}/03-mobile-390-latest-requests.png`});
+ await page.getByTestId("admin-quick-actions").screenshot({path:`${evidenceDir}/04-mobile-390-quick-actions.png`});
+
+ await page.evaluate(()=>window.scrollTo(0,0));
+ await expect(page.getByTestId("admin-mobile-drawer")).toHaveCount(0);
+ await page.screenshot({path:`${evidenceDir}/05-mobile-390-drawer-closed.png`});
+
+ const drawer=await openDrawer(page);
+ const dailyToggle=drawer.getByRole("button",{name:"العمل اليومي"});
+ await expect(dailyToggle).toHaveAttribute("aria-expanded","true");
+ await expect(drawer.getByRole("link",{name:"الرئيسية"})).toHaveAttribute("aria-current","page");
+ await expect(drawer.locator('a[href^="/admin"]')).toHaveCount(46);
+ await page.screenshot({path:`${evidenceDir}/06-mobile-390-drawer-work-daily.png`});
+
+ await dailyToggle.click();
+ await expect(dailyToggle).toHaveAttribute("aria-expanded","false");
+ const contentToggle=drawer.getByRole("button",{name:"المحتوى"});
+ await expect(contentToggle).toHaveAttribute("aria-expanded","false");
+ await contentToggle.click();
+ await expect(contentToggle).toHaveAttribute("aria-expanded","true");
+ await expect(drawer.getByRole("link",{name:"البرامج"})).toBeVisible();
+ await page.screenshot({path:`${evidenceDir}/07-mobile-390-drawer-content-expanded.png`});
+
+ await closeDrawer(page);
+ await page.getByTestId("admin-mobile-menu-trigger").click();
+ await expect(page.getByTestId("admin-mobile-drawer")).toBeVisible();
 });
 
-test("mobile 320 owner dashboard evidence",async({page})=>{
+test("mobile 320 final owner evidence",async({page})=>{
  await openDashboard(page,320,720);
- await page.screenshot({path:`${evidenceDir}/08-mobile-320-dashboard.png`});
- await page.getByRole("button",{name:"فتح قائمة لوحة التحكم"}).click();
- await expect(page.getByLabel("قائمة لوحة التحكم على الجوال")).toBeVisible();
- await page.screenshot({path:`${evidenceDir}/09-mobile-320-navigation-open.png`});
+ await page.screenshot({path:`${evidenceDir}/08-mobile-320-dashboard-top.png`});
+ await page.getByTestId("admin-summary-cards").screenshot({path:`${evidenceDir}/09-mobile-320-summary-cards.png`});
+ const drawer=await openDrawer(page);
+ await expect(drawer.getByRole("button",{name:"العمل اليومي"})).toHaveAttribute("aria-expanded","true");
+ await page.screenshot({path:`${evidenceDir}/10-mobile-320-drawer-open.png`});
+ await expectNoHorizontalOverflow(page);
+});
+
+test("mobile 360 drawer interaction regression",async({page})=>{
+ await openDashboard(page,360,800);
+ const drawer=await openDrawer(page);
+ for(const groupName of mobileGroupNames.slice(1)){
+  const toggle=drawer.getByRole("button",{name:groupName});
+  await expect(toggle).toHaveAttribute("aria-expanded","false");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded","true");
+ }
+ await expect(drawer.locator('a[href^="/admin"]')).toHaveCount(46);
+ await drawer.getByRole("link",{name:"فحص الجاهزية"}).scrollIntoViewIfNeeded();
+ await expect(drawer.getByRole("link",{name:"فحص الجاهزية"})).toBeVisible();
+ await expectNoHorizontalOverflow(page);
+ await closeDrawer(page);
+});
+
+test("desktop 1366 regression evidence",async({page})=>{
+ await openDashboard(page,1366,768);
+ await expect(page.getByTestId("admin-mobile-navigation-shell")).toBeHidden();
+ await expect(page.getByLabel("التنقل الرئيسي للوحة التحكم")).toBeVisible();
+ await page.screenshot({path:`${evidenceDir}/11-desktop-1366-regression.png`,fullPage:false});
 });
