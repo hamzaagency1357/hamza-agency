@@ -57,6 +57,10 @@ async function readNavigationSource() {
   return readFile(new URL("../components/AdminQuickNav.tsx", import.meta.url), "utf8");
 }
 
+async function readDashboardSource() {
+  return readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
+}
+
 test("admin navigation preserves every existing capability route", async () => {
   const source = await readNavigationSource();
   const adminHrefs = [...source.matchAll(/href:\s*"(\/admin(?:\/[^\"]*)?)"/g)].map((match) => match[1]);
@@ -88,4 +92,40 @@ test("sensitive owner tools remain role-aware in navigation", async () => {
     const escaped = href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     assert.match(source, new RegExp(`href:\\s*"${escaped}"[^\\n]*superAdminOnly:\\s*true`));
   }
+});
+
+test("owner dashboard keeps the approved operations-center hierarchy and guidance", async () => {
+  const source = await readDashboardSource();
+
+  for (const token of [
+    'data-testid="admin-summary-cards"',
+    'data-testid="admin-recent-applications"',
+    'data-testid="admin-quick-actions"',
+    'data-testid="admin-guidance"',
+    "مرحبًا، لوحة تحكم",
+    "واجهة منظمة لمساعدتك على إدارة أعمالك اليومية بكفاءة وسهولة.",
+    "أحدث طلبات الانضمام",
+    "إجراءات سريعة",
+    "مسار العمل اليومي",
+    "ما الذي تريدين إنجازه اليوم؟",
+  ]) {
+    assert.ok(source.includes(token), token);
+  }
+
+  for (const card of [
+    "طلبات الانضمام",
+    "طلبات الخدمات",
+    "التقييمات",
+    "البرامج",
+    "المحتوى",
+    "مهام تحتاج انتباهك",
+  ]) {
+    assert.ok(source.includes(`title=\"${card}\"`), card);
+  }
+
+  assert.ok(source.includes('getCount("blog_posts")') || source.includes('"blog_posts"'));
+  assert.ok(source.includes('href="/admin/notifications"'));
+  assert.ok(source.includes('href="/admin/contact"'));
+  assert.ok(source.includes("بحث في طلبات الانضمام"));
+  assert.ok(source.includes('className="divide-y divide-white/[0.06] md:hidden"'));
 });
