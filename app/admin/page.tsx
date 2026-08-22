@@ -1,6 +1,5 @@
 "use client";
 
-
 import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -10,332 +9,103 @@ import { supabase } from "@/lib/supabase";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
 import { logAdminActivity } from "@/lib/adminActivityLogger";
 
-type Application = {
-  id: number;
-  full_name: string;
-  country: string;
-  whatsapp: string;
-  platform: string;
-  previous_experience: string | null;
-  notes: string | null;
-  status: string;
-  internal_notes: string | null;
-  created_at: string;
-};
+type Application={id:number;full_name:string;country:string;whatsapp:string;platform:string;previous_experience:string|null;notes:string|null;status:string;internal_notes:string|null;created_at:string};
+type DashboardCounts={applications:number;serviceRequests:number;programs:number;pages:number;sections:number;media:number;announcements:number;settings:number;notifications:number;jobs:number;reviews:number;successStories:number;partners:number;gallery:number;blogPosts:number};
+type Tone="purple"|"gold"|"green"|"blue"|"cyan"|"pink"|"amber"|"red"|"slate";
+type DashboardIconName="applications"|"services"|"reviews"|"programs"|"content"|"attention"|"requests"|"search"|"mail"|"bell"|"pages";
+type DashboardQuickAction={label:string;href:string;icon:DashboardIconName;primary?:boolean};
 
-type DashboardCounts = {
-  applications: number;
-  serviceRequests: number;
-  programs: number;
-  pages: number;
-  sections: number;
-  media: number;
-  announcements: number;
-  settings: number;
-  notifications: number;
-  jobs: number;
-  reviews: number;
-  successStories: number;
-  partners: number;
-  gallery: number;
-};
-
-type Tone = "purple" | "gold" | "green" | "blue" | "cyan" | "pink" | "amber" | "red" | "slate";
-
-type AdminLink = {
-  title: string;
-  description: string;
-  href: string;
-  tone: Tone;
-  badge?: string;
-};
-
-const statusLabel: Record<string, string> = {
-  new: "جديد",
-  under_review: "قيد المراجعة",
-  contacted: "تم التواصل",
-  accepted: "مقبول",
-  rejected: "مرفوض",
-  archived: "مؤرشف",
-};
-
-const statusTone: Record<string, Tone> = {
-  new: "blue",
-  under_review: "amber",
-  contacted: "cyan",
-  accepted: "green",
-  rejected: "red",
-  archived: "slate",
-};
-
-const quickActions: AdminLink[] = [
-  {
-    title: "مراجعة الطلبات",
-    description: "الانتقال مباشرة إلى طلبات الانضمام الجديدة والمتابعة اليومية.",
-    href: "#applications",
-    tone: "blue",
-    badge: "يومي",
-  },
-  {
-    title: "طلبات الخدمات",
-    description: "متابعة طلبات الشحن والسحب والخدمات الرقمية وتحديث حالتها.",
-    href: "/admin/service-requests",
-    tone: "green",
-    badge: "تشغيلي",
-  },
-  {
-    title: "إدارة البرامج",
-    description: "إضافة وتعديل وإظهار البرامج المتاحة للانضمام.",
-    href: "/admin/programs",
-    tone: "purple",
-    badge: "مهم",
-  },
-  {
-    title: "إدارة الصفحات",
-    description: "إدارة الصفحات الأساسية، إعدادات ظهورها في محركات البحث، وحالة نشرها.",
-    href: "/admin/pages",
-    tone: "cyan",
-  },
-  {
-    title: "إدارة الأقسام",
-    description: "تنظيم أقسام الصفحات وترتيبها وإظهارها أو إخفاؤها.",
-    href: "/admin/sections",
-    tone: "gold",
-  },
-  {
-    title: "إعدادات الموقع",
-    description: "الهوية، واتساب، الفوتر، الإحصائيات، والصيانة.",
-    href: "/admin/settings",
-    tone: "green",
-  },
+const statusLabel:Record<string,string>={new:"جديد",under_review:"قيد المراجعة",contacted:"تم التواصل",accepted:"مقبول",rejected:"مرفوض",archived:"مؤرشف"};
+const statusTone:Record<string,Tone>={new:"purple",under_review:"gold",contacted:"cyan",accepted:"green",rejected:"red",archived:"slate"};
+const dashboardQuickActions:DashboardQuickAction[]=[
+ {label:"عرض الطلبات",href:"/admin/requests",icon:"requests",primary:true},
+ {label:"إدارة البرامج",href:"/admin/programs",icon:"programs"},
+ {label:"مراجعة التقييمات",href:"/admin/reviews",icon:"reviews"},
+ {label:"إدارة المحتوى",href:"/admin/pages",icon:"content"},
 ];
+const emptyCounts:DashboardCounts={applications:0,serviceRequests:0,programs:0,pages:0,sections:0,media:0,announcements:0,settings:0,notifications:0,jobs:0,reviews:0,successStories:0,partners:0,gallery:0,blogPosts:0};
 
-const contentLinks: AdminLink[] = [
-  {
-    title: "الصفحات",
-    description: "إدارة صفحات الموقع ومحتواها الأساسي.",
-    href: "/admin/pages",
-    tone: "cyan",
-  },
-  {
-    title: "الأقسام",
-    description: "إدارة أقسام الصفحات وترتيب المحتوى الظاهر للزوار.",
-    href: "/admin/sections",
-    tone: "gold",
-  },
-  {
-    title: "المدونة",
-    description: "إدارة المقالات والمسودات والنشر من مكان واحد.",
-    href: "/admin/blog",
-    tone: "purple",
-  },
-  {
-    title: "الوسائط",
-    description: "تنظيم الصور والخلفيات والملفات المرئية.",
-    href: "/admin/media",
-    tone: "pink",
-  },
-  {
-    title: "الإعلانات",
-    description: "إدارة الشريط الإعلاني والتنبيهات العامة.",
-    href: "/admin/announcements",
-    tone: "amber",
-  },
-  {
-    title: "الإعدادات",
-    description: "هوية الموقع، معلومات التواصل، وإعدادات الظهور في محركات البحث.",
-    href: "/admin/settings",
-    tone: "green",
-  },
-];
+function getApplicationSnapshot(app:Application){return{id:app.id,full_name:app.full_name,country:app.country,whatsapp:app.whatsapp,platform:app.platform,previous_experience:app.previous_experience,notes:app.notes,status:app.status,internal_notes:app.internal_notes,created_at:app.created_at}}
+async function getCount(table:string){if(!supabase)return 0;const{count,error}=await supabase.from(table).select("*",{count:"exact",head:true});return error||count===null?0:count}
 
-const operationsLinks: AdminLink[] = [
-  { title: "الوظائف", description: "إدارة الفرص وطلبات التقديم.", href: "/admin/jobs", tone: "blue" },
-  { title: "التقييمات", description: "إدارة آراء العملاء وصناع المحتوى.", href: "/admin/reviews", tone: "gold" },
-  { title: "قصص النجاح", description: "إدارة قصص النجاح المنشورة.", href: "/admin/success-stories", tone: "purple" },
-  { title: "الشركاء", description: "إدارة شركاء وبرامج الوكالة.", href: "/admin/partners", tone: "green" },
-  { title: "المعرض", description: "إدارة عناصر المعرض المرئي.", href: "/admin/gallery", tone: "pink" },
-  { title: "التنبيهات", description: "متابعة التنبيهات والإشعارات الإدارية.", href: "/admin/notifications", tone: "cyan" },
-  { title: "التحليلات", description: "مراجعة مؤشرات الأداء والبيانات العامة للوكالة.", href: "/admin/analytics", tone: "amber" },
-  { title: "سجل النشاطات", description: "مراجعة العمليات الإدارية والتغييرات المهمة.", href: "/admin/activity-logs", tone: "slate" },
-  { title: "سلة المحذوفات", description: "عرض العناصر المحذوفة ومتابعة سلة المحذوفات.", href: "/admin/trash", tone: "red" },
-  { title: "النسخ الاحتياطي", description: "عرض سجلات النسخ الاحتياطي ومتابعة حالة النسخ.", href: "/admin/backups", tone: "green" },
-  { title: "الصلاحيات", description: "إدارة صلاحيات المدراء حسب الأقسام.", href: "/admin/permissions", tone: "purple" },
-];
+export default function AdminPage(){
+ const router=useRouter();
+ const[isCheckingAuth,setIsCheckingAuth]=useState(true);const[isAuthorized,setIsAuthorized]=useState(false);const[adminEmail,setAdminEmail]=useState("");const[adminRoleLabel,setAdminRoleLabel]=useState("الإدارة");
+ const[applications,setApplications]=useState<Application[]>([]);const[selectedApplication,setSelectedApplication]=useState<Application|null>(null);const[internalNotes,setInternalNotes]=useState("");const[search,setSearch]=useState("");const[message,setMessage]=useState("");const[error,setError]=useState("");const[isLoadingDashboard,setIsLoadingDashboard]=useState(true);const[counts,setCounts]=useState<DashboardCounts>(emptyCounts);
 
-const workflowGuides: AdminLink[] = [
-  { title: "الطلبات أولًا", description: "ابدأ بمراجعة الطلبات الجديدة والتواصل مع المتقدمين بسرعة.", href: "/admin/requests", tone: "blue" },
-  { title: "المحتوى والتنسيق", description: "راجع الصفحات والأقسام والبرامج قبل نشر أي تحديث جديد.", href: "/admin/pages", tone: "purple" },
-  { title: "الترجمة قبل النشر", description: "تأكد من اكتمال العربية والإنجليزية والتركية في كل قسم.", href: "/admin/translations", tone: "green" },
-  { title: "الإعدادات العامة", description: "حافظ على هوية الموقع والتواصل والإعدادات التشغيلية جاهزة.", href: "/admin/settings", tone: "cyan" },
-];
+ useEffect(()=>{void(async()=>{const access=await requireAdminModuleAccess("dashboard");if(!access.isAuthorized||!access.profile){router.replace("/admin/login");return}setAdminEmail(access.profile.email||access.user?.email||"");setAdminRoleLabel(access.profile.role==="super_admin"?"المسؤول الأعلى":"مدير النظام");setIsAuthorized(true);setIsCheckingAuth(false)})()},[router]);
 
-function getApplicationSnapshot(app: Application) {
-  return {
-    id: app.id,
-    full_name: app.full_name,
-    country: app.country,
-    whatsapp: app.whatsapp,
-    platform: app.platform,
-    previous_experience: app.previous_experience,
-    notes: app.notes,
-    status: app.status,
-    internal_notes: app.internal_notes,
-    created_at: app.created_at,
-  };
+ const loadDashboard=useCallback(async()=>{setIsLoadingDashboard(true);setError("");if(!supabase){setError("تعذر الاتصال بخدمة البيانات حاليًا.");setIsLoadingDashboard(false);return}try{const{data,error:applicationsError}=await supabase.from("agency_applications").select("id, full_name, country, whatsapp, platform, previous_experience, notes, status, internal_notes, created_at").order("created_at",{ascending:false});if(applicationsError)setError("لا يمكن قراءة طلبات الانضمام حاليًا.");else setApplications((data||[])as Application[]);
+ const values=await Promise.all(["agency_applications","service_requests","programs","pages","sections","media","announcements","settings","notifications","jobs","reviews","success_stories","partners","gallery_items","blog_posts"].map(getCount));
+ setCounts({applications:values[0],serviceRequests:values[1],programs:values[2],pages:values[3],sections:values[4],media:values[5],announcements:values[6],settings:values[7],notifications:values[8],jobs:values[9],reviews:values[10],successStories:values[11],partners:values[12],gallery:values[13],blogPosts:values[14]})}finally{setIsLoadingDashboard(false)}},[]);
+ useEffect(()=>{if(isAuthorized)void loadDashboard()},[isAuthorized,loadDashboard]);
+
+ const filteredApplications=useMemo(()=>{const query=search.trim().toLowerCase();const rows=query?applications.filter(app=>`${app.full_name} ${app.country} ${app.whatsapp} ${app.platform}`.toLowerCase().includes(query)):applications;return rows.slice(0,query?12:5)},[applications,search]);
+ const newCount=applications.filter(app=>app.status==="new").length;const underReviewCount=applications.filter(app=>app.status==="under_review").length;const attentionCount=newCount+underReviewCount+counts.notifications;const contentCount=counts.pages+counts.blogPosts;
+
+ async function updateStatus(id:number,status:string){if(!supabase)return;setMessage("");setError("");const currentApplication=applications.find(app=>app.id===id)||(selectedApplication?.id===id?selectedApplication:null);const{error:updateError}=await adminBoundaryMutation("pr116_page_entity_agency_applications_update",{values:{status},filters:[{op:"eq",field:"id",value:id}],select:undefined,returnMode:"many",options:undefined});if(updateError){setError("فشل تحديث حالة الطلب.");return}await logAdminActivity({action:"update_application_status_from_dashboard",module:"agency_applications",adminEmail,recordId:id,details:`تغيير حالة طلب الانضمام من لوحة الإدارة الرئيسية إلى ${statusLabel[status]||status}`,oldData:currentApplication?getApplicationSnapshot(currentApplication):{id},newData:currentApplication?{...getApplicationSnapshot(currentApplication),status}:{id,status}});setApplications(current=>current.map(app=>app.id===id?{...app,status}:app));setSelectedApplication(current=>current&&current.id===id?{...current,status}:current);setMessage("تم تحديث حالة الطلب بنجاح.")}
+ async function saveInternalNotes(){if(!supabase||!selectedApplication)return;setMessage("");setError("");const oldApplication=selectedApplication;const{error:updateError}=await adminBoundaryMutation("pr116_page_entity_agency_applications_update",{values:{internal_notes:internalNotes},filters:[{op:"eq",field:"id",value:selectedApplication.id}],select:undefined,returnMode:"many",options:undefined});if(updateError){setError("فشل حفظ الملاحظات الداخلية.");return}await logAdminActivity({action:"update_application_internal_notes_from_dashboard",module:"agency_applications",adminEmail,recordId:selectedApplication.id,details:"تحديث الملاحظات الداخلية لطلب الانضمام من لوحة الإدارة الرئيسية",oldData:getApplicationSnapshot(oldApplication),newData:{...getApplicationSnapshot(oldApplication),internal_notes:internalNotes}});setApplications(current=>current.map(app=>app.id===selectedApplication.id?{...app,internal_notes:internalNotes}:app));setSelectedApplication({...selectedApplication,internal_notes:internalNotes});setMessage("تم حفظ الملاحظات الداخلية بنجاح.")}
+ function openDetails(app:Application){setInternalNotes(app.internal_notes||"");setSelectedApplication(app)}
+ async function copyWhatsAppNumber(number:string){try{await navigator.clipboard.writeText(number);setMessage("تم نسخ رقم واتساب.")}catch{setMessage("تعذر نسخ رقم واتساب.")}}
+ async function copyApplicationInfo(app:Application){const info=`الاسم الكامل: ${app.full_name}\nالدولة: ${app.country}\nرقم واتساب: ${app.whatsapp}\nالبرنامج: ${app.platform}\nالحالة: ${statusLabel[app.status]||app.status}\nتاريخ الطلب: ${new Date(app.created_at).toLocaleDateString("ar")}\nالخبرات السابقة: ${app.previous_experience||"لا يوجد"}\nالملاحظات الإضافية: ${app.notes||"لا يوجد"}\nالملاحظات الداخلية: ${app.internal_notes||"لا يوجد"}`;try{await navigator.clipboard.writeText(info);setMessage("تم نسخ معلومات الطلب كاملة.")}catch{setMessage("تعذر نسخ معلومات الطلب.")}}
+ async function logout(){if(!supabase)return;await supabase.auth.signOut();router.replace("/admin/login")}
+
+ if(isCheckingAuth)return <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white"><div className="rounded-3xl border border-purple-500/25 bg-black/45 p-8 text-center shadow-[0_0_80px_rgba(124,58,237,0.24)]"><div className="mb-3 text-sm font-black tracking-[0.25em] text-yellow-200">HAMZA AGENCY</div><div className="text-2xl font-black">جاري التحقق من صلاحية الدخول...</div></div></main>;
+
+ return <main dir="rtl" className="min-h-screen overflow-x-hidden bg-[#070009] text-[#f7f3f8]">
+  <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_55%_-10%,rgba(91,33,182,0.16),transparent_38%),linear-gradient(180deg,#08080c_0%,#050507_100%)]"/>
+  <section className="mx-auto max-w-[1460px] px-3 py-3 sm:px-4 md:px-6 lg:px-7 lg:py-4">
+   <header className="mb-5 rounded-2xl border border-white/[0.08] bg-[#09090d]/95 px-3 py-3 shadow-[0_18px_60px_rgba(0,0,0,0.24)] backdrop-blur-xl sm:px-4">
+    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+     <div className="flex min-w-0 items-center justify-between gap-2 sm:justify-start">
+      <details className="group relative min-w-0"><summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 py-2 transition hover:border-purple-400/25 hover:bg-purple-500/[0.06] focus:outline-none focus:ring-2 focus:ring-purple-300"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-yellow-300/25 bg-gradient-to-br from-purple-600/60 to-black text-sm font-black text-yellow-100">H</span><span className="min-w-0 text-right"><span className="block truncate text-sm font-black text-white">مرحبًا، {adminRoleLabel}</span><span className="block max-w-44 truncate text-[11px] text-white/42 sm:max-w-56">{adminEmail}</span></span><span aria-hidden="true" className="text-xs text-white/35 transition group-open:rotate-180">⌄</span></summary><div className="absolute right-0 top-[calc(100%+8px)] z-50 w-52 overflow-hidden rounded-xl border border-white/10 bg-[#0c0b10] p-1.5 shadow-2xl"><Link href="/admin/settings" className="block rounded-lg px-3 py-2.5 text-sm font-bold text-white/75 hover:bg-purple-500/10 hover:text-white">إعدادات الموقع</Link><Link href="/" target="_blank" className="block rounded-lg px-3 py-2.5 text-sm font-bold text-white/75 hover:bg-purple-500/10 hover:text-white">عرض الموقع</Link><button type="button" onClick={logout} className="block w-full rounded-lg px-3 py-2.5 text-right text-sm font-bold text-red-200 hover:bg-red-500/10">تسجيل الخروج</button></div></details>
+      <div className="flex items-center gap-1.5"><Link href="/admin/notifications" aria-label="الإشعارات" className="relative grid h-10 w-10 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.025] text-white/65 transition hover:border-purple-400/30 hover:text-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-300"><DashboardIcon name="bell"/>{counts.notifications>0&&<span className="absolute -left-1 -top-1 grid min-h-5 min-w-5 place-items-center rounded-full bg-purple-600 px-1 text-[10px] font-black text-white">{counts.notifications>99?"99+":counts.notifications}</span>}</Link><Link href="/admin/contact" aria-label="رسائل التواصل" className="grid h-10 w-10 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.025] text-white/65 transition hover:border-purple-400/30 hover:text-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-300"><DashboardIcon name="mail"/></Link></div>
+     </div>
+     <label className="relative block w-full xl:max-w-[320px]"><span className="sr-only">بحث في طلبات الانضمام</span><input value={search} onChange={event=>setSearch(event.target.value)} placeholder="ابحث في طلبات الانضمام..." className="h-11 w-full rounded-xl border border-white/[0.08] bg-white/[0.035] pe-11 ps-4 text-sm text-white outline-none placeholder:text-white/30 focus:border-purple-400/45 focus:ring-2 focus:ring-purple-500/15"/><span className="pointer-events-none absolute inset-y-0 right-3 grid place-items-center text-white/35" aria-hidden="true"><DashboardIcon name="search"/></span></label>
+    </div>
+   </header>
+
+   <section className="mb-4 px-1 sm:mb-5" aria-labelledby="admin-dashboard-title"><h1 id="admin-dashboard-title" className="text-2xl font-black leading-tight text-white sm:text-3xl lg:text-[2rem]"><span aria-hidden="true" className="ml-2">👋</span>مرحبًا، لوحة تحكم <span className="text-yellow-200">HAMZA AGENCY</span></h1><p className="mt-2 text-sm leading-7 text-white/48 sm:text-[15px]">واجهة منظمة لمساعدتك على إدارة أعمالك اليومية بكفاءة وسهولة.</p></section>
+   {message&&<div role="status" aria-live="polite" className="mb-4 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-100">{message}</div>}{error&&<div role="alert" className="mb-4 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100">{error}</div>}
+
+   <section aria-label="ملخص العمل اليومي" data-testid="admin-summary-cards" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    {isLoadingDashboard?Array.from({length:6}).map((_,index)=><div key={index} className="h-[146px] animate-pulse rounded-2xl border border-white/[0.08] bg-white/[0.025]"/>):<>
+     <SummaryCard title="طلبات الانضمام" value={counts.applications} subtitle={`${newCount} جديد`} href="/admin/applications" actionLabel="عرض جميع الطلبات" icon="applications"/>
+     <SummaryCard title="طلبات الخدمات" value={counts.serviceRequests} subtitle="إجمالي الطلبات" href="/admin/service-requests" actionLabel="عرض طلبات الخدمات" icon="services"/>
+     <SummaryCard title="التقييمات" value={counts.reviews} subtitle="إجمالي التقييمات" href="/admin/reviews" actionLabel="عرض جميع التقييمات" icon="reviews"/>
+     <SummaryCard title="البرامج" value={counts.programs} subtitle="برنامج متاح للإدارة" href="/admin/programs" actionLabel="إدارة البرامج" icon="programs"/>
+     <SummaryCard title="المحتوى" value={contentCount} subtitle={`${counts.pages} صفحة / ${counts.blogPosts} تدوينة`} href="/admin/pages" actionLabel="عرض المحتوى" icon="content"/>
+     <SummaryCard title="مهام تحتاج انتباهك" value={attentionCount} subtitle="عناصر" href="#recent-applications" actionLabel="عرض المهام" icon="attention"/>
+    </>}
+   </section>
+
+   <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_286px]" style={{direction:"ltr"}}>
+    <section id="recent-applications" dir="rtl" data-testid="admin-recent-applications" className="overflow-hidden rounded-2xl border border-white/[0.09] bg-[#09090d]/88 shadow-[0_16px_50px_rgba(0,0,0,0.22)]">
+     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-3.5 sm:px-5"><div className="flex min-w-0 items-center gap-2.5"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-purple-500/10 text-purple-200"><DashboardIcon name="applications"/></span><div><h2 className="text-base font-black text-white sm:text-lg">أحدث طلبات الانضمام</h2><div className="mt-1 flex flex-wrap gap-1.5 text-[10px] font-bold"><span className="rounded-full bg-purple-500/15 px-2 py-0.5 text-purple-100">{newCount} جديد</span><span className="rounded-full bg-yellow-500/10 px-2 py-0.5 text-yellow-100">{underReviewCount} قيد المراجعة</span></div></div></div><Link href="/admin/applications" className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-purple-400/20 px-3 text-xs font-black text-purple-200 transition hover:bg-purple-500/10 focus:outline-none focus:ring-2 focus:ring-purple-300">عرض الكل <span aria-hidden="true">‹</span></Link></div>
+     {isLoadingDashboard?<div className="p-8 text-center text-sm text-white/45">جاري تحميل الطلبات والملخصات...</div>:filteredApplications.length===0?<div className="p-8 text-center text-sm text-white/45">لا توجد طلبات مطابقة حاليًا.</div>:<>
+      <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[760px] text-[12px] lg:text-[13px]"><thead className="bg-white/[0.025] text-white/42"><tr><th className="w-10 px-3 py-3 text-right font-bold">#</th><th className="px-3 py-3 text-right font-bold">الاسم</th><th className="px-3 py-3 text-right font-bold">رقم واتساب</th><th className="px-3 py-3 text-right font-bold">البرنامج</th><th className="px-3 py-3 text-right font-bold">تاريخ الطلب</th><th className="px-3 py-3 text-right font-bold">الحالة</th><th className="w-16 px-3 py-3 text-center font-bold">الإجراء</th></tr></thead><tbody>{filteredApplications.map((app,index)=><tr key={app.id} className="border-t border-white/[0.055] bg-black/10 transition hover:bg-white/[0.018]"><td className="px-3 py-3 text-white/34">{index+1}</td><td className="px-3 py-3 font-black text-white/88">{app.full_name}</td><td className="px-3 py-3 text-white/52"><span dir="ltr" className="inline-block">{app.whatsapp}</span></td><td className="px-3 py-3 text-white/68">{app.platform}</td><td className="px-3 py-3 text-white/45">{formatApplicationDate(app.created_at)}</td><td className="px-3 py-3"><Badge tone={statusTone[app.status]||"slate"}>{statusLabel[app.status]||app.status}</Badge></td><td className="px-3 py-3 text-center"><button type="button" data-testid={`application-details-${app.id}`} onClick={()=>openDetails(app)} aria-label={`عرض تفاصيل طلب ${app.full_name}`} className="inline-grid h-8 w-9 place-items-center rounded-lg border border-white/[0.08] bg-white/[0.035] text-base font-black text-white/62 transition hover:border-purple-400/30 hover:text-purple-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300">•••</button></td></tr>)}</tbody></table></div>
+      <div className="divide-y divide-white/[0.06] md:hidden">{filteredApplications.map(app=><article key={app.id} className="p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="truncate text-sm font-black text-white">{app.full_name}</h3><p className="mt-1 text-xs text-white/45">{app.platform} · {formatApplicationDate(app.created_at)}</p></div><Badge tone={statusTone[app.status]||"slate"}>{statusLabel[app.status]||app.status}</Badge></div><div className="mt-3 flex items-center justify-between gap-3"><span dir="ltr" className="truncate text-xs text-white/45">{app.whatsapp}</span><button type="button" data-testid={`application-details-mobile-${app.id}`} onClick={()=>openDetails(app)} className="min-h-9 shrink-0 rounded-lg border border-purple-400/20 bg-purple-500/10 px-3 text-xs font-black text-purple-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300">عرض التفاصيل</button></div></article>)}</div>
+     </>}
+     <div className="border-t border-white/[0.07] px-4 py-3 sm:px-5"><Link href="/admin/applications" className="inline-flex items-center gap-1 text-xs font-black text-white/58 transition hover:text-purple-200">عرض جميع الطلبات <span aria-hidden="true">‹</span></Link></div>
+    </section>
+
+    <aside dir="rtl" className="grid content-start gap-3" aria-label="الإجراءات السريعة والإرشادات">
+     <section data-testid="admin-quick-actions" className="rounded-2xl border border-white/[0.09] bg-[#09090d]/88 p-3.5 shadow-[0_16px_50px_rgba(0,0,0,0.22)] sm:p-4"><div className="mb-3 flex items-center gap-2"><span aria-hidden="true" className="text-lg">⚡</span><h2 className="text-base font-black text-white">إجراءات سريعة</h2></div><div className="grid gap-2">{dashboardQuickActions.map(action=><QuickAction key={action.href} action={action}/>)}</div></section>
+     <section data-testid="admin-guidance" className="rounded-2xl border border-yellow-300/15 bg-[linear-gradient(145deg,rgba(25,18,8,0.72),rgba(10,9,13,0.94))] p-4 shadow-[0_16px_50px_rgba(0,0,0,0.22)]"><p className="text-[10px] font-black tracking-[0.14em] text-yellow-200/70">مسار العمل اليومي</p><h2 className="mt-2 text-lg font-black leading-7 text-yellow-100">ما الذي تريدين إنجازه اليوم؟</h2><p className="mt-2 text-xs leading-6 text-white/48">ابدئي بما يحتاج انتباهك الآن، ثم انتقلي للمحتوى والإعدادات عند الحاجة.</p><ol className="mt-3 space-y-2 text-xs text-white/68"><li className="flex gap-2"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-purple-500/15 font-black text-purple-100">1</span><span>راجعي الطلبات الجديدة وقيد المراجعة.</span></li><li className="flex gap-2"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-purple-500/15 font-black text-purple-100">2</span><span>تابعي البرامج والمحتوى الذي يحتاج تحديثًا.</span></li><li className="flex gap-2"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-purple-500/15 font-black text-purple-100">3</span><span>استخدمي الإعدادات والمتقدم فقط عند الحاجة.</span></li></ol><Link href="/admin/applications" className="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-purple-600 px-4 text-xs font-black text-white shadow-[0_0_26px_rgba(124,58,237,0.20)] transition hover:bg-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-300">ابدئي من طلبات الانضمام</Link></section>
+    </aside>
+   </div>
+  </section>
+  {selectedApplication&&<ApplicationDetailsModal key={selectedApplication.id} application={selectedApplication} internalNotes={internalNotes} setInternalNotes={setInternalNotes} onClose={()=>setSelectedApplication(null)} onUpdateStatus={updateStatus} onSaveNotes={saveInternalNotes} onCopyWhatsApp={copyWhatsAppNumber} onCopyInfo={copyApplicationInfo}/>} 
+ </main>
 }
 
-async function getCount(table: string) {
-  if (!supabase) return 0;
-  const { count, error } = await supabase.from(table).select("*", { count: "exact", head: true });
-  if (error || count === null) return 0;
-  return count;
-}
+function SummaryCard({title,value,subtitle,href,actionLabel,icon}:{title:string;value:number;subtitle:string;href:string;actionLabel:string;icon:DashboardIconName}){return <article className="group overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0a0a0e]/92 shadow-[0_14px_44px_rgba(0,0,0,0.20)] transition hover:border-purple-400/25 hover:bg-[#0c0b11]" data-testid={`summary-${icon}`}><div className="flex min-h-[108px] items-center gap-4 px-4 py-3.5 sm:px-5"><span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl border border-purple-400/25 bg-[linear-gradient(145deg,rgba(126,34,206,0.28),rgba(45,15,68,0.72))] text-purple-200 shadow-[inset_0_0_20px_rgba(168,85,247,0.10),0_0_24px_rgba(124,58,237,0.08)]"><DashboardIcon name={icon} size={30}/></span><div className="min-w-0 flex-1 text-center"><h2 className="truncate text-sm font-black text-white sm:text-base">{title}</h2><div className="mt-1 text-2xl font-black text-yellow-200" dir="ltr">{value}</div><span className="mt-1 inline-flex max-w-full rounded-full bg-purple-600/55 px-2.5 py-0.5 text-[10px] font-black text-white/90">{subtitle}</span></div></div><Link href={href} className="flex min-h-9 items-center justify-center gap-1 border-t border-white/[0.07] px-4 text-xs font-bold text-white/48 transition group-hover:text-purple-200 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-purple-300">{actionLabel} <span aria-hidden="true">‹</span></Link></article>}
+function QuickAction({action}:{action:DashboardQuickAction}){return <Link href={action.href} className={`flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-black transition focus:outline-none focus:ring-2 focus:ring-purple-300 ${action.primary?"border-purple-400/35 bg-purple-600 text-white shadow-[0_0_26px_rgba(124,58,237,0.18)] hover:bg-purple-500":"border-white/[0.08] bg-white/[0.028] text-white/72 hover:border-purple-400/25 hover:bg-purple-500/[0.07] hover:text-white"}`}><span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${action.primary?"bg-white/10 text-white":"bg-purple-500/10 text-purple-200"}`}><DashboardIcon name={action.icon}/></span><span className="flex-1">{action.label}</span><span aria-hidden="true" className="text-white/35">‹</span></Link>}
+function formatApplicationDate(value:string){const date=new Date(value);return Number.isNaN(date.getTime())?"—":date.toLocaleDateString("ar",{day:"2-digit",month:"short",year:"numeric"})}
+function DashboardIcon({name,size=20}:{name:DashboardIconName;size?:number}){const props={width:size,height:size,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:1.8,strokeLinecap:"round" as const,strokeLinejoin:"round" as const,"aria-hidden":true};switch(name){case"applications":return <svg {...props}><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3.5h6V6H9zM8 10h8M8 14h5"/><circle cx="16.5" cy="16.5" r="2.5"/><path d="m15.5 16.5 1 1 1.5-2"/></svg>;case"services":return <svg {...props}><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h5M10 12h5M10 16h5"/></svg>;case"reviews":return <svg {...props}><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z"/></svg>;case"programs":return <svg {...props}><circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4V8Z"/></svg>;case"content":case"pages":return <svg {...props}><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>;case"attention":case"bell":return <svg {...props}><path d="M6 9a6 6 0 0 1 12 0c0 6 2 6 2 7H4c0-1 2-1 2-7"/><path d="M9.5 19a3 3 0 0 0 5 0"/></svg>;case"requests":return <svg {...props}><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>;case"search":return <svg {...props}><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>;case"mail":return <svg {...props}><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg>;default:return <svg {...props}><circle cx="12" cy="12" r="8"/></svg>}}
 
-export default function AdminPage() {
-  const router = useRouter();
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [adminEmail, setAdminEmail] = useState("");
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
-  const [internalNotes, setInternalNotes] = useState("");
-  const [search, setSearch] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
-  const [counts, setCounts] = useState<DashboardCounts>({ applications:0,serviceRequests:0,programs:0,pages:0,sections:0,media:0,announcements:0,settings:0,notifications:0,jobs:0,reviews:0,successStories:0,partners:0,gallery:0 });
-
-  useEffect(() => {
-    async function checkAdminAccess() {
-      const access = await requireAdminModuleAccess("dashboard");
-      if (!access.isAuthorized || !access.profile) { router.replace("/admin/login"); return; }
-      setAdminEmail(access.profile.email || access.user?.email || "");
-      setIsAuthorized(true);
-      setIsCheckingAuth(false);
-    }
-    void checkAdminAccess();
-  }, [router]);
-
-  const loadDashboard = useCallback(async () => {
-    setIsLoadingDashboard(true);
-    setError("");
-    if (!supabase) {
-      setError("تعذر الاتصال بخدمة البيانات حاليًا.");
-      setIsLoadingDashboard(false);
-      return;
-    }
-    try {
-      const { data, error: applicationsError } = await supabase.from("agency_applications").select("id, full_name, country, whatsapp, platform, previous_experience, notes, status, internal_notes, created_at").order("created_at", { ascending: false });
-      if (applicationsError) setError("لا يمكن قراءة طلبات الانضمام حاليًا.");
-      else setApplications((data || []) as Application[]);
-      const [applicationsCount,serviceRequestsCount,programsCount,pagesCount,sectionsCount,mediaCount,announcementsCount,settingsCount,notificationsCount,jobsCount,reviewsCount,successStoriesCount,partnersCount,galleryCount] = await Promise.all([
-        getCount("agency_applications"),getCount("service_requests"),getCount("programs"),getCount("pages"),getCount("sections"),getCount("media"),getCount("announcements"),getCount("settings"),getCount("notifications"),getCount("jobs"),getCount("reviews"),getCount("success_stories"),getCount("partners"),getCount("gallery_items"),
-      ]);
-      setCounts({applications:applicationsCount,serviceRequests:serviceRequestsCount,programs:programsCount,pages:pagesCount,sections:sectionsCount,media:mediaCount,announcements:announcementsCount,settings:settingsCount,notifications:notificationsCount,jobs:jobsCount,reviews:reviewsCount,successStories:successStoriesCount,partners:partnersCount,gallery:galleryCount});
-    } finally { setIsLoadingDashboard(false); }
-  }, []);
-
-  useEffect(() => { if (isAuthorized) void loadDashboard(); }, [isAuthorized, loadDashboard]);
-
-  const filteredApplications = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return applications.slice(0, 12);
-    return applications.filter((app) => `${app.full_name} ${app.country} ${app.whatsapp} ${app.platform}`.toLowerCase().includes(query));
-  }, [applications, search]);
-
-  const newCount = applications.filter((app) => app.status === "new").length;
-  const underReviewCount = applications.filter((app) => app.status === "under_review").length;
-  const acceptedCount = applications.filter((app) => app.status === "accepted").length;
-  const rejectedCount = applications.filter((app) => app.status === "rejected").length;
-
-  async function updateStatus(id: number, status: string) {
-    if (!supabase) return;
-    setMessage(""); setError("");
-    const currentApplication = applications.find((app) => app.id === id) || (selectedApplication?.id === id ? selectedApplication : null);
-    const { error: updateError } = await adminBoundaryMutation("pr116_page_entity_agency_applications_update", { values: { status }, filters: [{ op: "eq", field: "id", value: id }], select: undefined, returnMode: "many", options: undefined });
-    if (updateError) { setError("فشل تحديث حالة الطلب."); return; }
-    await logAdminActivity({ action:"update_application_status_from_dashboard",module:"agency_applications",adminEmail,recordId:id,details:`تغيير حالة طلب الانضمام من لوحة الإدارة الرئيسية إلى ${statusLabel[status] || status}`,oldData:currentApplication?getApplicationSnapshot(currentApplication):{id},newData:currentApplication?{...getApplicationSnapshot(currentApplication),status}:{id,status} });
-    setApplications((current) => current.map((app) => app.id === id ? { ...app, status } : app));
-    setSelectedApplication((current) => current && current.id === id ? { ...current, status } : current);
-    setMessage("تم تحديث حالة الطلب بنجاح.");
-  }
-
-  async function saveInternalNotes() {
-    if (!supabase || !selectedApplication) return;
-    setMessage(""); setError("");
-    const oldApplication = selectedApplication;
-    const { error: updateError } = await adminBoundaryMutation("pr116_page_entity_agency_applications_update", { values: { internal_notes: internalNotes }, filters: [{ op: "eq", field: "id", value: selectedApplication.id }], select: undefined, returnMode: "many", options: undefined });
-    if (updateError) { setError("فشل حفظ الملاحظات الداخلية."); return; }
-    await logAdminActivity({ action:"update_application_internal_notes_from_dashboard",module:"agency_applications",adminEmail,recordId:selectedApplication.id,details:"تحديث الملاحظات الداخلية لطلب الانضمام من لوحة الإدارة الرئيسية",oldData:getApplicationSnapshot(oldApplication),newData:{...getApplicationSnapshot(oldApplication),internal_notes:internalNotes} });
-    setApplications((current) => current.map((app) => app.id === selectedApplication.id ? { ...app, internal_notes: internalNotes } : app));
-    setSelectedApplication({ ...selectedApplication, internal_notes: internalNotes });
-    setMessage("تم حفظ الملاحظات الداخلية بنجاح.");
-  }
-
-  function openDetails(app: Application) {
-    setInternalNotes(app.internal_notes || "");
-    setSelectedApplication(app);
-  }
-
-  async function copyWhatsAppNumber(number: string) {
-    try { await navigator.clipboard.writeText(number); setMessage("تم نسخ رقم واتساب."); }
-    catch { setMessage("تعذر نسخ رقم واتساب."); }
-  }
-
-  async function copyApplicationInfo(app: Application) {
-    const info = `الاسم الكامل: ${app.full_name}\nالدولة: ${app.country}\nرقم واتساب: ${app.whatsapp}\nالبرنامج: ${app.platform}\nالحالة: ${statusLabel[app.status] || app.status}\nتاريخ الطلب: ${new Date(app.created_at).toLocaleDateString("ar")}\nالخبرات السابقة: ${app.previous_experience || "لا يوجد"}\nالملاحظات الإضافية: ${app.notes || "لا يوجد"}\nالملاحظات الداخلية: ${app.internal_notes || "لا يوجد"}`;
-    try { await navigator.clipboard.writeText(info); setMessage("تم نسخ معلومات الطلب كاملة."); }
-    catch { setMessage("تعذر نسخ معلومات الطلب."); }
-  }
-
-  async function logout() { if (!supabase) return; await supabase.auth.signOut(); router.replace("/admin/login"); }
-
-  if (isCheckingAuth) return <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#070009] px-5 text-white"><div className="rounded-3xl border border-purple-500/25 bg-black/45 p-8 text-center shadow-[0_0_80px_rgba(124,58,237,0.24)]"><div className="mb-3 text-sm font-black tracking-[0.25em] text-yellow-200">HAMZA AGENCY</div><div className="text-2xl font-black">جاري التحقق من صلاحية الدخول...</div></div></main>;
-
-  return (
-    <main dir="rtl" className="min-h-screen overflow-x-hidden bg-[#070009] text-[#f6f1f8]">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#2c0b49_0%,#070009_44%,#000_100%)]" />
-      <section className="mx-auto max-w-[1380px] px-5 py-6 lg:px-8">
-        <header className="sticky top-0 z-30 mb-6 rounded-[1.75rem] border border-white/10 bg-[#08000d]/90 p-4 shadow-[0_0_70px_rgba(124,58,237,0.14)] backdrop-blur-xl">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-xs font-black tracking-[0.3em] text-yellow-200">HAMZA AGENCY</p><h1 className="mt-2 text-3xl font-black lg:text-4xl">لوحة الإدارة</h1><p className="mt-1 break-all text-xs text-white/45">{adminEmail}</p></div><div className="flex flex-wrap gap-3"><Link href="/admin/settings" className="rounded-2xl border border-green-300/25 bg-green-500/10 px-4 py-3 text-sm font-black text-green-100 transition hover:bg-green-500/15">الإعدادات</Link><Link href="/" target="_blank" className="rounded-2xl border border-purple-300/25 bg-purple-500/10 px-4 py-3 text-sm font-black text-purple-100 transition hover:bg-purple-500/15">عرض الموقع</Link><button type="button" onClick={logout} className="rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm font-black text-red-100 transition hover:bg-red-500/20">خروج</button></div></div>
-        </header>
-
-        {message && <div className="mb-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-100">{message}</div>}
-        {error && <div className="mb-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-100">{error}</div>}
-
-        <div className="mb-6 grid gap-4 lg:grid-cols-4">{isLoadingDashboard?Array.from({length:4}).map((_,index)=><div key={index} className="h-24 animate-pulse rounded-3xl border border-white/10 bg-white/[0.03]"/>):<><FocusStat label="طلبات جديدة" value={newCount} tone="blue"/><FocusStat label="قيد المراجعة" value={underReviewCount} tone="amber"/><FocusStat label="طلبات خدمات" value={counts.serviceRequests} tone="green"/><FocusStat label="تنبيهات" value={counts.notifications} tone="purple"/></>}</div>
-
-        <DashboardPanel eyebrow="مسار العمل اليومي" title="كيف تسير الإدارة بشكل منظم؟" description="ابدأ بالطلبات ثم تابع المحتوى والترجمة والإعدادات عبر مسارات واضحة ومخصصة لكل مهمة." tone="blue"><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{workflowGuides.map((link)=><AdminActionCard key={link.href} item={link}/>)}</div></DashboardPanel>
-        <DashboardPanel eyebrow="إجراءات سريعة" title="اختصارات الإدارة اليومية" description="روابط مباشرة لأهم أعمال الوكالة حتى لا تحتاج للتنقل الطويل داخل لوحة التحكم." tone="gold"><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{quickActions.map((link)=><AdminActionCard key={link.href} item={link}/>)}</div></DashboardPanel>
-
-        <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]"><div className="grid gap-6"><DashboardPanel eyebrow="المحتوى والإعدادات" title="إدارة الموقع" description="روابط المحتوى، الأقسام، الوسائط، الإعلانات، والإعدادات في مكان واحد." tone="purple"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{contentLinks.map((link)=><CompactLinkCard key={link.href} item={link}/>)}</div></DashboardPanel><DashboardPanel eyebrow="التشغيل والنمو" title="أنظمة الوكالة" description="إدارة الأقسام التي تدعم التشغيل، الثقة، والمتابعة الإدارية." tone="green"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{operationsLinks.map((link)=><CompactLinkCard key={link.href} item={link}/>)}</div></DashboardPanel></div><aside className="grid gap-6"><DashboardPanel eyebrow="نظرة سريعة" title="أرقام النظام" description="ملخص بسيط يساعدك على فهم حالة لوحة التحكم." tone="cyan"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1"><MiniCount label="طلبات الانضمام" value={counts.applications} tone="blue"/><MiniCount label="طلبات الخدمات" value={counts.serviceRequests} tone="green"/><MiniCount label="البرامج" value={counts.programs} tone="purple"/><MiniCount label="الصفحات" value={counts.pages} tone="cyan"/><MiniCount label="الأقسام" value={counts.sections} tone="gold"/><MiniCount label="الإعدادات" value={counts.settings} tone="green"/><MiniCount label="الإعلانات" value={counts.announcements} tone="amber"/><MiniCount label="الوظائف" value={counts.jobs} tone="blue"/><MiniCount label="التقييمات" value={counts.reviews} tone="gold"/><MiniCount label="قصص النجاح" value={counts.successStories} tone="purple"/><MiniCount label="الشركاء" value={counts.partners} tone="green"/><MiniCount label="المعرض" value={counts.gallery} tone="pink"/></div></DashboardPanel></aside></div>
-
-        <section id="applications" className="mt-6 rounded-[2rem] border border-blue-400/20 bg-black/45 p-5 shadow-[0_0_70px_rgba(59,130,246,0.08)] backdrop-blur">
-          <div className="mb-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end"><div><p className="text-xs font-black tracking-[0.25em] text-blue-200">المتقدمون</p><h2 className="mt-2 text-3xl font-black">طلبات الانضمام</h2><p className="mt-2 text-sm leading-7 text-white/55">عرض مختصر للطلبات. اضغط «عرض التفاصيل» لفتح بيانات الطلب كاملة.</p></div><input value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="بحث بالاسم، الدولة، واتساب، البرنامج..." className="w-full rounded-2xl border border-blue-400/20 bg-blue-500/10 px-5 py-4 text-white outline-none placeholder:text-white/35 focus:border-blue-300/60"/></div>
-          <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><MiniCount label="جديد" value={newCount} tone="blue"/><MiniCount label="قيد المراجعة" value={underReviewCount} tone="amber"/><MiniCount label="مقبول" value={acceptedCount} tone="green"/><MiniCount label="مرفوض" value={rejectedCount} tone="red"/></div>
-          {isLoadingDashboard?<div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center text-white/55">جاري تحميل الطلبات والملخصات...</div>:filteredApplications.length===0?<div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center text-white/55">لا توجد طلبات مطابقة حاليًا.</div>:<div className="overflow-hidden rounded-3xl border border-white/10"><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead className="bg-white/[0.06] text-white/70"><tr><th className="px-4 py-4 text-right">الاسم</th><th className="px-4 py-4 text-right">الدولة</th><th className="px-4 py-4 text-right">البرنامج</th><th className="px-4 py-4 text-right">الحالة</th><th className="px-4 py-4 text-right">التاريخ</th><th className="px-4 py-4 text-right">إجراء</th></tr></thead><tbody>{filteredApplications.map((app)=><tr key={app.id} className="border-t border-white/10 bg-black/20"><td className="px-4 py-4 font-bold">{app.full_name}</td><td className="px-4 py-4 text-white/65">{app.country}</td><td className="px-4 py-4 text-white/65">{app.platform}</td><td className="px-4 py-4"><Badge tone={statusTone[app.status]||"slate"}>{statusLabel[app.status]||app.status}</Badge></td><td className="px-4 py-4 text-white/50">{new Date(app.created_at).toLocaleDateString("ar")}</td><td className="px-4 py-4"><button type="button" data-testid={`application-details-${app.id}`} onClick={()=>openDetails(app)} className="rounded-xl border border-purple-400/25 bg-purple-500/10 px-4 py-2 font-bold text-purple-100 hover:bg-purple-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300">عرض التفاصيل</button></td></tr>)}</tbody></table></div></div>}
-        </section>
-      </section>
-
-      {selectedApplication && <ApplicationDetailsModal key={selectedApplication.id} application={selectedApplication} internalNotes={internalNotes} setInternalNotes={setInternalNotes} onClose={()=>setSelectedApplication(null)} onUpdateStatus={updateStatus} onSaveNotes={saveInternalNotes} onCopyWhatsApp={copyWhatsAppNumber} onCopyInfo={copyApplicationInfo}/>} 
-    </main>
-  );
-}
-
-function DashboardPanel({eyebrow,title,description,tone,children}:{eyebrow:string;title:string;description:string;tone:Tone;children:ReactNode}){return <section className={`rounded-[2rem] border bg-black/45 p-5 backdrop-blur ${toneBorderClasses(tone)}`}><div className="mb-5"><p className={`text-xs font-black tracking-[0.25em] ${toneTextClasses(tone)}`}>{eyebrow}</p><h2 className="mt-2 text-3xl font-black text-[#faf6fc]">{title}</h2><p className="mt-2 text-sm leading-7 text-[#c6bacf]">{description}</p></div>{children}</section>}
-function AdminActionCard({item}:{item:AdminLink}){return <Link href={item.href} className={`group block rounded-3xl border p-5 transition hover:scale-[1.01] ${toneSoftClasses(item.tone)}`}><div className="flex items-start justify-between gap-3"><div>{item.badge&&<Badge tone={item.tone}>{item.badge}</Badge>}<h3 className="mt-3 text-2xl font-black">{item.title}</h3></div><span className={`rounded-2xl border px-3 py-2 text-lg ${toneIconClasses(item.tone)}`}>↗</span></div><p className="mt-3 leading-7 text-white/60">{item.description}</p></Link>}
-function CompactLinkCard({item}:{item:AdminLink}){return <Link href={item.href} className={`block rounded-2xl border p-4 transition hover:scale-[1.01] ${toneSoftClasses(item.tone)}`}><div className="font-black text-white">{item.title}</div><div className="mt-2 text-xs leading-6 text-white/52">{item.description}</div></Link>}
-function FocusStat({label,value,tone}:{label:string;value:number;tone:Tone}){return <div className={`rounded-3xl border p-5 ${toneSoftClasses(tone)}`}><div className="text-sm text-white/55">{label}</div><div className="mt-2 text-4xl font-black" dir="ltr">{value}</div></div>}
-function MiniCount({label,value,tone}:{label:string;value:number;tone:Tone}){return <div className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${toneSoftClasses(tone)}`}><span className="text-sm font-bold text-white/75">{label}</span><span className="text-xl font-black" dir="ltr">{value}</span></div>}
-
-function ApplicationDetailsModal({application,internalNotes,setInternalNotes,onClose,onUpdateStatus,onSaveNotes,onCopyWhatsApp,onCopyInfo}:{application:Application;internalNotes:string;setInternalNotes:(value:string)=>void;onClose:()=>void;onUpdateStatus:(id:number,status:string)=>void;onSaveNotes:()=>void;onCopyWhatsApp:(number:string)=>void;onCopyInfo:(application:Application)=>void}){
-  return <div className="fixed inset-0 z-[220] overflow-y-auto bg-black/80 p-4 backdrop-blur" role="dialog" aria-modal="true" aria-labelledby="application-details-title" data-testid="application-details-modal"><div className="mx-auto my-8 max-w-4xl rounded-[2rem] border border-purple-400/25 bg-[#0d0014] p-6 shadow-[0_0_90px_rgba(168,85,247,0.25)]"><div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div><Badge tone={statusTone[application.status]||"slate"}>{statusLabel[application.status]||application.status}</Badge><h2 id="application-details-title" className="mt-3 text-3xl font-black">{application.full_name}</h2><p className="mt-1 text-white/50">{application.platform}</p></div><button type="button" onClick={onClose} className="rounded-2xl border border-white/15 px-5 py-3 font-bold text-white/70 hover:bg-white/10">إغلاق</button></div><div className="grid gap-4 md:grid-cols-2"><DetailBox label="الدولة" value={application.country}/><DetailBox label="رقم واتساب" value={application.whatsapp}/><DetailBox label="تاريخ الطلب" value={new Date(application.created_at).toLocaleString("ar")}/><DetailBox label="البرنامج" value={application.platform}/></div><div className="mt-4 grid gap-4"><DetailBox label="الخبرات السابقة" value={application.previous_experience||"لا يوجد"}/><DetailBox label="ملاحظات إضافية" value={application.notes||"لا يوجد"}/></div><div className="mt-6 rounded-3xl border border-white/10 bg-black/25 p-5"><h3 className="text-xl font-black">تغيير الحالة</h3><div className="mt-4 flex flex-wrap gap-3">{Object.entries(statusLabel).map(([value,label])=><button type="button" key={value} onClick={()=>onUpdateStatus(application.id,value)} className={`rounded-full border px-5 py-3 font-bold ${application.status===value?toneSoftClasses(statusTone[value]||"slate"):"border-white/10 bg-white/[0.03] text-white/60 hover:bg-white/10"}`}>{label}</button>)}</div></div><div className="mt-6 rounded-3xl border border-white/10 bg-black/25 p-5"><h3 className="text-xl font-black">ملاحظات داخلية</h3><textarea value={internalNotes} onChange={(event)=>setInternalNotes(event.target.value)} className="mt-4 min-h-32 w-full resize-none rounded-2xl border border-white/10 bg-black/35 p-4 text-white outline-none focus:border-purple-400" placeholder="اكتب ملاحظات داخلية لفريق الإدارة"/><button type="button" onClick={onSaveNotes} className="mt-4 rounded-2xl bg-purple-600 px-5 py-3 font-black text-white hover:bg-purple-500">حفظ الملاحظات</button></div><div className="mt-6 flex flex-col gap-3 md:flex-row"><button type="button" onClick={()=>onCopyWhatsApp(application.whatsapp)} className="rounded-2xl border border-green-400/25 bg-green-500/10 px-5 py-3 font-black text-green-100 hover:bg-green-500/20">نسخ رقم واتساب</button><button type="button" onClick={()=>onCopyInfo(application)} className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 px-5 py-3 font-black text-yellow-100 hover:bg-yellow-500/20">نسخ معلومات الطلب كاملة</button></div></div></div>
-}
+function ApplicationDetailsModal({application,internalNotes,setInternalNotes,onClose,onUpdateStatus,onSaveNotes,onCopyWhatsApp,onCopyInfo}:{application:Application;internalNotes:string;setInternalNotes:(value:string)=>void;onClose:()=>void;onUpdateStatus:(id:number,status:string)=>void;onSaveNotes:()=>void;onCopyWhatsApp:(number:string)=>void;onCopyInfo:(application:Application)=>void}){return <div className="fixed inset-0 z-[220] overflow-y-auto bg-black/80 p-4 backdrop-blur" role="dialog" aria-modal="true" aria-labelledby="application-details-title" data-testid="application-details-modal"><div className="mx-auto my-8 max-w-4xl rounded-[2rem] border border-purple-400/25 bg-[#0d0014] p-6 shadow-[0_0_90px_rgba(168,85,247,0.25)]"><div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div><Badge tone={statusTone[application.status]||"slate"}>{statusLabel[application.status]||application.status}</Badge><h2 id="application-details-title" className="mt-3 text-3xl font-black">{application.full_name}</h2><p className="mt-1 text-white/50">{application.platform}</p></div><button type="button" onClick={onClose} className="rounded-2xl border border-white/15 px-5 py-3 font-bold text-white/70 hover:bg-white/10">إغلاق</button></div><div className="grid gap-4 md:grid-cols-2"><DetailBox label="الدولة" value={application.country}/><DetailBox label="رقم واتساب" value={application.whatsapp}/><DetailBox label="تاريخ الطلب" value={new Date(application.created_at).toLocaleString("ar")}/><DetailBox label="البرنامج" value={application.platform}/></div><div className="mt-4 grid gap-4"><DetailBox label="الخبرات السابقة" value={application.previous_experience||"لا يوجد"}/><DetailBox label="ملاحظات إضافية" value={application.notes||"لا يوجد"}/></div><div className="mt-6 rounded-3xl border border-white/10 bg-black/25 p-5"><h3 className="text-xl font-black">تغيير الحالة</h3><div className="mt-4 flex flex-wrap gap-3">{Object.entries(statusLabel).map(([value,label])=><button type="button" key={value} onClick={()=>onUpdateStatus(application.id,value)} className={`rounded-full border px-5 py-3 font-bold ${application.status===value?toneSoftClasses(statusTone[value]||"slate"):"border-white/10 bg-white/[0.03] text-white/60 hover:bg-white/10"}`}>{label}</button>)}</div></div><div className="mt-6 rounded-3xl border border-white/10 bg-black/25 p-5"><h3 className="text-xl font-black">ملاحظات داخلية</h3><textarea value={internalNotes} onChange={event=>setInternalNotes(event.target.value)} className="mt-4 min-h-32 w-full resize-none rounded-2xl border border-white/10 bg-black/35 p-4 text-white outline-none focus:border-purple-400" placeholder="اكتب ملاحظات داخلية لفريق الإدارة"/><button type="button" onClick={onSaveNotes} className="mt-4 rounded-2xl bg-purple-600 px-5 py-3 font-black text-white hover:bg-purple-500">حفظ الملاحظات</button></div><div className="mt-6 flex flex-col gap-3 md:flex-row"><button type="button" onClick={()=>onCopyWhatsApp(application.whatsapp)} className="rounded-2xl border border-green-400/25 bg-green-500/10 px-5 py-3 font-black text-green-100 hover:bg-green-500/20">نسخ رقم واتساب</button><button type="button" onClick={()=>onCopyInfo(application)} className="rounded-2xl border border-yellow-400/25 bg-yellow-500/10 px-5 py-3 font-black text-yellow-100 hover:bg-yellow-500/20">نسخ معلومات الطلب كاملة</button></div></div></div>}
 function DetailBox({label,value}:{label:string;value:string}){return <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><div className="text-xs font-bold text-white/40">{label}</div><div className="mt-2 break-words text-lg font-bold text-white/82">{value}</div></div>}
-function Badge({children,tone}:{children:ReactNode;tone:Tone}){return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${badgeClasses(tone)}`}>{children}</span>}
+function Badge({children,tone}:{children:ReactNode;tone:Tone}){return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black ${badgeClasses(tone)}`}>{children}</span>}
 function toneSoftClasses(tone:Tone){const classes:Record<Tone,string>={purple:"border-purple-400/20 bg-purple-500/10 text-purple-100",gold:"border-yellow-400/20 bg-yellow-500/10 text-yellow-100",green:"border-green-400/20 bg-green-500/10 text-green-100",blue:"border-blue-400/20 bg-blue-500/10 text-blue-100",cyan:"border-cyan-400/20 bg-cyan-500/10 text-cyan-100",pink:"border-pink-400/20 bg-pink-500/10 text-pink-100",amber:"border-amber-400/20 bg-amber-500/10 text-amber-100",red:"border-red-400/20 bg-red-500/10 text-red-100",slate:"border-slate-400/20 bg-slate-500/10 text-slate-100"};return classes[tone]}
-function toneBorderClasses(tone:Tone){const classes:Record<Tone,string>={purple:"border-purple-400/20 shadow-[0_0_70px_rgba(168,85,247,0.08)]",gold:"border-yellow-400/20 shadow-[0_0_70px_rgba(234,179,8,0.08)]",green:"border-green-400/20 shadow-[0_0_70px_rgba(34,197,94,0.08)]",blue:"border-blue-400/20 shadow-[0_0_70px_rgba(59,130,246,0.08)]",cyan:"border-cyan-400/20 shadow-[0_0_70px_rgba(34,211,238,0.08)]",pink:"border-pink-400/20 shadow-[0_0_70px_rgba(236,72,153,0.08)]",amber:"border-amber-400/20 shadow-[0_0_70px_rgba(245,158,11,0.08)]",red:"border-red-400/20 shadow-[0_0_70px_rgba(239,68,68,0.08)]",slate:"border-slate-400/20 shadow-[0_0_70px_rgba(148,163,184,0.08)]"};return classes[tone]}
-function toneTextClasses(tone:Tone){const classes:Record<Tone,string>={purple:"text-purple-200",gold:"text-yellow-200",green:"text-green-200",blue:"text-blue-200",cyan:"text-cyan-200",pink:"text-pink-200",amber:"text-amber-200",red:"text-red-200",slate:"text-slate-200"};return classes[tone]}
-function toneIconClasses(tone:Tone){const classes:Record<Tone,string>={purple:"border-purple-300/25 bg-purple-500/15 text-purple-100",gold:"border-yellow-300/25 bg-yellow-500/15 text-yellow-100",green:"border-green-300/25 bg-green-500/15 text-green-100",blue:"border-blue-300/25 bg-blue-500/15 text-blue-100",cyan:"border-cyan-300/25 bg-cyan-500/15 text-cyan-100",pink:"border-pink-300/25 bg-pink-500/15 text-pink-100",amber:"border-amber-300/25 bg-amber-500/15 text-amber-100",red:"border-red-300/25 bg-red-500/15 text-red-100",slate:"border-slate-300/25 bg-slate-500/15 text-slate-100"};return classes[tone]}
-function badgeClasses(tone:Tone){const classes:Record<Tone,string>={purple:"border-purple-300/30 bg-purple-500/15 text-purple-100",gold:"border-yellow-300/30 bg-yellow-500/15 text-yellow-100",green:"border-green-300/30 bg-green-500/15 text-green-100",blue:"border-blue-300/30 bg-blue-500/15 text-blue-100",cyan:"border-cyan-300/30 bg-cyan-500/15 text-cyan-100",pink:"border-pink-300/30 bg-pink-500/15 text-pink-100",amber:"border-amber-300/30 bg-amber-500/15 text-amber-100",red:"border-red-300/30 bg-red-500/15 text-red-100",slate:"border-slate-300/30 bg-slate-500/15 text-slate-100"};return classes[tone]}
+function badgeClasses(tone:Tone){const classes:Record<Tone,string>={purple:"border-purple-300/30 bg-purple-500/20 text-purple-100",gold:"border-yellow-300/30 bg-yellow-500/15 text-yellow-100",green:"border-green-300/30 bg-green-500/15 text-green-100",blue:"border-blue-300/30 bg-blue-500/15 text-blue-100",cyan:"border-cyan-300/30 bg-cyan-500/15 text-cyan-100",pink:"border-pink-300/30 bg-pink-500/15 text-pink-100",amber:"border-amber-300/30 bg-amber-500/15 text-amber-100",red:"border-red-300/30 bg-red-500/15 text-red-100",slate:"border-slate-300/30 bg-slate-500/15 text-slate-100"};return classes[tone]}
