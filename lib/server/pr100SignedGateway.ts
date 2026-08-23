@@ -18,6 +18,7 @@ const ALLOWED_ACTIONS = new Set([
   "contact_submit",
   "ai_support_submit",
   "review_submit",
+  "support_request_create",
 ]);
 const PRODUCTION_ONLY_ACTIONS = new Set([
   "application_submit",
@@ -26,6 +27,7 @@ const PRODUCTION_ONLY_ACTIONS = new Set([
   "contact_submit",
   "ai_support_submit",
   "review_submit",
+  "support_request_create",
 ]);
 
 function getRuntimeOidcToken(request: Request) {
