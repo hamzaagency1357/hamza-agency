@@ -39,6 +39,8 @@ type PermissionRow = {
   can_manage: boolean;
 };
 
+export type AdminMutationRoleRequirement = "super_admin" | null;
+
 const PROGRAM_ADMIN_MODULES = new Set<AdminModule>(["dashboard", "applications", "programs"]);
 
 function normalizeRole(value: string): AdminRole | null {
@@ -104,12 +106,16 @@ export async function authorizeAdminMutation(
   request: Request,
   module: AdminModule,
   action: AdminPermissionAction,
+  requiredRole: AdminMutationRoleRequirement = null,
 ): Promise<{ ok: true; actor: AuthorizedAdminMutation } | { ok: false; status: number; message: string }> {
   const user = await verifySupabaseBearer(request);
   if (!user) return { ok: false, status: 401, message: "انتهت جلسة الإدارة. سجل الدخول مجددًا." };
 
   const profile = await readProfile(user);
   if (!profile) return { ok: false, status: 403, message: "لا تملك صلاحية تنفيذ هذا الإجراء." };
+  if (requiredRole === "super_admin" && profile.role !== "super_admin") {
+    return { ok: false, status: 403, message: "لا تملك صلاحية تنفيذ هذا الإجراء." };
+  }
   const actor = { user, profile };
   if (!(await hasPermission(actor, module, action))) {
     return { ok: false, status: 403, message: "لا تملك صلاحية تنفيذ هذا الإجراء." };
