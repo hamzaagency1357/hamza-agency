@@ -154,9 +154,10 @@ test("Preparation SQL remains additive for direct Support ACL", async () => {
 test("Preparation migration SHA-256 is cryptographically locked", async () => {
   const sql = await readFile(PREPARATION.path, "utf8");
   const actual = sha256Text(sql);
-  assert.throws(() => validatePreparationHash(actual), /Preparation SHA-256 is not locked; actual=/);
-  // This test intentionally exposes only the non-secret migration digest until the reviewed lock is recorded.
-  assert.match(actual, /^[0-9a-f]{64}$/);
+  assert.equal(actual, "778ef1eef0cf61d3ab4092d711c005a8a6031b6002e491519878627498f40b95");
+  assert.equal(PREPARATION.sha256, actual);
+  assert.equal(validatePreparationHash(actual), true);
+  expectFailure(() => validatePreparationHash("0".repeat(64)), /SHA-256 mismatch/);
 });
 
 test("workflow is main-only for Production execution and has no generic target", async () => {
