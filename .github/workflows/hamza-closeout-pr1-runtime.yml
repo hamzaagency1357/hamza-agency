@@ -103,6 +103,7 @@ jobs:
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803007000_pr105_operational_depth_completion.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803008000_pr105_workflow_runtime_evidence_hardening.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260804090000_pr1_production_hardening_closeout.sql
+          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260823083000_pr100_final_security_boundaries.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -c "select pg_notify('pgrst','reload schema');"
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f tests/pr1-runtime-contract.sql
 
