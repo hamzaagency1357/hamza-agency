@@ -88,7 +88,7 @@ jobs:
             [ -n "$value" ] && echo "::add-mask::$value"
           done < "$PR1_ENV_FILE"
 
-      - name: Apply snapshot and ordered PR1 migration chain
+      - name: Apply snapshot and staged PR-A migration chain
         shell: bash
         run: |
           set -euo pipefail
@@ -107,7 +107,7 @@ jobs:
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260808211000_pr4_support_notification_integrations.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260808211500_pr4_permission_hardening.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260808212000_pr4_marketplace_notification_hardening.sql
-          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260823083000_pr100_final_security_boundaries.sql
+          bash scripts/closeout/pr-a-staged-runtime.sh "$DB_URL"
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -c "select pg_notify('pgrst','reload schema');"
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f tests/pr1-runtime-contract.sql
 

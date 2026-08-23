@@ -1,11 +1,9 @@
--- HAMZA AGENCY — Final Remediation PR-A security boundaries.
--- Additive/permission-hardening only. This migration is prepared in code and must not
--- be applied to Production without the Owner's separate Production migration approval.
+-- HAMZA AGENCY — PR-A stage 1: trusted support gateway preparation.
+-- This migration is intentionally backward-compatible. It prepares the trusted
+-- support path while preserving the legacy public support RPC ACL until stage 2.
 
 begin;
 
--- The support handoff is a write. It must enter through the Vercel OIDC gateway,
--- never through a browser Supabase client. Extend the replay-nonce action contract.
 alter table public.pr100_gateway_nonces
   drop constraint if exists pr100_gateway_nonces_action_check;
 alter table public.pr100_gateway_nonces
@@ -17,9 +15,6 @@ alter table public.pr100_gateway_nonces
   )) not valid;
 alter table public.pr100_gateway_nonces validate constraint pr100_gateway_nonces_action_check;
 
--- Mirror the currently deployed dispatcher and add one trusted support-create action.
--- The action performs the existing DB-backed abuse guard before creating a support row,
--- so bypassing the public Next route cannot bypass the guard.
 create or replace function public.pr100_oidc_gateway(
   p_action text,
   p_timestamp bigint,
@@ -181,65 +176,28 @@ $function$;
 alter function public.pr100_oidc_gateway(
   text,bigint,text,text,text,text,text,text,text,text,text,text,bigint,bigint
 ) owner to postgres;
-revoke all on function public.pr100_oidc_gateway(
-  text,bigint,text,text,text,text,text,text,text,text,text,text,bigint,bigint
-) from public, anon, authenticated;
-grant execute on function public.pr100_oidc_gateway(
-  text,bigint,text,text,text,text,text,text,text,text,text,text,bigint,bigint
-) to service_role;
 
--- Critical bypass fix: the browser roles must not execute the privileged support writer.
-revoke all on function public.pr4_create_support_request(text,text,text,text,text,boolean)
-  from public, anon, authenticated;
-grant execute on function public.pr4_create_support_request(text,text,text,text,text,boolean)
-  to service_role;
-
--- Targeted least-privilege cleanup for proven internal helpers. The externally used
--- backup/restore entrypoints retain their existing authorization; these helpers are
--- called from SECURITY DEFINER wrappers and have no direct application call site.
-revoke all on function public.pr99_build_backup_payload(text[]) from public, anon, authenticated;
-revoke all on function public.pr99_restore_entity_rows(text,jsonb) from public, anon, authenticated;
-
--- Trigger-only helpers have no legitimate RPC caller.
-revoke all on function public.pr4_audit_kb() from public, anon, authenticated;
-revoke all on function public.pr4_touch_kb() from public, anon, authenticated;
-
--- Fail closed if the intended ACLs are not exactly enforced.
-do $security_contract$
+do $preparation_contract$
 declare
   support_oid oid := to_regprocedure('public.pr4_create_support_request(text,text,text,text,text,boolean)');
   gateway_oid oid := to_regprocedure('public.pr100_oidc_gateway(text,bigint,text,text,text,text,text,text,text,text,text,text,bigint,bigint)');
-  backup_helper_oid oid := to_regprocedure('public.pr99_build_backup_payload(text[])');
-  restore_helper_oid oid := to_regprocedure('public.pr99_restore_entity_rows(text,jsonb)');
-  audit_trigger_oid oid := to_regprocedure('public.pr4_audit_kb()');
-  touch_trigger_oid oid := to_regprocedure('public.pr4_touch_kb()');
 begin
   if support_oid is null or gateway_oid is null then
-    raise exception 'pr_a_required_function_missing';
+    raise exception 'pr_a_preparation_required_function_missing';
   end if;
-  if has_function_privilege('anon', support_oid, 'EXECUTE')
-     or has_function_privilege('authenticated', support_oid, 'EXECUTE')
-     or not has_function_privilege('service_role', support_oid, 'EXECUTE') then
-    raise exception 'pr_a_support_create_execute_contract_invalid';
+  if position('support_request_create' in pg_get_functiondef(gateway_oid)) = 0 then
+    raise exception 'pr_a_preparation_gateway_action_missing';
+  end if;
+  if not has_function_privilege('anon', support_oid, 'EXECUTE')
+     or not has_function_privilege('authenticated', support_oid, 'EXECUTE') then
+    raise exception 'pr_a_preparation_old_support_acl_not_preserved';
   end if;
   if has_function_privilege('anon', gateway_oid, 'EXECUTE')
      or has_function_privilege('authenticated', gateway_oid, 'EXECUTE')
      or not has_function_privilege('service_role', gateway_oid, 'EXECUTE') then
-    raise exception 'pr_a_oidc_gateway_execute_contract_invalid';
-  end if;
-  if backup_helper_oid is null or has_function_privilege('authenticated', backup_helper_oid, 'EXECUTE') then
-    raise exception 'pr_a_backup_helper_execute_contract_invalid';
-  end if;
-  if restore_helper_oid is null or has_function_privilege('authenticated', restore_helper_oid, 'EXECUTE') then
-    raise exception 'pr_a_restore_helper_execute_contract_invalid';
-  end if;
-  if audit_trigger_oid is null or has_function_privilege('anon', audit_trigger_oid, 'EXECUTE') or has_function_privilege('authenticated', audit_trigger_oid, 'EXECUTE') then
-    raise exception 'pr_a_kb_audit_trigger_execute_contract_invalid';
-  end if;
-  if touch_trigger_oid is null or has_function_privilege('anon', touch_trigger_oid, 'EXECUTE') or has_function_privilege('authenticated', touch_trigger_oid, 'EXECUTE') then
-    raise exception 'pr_a_kb_touch_trigger_execute_contract_invalid';
+    raise exception 'pr_a_preparation_gateway_acl_invalid';
   end if;
 end
-$security_contract$;
+$preparation_contract$;
 
 commit;
