@@ -31,8 +31,8 @@ for(const operation of [
 }
 
 test("Admin entity API requires explicit super_admin for admin_permissions before OIDC dispatch",()=>{
-  assert.match(actionContracts,/pr116_permissions_page_entity_admin_permissions_upsert[\s\S]*?table:\s*"admin_permissions"[\s\S]*?method:\s*"upsert"/);
-  assert.match(actionContracts,/pr116_permissions_page_entity_admin_permissions_delete[\s\S]*?table:\s*"admin_permissions"[\s\S]*?method:\s*"delete"/);
+  assert.match(actionContracts,/pr116_permissions_page_entity_admin_permissions_upsert[\s\S]*?["']?table["']?\s*:\s*"admin_permissions"[\s\S]*?["']?method["']?\s*:\s*"upsert"/);
+  assert.match(actionContracts,/pr116_permissions_page_entity_admin_permissions_delete[\s\S]*?["']?table["']?\s*:\s*"admin_permissions"[\s\S]*?["']?method["']?\s*:\s*"delete"/);
   assert.match(apiRoute,/contract\.kind === "entity" && contract\.table === "admin_permissions" \? "super_admin" : null/);
   assert.match(apiRoute,/authorizeAdminMutation\([\s\S]*?requiredRole/);
   assert.match(serverBoundary,/requiredRole === "super_admin" && profile\.role !== "super_admin"/);
