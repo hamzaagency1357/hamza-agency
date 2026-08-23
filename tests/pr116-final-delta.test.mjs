@@ -40,7 +40,10 @@ test("admin-only controls and public support copy are route-gated away from admi
   const support=read("components/PublicSupportAvailability.tsx");
   assert.ok(blogLink.includes('pathname === "/admin/login"'));
   assert.equal(blogLink.includes('fixed bottom-24'),false);
-  assert.ok(quickNav.includes('pathname === "/admin/login"'));
+  assert.ok(quickNav.includes('"/admin/login"'));
+  assert.ok(quickNav.includes('"/admin/forgot-password"'));
+  assert.ok(quickNav.includes('"/admin/reset-password"'));
+  assert.ok(quickNav.includes('authPaths.has(pathname)'));
   assert.ok(support.includes('pathname.startsWith("/admin")'));
 });
 

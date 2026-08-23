@@ -1,0 +1,105 @@
+@media (max-width: 1023px) {
+  button[aria-controls="admin-mobile-navigation"] {
+    display: none !important;
+  }
+}
+
+@media (max-width: 639px) {
+  [data-admin-workspace] main > section > header:first-child {
+    margin-bottom: 1rem;
+    padding: 0.625rem;
+  }
+
+  [data-admin-workspace] main > section > header:first-child > div > div:first-child {
+    gap: 0.5rem;
+  }
+
+  [data-admin-workspace] main > section > header:first-child details {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  [data-admin-workspace] main > section > header:first-child details > summary {
+    width: 100%;
+    min-width: 0;
+    gap: 0.5rem;
+    padding: 0.5rem 0.625rem;
+  }
+
+  [data-admin-workspace] main > section > header:first-child details > summary > span:nth-child(2) {
+    min-width: 0;
+    max-width: calc(100vw - 190px);
+  }
+
+  [data-admin-workspace] main > section > header:first-child details > summary > span:nth-child(2) > span:last-child {
+    max-width: 100% !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  [data-testid="admin-summary-cards"] {
+    gap: 0.625rem;
+  }
+
+  [data-testid="admin-summary-cards"] > article[data-testid^="summary-"] > div:first-child {
+    min-height: 88px;
+    gap: 0.625rem;
+    padding: 0.625rem 0.75rem;
+  }
+
+  [data-testid="admin-summary-cards"] > article[data-testid^="summary-"] > div:first-child > span:first-child {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.75rem;
+  }
+
+  [data-testid="admin-summary-cards"] > article[data-testid^="summary-"] > div:first-child > span:first-child svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  [data-testid="admin-summary-cards"] > article[data-testid^="summary-"] > div:first-child > div > h2 {
+    min-height: 1.9rem;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    font-size: 0.75rem;
+    line-height: 1.2;
+  }
+
+  [data-testid="admin-summary-cards"] > article[data-testid^="summary-"] > div:first-child > div > div {
+    margin-top: 0.125rem;
+    font-size: 1.25rem;
+    line-height: 1.4;
+  }
+
+  [data-testid="admin-summary-cards"] > article[data-testid^="summary-"] > div:first-child > div > span {
+    margin-top: 0.125rem;
+    max-width: 100%;
+    padding: 0.125rem 0.45rem;
+    font-size: 9px;
+    line-height: 1.25;
+    white-space: normal;
+  }
+
+  [data-testid="admin-summary-cards"] > article[data-testid^="summary-"] > a {
+    min-height: 40px;
+    padding: 0.5rem 0.625rem;
+    font-size: 0.6875rem;
+    line-height: 1.25;
+    text-align: center;
+  }
+}
+
+@media (min-width: 375px) and (max-width: 639px) {
+  [data-testid="admin-summary-cards"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 374px) {
+  [data-testid="admin-summary-cards"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

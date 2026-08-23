@@ -10,7 +10,9 @@ test("PR116 owner final delta contracts are closed",()=>{
  assert.ok(apply.includes("getPublicNavigationConfig")||apply.includes("localizePublicHref")); assert.ok(nav.includes("const headerLinks=[...config.headerLinks]"));
  assert.ok(digital.includes("digital")||digital.includes("الخدمات الرقمية"));
  assert.ok(blog.includes("AdminBlogManager")); assert.ok(quick.includes("/admin/blog"));
- for(const group of ["border-sky-400/25","border-violet-400/25","border-emerald-400/25","border-amber-400/25","border-rose-400/25","border-fuchsia-400/25","border-slate-400/25"]) assert.ok(quick.includes(group),group);
+ for(const group of ["العمل اليومي","المحتوى","الإدارة","الإعدادات","متقدم"]) assert.ok(quick.includes(`title: \"${group}\"`),group);
+ for(const identityToken of ["bg-[#09000f]","bg-purple-600","text-yellow-200","text-white"]) assert.ok(quick.includes(identityToken),identityToken);
+ assert.ok(quick.includes("superAdminOnly"));
  assert.ok(login.includes("bg-[#070009]")); assert.ok(program.includes("font-black")||program.includes("font-bold")); assert.ok(agent.includes("font-black")||agent.includes("font-bold")); assert.ok(dock.includes("tenant-primary")||dock.includes("purple"));
  assert.match(migration,/alter table public\.agency_applications drop constraint if exists applications_status_check/);
  assert.match(migration,/alter table public\.agency_applications add constraint applications_status_check/);

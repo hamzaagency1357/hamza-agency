@@ -1,11 +1,7 @@
 import type { ReactNode } from "react";
-import AdminQuickNav from "@/components/AdminQuickNav";
+import AdminShell from "@/components/AdminShell";
+import "./admin-usability.css";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  return (
-    <>
-      {children}
-      <AdminQuickNav />
-    </>
-  );
+  return <AdminShell>{children}</AdminShell>;
 }
