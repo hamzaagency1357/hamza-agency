@@ -26,7 +26,7 @@ trusted_probe() {
   local now nonce body digest result
   now="$(date +%s)"
   nonce="$(printf '%s' "pr-a-${phase}-${now}-$$" | sha256sum | cut -c1-32)"
-  body="{\"identity\":\"pr-a-isolated-${phase}\",\"payload\":{\"language\":\"ar\",\"subject\":\"PR-A isolated staged runtime ${phase}\",\"context\":\"staged trusted path probe\",\"contactType\":\"\",\"contactValue\":\"\",\"consent\":true}}"
+  body="{\"identity\":\"pr-a-isolated-support-guard-identity-${phase}\",\"payload\":{\"language\":\"ar\",\"subject\":\"PR-A isolated staged runtime ${phase}\",\"context\":\"staged trusted path probe\",\"contactType\":\"\",\"contactValue\":\"\",\"consent\":true}}"
   digest="$(printf '%s' "$body" | sha256sum | awk '{print $1}')"
 
   result="$("${PSQL[@]}" -qAt \
