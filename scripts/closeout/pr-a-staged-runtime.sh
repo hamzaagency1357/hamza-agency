@@ -6,6 +6,7 @@ PSQL=(psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1)
 
 support_sig="public.pr4_create_support_request(text,text,text,text,text,boolean)"
 gateway_sig="public.pr100_oidc_gateway(text,bigint,text,text,text,text,text,text,text,text,text,text,bigint,bigint)"
+primary_tenant_fixture_id=""
 
 support_acl() {
   "${PSQL[@]}" -qAtc "select
@@ -15,11 +16,18 @@ support_acl() {
 }
 
 ensure_primary_tenant() {
-  "${PSQL[@]}" -qAtc "insert into public.tenants(slug,name,status,is_primary)
+  primary_tenant_fixture_id="$("${PSQL[@]}" -qAtc "insert into public.tenants(slug,name,status,is_primary)
     select 'pr-a-isolated-primary','PR-A Isolated Primary','active',true
     where not exists(select 1 from public.tenants where is_primary=true and status='active')
-    returning id" >/dev/null
+    returning id")"
 }
+
+cleanup_primary_tenant() {
+  if [ -n "$primary_tenant_fixture_id" ]; then
+    "${PSQL[@]}" -qAtc "delete from public.tenants where id='${primary_tenant_fixture_id}'::uuid and slug='pr-a-isolated-primary'" >/dev/null || true
+  fi
+}
+trap cleanup_primary_tenant EXIT
 
 trusted_probe() {
   local phase="$1"
