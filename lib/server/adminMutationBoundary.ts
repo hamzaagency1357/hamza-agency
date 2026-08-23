@@ -6,6 +6,10 @@ import {
   verifySupabaseBearer,
   type VerifiedSupabaseUser,
 } from "@/lib/server/supabaseUser";
+import {
+  meetsAdminMutationRoleRequirement,
+  type AdminMutationRoleRequirement,
+} from "@/lib/server/adminMutationRolePolicy";
 
 export const PREVIEW_READ_ONLY_MESSAGE =
   "المعاينة مخصصة للعرض والتحقق فقط، ولا تحفظ تغييرات على البيانات الفعلية.";
@@ -38,8 +42,6 @@ type PermissionRow = {
   can_export: boolean;
   can_manage: boolean;
 };
-
-export type AdminMutationRoleRequirement = "super_admin" | null;
 
 const PROGRAM_ADMIN_MODULES = new Set<AdminModule>(["dashboard", "applications", "programs"]);
 
@@ -113,7 +115,7 @@ export async function authorizeAdminMutation(
 
   const profile = await readProfile(user);
   if (!profile) return { ok: false, status: 403, message: "لا تملك صلاحية تنفيذ هذا الإجراء." };
-  if (requiredRole === "super_admin" && profile.role !== "super_admin") {
+  if (!meetsAdminMutationRoleRequirement(profile.role, requiredRole)) {
     return { ok: false, status: 403, message: "لا تملك صلاحية تنفيذ هذا الإجراء." };
   }
   const actor = { user, profile };
