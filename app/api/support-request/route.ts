@@ -1,7 +1,6 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { callOidcGateway } from "@/lib/server/pr100SignedGateway";
 
@@ -9,6 +8,7 @@ export const runtime="nodejs";
 export const dynamic="force-dynamic";
 const MAX_BODY_BYTES=8192;
 type GuardResult={allowed?:boolean;code?:string};
+type SupportCreateResult={supportCode?:string;verification?:string;status?:string;retentionDays?:number};
 function fail(status:number,code:string){return NextResponse.json({ok:false,code},{status,headers:{"Cache-Control":"no-store"}})}
 function fingerprint(request:NextRequest){return createHash("sha256").update(`${request.headers.get("x-forwarded-for")||"unknown"}|${request.headers.get("user-agent")||"unknown"}`).digest("hex")}
 
@@ -24,10 +24,11 @@ export async function POST(request:NextRequest){
  const consent=body.consent===true;
  if(!consent)return fail(400,"consent_required");
  if(contactType&&!contactValue)return fail(400,"contact_value_required");
- try{const guard=await callOidcGateway<GuardResult>(request,"ai_guard",{identity:fingerprint(request),payload:{question:`handoff:${subject}`}});if(!guard?.allowed)return fail(guard?.code==="rate_limited"?429:400,"rejected")}catch{return fail(503,"guard_unavailable")}
- const url=process.env.NEXT_PUBLIC_SUPABASE_URL;const key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;if(!url||!key)return fail(503,"support_unavailable");
- const client=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
- const {data,error}=await client.rpc("pr4_create_support_request",{p_language:language,p_subject:subject,p_context:context,p_contact_type:contactType,p_contact_value:contactValue,p_consent:true});
- if(error)return fail(503,"support_unavailable");
- return NextResponse.json({ok:true,...(data as Record<string,unknown>)},{headers:{"Cache-Control":"no-store"}});
+ const identity=fingerprint(request);
+ try{const guard=await callOidcGateway<GuardResult>(request,"ai_guard",{identity,payload:{question:`handoff:${subject}`}});if(!guard?.allowed)return fail(guard?.code==="rate_limited"?429:400,"rejected")}catch{return fail(503,"guard_unavailable")}
+ try{
+  const data=await callOidcGateway<SupportCreateResult>(request,"support_request_create",{identity,payload:{language,subject,context,contactType,contactValue,consent:true}});
+  if(!data?.supportCode||!data?.verification)return fail(503,"support_unavailable");
+  return NextResponse.json({ok:true,...data},{headers:{"Cache-Control":"no-store"}});
+ }catch{return fail(503,"support_unavailable")}
 }
