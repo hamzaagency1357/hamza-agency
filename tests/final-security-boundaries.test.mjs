@@ -11,7 +11,8 @@ const supportRoute=read("app/api/support-request/route.ts");
 const signedGateway=read("lib/server/pr100SignedGateway.ts");
 const publicGateway=read("supabase/functions/pr100-vercel-oidc-gateway/index.ts");
 const migration=read("supabase/migrations/20260823083000_pr100_final_security_boundaries.sql");
-const rolePolicy=await import(new URL("../supabase/functions/pr116-admin-oidc-gateway/admin-role-policy.ts",import.meta.url));
+const gatewayRolePolicy=await import(new URL("../supabase/functions/pr116-admin-oidc-gateway/admin-role-policy.ts",import.meta.url));
+const serverRolePolicy=await import(new URL("../lib/server/adminMutationRolePolicy.ts",import.meta.url));
 
 const UPSERT="pr116_permissions_page_entity_admin_permissions_upsert";
 const DELETE="pr116_permissions_page_entity_admin_permissions_delete";
@@ -23,10 +24,12 @@ for(const operation of [
 ]){
   const [label,action]=operation;
   test(`super_admin ${label} admin_permissions: ALLOW`,()=>{
-    assert.equal(rolePolicy.isGeneratedActionRoleAllowed(action,"super_admin"),true);
+    assert.equal(serverRolePolicy.meetsAdminMutationRoleRequirement("super_admin","super_admin"),true);
+    assert.equal(gatewayRolePolicy.isGeneratedActionRoleAllowed(action,"super_admin"),true);
   });
   test(`deputy_super_admin ${label} admin_permissions: DENY`,()=>{
-    assert.equal(rolePolicy.isGeneratedActionRoleAllowed(action,"deputy_super_admin"),false);
+    assert.equal(serverRolePolicy.meetsAdminMutationRoleRequirement("deputy_super_admin","super_admin"),false);
+    assert.equal(gatewayRolePolicy.isGeneratedActionRoleAllowed(action,"deputy_super_admin"),false);
   });
 }
 
@@ -35,14 +38,14 @@ test("Admin entity API requires explicit super_admin for admin_permissions befor
   assert.match(actionContracts,/pr116_permissions_page_entity_admin_permissions_delete[\s\S]*?["']?table["']?\s*:\s*"admin_permissions"[\s\S]*?["']?method["']?\s*:\s*"delete"/);
   assert.match(apiRoute,/contract\.kind === "entity" && contract\.table === "admin_permissions" \? "super_admin" : null/);
   assert.match(apiRoute,/authorizeAdminMutation\([\s\S]*?requiredRole/);
-  assert.match(serverBoundary,/requiredRole === "super_admin" && profile\.role !== "super_admin"/);
+  assert.match(serverBoundary,/meetsAdminMutationRoleRequirement\(profile\.role, requiredRole\)/);
 });
 
 test("PR116 generated gateway independently rejects non-super admin permission mutations",()=>{
   assert.match(gatewayDispatch,/isGeneratedActionRoleAllowed\(input\.action, input\.admin\.role\)/);
   assert.match(gatewayDispatch,/status:\s*403/);
-  assert.ok(rolePolicy.SUPER_ADMIN_ONLY_ACTIONS.has(UPSERT));
-  assert.ok(rolePolicy.SUPER_ADMIN_ONLY_ACTIONS.has(DELETE));
+  assert.ok(gatewayRolePolicy.SUPER_ADMIN_ONLY_ACTIONS.has(UPSERT));
+  assert.ok(gatewayRolePolicy.SUPER_ADMIN_ONLY_ACTIONS.has(DELETE));
 });
 
 test("Public support API has no anonymous Supabase write path",()=>{
