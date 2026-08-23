@@ -176,6 +176,12 @@ $function$;
 alter function public.pr100_oidc_gateway(
   text,bigint,text,text,text,text,text,text,text,text,text,text,bigint,bigint
 ) owner to postgres;
+revoke all on function public.pr100_oidc_gateway(
+  text,bigint,text,text,text,text,text,text,text,text,text,text,bigint,bigint
+) from public, anon, authenticated;
+grant execute on function public.pr100_oidc_gateway(
+  text,bigint,text,text,text,text,text,text,text,text,text,text,bigint,bigint
+) to service_role;
 
 do $preparation_contract$
 declare
