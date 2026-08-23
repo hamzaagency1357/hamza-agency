@@ -14,6 +14,13 @@ support_acl() {
     has_function_privilege('service_role','$support_sig','EXECUTE')::int"
 }
 
+ensure_primary_tenant() {
+  "${PSQL[@]}" -qAtc "insert into public.tenants(slug,name,status,is_primary)
+    select 'pr-a-isolated-primary','PR-A Isolated Primary','active',true
+    where not exists(select 1 from public.tenants where is_primary=true and status='active')
+    returning id" >/dev/null
+}
+
 trusted_probe() {
   local phase="$1"
   local now nonce body digest result
@@ -101,6 +108,9 @@ SQL
   rm -f "$log"
   test "$before" = "$after"
 }
+
+echo "PR-A staged runtime: seed isolated primary tenant fixture"
+ensure_primary_tenant
 
 echo "PR-A staged runtime: capture pre-preparation support ACL"
 acl_before="$(support_acl)"
