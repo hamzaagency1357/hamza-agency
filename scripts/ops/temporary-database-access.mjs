@@ -24,6 +24,10 @@ export const PREFERRED_SCOPED_PAT_PERMISSIONS = Object.freeze([
   "edge_functions_read",
 ]);
 
+// Backward-compatible export retained so the pre-existing PR #122 contract test keeps pinning
+// the least-privilege target. It must not be interpreted as proof that the runtime PAT is scoped.
+export const REQUIRED_FINE_GRAINED_PERMISSIONS = PREFERRED_SCOPED_PAT_PERMISSIONS;
+
 const EXACT_MANAGEMENT_API_ALLOWLIST = new Set([
   "GET /profile",
   `GET /projects/${TEMP_ACCESS.projectRef}`,
