@@ -6,6 +6,7 @@ on:
       - ".github/workflows/forward-production-migrations.yml"
       - "scripts/ops/forward-production-contract.mjs"
       - "scripts/ops/forward-production-effects.sql"
+      - "scripts/ops/temporary-database-access.mjs"
       - "tests/forward-production-contract.test.mjs"
       - "docs/ops/FORWARD_PRODUCTION_MIGRATIONS.md"
       - "supabase/migrations/20260823084000_pr100_support_request_trusted_gateway_preparation.sql"
@@ -78,8 +79,7 @@ jobs:
       FORWARD_EXPECTED_MAIN_SHA: ${{ inputs.expected_main_sha }}
       FORWARD_EXPECTED_PRODUCTION_SHA: ${{ inputs.expected_production_sha }}
       FORWARD_APPROVAL: ${{ inputs.approval }}
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PRODUCTION_JIT_TOKEN: ${{ secrets.SUPABASE_PRODUCTION_JIT_TOKEN }}
       FORWARD_WORKDIR: /tmp/hamza-forward-production
       FORWARD_HISTORY_JSON: /tmp/hamza-forward-history.json
       FORWARD_EFFECTS_JSON: /tmp/hamza-forward-effects.json
@@ -111,6 +111,13 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Mask and require dedicated Production JIT token
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_PRODUCTION_JIT_TOKEN:-}"
+          echo "::add-mask::$SUPABASE_PRODUCTION_JIT_TOKEN"
+
       - name: Install pinned Supabase CLI
         shell: bash
         run: |
@@ -120,31 +127,37 @@ jobs:
           test "$($cli --version)" = "2.109.1"
           echo "SUPABASE_BIN=$cli" >> "$GITHUB_ENV"
 
-      - name: Mask and require Production credentials
+      - name: Verify pinned CLI supports explicit temporary database URLs
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${SUPABASE_ACCESS_TOKEN:-}"
-          test -n "${SUPABASE_DB_PASSWORD:-}"
-          echo "::add-mask::$SUPABASE_ACCESS_TOKEN"
-          echo "::add-mask::$SUPABASE_DB_PASSWORD"
+          "$SUPABASE_BIN" db query --help | grep -F -- "--db-url"
+          "$SUPABASE_BIN" migration fetch --help | grep -F -- "--db-url"
+          "$SUPABASE_BIN" db push --help | grep -F -- "--db-url"
+          "$SUPABASE_BIN" migration up --help | grep -F -- "--db-url"
 
-      - name: Prepare isolated linked CLI workspace
+      - name: Prepare scoped temporary Production database access
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/ops/temporary-database-access.mjs setup
+
+      - name: Prepare isolated CLI workspace
         shell: bash
         run: |
           set -euo pipefail
           rm -rf "$FORWARD_WORKDIR"
           mkdir -p "$FORWARD_WORKDIR/supabase/migrations"
           cp "$GITHUB_WORKSPACE/supabase/config.toml" "$FORWARD_WORKDIR/supabase/config.toml"
-          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" link --project-ref "$FORWARD_PROJECT_REF"
 
       - name: Read forward anchor, effects, gateway and application health
         shell: bash
         run: |
           set -euo pipefail
+          test -n "${FORWARD_DB_URL:-}"
           history_sql="select version,name from supabase_migrations.schema_migrations where version >= '20260810203000' order by version;"
-          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db query --linked --output json "$history_sql" > "$FORWARD_HISTORY_JSON"
-          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db query --linked --output json "$(cat "$GITHUB_WORKSPACE/scripts/ops/forward-production-effects.sql")" > "$FORWARD_EFFECTS_JSON"
+          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db query --db-url "$FORWARD_DB_URL" --output json "$history_sql" > "$FORWARD_HISTORY_JSON"
+          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db query --db-url "$FORWARD_DB_URL" --output json "$(cat "$GITHUB_WORKSPACE/scripts/ops/forward-production-effects.sql")" > "$FORWARD_EFFECTS_JSON"
           "$SUPABASE_BIN" functions list --project-ref "$FORWARD_PROJECT_REF" --output json > "$FORWARD_FUNCTIONS_JSON"
           curl --fail --silent --show-error --max-time 20 https://hamza-agency.com/api/health > "$FORWARD_HEALTH_JSON"
 
@@ -163,7 +176,7 @@ jobs:
           set -euo pipefail
           rm -rf "$FORWARD_WORKDIR/supabase/migrations"
           mkdir -p "$FORWARD_WORKDIR/supabase/migrations"
-          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" migration fetch --linked
+          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" migration fetch --db-url "$FORWARD_DB_URL"
           test ! -e "$FORWARD_WORKDIR/supabase/migrations/20260823084000_pr100_support_request_trusted_gateway_preparation.sql"
           cp "$GITHUB_WORKSPACE/supabase/migrations/20260823084000_pr100_support_request_trusted_gateway_preparation.sql" "$FORWARD_WORKDIR/supabase/migrations/"
           test "$(sha256sum "$FORWARD_WORKDIR/supabase/migrations/20260823084000_pr100_support_request_trusted_gateway_preparation.sql" | awk '{print $1}')" = "$(node scripts/ops/forward-production-contract.mjs hash)"
@@ -172,7 +185,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db push --linked --dry-run
+          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db push --db-url "$FORWARD_DB_URL" --dry-run
 
       - name: Stop after read-only preflight
         if: inputs.mode == 'forward_preflight'
@@ -184,7 +197,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$FORWARD_APPROVAL" = "APPROVE_HAMZA_PR120_SUPPORT_GATEWAY_PREPARATION"
-          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" migration up --linked
+          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" migration up --db-url "$FORWARD_DB_URL"
 
       - name: Verify Preparation post-apply contract
         if: inputs.mode == 'forward_apply'
@@ -195,11 +208,18 @@ jobs:
         run: |
           set -euo pipefail
           history_sql="select version,name from supabase_migrations.schema_migrations where version >= '20260810203000' order by version;"
-          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db query --linked --output json "$history_sql" > "$FORWARD_HISTORY_JSON"
-          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db query --linked --output json "$(cat "$GITHUB_WORKSPACE/scripts/ops/forward-production-effects.sql")" > "$FORWARD_EFFECTS_JSON"
+          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db query --db-url "$FORWARD_DB_URL" --output json "$history_sql" > "$FORWARD_HISTORY_JSON"
+          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db query --db-url "$FORWARD_DB_URL" --output json "$(cat "$GITHUB_WORKSPACE/scripts/ops/forward-production-effects.sql")" > "$FORWARD_EFFECTS_JSON"
           "$SUPABASE_BIN" functions list --project-ref "$FORWARD_PROJECT_REF" --output json > "$FORWARD_FUNCTIONS_JSON"
           curl --fail --silent --show-error --max-time 20 https://hamza-agency.com/api/health > "$FORWARD_HEALTH_JSON"
           node scripts/ops/forward-production-contract.mjs verify-live
+
+      - name: Always revoke temporary Production database mapping
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/ops/temporary-database-access.mjs cleanup
 
       - name: Always remove transient Production tooling state
         if: always()
