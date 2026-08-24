@@ -8,6 +8,7 @@ on:
       - "scripts/ops/forward-production-effects.sql"
       - "scripts/ops/temporary-database-access.mjs"
       - "tests/forward-production-contract.test.mjs"
+      - "tests/temporary-database-access-containment.test.mjs"
       - "docs/ops/FORWARD_PRODUCTION_MIGRATIONS.md"
       - "supabase/migrations/20260823084000_pr100_support_request_trusted_gateway_preparation.sql"
   workflow_dispatch:
@@ -55,8 +56,8 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
-      - name: Forward contract unit and workflow tests
-        run: node --test tests/forward-production-contract.test.mjs
+      - name: Forward contract, credential-containment and workflow tests
+        run: node --test tests/forward-production-contract.test.mjs tests/temporary-database-access-containment.test.mjs
       - name: Migration safety verifier
         run: npm run verify:migrations
       - name: Secret exposure verifier
@@ -111,7 +112,7 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Mask and require dedicated Production JIT token
+      - name: Mask and require short-lived Production PAT
         shell: bash
         run: |
           set -euo pipefail
@@ -136,7 +137,7 @@ jobs:
           "$SUPABASE_BIN" db push --help | grep -F -- "--db-url"
           "$SUPABASE_BIN" migration up --help | grep -F -- "--db-url"
 
-      - name: Prepare scoped temporary Production database access
+      - name: Prepare contained temporary Production database access
         shell: bash
         run: |
           set -euo pipefail
@@ -155,10 +156,11 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${FORWARD_DB_URL:-}"
+          test "$FORWARD_PROJECT_REF" = "fvaurkfnsvsfohpzguho"
           history_sql="select version,name from supabase_migrations.schema_migrations where version >= '20260810203000' order by version;"
           "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db query --db-url "$FORWARD_DB_URL" --output json "$history_sql" > "$FORWARD_HISTORY_JSON"
           "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db query --db-url "$FORWARD_DB_URL" --output json "$(cat "$GITHUB_WORKSPACE/scripts/ops/forward-production-effects.sql")" > "$FORWARD_EFFECTS_JSON"
-          "$SUPABASE_BIN" functions list --project-ref "$FORWARD_PROJECT_REF" --output json > "$FORWARD_FUNCTIONS_JSON"
+          "$SUPABASE_BIN" functions list --project-ref "fvaurkfnsvsfohpzguho" --output json > "$FORWARD_FUNCTIONS_JSON"
           curl --fail --silent --show-error --max-time 20 https://hamza-agency.com/api/health > "$FORWARD_HEALTH_JSON"
 
       - name: Verify fail-closed forward preflight contract
@@ -207,10 +209,11 @@ jobs:
           FORWARD_PHASE: preparation_post_apply
         run: |
           set -euo pipefail
+          test "$FORWARD_PROJECT_REF" = "fvaurkfnsvsfohpzguho"
           history_sql="select version,name from supabase_migrations.schema_migrations where version >= '20260810203000' order by version;"
           "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db query --db-url "$FORWARD_DB_URL" --output json "$history_sql" > "$FORWARD_HISTORY_JSON"
           "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db query --db-url "$FORWARD_DB_URL" --output json "$(cat "$GITHUB_WORKSPACE/scripts/ops/forward-production-effects.sql")" > "$FORWARD_EFFECTS_JSON"
-          "$SUPABASE_BIN" functions list --project-ref "$FORWARD_PROJECT_REF" --output json > "$FORWARD_FUNCTIONS_JSON"
+          "$SUPABASE_BIN" functions list --project-ref "fvaurkfnsvsfohpzguho" --output json > "$FORWARD_FUNCTIONS_JSON"
           curl --fail --silent --show-error --max-time 20 https://hamza-agency.com/api/health > "$FORWARD_HEALTH_JSON"
           node scripts/ops/forward-production-contract.mjs verify-live
 
