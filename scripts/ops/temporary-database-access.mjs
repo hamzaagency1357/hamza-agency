@@ -11,7 +11,10 @@ export const TEMP_ACCESS = Object.freeze({
   poolerHostSuffix: ".pooler.supabase.com",
 });
 
-export const REQUIRED_FINE_GRAINED_PERMISSIONS = Object.freeze([
+// Preferred least-privilege boundary if Supabase exposes Scoped PAT creation to this account.
+// The current operational fallback is a short-lived classic PAT, so these permissions are
+// documentation/test evidence rather than a runtime credential claim.
+export const PREFERRED_SCOPED_PAT_PERMISSIONS = Object.freeze([
   "project_admin_read",
   "project_admin_write",
   "database_jit_read",
@@ -21,14 +24,49 @@ export const REQUIRED_FINE_GRAINED_PERMISSIONS = Object.freeze([
   "edge_functions_read",
 ]);
 
-const FORBIDDEN_SCOPE_PROBES = Object.freeze([
-  `/projects/${TEMP_ACCESS.projectRef}/config/auth`,
-  `/projects/${TEMP_ACCESS.projectRef}/config/storage`,
-  `/projects/${TEMP_ACCESS.projectRef}/api-keys`,
+const EXACT_MANAGEMENT_API_ALLOWLIST = new Set([
+  "GET /profile",
+  `GET /projects/${TEMP_ACCESS.projectRef}`,
+  `GET /projects/${TEMP_ACCESS.projectRef}/ssl-enforcement`,
+  `GET /projects/${TEMP_ACCESS.projectRef}/jit-access`,
+  `PUT /projects/${TEMP_ACCESS.projectRef}/jit-access`,
+  `PUT /projects/${TEMP_ACCESS.projectRef}/database/jit`,
+  `GET /projects/${TEMP_ACCESS.projectRef}/database/jit`,
+  `GET /projects/${TEMP_ACCESS.projectRef}/config/database/pooler`,
 ]);
 
 function fail(message) {
   throw new Error(`temporary database access: ${message}`);
+}
+
+export function assertAllowedManagementRequest(method, path) {
+  const normalizedMethod = String(method).toUpperCase();
+  const normalizedPath = String(path);
+  if (!normalizedPath.startsWith("/") || normalizedPath.includes("?") || normalizedPath.includes("#")) {
+    fail("Management API path is not a canonical allowlisted path");
+  }
+
+  if (EXACT_MANAGEMENT_API_ALLOWLIST.has(`${normalizedMethod} ${normalizedPath}`)) return true;
+
+  const deletePrefix = `/projects/${TEMP_ACCESS.projectRef}/database/jit/`;
+  if (normalizedMethod === "DELETE" && normalizedPath.startsWith(deletePrefix)) {
+    const encodedUserId = normalizedPath.slice(deletePrefix.length);
+    let userId;
+    try {
+      userId = decodeURIComponent(encodedUserId);
+    } catch {
+      fail("invalid encoded JIT cleanup user id");
+    }
+    if (
+      encodedUserId.includes("/") ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)
+    ) {
+      fail("JIT cleanup is not restricted to one valid user id");
+    }
+    return true;
+  }
+
+  fail(`Management API request is outside the explicit allowlist: ${normalizedMethod} ${normalizedPath}`);
 }
 
 export function comparePgVersions(a, b) {
@@ -129,6 +167,7 @@ function writeGithubEnv(name, value) {
 }
 
 async function apiRequest(token, path, { method = "GET", body, expected = [200] } = {}) {
+  assertAllowedManagementRequest(method, path);
   const response = await fetch(`${TEMP_ACCESS.apiBase}${path}`, {
     method,
     headers: {
@@ -166,19 +205,10 @@ function getProfileUserId(profile) {
   return String(userId);
 }
 
-async function verifyForbiddenReadScopes(token) {
-  for (const path of FORBIDDEN_SCOPE_PROBES) {
-    const result = await apiRequest(token, path, { expected: [401, 403] });
-    if (![401, 403].includes(result.status)) fail(`dedicated token unexpectedly has unrelated access to ${path}`);
-  }
-}
-
 async function setup() {
   const token = process.env.SUPABASE_PRODUCTION_JIT_TOKEN;
   if (!token) fail("SUPABASE_PRODUCTION_JIT_TOKEN is missing");
   console.log(`::add-mask::${token}`);
-
-  await verifyForbiddenReadScopes(token);
 
   const profile = (await apiRequest(token, "/profile")).data;
   const userId = getProfileUserId(profile);
