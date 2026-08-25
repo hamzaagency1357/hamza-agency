@@ -1,0 +1,240 @@
+name: HAMZA Forward-Only Production Migrations
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/forward-production-migrations.yml"
+      - "scripts/ops/forward-production-contract.mjs"
+      - "scripts/ops/forward-production-effects.sql"
+      - "scripts/ops/temporary-database-access.mjs"
+      - "tests/forward-production-contract.test.mjs"
+      - "tests/temporary-database-access-containment.test.mjs"
+      - "tests/temporary-database-access-reliability.test.mjs"
+      - "docs/ops/FORWARD_PRODUCTION_MIGRATIONS.md"
+      - "supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Read-only preflight or explicitly approved apply"
+        required: true
+        type: choice
+        default: forward_preflight
+        options:
+          - forward_preflight
+          - forward_apply
+      target:
+        description: "Hard allowlisted forward migration target"
+        required: true
+        type: choice
+        default: pr120_support_gateway_preparation
+        options:
+          - pr120_support_gateway_preparation
+      expected_main_sha:
+        description: "Exact reviewed main SHA to execute"
+        required: true
+        type: string
+      expected_production_sha:
+        description: "Exact current Production /api/health commitSha"
+        required: true
+        type: string
+      approval:
+        description: "Required only for forward_apply"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Forward contract, credential-containment and workflow tests
+        run: node --test tests/forward-production-contract.test.mjs tests/temporary-database-access-containment.test.mjs tests/temporary-database-access-reliability.test.mjs
+      - name: Migration safety verifier
+        run: npm run verify:migrations
+      - name: Secret exposure verifier
+        run: npm run verify:secrets
+
+  forward-production:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: contract-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production-database
+    concurrency:
+      group: hamza-forward-production-migrations
+      cancel-in-progress: false
+    env:
+      SUPABASE_TELEMETRY_DISABLED: "1"
+      FORWARD_MODE: ${{ inputs.mode }}
+      FORWARD_TARGET: ${{ inputs.target }}
+      FORWARD_PROJECT_REF: fvaurkfnsvsfohpzguho
+      FORWARD_EXPECTED_MAIN_SHA: ${{ inputs.expected_main_sha }}
+      FORWARD_EXPECTED_PRODUCTION_SHA: ${{ inputs.expected_production_sha }}
+      FORWARD_APPROVAL: ${{ inputs.approval }}
+      SUPABASE_PRODUCTION_JIT_TOKEN: ${{ secrets.SUPABASE_PRODUCTION_JIT_TOKEN }}
+      FORWARD_WORKDIR: /tmp/hamza-forward-production
+      FORWARD_HISTORY_JSON: /tmp/hamza-forward-history.json
+      FORWARD_EFFECTS_JSON: /tmp/hamza-forward-effects.json
+      FORWARD_FUNCTIONS_JSON: /tmp/hamza-forward-functions.json
+      FORWARD_HEALTH_JSON: /tmp/hamza-forward-health.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_main_sha }}
+          fetch-depth: 1
+
+      - name: Assert exact reviewed main dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
+          [[ "$FORWARD_EXPECTED_MAIN_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
+          [[ "$FORWARD_EXPECTED_PRODUCTION_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$FORWARD_EXPECTED_MAIN_SHA"
+          test "$FORWARD_PROJECT_REF" = "fvaurkfnsvsfohpzguho"
+          test "$FORWARD_TARGET" = "pr120_support_gateway_preparation"
+          case "$FORWARD_MODE" in forward_preflight|forward_apply) ;; *) exit 1 ;; esac
+          if [ "$FORWARD_MODE" = "forward_apply" ]; then
+            test "$FORWARD_APPROVAL" = "APPROVE_HAMZA_PR120_SUPPORT_GATEWAY_PREPARATION"
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Mask and require short-lived Production PAT
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_PRODUCTION_JIT_TOKEN:-}"
+          echo "::add-mask::$SUPABASE_PRODUCTION_JIT_TOKEN"
+
+      - name: Install pinned Supabase CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix tools/pr101-local-e2e --no-audit --no-fund
+          cli="$GITHUB_WORKSPACE/tools/pr101-local-e2e/node_modules/.bin/supabase"
+          test "$($cli --version)" = "2.109.1"
+          echo "SUPABASE_BIN=$cli" >> "$GITHUB_ENV"
+
+      - name: Verify pinned CLI supports explicit temporary database URLs
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$SUPABASE_BIN" db query --help | grep -F -- "--db-url"
+          "$SUPABASE_BIN" migration fetch --help | grep -F -- "--db-url"
+          "$SUPABASE_BIN" db push --help | grep -F -- "--db-url"
+          "$SUPABASE_BIN" migration up --help | grep -F -- "--db-url"
+
+      - name: Prepare contained temporary Production database access
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/ops/temporary-database-access.mjs setup
+
+      - name: Prepare isolated CLI workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$FORWARD_WORKDIR"
+          mkdir -p "$FORWARD_WORKDIR/supabase/migrations"
+          cp "$GITHUB_WORKSPACE/supabase/config.toml" "$FORWARD_WORKDIR/supabase/config.toml"
+
+      - name: Wait for contained temporary Postgres access readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${FORWARD_DB_URL:-}"
+          node scripts/ops/temporary-database-access.mjs wait
+
+      - name: Read forward anchor, effects, gateway and application health
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${FORWARD_DB_URL:-}"
+          test "$FORWARD_PROJECT_REF" = "fvaurkfnsvsfohpzguho"
+          history_sql="select version,name from supabase_migrations.schema_migrations where version >= '20260810203000' order by version;"
+          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db query --db-url "$FORWARD_DB_URL" --output json "$history_sql" > "$FORWARD_HISTORY_JSON"
+          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db query --db-url "$FORWARD_DB_URL" --output json "$(cat "$GITHUB_WORKSPACE/scripts/ops/forward-production-effects.sql")" > "$FORWARD_EFFECTS_JSON"
+          "$SUPABASE_BIN" functions list --project-ref "fvaurkfnsvsfohpzguho" --output json > "$FORWARD_FUNCTIONS_JSON"
+          curl --fail --silent --show-error --max-time 20 https://hamza-agency.com/api/health > "$FORWARD_HEALTH_JSON"
+
+      - name: Verify fail-closed forward preflight contract
+        shell: bash
+        env:
+          FORWARD_ACTUAL_MAIN_SHA: ${{ github.sha }}
+          FORWARD_PHASE: preparation_preflight
+        run: |
+          set -euo pipefail
+          node scripts/ops/forward-production-contract.mjs verify-live
+
+      - name: Build remote-history-derived migration workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$FORWARD_WORKDIR/supabase/migrations"
+          mkdir -p "$FORWARD_WORKDIR/supabase/migrations"
+          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" migration fetch --db-url "$FORWARD_DB_URL"
+          test ! -e "$FORWARD_WORKDIR/supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql" "$FORWARD_WORKDIR/supabase/migrations/"
+          test "$(sha256sum "$FORWARD_WORKDIR/supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql" | awk '{print $1}')" = "$(node scripts/ops/forward-production-contract.mjs hash)"
+
+      - name: Official Supabase dry-run for the single pending target
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db push --db-url "$FORWARD_DB_URL" --dry-run
+
+      - name: Stop after read-only preflight
+        if: inputs.mode == 'forward_preflight'
+        run: echo "Forward-only Production preflight PASS; no migration was applied."
+
+      - name: Apply exact Preparation through official Supabase migration tracking
+        if: inputs.mode == 'forward_apply'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$FORWARD_APPROVAL" = "APPROVE_HAMZA_PR120_SUPPORT_GATEWAY_PREPARATION"
+          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" migration up --db-url "$FORWARD_DB_URL"
+
+      - name: Verify Preparation post-apply contract
+        if: inputs.mode == 'forward_apply'
+        shell: bash
+        env:
+          FORWARD_ACTUAL_MAIN_SHA: ${{ github.sha }}
+          FORWARD_PHASE: preparation_post_apply
+        run: |
+          set -euo pipefail
+          test "$FORWARD_PROJECT_REF" = "fvaurkfnsvsfohpzguho"
+          history_sql="select version,name from supabase_migrations.schema_migrations where version >= '20260810203000' order by version;"
+          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db query --db-url "$FORWARD_DB_URL" --output json "$history_sql" > "$FORWARD_HISTORY_JSON"
+          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db query --db-url "$FORWARD_DB_URL" --output json "$(cat "$GITHUB_WORKSPACE/scripts/ops/forward-production-effects.sql")" > "$FORWARD_EFFECTS_JSON"
+          "$SUPABASE_BIN" functions list --project-ref "fvaurkfnsvsfohpzguho" --output json > "$FORWARD_FUNCTIONS_JSON"
+          curl --fail --silent --show-error --max-time 20 https://hamza-agency.com/api/health > "$FORWARD_HEALTH_JSON"
+          node scripts/ops/forward-production-contract.mjs verify-live
+
+      - name: Always revoke temporary Production database mapping
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/ops/temporary-database-access.mjs cleanup
+
+      - name: Always remove transient Production tooling state
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          rm -rf "$FORWARD_WORKDIR" "$FORWARD_HISTORY_JSON" "$FORWARD_EFFECTS_JSON" "$FORWARD_FUNCTIONS_JSON" "$FORWARD_HEALTH_JSON" supabase/.temp
