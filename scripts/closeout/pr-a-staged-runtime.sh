@@ -145,7 +145,7 @@ echo "PR-A staged runtime: trusted DB gateway support action works before lockdo
 trusted_probe preparation
 
 echo "PR-A staged runtime: apply ACL lockdown only after trusted-path proof"
-"${PSQL[@]}" -f supabase/migrations/20260823085000_final_security_acl_lockdown.sql
+"${PSQL[@]}" -f supabase/migrations/20260825142000_final_security_acl_lockdown.sql
 "${PSQL[@]}" -qAtc "select pg_notify('pgrst','reload schema')" >/dev/null
 
 final_contract="$("${PSQL[@]}" -qAtc "select
