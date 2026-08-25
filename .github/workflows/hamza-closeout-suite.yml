@@ -41,7 +41,7 @@ jobs:
       PR99_E2E_MODE: ${{ inputs.execution_mode == 'local-isolated' && '1' || '0' }}
       PR99_E2E_TOKEN: closeout-local-only-fixture-token-2026
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.expected_sha }}
           fetch-depth: 1

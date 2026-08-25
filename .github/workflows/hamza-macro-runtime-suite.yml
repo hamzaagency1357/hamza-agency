@@ -41,7 +41,7 @@ jobs:
       NEXT_PUBLIC_SITE_URL: https://127.0.0.1:3443
       SESSION_HASH_KEY: closeout-local-only-session-hash-key
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.expected_sha }}
           fetch-depth: 1

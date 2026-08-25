@@ -23,7 +23,7 @@ jobs:
       PR1_APPLY_FILE: /tmp/hamza-pr1-current-state.apply.sql
       PR1_START_LOG: /tmp/hamza-pr1-supabase-start.log
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.expected_sha }}
           fetch-depth: 1
