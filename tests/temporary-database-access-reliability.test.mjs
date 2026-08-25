@@ -17,7 +17,7 @@ import {
 
 const userId = "123e4567-e89b-42d3-a456-426614174000";
 const ipv4 = "203.0.113.10";
-const token = "sbp_test-token-value-with-reserved_%25_chars";
+const token = "sbp_test-token-value-with-reserved_@:_chars";
 const host = "aws-1-eu-central-1.pooler.supabase.com";
 const dbUrl = buildJitDbUrl({ host, token });
 
