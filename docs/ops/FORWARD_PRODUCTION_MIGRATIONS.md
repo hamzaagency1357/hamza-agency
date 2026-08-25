@@ -32,9 +32,9 @@ Preflight independently checks the important PR116 security effects instead of a
 The first and only executable target in this contract is:
 
 - Key: `pr120_support_gateway_preparation`
-- Version: `20260823084000`
-- Name: `pr100_support_request_trusted_gateway_preparation`
-- Path: `supabase/migrations/20260823084000_pr100_support_request_trusted_gateway_preparation.sql`
+- Version: `20260825141930`
+- Name: `pr120_support_request_trusted_gateway_preparation`
+- Path: `supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql`
 - Apply approval: `APPROVE_HAMZA_PR120_SUPPORT_GATEWAY_PREPARATION`
 
 There is no arbitrary migration-version input. The later ACL-lockdown migration is intentionally not executable by this first Ops contract.
