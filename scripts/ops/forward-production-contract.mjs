@@ -8,9 +8,9 @@ export const ANCHOR = Object.freeze({
 });
 export const PREPARATION = Object.freeze({
   key: "pr120_support_gateway_preparation",
-  version: "20260823084000",
-  name: "pr100_support_request_trusted_gateway_preparation",
-  path: "supabase/migrations/20260823084000_pr100_support_request_trusted_gateway_preparation.sql",
+  version: "20260825141930",
+  name: "pr120_support_request_trusted_gateway_preparation",
+  path: "supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql",
   sha256: "778ef1eef0cf61d3ab4092d711c005a8a6031b6002e491519878627498f40b95",
   approval: "APPROVE_HAMZA_PR120_SUPPORT_GATEWAY_PREPARATION",
 });

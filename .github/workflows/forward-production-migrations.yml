@@ -11,7 +11,7 @@ on:
       - "tests/temporary-database-access-containment.test.mjs"
       - "tests/temporary-database-access-reliability.test.mjs"
       - "docs/ops/FORWARD_PRODUCTION_MIGRATIONS.md"
-      - "supabase/migrations/20260823084000_pr100_support_request_trusted_gateway_preparation.sql"
+      - "supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql"
   workflow_dispatch:
     inputs:
       mode:
@@ -187,9 +187,9 @@ jobs:
           rm -rf "$FORWARD_WORKDIR/supabase/migrations"
           mkdir -p "$FORWARD_WORKDIR/supabase/migrations"
           "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" migration fetch --db-url "$FORWARD_DB_URL"
-          test ! -e "$FORWARD_WORKDIR/supabase/migrations/20260823084000_pr100_support_request_trusted_gateway_preparation.sql"
-          cp "$GITHUB_WORKSPACE/supabase/migrations/20260823084000_pr100_support_request_trusted_gateway_preparation.sql" "$FORWARD_WORKDIR/supabase/migrations/"
-          test "$(sha256sum "$FORWARD_WORKDIR/supabase/migrations/20260823084000_pr100_support_request_trusted_gateway_preparation.sql" | awk '{print $1}')" = "$(node scripts/ops/forward-production-contract.mjs hash)"
+          test ! -e "$FORWARD_WORKDIR/supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql" "$FORWARD_WORKDIR/supabase/migrations/"
+          test "$(sha256sum "$FORWARD_WORKDIR/supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql" | awk '{print $1}')" = "$(node scripts/ops/forward-production-contract.mjs hash)"
 
       - name: Official Supabase dry-run for the single pending target
         shell: bash
