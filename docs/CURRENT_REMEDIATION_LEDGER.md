@@ -68,7 +68,7 @@ PR-A is intentionally limited to security-boundary fixes. The implementation is 
 The previously combined, unapplied PR-A migration is split into two ordered release stages:
 
 1. `20260823084000_pr100_support_request_trusted_gateway_preparation.sql` — preparation only. It adds the trusted `support_request_create` DB action and preserves the old public support RPC ACL so the existing Production app remains compatible.
-2. `20260823085000_final_security_acl_lockdown.sql` — ACL lockdown only. It revokes browser execution on the five already reviewed SECURITY DEFINER targets after the trusted path is proven operational.
+2. `20260825142000_final_security_acl_lockdown.sql` — ACL lockdown only. It revokes browser execution on the five already reviewed SECURITY DEFINER targets after the trusted path is proven operational.
 
 Production gateway `pr100-vercel-oidc-gateway` v6 is already ACTIVE as the additive Edge prerequisite. At the time of this source update, Production application still runs `d5c4de481c3894795eab40653f765dbabb218e19`, neither staged PR-A migration has been applied, and `pr4_create_support_request` still permits the legacy anon/authenticated path. Do not mark Production fixed until both stages and targeted verification complete.
 
