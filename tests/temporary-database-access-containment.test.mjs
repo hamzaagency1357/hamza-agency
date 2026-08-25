@@ -33,6 +33,7 @@ test("classic PAT fallback can call only the explicit Production Management API 
     ["GET", `/projects/${ref}/jit-access`],
     ["PUT", `/projects/${ref}/jit-access`],
     ["GET", `/projects/${ref}/database/jit`],
+    ["GET", `/projects/${ref}/database/jit/list`],
     ["PUT", `/projects/${ref}/database/jit`],
     ["GET", `/projects/${ref}/config/database/pooler`],
     ["DELETE", `/projects/${ref}/database/jit/${userId}`],
@@ -52,6 +53,7 @@ test("unrelated Management API product surfaces fail closed even when the PAT it
 test("cross-project and non-canonical requests fail closed", () => {
   rejects("GET", "/projects/another-project-ref");
   rejects("GET", `/projects/${ref}/database/jit?anything=1`);
+  rejects("GET", `/projects/${ref}/database/jit/list?anything=1`);
   rejects("DELETE", `/projects/${ref}/database/jit/not-a-uuid`);
   rejects("DELETE", `/projects/another-project-ref/database/jit/${userId}`);
 });
