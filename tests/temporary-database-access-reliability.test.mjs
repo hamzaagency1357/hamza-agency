@@ -4,16 +4,14 @@ import { readFile } from "node:fs/promises";
 
 import {
   TEMP_ACCESS,
-  buildJitDbUrl,
-  buildJitRole,
-  validateJitMapping,
-} from "../scripts/ops/temporary-database-access.mjs";
-import {
   assertNoResidualJitMapping,
   assertTemporaryDatabaseUrl,
+  buildJitDbUrl,
+  buildJitRole,
   cleanupTemporaryDatabaseMapping,
+  validateJitMapping,
   waitForTemporaryDatabaseReady,
-} from "../scripts/ops/temporary-database-access-reliability.mjs";
+} from "../scripts/ops/temporary-database-access.mjs";
 
 const userId = "123e4567-e89b-42d3-a456-426614174000";
 const ipv4 = "203.0.113.10";
@@ -76,14 +74,14 @@ test("temporary database readiness uses bounded propagation retries", async () =
   assert.deepEqual(sleeps, [5, 10]);
 });
 
-test("workflow gates forward reads on readiness and uses fail-closed list-based cleanup", async () => {
+test("workflow gates forward reads on readiness and always runs fail-closed cleanup", async () => {
   const workflow = await readFile(".github/workflows/forward-production-migrations.yml", "utf8");
-  assert.match(workflow, /temporary-database-access-reliability\.mjs wait/);
-  assert.match(workflow, /temporary-database-access-reliability\.mjs cleanup/);
+  assert.match(workflow, /temporary-database-access\.mjs wait/);
+  assert.match(workflow, /temporary-database-access\.mjs cleanup/);
   assert.match(workflow, /if:\s*always\(\)/);
 });
 
-test("cleanup succeeds after a partial preflight failure when DELETE and list verification succeed", async () => {
+test("cleanup succeeds after partial preflight failure when mapping is removed and JIT was already enabled", async () => {
   const calls = [];
   const fetchImpl = async (url, init) => {
     calls.push([init.method, new URL(url).pathname]);
@@ -91,10 +89,30 @@ test("cleanup succeeds after a partial preflight failure when DELETE and list ve
     return response(200, { items: [] });
   };
 
-  assert.equal(await cleanupTemporaryDatabaseMapping({ token, userId, fetchImpl }), true);
+  assert.equal(await cleanupTemporaryDatabaseMapping({ token, userId, jitWasEnabled: true, fetchImpl }), true);
   assert.deepEqual(calls, [
     ["DELETE", `/v1/projects/${TEMP_ACCESS.projectRef}/database/jit/${userId}`],
     ["GET", `/v1/projects/${TEMP_ACCESS.projectRef}/database/jit/list`],
+  ]);
+});
+
+test("cleanup restores Temporary Access to disabled only when this workflow enabled it", async () => {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    const path = new URL(url).pathname;
+    calls.push([init.method, path, init.body ?? null]);
+    if (init.method === "DELETE") return response(200, {});
+    if (init.method === "GET") return response(200, { items: [] });
+    assert.equal(path, `/v1/projects/${TEMP_ACCESS.projectRef}/jit-access`);
+    assert.equal(init.body, JSON.stringify({ state: "disabled" }));
+    return response(200, { state: "disabled", appliedSuccessfully: true });
+  };
+
+  assert.equal(await cleanupTemporaryDatabaseMapping({ token, userId, jitWasEnabled: false, fetchImpl }), true);
+  assert.deepEqual(calls.map(([method, path]) => [method, path]), [
+    ["DELETE", `/v1/projects/${TEMP_ACCESS.projectRef}/database/jit/${userId}`],
+    ["GET", `/v1/projects/${TEMP_ACCESS.projectRef}/database/jit/list`],
+    ["PUT", `/v1/projects/${TEMP_ACCESS.projectRef}/jit-access`],
   ]);
 });
 
@@ -104,19 +122,28 @@ test("cleanup is idempotent when the exact JIT mapping is already absent", async
     return response(200, { items: [] });
   };
 
-  assert.equal(await cleanupTemporaryDatabaseMapping({ token, userId, fetchImpl }), true);
+  assert.equal(await cleanupTemporaryDatabaseMapping({ token, userId, jitWasEnabled: true, fetchImpl }), true);
 });
 
-test("HTTP 406 during cleanup verification remains fail-closed", async () => {
-  const fetchImpl = async (_url, init) => {
+test("HTTP 406 remains fail-closed but does not prevent restoring JIT to disabled", async () => {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    const path = new URL(url).pathname;
+    calls.push([init.method, path]);
     if (init.method === "DELETE") return response(200, {});
-    return response(406, { message: "Not Acceptable" });
+    if (init.method === "GET") return response(406, { message: "Not Acceptable" });
+    return response(200, { state: "disabled", appliedSuccessfully: true });
   };
 
   await assert.rejects(
-    cleanupTemporaryDatabaseMapping({ token, userId, fetchImpl }),
-    /GET .*database\/jit\/list returned HTTP 406/,
+    cleanupTemporaryDatabaseMapping({ token, userId, jitWasEnabled: false, fetchImpl }),
+    /cleanup failed closed:.*database\/jit\/list returned HTTP 406/,
   );
+  assert.deepEqual(calls, [
+    ["DELETE", `/v1/projects/${TEMP_ACCESS.projectRef}/database/jit/${userId}`],
+    ["GET", `/v1/projects/${TEMP_ACCESS.projectRef}/database/jit/list`],
+    ["PUT", `/v1/projects/${TEMP_ACCESS.projectRef}/jit-access`],
+  ]);
 });
 
 test("cleanup fails if a residual mapping remains after DELETE", async () => {
@@ -127,9 +154,27 @@ test("cleanup fails if a residual mapping remains after DELETE", async () => {
   };
 
   await assert.rejects(
-    cleanupTemporaryDatabaseMapping({ token, userId, fetchImpl }),
+    cleanupTemporaryDatabaseMapping({ token, userId, jitWasEnabled: true, fetchImpl }),
     /JIT user mapping remains after cleanup/,
   );
+});
+
+test("missing initial JIT state fails closed after still attempting mapping cleanup", async () => {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push([init.method, new URL(url).pathname]);
+    if (init.method === "DELETE") return response(200, {});
+    return response(200, { items: [] });
+  };
+
+  await assert.rejects(
+    cleanupTemporaryDatabaseMapping({ token, userId, jitWasEnabled: undefined, fetchImpl }),
+    /initial Temporary Access state was not recorded/,
+  );
+  assert.deepEqual(calls, [
+    ["DELETE", `/v1/projects/${TEMP_ACCESS.projectRef}/database/jit/${userId}`],
+    ["GET", `/v1/projects/${TEMP_ACCESS.projectRef}/database/jit/list`],
+  ]);
 });
 
 test("residual mapping validator rejects malformed list responses", () => {
