@@ -52,6 +52,10 @@ function fail(message) {
   throw new Error(`temporary database access: ${message}`);
 }
 
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function assertAllowedManagementRequest(method, path) {
   const normalizedMethod = String(method).toUpperCase();
   const normalizedPath = String(path);
@@ -356,29 +360,45 @@ export async function cleanupTemporaryDatabaseMapping({ token, userId, jitWasEna
     fail("cleanup user id is invalid");
   }
 
-  await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/database/jit/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-    expected: [200, 404],
-    fetchImpl,
-  });
-
-  const after = await apiRequest(token, JIT_LIST_PATH, { expected: [200], fetchImpl });
-  assertNoResidualJitMapping(after.data, { userId: id });
-
+  const errors = [];
   if (jitWasEnabled !== true && jitWasEnabled !== false) {
-    fail("initial Temporary Access state was not recorded");
+    errors.push("initial Temporary Access state was not recorded");
   }
-  if (!jitWasEnabled) {
-    const restored = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/jit-access`, {
-      method: "PUT",
-      body: { state: "disabled" },
-      expected: [200],
+
+  try {
+    await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/database/jit/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      expected: [200, 404],
       fetchImpl,
-    })).data;
-    if (restored?.state !== "disabled" || restored?.appliedSuccessfully === false) {
-      fail("Temporary Database Access state was not restored to disabled");
+    });
+  } catch (error) {
+    errors.push(errorMessage(error));
+  }
+
+  try {
+    const after = await apiRequest(token, JIT_LIST_PATH, { expected: [200], fetchImpl });
+    assertNoResidualJitMapping(after.data, { userId: id });
+  } catch (error) {
+    errors.push(errorMessage(error));
+  }
+
+  if (jitWasEnabled === false) {
+    try {
+      const restored = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/jit-access`, {
+        method: "PUT",
+        body: { state: "disabled" },
+        expected: [200],
+        fetchImpl,
+      })).data;
+      if (restored?.state !== "disabled" || restored?.appliedSuccessfully === false) {
+        throw new Error("Temporary Database Access state was not restored to disabled");
+      }
+    } catch (error) {
+      errors.push(errorMessage(error));
     }
   }
+
+  if (errors.length > 0) fail(`cleanup failed closed: ${errors.join("; ")}`);
   return true;
 }
 
