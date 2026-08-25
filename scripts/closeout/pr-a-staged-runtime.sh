@@ -124,7 +124,7 @@ echo "PR-A staged runtime: capture pre-preparation support ACL"
 acl_before="$(support_acl)"
 
 echo "PR-A staged runtime: apply preparation migration only"
-"${PSQL[@]}" -f supabase/migrations/20260823084000_pr100_support_request_trusted_gateway_preparation.sql
+"${PSQL[@]}" -f supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql
 "${PSQL[@]}" -qAtc "select pg_notify('pgrst','reload schema')" >/dev/null
 
 acl_after_preparation="$(support_acl)"
