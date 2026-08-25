@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 import {
   TEMP_ACCESS,
@@ -52,7 +53,7 @@ test("successful constrained JIT mapping produces a CLI-compatible temporary dat
   assert.equal(seenArgs.at(-1), "select 1 as jit_ready;");
   assert.match(dbUrl, /^postgresql:\/\//);
   assert.match(dbUrl, new RegExp(`postgres\\.${TEMP_ACCESS.projectRef}`));
-  assert.ok(!dbUrl.includes(token), "reserved PAT bytes must be URL-encoded rather than embedded raw");
+  assert.equal(decodeURIComponent(new URL(dbUrl).password), token);
 });
 
 test("temporary database readiness uses bounded propagation retries", async () => {
@@ -73,6 +74,13 @@ test("temporary database readiness uses bounded propagation retries", async () =
   assert.equal(attempts, 3);
   assert.equal(probes, 3);
   assert.deepEqual(sleeps, [5, 10]);
+});
+
+test("workflow gates forward reads on readiness and uses fail-closed list-based cleanup", async () => {
+  const workflow = await readFile(".github/workflows/forward-production-migrations.yml", "utf8");
+  assert.match(workflow, /temporary-database-access-reliability\.mjs wait/);
+  assert.match(workflow, /temporary-database-access-reliability\.mjs cleanup/);
+  assert.match(workflow, /if:\s*always\(\)/);
 });
 
 test("cleanup succeeds after a partial preflight failure when DELETE and list verification succeed", async () => {
