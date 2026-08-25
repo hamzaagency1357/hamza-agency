@@ -258,8 +258,8 @@ test("workflow is main-only, one-secret JIT access, and preserves the forward-on
   assert.doesNotMatch(workflow, /secrets\.SUPABASE_ACCESS_TOKEN/);
   assert.doesNotMatch(workflow, /SUPABASE_DB_PASSWORD/);
   assert.match(workflow, /temporary-database-access\.mjs setup/);
-  assert.match(workflow, /temporary-database-access-reliability\.mjs wait/);
-  assert.match(workflow, /temporary-database-access-reliability\.mjs cleanup/);
+  assert.match(workflow, /temporary-database-access\.mjs wait/);
+  assert.match(workflow, /temporary-database-access\.mjs cleanup/);
   assert.match(workflow, /db query --db-url "\$FORWARD_DB_URL"/);
   assert.match(workflow, /migration fetch --db-url "\$FORWARD_DB_URL"/);
   assert.match(workflow, /db push --db-url "\$FORWARD_DB_URL" --dry-run/);
