@@ -7,8 +7,10 @@ on:
       - "scripts/ops/forward-production-contract.mjs"
       - "scripts/ops/forward-production-effects.sql"
       - "scripts/ops/temporary-database-access.mjs"
+      - "scripts/ops/temporary-database-access-reliability.mjs"
       - "tests/forward-production-contract.test.mjs"
       - "tests/temporary-database-access-containment.test.mjs"
+      - "tests/temporary-database-access-reliability.test.mjs"
       - "docs/ops/FORWARD_PRODUCTION_MIGRATIONS.md"
       - "supabase/migrations/20260823084000_pr100_support_request_trusted_gateway_preparation.sql"
   workflow_dispatch:
@@ -57,7 +59,7 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
       - name: Forward contract, credential-containment and workflow tests
-        run: node --test tests/forward-production-contract.test.mjs tests/temporary-database-access-containment.test.mjs
+        run: node --test tests/forward-production-contract.test.mjs tests/temporary-database-access-containment.test.mjs tests/temporary-database-access-reliability.test.mjs
       - name: Migration safety verifier
         run: npm run verify:migrations
       - name: Secret exposure verifier
@@ -151,6 +153,13 @@ jobs:
           mkdir -p "$FORWARD_WORKDIR/supabase/migrations"
           cp "$GITHUB_WORKSPACE/supabase/config.toml" "$FORWARD_WORKDIR/supabase/config.toml"
 
+      - name: Wait for contained temporary Postgres access readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${FORWARD_DB_URL:-}"
+          node scripts/ops/temporary-database-access-reliability.mjs wait
+
       - name: Read forward anchor, effects, gateway and application health
         shell: bash
         run: |
@@ -222,7 +231,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/ops/temporary-database-access.mjs cleanup
+          node scripts/ops/temporary-database-access-reliability.mjs cleanup
 
       - name: Always remove transient Production tooling state
         if: always()
