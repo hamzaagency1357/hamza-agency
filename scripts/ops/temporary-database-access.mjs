@@ -1,5 +1,10 @@
+import { execFile as execFileCallback } from "node:child_process";
 import { appendFileSync } from "node:fs";
+import { setTimeout as sleepTimer } from "node:timers/promises";
+import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
+
+const execFile = promisify(execFileCallback);
 
 export const TEMP_ACCESS = Object.freeze({
   apiBase: "https://api.supabase.com/v1",
@@ -10,6 +15,8 @@ export const TEMP_ACCESS = Object.freeze({
   poolerPort: 5432,
   poolerHostSuffix: ".pooler.supabase.com",
 });
+
+export const READINESS_RETRY_DELAYS_MS = Object.freeze([0, 2_000, 4_000, 8_000, 12_000]);
 
 // Preferred least-privilege boundary if Supabase exposes Scoped PAT creation to this account.
 // The current operational fallback is a short-lived classic PAT, so these permissions are
@@ -28,6 +35,7 @@ export const PREFERRED_SCOPED_PAT_PERMISSIONS = Object.freeze([
 // the least-privilege target. It must not be interpreted as proof that the runtime PAT is scoped.
 export const REQUIRED_FINE_GRAINED_PERMISSIONS = PREFERRED_SCOPED_PAT_PERMISSIONS;
 
+const JIT_LIST_PATH = `/projects/${TEMP_ACCESS.projectRef}/database/jit/list`;
 const EXACT_MANAGEMENT_API_ALLOWLIST = new Set([
   "GET /profile",
   `GET /projects/${TEMP_ACCESS.projectRef}`,
@@ -36,11 +44,16 @@ const EXACT_MANAGEMENT_API_ALLOWLIST = new Set([
   `PUT /projects/${TEMP_ACCESS.projectRef}/jit-access`,
   `PUT /projects/${TEMP_ACCESS.projectRef}/database/jit`,
   `GET /projects/${TEMP_ACCESS.projectRef}/database/jit`,
+  `GET ${JIT_LIST_PATH}`,
   `GET /projects/${TEMP_ACCESS.projectRef}/config/database/pooler`,
 ]);
 
 function fail(message) {
   throw new Error(`temporary database access: ${message}`);
+}
+
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 export function assertAllowedManagementRequest(method, path) {
@@ -163,6 +176,76 @@ export function buildJitDbUrl({ host, token }) {
   return url.toString();
 }
 
+export function assertTemporaryDatabaseUrl(dbUrl) {
+  let url;
+  try {
+    url = new URL(String(dbUrl));
+  } catch {
+    fail("temporary database URL is invalid");
+  }
+  if (url.protocol !== "postgresql:" && url.protocol !== "postgres:") fail("temporary database URL is not Postgres");
+  if (!url.hostname.endsWith(TEMP_ACCESS.poolerHostSuffix)) fail("temporary database URL is not a Supavisor host");
+  if (url.port !== String(TEMP_ACCESS.poolerPort)) fail("temporary database URL is not Supavisor session mode port 5432");
+  if (decodeURIComponent(url.username) !== `postgres.${TEMP_ACCESS.projectRef}`) fail("temporary database URL username mismatch");
+  if (!url.password) fail("temporary database URL has no password");
+  if (url.searchParams.get("sslmode") !== "require") fail("temporary database URL must require SSL");
+  if (url.searchParams.get("options") !== "-c jit=true") fail("temporary database URL must enable JIT through startup options");
+  return true;
+}
+
+export function readinessProbeArgs({ dbUrl, workdir }) {
+  assertTemporaryDatabaseUrl(dbUrl);
+  if (typeof workdir !== "string" || workdir.length === 0) fail("temporary database workdir is missing");
+  return [
+    "--workdir",
+    workdir,
+    "db",
+    "query",
+    "--db-url",
+    dbUrl,
+    "--output",
+    "json",
+    "select 1 as jit_ready;",
+  ];
+}
+
+async function defaultRunProbe({ supabaseBin, args }) {
+  await execFile(supabaseBin, args, {
+    env: process.env,
+    timeout: 20_000,
+    maxBuffer: 128 * 1024,
+  });
+}
+
+export async function waitForTemporaryDatabaseReady({
+  supabaseBin,
+  dbUrl,
+  workdir,
+  retryDelaysMs = READINESS_RETRY_DELAYS_MS,
+  runProbe = defaultRunProbe,
+  sleep = (ms) => sleepTimer(ms),
+}) {
+  if (typeof supabaseBin !== "string" || supabaseBin.length === 0) fail("SUPABASE_BIN is missing");
+  if (!Array.isArray(retryDelaysMs) || retryDelaysMs.length === 0) fail("readiness retry schedule is empty");
+  const args = readinessProbeArgs({ dbUrl, workdir });
+
+  for (let index = 0; index < retryDelaysMs.length; index += 1) {
+    const delayMs = retryDelaysMs[index];
+    if (!Number.isSafeInteger(delayMs) || delayMs < 0) fail("invalid readiness retry delay");
+    if (delayMs > 0) await sleep(delayMs);
+    try {
+      await runProbe({ supabaseBin, args, attempt: index + 1 });
+      return index + 1;
+    } catch {
+      if (index + 1 < retryDelaysMs.length) {
+        console.warn(`Temporary database access is not ready after attempt ${index + 1}; retrying.`);
+      }
+    }
+  }
+
+  fail(`temporary Postgres access did not become ready after ${retryDelaysMs.length} bounded attempts`);
+}
+
 function writeGithubEnv(name, value) {
   const envFile = process.env.GITHUB_ENV;
   if (!envFile) fail("GITHUB_ENV is unavailable");
@@ -170,9 +253,9 @@ function writeGithubEnv(name, value) {
   appendFileSync(envFile, `${name}=${value}\n`, { encoding: "utf8", mode: 0o600 });
 }
 
-async function apiRequest(token, path, { method = "GET", body, expected = [200] } = {}) {
+async function apiRequest(token, path, { method = "GET", body, expected = [200], fetchImpl = fetch } = {}) {
   assertAllowedManagementRequest(method, path);
-  const response = await fetch(`${TEMP_ACCESS.apiBase}${path}`, {
+  const response = await fetchImpl(`${TEMP_ACCESS.apiBase}${path}`, {
     method,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -228,7 +311,9 @@ async function setup() {
   }
 
   let jitState = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/jit-access`)).data;
-  if (jitState?.state !== "enabled") {
+  const jitWasEnabled = jitState?.state === "enabled";
+  writeGithubEnv("FORWARD_JIT_WAS_ENABLED", jitWasEnabled ? "true" : "false");
+  if (!jitWasEnabled) {
     jitState = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/jit-access`, {
       method: "PUT",
       body: { state: "enabled" },
@@ -258,6 +343,65 @@ async function setup() {
   console.log("Supabase Temporary Database Access prepared with one postgres role, runner /32 restriction, and 45-minute expiry.");
 }
 
+export function assertNoResidualJitMapping(data, { userId }) {
+  const id = String(userId);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    fail("cleanup user id is invalid");
+  }
+  if (!data || !Array.isArray(data.items)) fail("JIT list response omitted items array");
+  if (data.items.some((item) => item?.user_id === id)) fail("JIT user mapping remains after cleanup");
+  return true;
+}
+
+export async function cleanupTemporaryDatabaseMapping({ token, userId, jitWasEnabled, fetchImpl = fetch }) {
+  if (typeof token !== "string" || token.length < 20 || /\s/.test(token)) fail("invalid Supabase token");
+  const id = String(userId);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    fail("cleanup user id is invalid");
+  }
+
+  const errors = [];
+  if (jitWasEnabled !== true && jitWasEnabled !== false) {
+    errors.push("initial Temporary Access state was not recorded");
+  }
+
+  try {
+    await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/database/jit/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      expected: [200, 404],
+      fetchImpl,
+    });
+  } catch (error) {
+    errors.push(errorMessage(error));
+  }
+
+  try {
+    const after = await apiRequest(token, JIT_LIST_PATH, { expected: [200], fetchImpl });
+    assertNoResidualJitMapping(after.data, { userId: id });
+  } catch (error) {
+    errors.push(errorMessage(error));
+  }
+
+  if (jitWasEnabled === false) {
+    try {
+      const restored = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/jit-access`, {
+        method: "PUT",
+        body: { state: "disabled" },
+        expected: [200],
+        fetchImpl,
+      })).data;
+      if (restored?.state !== "disabled" || restored?.appliedSuccessfully === false) {
+        throw new Error("Temporary Database Access state was not restored to disabled");
+      }
+    } catch (error) {
+      errors.push(errorMessage(error));
+    }
+  }
+
+  if (errors.length > 0) fail(`cleanup failed closed: ${errors.join("; ")}`);
+  return true;
+}
+
 async function cleanup() {
   const token = process.env.SUPABASE_PRODUCTION_JIT_TOKEN;
   const userId = process.env.FORWARD_JIT_USER_ID;
@@ -265,26 +409,27 @@ async function cleanup() {
     console.log("No temporary JIT user mapping was recorded for cleanup.");
     return;
   }
+  const state = process.env.FORWARD_JIT_WAS_ENABLED;
+  const jitWasEnabled = state === "true" ? true : state === "false" ? false : undefined;
   console.log(`::add-mask::${token}`);
-  await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/database/jit/${encodeURIComponent(userId)}`, {
-    method: "DELETE",
-    expected: [200, 404],
-  });
-  const after = await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/database/jit`, { expected: [200, 404] });
-  if (after.status === 200) {
-    const roles = after.data?.user_roles ?? after.data?.roles ?? [];
-    if (Array.isArray(roles) && roles.some((entry) => entry?.role === TEMP_ACCESS.postgresRole)) {
-      fail("postgres JIT role remains after cleanup");
-    }
-  }
-  console.log("Supabase temporary postgres JIT mapping removed.");
+  await cleanupTemporaryDatabaseMapping({ token, userId, jitWasEnabled });
+  console.log("Supabase temporary postgres JIT mapping removed, absence verified, and Temporary Access state restored when required.");
 }
 
 async function main() {
   const command = process.argv[2];
   if (command === "setup") return setup();
+  if (command === "wait") {
+    const attempts = await waitForTemporaryDatabaseReady({
+      supabaseBin: process.env.SUPABASE_BIN,
+      dbUrl: process.env.FORWARD_DB_URL,
+      workdir: process.env.FORWARD_WORKDIR,
+    });
+    console.log(`Supabase temporary Postgres access ready after ${attempts} attempt(s).`);
+    return;
+  }
   if (command === "cleanup") return cleanup();
-  fail("expected command setup or cleanup");
+  fail("expected command setup, wait, or cleanup");
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
