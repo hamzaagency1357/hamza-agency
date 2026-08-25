@@ -7,7 +7,6 @@ on:
       - "scripts/ops/forward-production-contract.mjs"
       - "scripts/ops/forward-production-effects.sql"
       - "scripts/ops/temporary-database-access.mjs"
-      - "scripts/ops/temporary-database-access-reliability.mjs"
       - "tests/forward-production-contract.test.mjs"
       - "tests/temporary-database-access-containment.test.mjs"
       - "tests/temporary-database-access-reliability.test.mjs"
@@ -158,7 +157,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${FORWARD_DB_URL:-}"
-          node scripts/ops/temporary-database-access-reliability.mjs wait
+          node scripts/ops/temporary-database-access.mjs wait
 
       - name: Read forward anchor, effects, gateway and application health
         shell: bash
@@ -231,7 +230,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/ops/temporary-database-access-reliability.mjs cleanup
+          node scripts/ops/temporary-database-access.mjs cleanup
 
       - name: Always remove transient Production tooling state
         if: always()
