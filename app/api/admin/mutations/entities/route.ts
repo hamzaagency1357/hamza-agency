@@ -41,7 +41,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "سجل التدقيق يُنشأ تلقائيًا من البوابة الموثوقة ولا يقبل إدخالًا من المتصفح." }, { status: 400 });
   }
   if (!validatePayload(contract, body.payload)) return NextResponse.json({ ok: false, message: "بيانات الحفظ لا تطابق العقد المعتمد." }, { status: 400 });
-  const auth = await authorizeAdminMutation(request, contract.module as AdminModule, contract.permission as AdminPermissionAction);
+  const requiredRole = contract.kind === "entity" && contract.table === "admin_permissions" ? "super_admin" : null;
+  const auth = await authorizeAdminMutation(
+    request,
+    contract.module as AdminModule,
+    contract.permission as AdminPermissionAction,
+    requiredRole,
+  );
   if (!auth.ok) return NextResponse.json({ ok: false, message: auth.message }, { status: auth.status });
   try {
     const result = await callPr116AdminOidcGateway<{ ok?: boolean; data?: unknown }>(request, auth.actor.user.accessToken, body.action, body.payload);

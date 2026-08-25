@@ -21,8 +21,8 @@ test("PR4 answers only from active published sources or natural safe fallback",(
   assert.match(ai,/pr4_knowledge_base/);assert.match(ai,/\.eq\("status","published"\)/);assert.match(ai,/start_at\.is\.null/);assert.match(ai,/expires_at\.is\.null/);assert.match(ai,/findPublishedKnowledgeAnswer/);assert.match(knowledge,/status !== "published"/);assert.match(ai,/sitemap\.xml/);assert.match(ai,/cache:\s*"no-store"/);assert.match(ai,/rules_fallback/);assert.match(ai,/safe_fallback/);assert.match(ai,/وعليكم السلام ورحمة الله وبركاته/);assert.match(ai,/Hello and welcome to HAMZA AGENCY/);assert.match(ai,/HAMZA AGENCY'ye hoş geldiniz/);assert.doesNotMatch(ai,/BUILT_IN_KNOWLEDGE/);assert.doesNotMatch(ai,/service_role/i);
 });
 
-test("PR4 human handoff requires disclosure and consent and keeps WhatsApp optional",()=>{
-  assert.match(panel,/90 يوم/);assert.match(panel,/Privacy policy|سياسة الخصوصية/);assert.match(panel,/consent/);assert.match(panel,/WhatsApp \(optional\)|واتساب \(اختياري\)/);assert.match(panel,/backendUnavailable/);assert.match(handoff,/consent_required/);assert.match(handoff,/pr4_create_support_request/);
+test("PR4 human handoff requires disclosure and consent and uses the trusted server path",()=>{
+  assert.match(panel,/90 يوم/);assert.match(panel,/Privacy policy|سياسة الخصوصية/);assert.match(panel,/consent/);assert.match(panel,/WhatsApp \(optional\)|واتساب \(اختياري\)/);assert.match(panel,/backendUnavailable/);assert.match(handoff,/consent_required/);assert.match(handoff,/support_request_create/);assert.doesNotMatch(handoff,/\.rpc\s*\(\s*["'`]pr4_create_support_request/);
 });
 
 test("SUP tracking requires a second secret and never exposes internal notes",()=>{
