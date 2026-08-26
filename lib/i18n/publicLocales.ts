@@ -4,7 +4,7 @@ export const SITE_URL = "https://hamza-agency.com";
 export const AGENT_PUBLIC_PATH = "/agent/arab-syria";
 
 export const PUBLIC_ROUTE_PATHS = [
-  "/", "/about", AGENT_PUBLIC_PATH, "/ai-policy", "/ai-support", "/apply", "/application-status", "/blog", "/contact", "/cookie-policy", "/cookie-settings", "/digital-services", "/faq", "/gallery", "/install-app", "/jobs", "/knowledge-center", "/marketplace", "/partners", "/platform-status", "/privacy-policy", "/programs", "/reviews", "/service-request", "/service-status", "/services", "/success-stories", "/terms-and-conditions", "/track",
+  "/", "/about", AGENT_PUBLIC_PATH, "/ai-policy", "/ai-support", "/apply", "/application-status", "/blog", "/contact", "/cookie-policy", "/cookie-settings", "/digital-services", "/faq", "/gallery", "/install-app", "/jobs", "/knowledge-center", "/marketplace", "/offline", "/partners", "/platform-status", "/privacy-policy", "/programs", "/reviews", "/service-request", "/service-status", "/services", "/success-stories", "/terms-and-conditions", "/track",
 ] as const;
 
 export const PROGRAM_SLUGS = ["tiktok", "bigo-live", "yaahlan", "xena", "catchii"] as const;
@@ -16,7 +16,7 @@ const programPathPattern = /^\/programs\/[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const blogArticlePathPattern = /^\/blog\/[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const dynamicCmsPathPattern = /^\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*$/;
 const reservedCmsSegments = new Set(["admin", "api", "_next", "en", "tr", "login", "portal", "reset-password", "robots.txt", "sitemap.xml", "manifest.webmanifest", "opengraph-image"]);
-const nonIndexablePublicPaths = new Set(["/application-status", "/service-status", "/track", "/blog/rss", "/marketplace", "/platform-status"]);
+const nonIndexablePublicPaths = new Set(["/application-status", "/service-status", "/track", "/blog/rss", "/marketplace", "/offline", "/platform-status"]);
 
 export function normalizePublicPathname(pathname: string) {
   const withoutQuery = pathname.split(/[?#]/, 1)[0] || "/";
