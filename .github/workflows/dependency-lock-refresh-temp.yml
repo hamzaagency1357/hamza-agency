@@ -21,13 +21,13 @@ jobs:
           cache: npm
       - name: Validate dependency lock
         run: node -e "const l=require('./package-lock.json');const p=l.packages;for(const [n,v] of Object.entries({next:'15.5.22',react:'19.2.8','react-dom':'19.2.8',sharp:'0.35.3',postcss:'8.5.26','@playwright/test':'1.62.1'})){if(p['node_modules/'+n]?.version!==v)throw new Error(n)};if(p['node_modules/nanoid']?.version!=='3.3.18')throw new Error('nanoid')"
-      - name: Apply exact auth patch
+      - name: Apply exact missing-permission patch
         run: python3 scripts/temp-auth-hardening.py
-      - name: Commit hardening
+      - name: Commit Edge fail-closed hardening
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib/adminAccess.ts lib/server/adminMutationBoundary.ts lib/server/pr116AdminOidcGateway.ts supabase/functions/pr116-admin-oidc-gateway/index.ts
+          git add supabase/functions/pr116-admin-oidc-gateway/index.ts
           git diff --cached --check
-          git commit -m "security: require authoritative admin identities"
+          git commit -m "security: deny missing admin permission rows"
           git push
