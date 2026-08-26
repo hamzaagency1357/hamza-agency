@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { AdminModule, AdminPermissionAction, AdminRole } from "@/lib/adminAccess";
+import { evaluateAdminPermission } from "@/lib/adminPermissionPolicy";
 import {
   supabaseRestAsUser,
   verifySupabaseBearer,
@@ -43,8 +44,6 @@ type PermissionRow = {
   can_manage: boolean;
 };
 
-const PROGRAM_ADMIN_MODULES = new Set<AdminModule>(["dashboard", "applications", "programs"]);
-
 function normalizeRole(value: string): AdminRole | null {
   if (value === "super_admin" || value === "deputy_super_admin" || value === "program_admin") return value;
   return null;
@@ -75,18 +74,15 @@ async function hasPermission(
   module: AdminModule,
   action: AdminPermissionAction,
 ): Promise<boolean> {
-  if (actor.profile.role === "super_admin") return true;
-  if (actor.profile.role === "program_admin" && !PROGRAM_ADMIN_MODULES.has(module)) return false;
+  const permission = actor.profile.role === "super_admin"
+    ? null
+    : await supabaseRestAsUser<PermissionRow[]>(
+        `/admin_permissions?select=can_view,can_create,can_edit,can_delete,can_export,can_manage&admin_user_id=eq.${actor.profile.id}&module_key=eq.${encodeURIComponent(module)}&limit=1`,
+        actor.user,
+      );
 
-  const fields = "can_view,can_create,can_edit,can_delete,can_export,can_manage";
-  const primary = await supabaseRestAsUser<PermissionRow[]>(
-    `/admin_permissions?select=${fields}&admin_user_id=eq.${actor.profile.id}&module_key=eq.${encodeURIComponent(module)}&limit=1`,
-    actor.user,
-  );
-  const permission = primary.ok && Array.isArray(primary.data) ? primary.data[0] : null;
-
-  if (!permission) return false;
-  return permission.can_manage === true || permission[action] === true;
+  const row = permission && permission.ok && Array.isArray(permission.data) ? permission.data[0] : null;
+  return evaluateAdminPermission(actor.profile.role, module, action, row);
 }
 
 export async function authorizeAdminMutation(
@@ -108,8 +104,6 @@ export async function authorizeAdminMutation(
     return { ok: false, status: 403, message: "لا تملك صلاحية تنفيذ هذا الإجراء." };
   }
 
-  // First mandatory defense-in-depth layer. The Supabase PR116 OIDC gateway
-  // independently checks the Vercel OIDC environment claim and accepts only production.
   if (process.env.VERCEL_ENV === "preview") {
     return { ok: false, status: 403, message: PREVIEW_READ_ONLY_MESSAGE };
   }
