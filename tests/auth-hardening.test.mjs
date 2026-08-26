@@ -32,11 +32,15 @@ test("legacy email authority fallback is absent from authoritative admin lookups
     "lib/adminAccess.ts",
     "lib/server/adminMutationBoundary.ts",
     "supabase/functions/pr116-admin-oidc-gateway/index.ts",
+    "app/api/admin/translations/sync/route.ts",
   ]) {
     const source = read(file);
     assert.doesNotMatch(source, /user_id=is\.null/);
     assert.doesNotMatch(source, /admin_user_id=is\.null/);
   }
+  const translationSync = read("app/api/admin/translations/sync/route.ts");
+  assert.match(translationSync, /\.eq\("user_id", user\.id\)/);
+  assert.doesNotMatch(translationSync, /\.ilike\("email", user\.email\)/);
 });
 
 test("OIDC gateway token is server sourced and preview is denied", () => {
@@ -51,6 +55,7 @@ test("disabled admins are denied at every authoritative boundary", () => {
     "lib/adminAccess.ts",
     "lib/server/adminMutationBoundary.ts",
     "supabase/functions/pr116-admin-oidc-gateway/index.ts",
+    "app/api/admin/translations/sync/route.ts",
   ]) {
     assert.match(read(file), /is_active/);
   }
