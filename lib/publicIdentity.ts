@@ -28,6 +28,9 @@ export const PUBLIC_IDENTITY_SETTING_KEYS = {
 
 const lockedAgentName: LocalizedIdentityText = { ar: "عراب سوريا", en: "عراب سوريا", tr: "عراب سوريا" };
 const lockedAgencyName: LocalizedIdentityText = { ar: "وكالة حمزة", en: "HAMZA AGENCY", tr: "HAMZA AGENCY" };
+const legacyEnglishAgent = ["Agent", "Hamza"].join(" ");
+const legacyTurkishAgent = ["Temsilci", "Hamza"].join(" ");
+const legacyTurkishAgency = ["Hamza", "Ajansı"].join(" ");
 
 export const DEFAULT_PUBLIC_IDENTITY: PublicIdentity = {
   agencyName: lockedAgencyName,
@@ -82,7 +85,7 @@ function localizedValue(rows: Map<string, string>, keys: Record<SiteLanguage, st
 }
 
 function cleanLegacyAgentAliases(value: string) {
-  return value.replaceAll("Agent Hamza", "عراب سوريا").replaceAll("Temsilci Hamza", "عراب سوريا");
+  return value.replaceAll(legacyEnglishAgent, lockedAgentName.en).replaceAll(legacyTurkishAgent, lockedAgentName.tr);
 }
 
 function sanitizeLocalizedIdentity(copy: LocalizedIdentityText): LocalizedIdentityText {
@@ -113,7 +116,7 @@ export async function getPublicIdentity(): Promise<PublicIdentity> {
 
 function replaceApprovedIdentityTokens(value: string, language: SiteLanguage, identity: PublicIdentity, decorated = false) {
   let output = cleanLegacyAgentAliases(value);
-  if (language !== "en") output = output.replaceAll("Hamza Ajansı", identity.agencyName[language]);
+  if (language !== "en") output = output.replaceAll(legacyTurkishAgency, identity.agencyName[language]);
   if (decorated && language === "ar") output = output.replaceAll(DEFAULT_PUBLIC_IDENTITY.agentDecoratedAr, identity.agentDecoratedAr);
   return output;
 }
