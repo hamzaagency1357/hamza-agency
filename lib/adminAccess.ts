@@ -166,10 +166,9 @@ export async function canUseAdminModulePermission(
 
   const permission = await getAdminModulePermission(profile, module);
 
-  // Deputy administrators retain platform access unless a module-specific row
-  // is present. Program administrators require an explicit permission row,
-  // matching current_admin_has_module_permission() in PostgreSQL.
-  if (!permission) return profile.role === "deputy_super_admin";
+  // Non-super admins require an explicit module permission row. This keeps the
+  // browser view aligned with the authoritative server and OIDC gateway boundaries.
+  if (!permission) return false;
   if (permission.can_manage) return true;
   return permission[action] === true;
 }
@@ -194,8 +193,8 @@ export async function getCurrentAdminProfile(): Promise<AdminAccessResult> {
     .eq("user_id", session.user.id)
     .maybeSingle();
 
-  let data = primary.data;
-  let queryError = primary.error;
+  const data = primary.data;
+  const queryError = primary.error;
   const email = session.user.email?.trim() || "";
 
   if (queryError || !data) {
