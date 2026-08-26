@@ -2,16 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { evaluateAdminPermission } from "../lib/adminPermissionPolicy.ts";
 
 const ROOT = process.cwd();
 const read = (file) => fs.readFileSync(path.join(ROOT, file), "utf8");
-
-function evaluateAdminPermission(role, module, action, permission) {
-  if (role === "super_admin") return true;
-  if (role === "program_admin" && !new Set(["dashboard", "applications", "programs"]).has(module)) return false;
-  if (!permission) return false;
-  return permission.can_manage === true || permission[action] === true;
-}
 
 test("non-super admins fail closed without an explicit permission row", () => {
   assert.equal(evaluateAdminPermission("deputy_super_admin", "settings", "can_edit", null), false);
