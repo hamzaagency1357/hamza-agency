@@ -79,7 +79,7 @@ function gatewayTarget(request: Request): GatewayTarget {
   if (local) return local;
 
   const supabaseUrl = normalizedSupabaseServerUrl();
-  const workloadToken = request.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
+  const workloadToken = process.env.VERCEL_OIDC_TOKEN || "";
   if (!supabaseUrl || !workloadToken) throw new Pr116AdminGatewayError("unconfigured");
   return { url: `${supabaseUrl}/functions/v1/${EDGE_FUNCTION_NAME}`, workloadToken };
 }

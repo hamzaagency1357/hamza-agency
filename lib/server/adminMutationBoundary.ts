@@ -56,15 +56,7 @@ async function readProfile(user: VerifiedSupabaseUser): Promise<AuthorizedAdminM
     `/admin_users?select=${fields}&user_id=eq.${encodeURIComponent(user.id)}&limit=1`,
     user,
   );
-  let row = primary.ok && Array.isArray(primary.data) ? primary.data[0] : null;
-
-  if (!row && user.email) {
-    const fallback = await supabaseRestAsUser<AdminUserRow[]>(
-      `/admin_users?select=${fields}&user_id=is.null&email=ilike.${encodeURIComponent(user.email)}&limit=1`,
-      user,
-    );
-    row = fallback.ok && Array.isArray(fallback.data) ? fallback.data[0] : null;
-  }
+  const row = primary.ok && Array.isArray(primary.data) ? primary.data[0] : null;
 
   if (!row || row.is_active === false) return null;
   const role = normalizeRole(row.role);
@@ -91,14 +83,7 @@ async function hasPermission(
     `/admin_permissions?select=${fields}&admin_user_id=eq.${actor.profile.id}&module_key=eq.${encodeURIComponent(module)}&limit=1`,
     actor.user,
   );
-  let permission = primary.ok && Array.isArray(primary.data) ? primary.data[0] : null;
-  if (!permission && actor.profile.email) {
-    const fallback = await supabaseRestAsUser<PermissionRow[]>(
-      `/admin_permissions?select=${fields}&admin_user_id=is.null&admin_email=ilike.${encodeURIComponent(actor.profile.email)}&module_key=eq.${encodeURIComponent(module)}&limit=1`,
-      actor.user,
-    );
-    permission = fallback.ok && Array.isArray(fallback.data) ? fallback.data[0] : null;
-  }
+  const permission = primary.ok && Array.isArray(primary.data) ? primary.data[0] : null;
 
   if (!permission) return actor.profile.role === "deputy_super_admin";
   return permission.can_manage === true || permission[action] === true;

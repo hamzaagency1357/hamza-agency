@@ -140,19 +140,6 @@ export async function getAdminModulePermission(
   data = primary.data as Record<string, unknown> | null;
   queryError = primary.error;
 
-  if (!data && !queryError && profile.email) {
-    const fallback = await supabase
-      .from("admin_permissions")
-      .select(fields)
-      .is("admin_user_id", null)
-      .ilike("admin_email", profile.email.trim().toLowerCase())
-      .eq("module_key", module)
-      .maybeSingle();
-
-    data = fallback.data as Record<string, unknown> | null;
-    queryError = fallback.error;
-  }
-
   if (queryError || !data) return null;
 
   return {
@@ -210,18 +197,6 @@ export async function getCurrentAdminProfile(): Promise<AdminAccessResult> {
   let data = primary.data;
   let queryError = primary.error;
   const email = session.user.email?.trim() || "";
-
-  if (!data && !queryError && email) {
-    const fallback = await supabase
-      .from("admin_users")
-      .select(fields)
-      .is("user_id", null)
-      .ilike("email", email)
-      .maybeSingle();
-
-    data = fallback.data;
-    queryError = fallback.error;
-  }
 
   if (queryError || !data) {
     return { isAuthorized: false, reason: "not_admin", user: session.user, profile: null };
