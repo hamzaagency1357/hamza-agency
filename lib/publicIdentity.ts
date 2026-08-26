@@ -26,35 +26,38 @@ export const PUBLIC_IDENTITY_SETTING_KEYS = {
   agentSeoDescription: { ar: "agent_seo_description_ar", en: "agent_seo_description_en", tr: "agent_seo_description_tr" },
 } as const;
 
+const lockedAgentName: LocalizedIdentityText = { ar: "عراب سوريا", en: "عراب سوريا", tr: "عراب سوريا" };
+const lockedAgencyName: LocalizedIdentityText = { ar: "وكالة حمزة", en: "HAMZA AGENCY", tr: "HAMZA AGENCY" };
+
 export const DEFAULT_PUBLIC_IDENTITY: PublicIdentity = {
-  agencyName: { ar: "وكالة حمزة", en: "HAMZA AGENCY", tr: "Hamza Ajansı" },
-  agentReadableName: { ar: "عراب سوريا", en: "Agent Hamza", tr: "Temsilci Hamza" },
+  agencyName: lockedAgencyName,
+  agentReadableName: lockedAgentName,
   agentDecoratedAr: "⚔عܓོراب✴سܓོوريا⚔",
-  agentRoleLine: { ar: "الوكيل والمدير في", en: "Agent and Manager at HAMZA AGENCY", tr: "Hamza Ajansı Temsilcisi ve Yöneticisi" },
+  agentRoleLine: { ar: "الوكيل والمدير في HAMZA AGENCY", en: "Agent and Manager at HAMZA AGENCY", tr: "HAMZA AGENCY temsilcisi ve yöneticisi" },
   agentLead: {
-    ar: "ويُعد الوكيل ⚔عܓོراب✴سܓོوريا⚔ من أبرز الوكلاء وأكثرهم أمانًا واحترافية على مستوى العالم، بفضل خبرته الواسعة ونهجه القائم على الثقة والخصوصية والمتابعة الدقيقة.",
-    en: "Agent Hamza is considered one of the most prominent, safest, and most professional agents worldwide, thanks to his extensive experience and an approach built on trust, privacy, and precise follow-up.",
-    tr: "Temsilci Hamza, geniş deneyimi ve güven, gizlilik ve titiz takibe dayalı yaklaşımı sayesinde dünya çapında önde gelen, güvenli ve profesyonel temsilcilerden biridir.",
+    ar: "يتولى عراب سوريا إدارة ومتابعة مسارات صناع المحتوى وبرامج البث المباشر ضمن HAMZA AGENCY، مع التركيز على الخصوصية والمتابعة المهنية.",
+    en: "عراب سوريا manages creator and live-streaming program follow-up at HAMZA AGENCY with a focus on privacy and professional support.",
+    tr: "عراب سوريا, HAMZA AGENCY bünyesinde içerik üreticileri ve canlı yayın programlarının takibini gizlilik ve profesyonel destek odağıyla yürütür.",
   },
   agentManagementCopy: {
     ar: "HAMZA AGENCY بإدارة الوكيل عراب سوريا، مع متابعة منظمة لمسارات البرامج وصناع المحتوى والخدمات المرتبطة بالوكالة.",
-    en: "HAMZA AGENCY is managed by Agent Hamza, with organized follow-up for programs, creators, and agency-related services.",
-    tr: "Hamza Ajansı, Temsilci Hamza yönetiminde programlar, içerik üreticileri ve ajansla ilgili hizmetler için düzenli takip sağlar.",
+    en: "HAMZA AGENCY is managed by عراب سوريا, with organized follow-up for programs, creators, and agency-related services.",
+    tr: "HAMZA AGENCY, عراب سوريا yönetiminde programlar, içerik üreticileri ve ajansla ilgili hizmetler için düzenli takip sağlar.",
   },
   agentAboutCopy: {
-    ar: "يجمع عراب سوريا بين الخبرة الواسعة، الخصوصية، المتابعة الدقيقة، وفهم متطلبات برامج البث المباشر وصناع المحتوى.",
-    en: "Agent Hamza combines extensive experience, privacy, precise follow-up, and a strong understanding of live-streaming programs and creator requirements.",
-    tr: "Temsilci Hamza; geniş deneyimi, gizliliği, titiz takibi ve canlı yayın programları ile içerik üreticisi gerekliliklerine ilişkin güçlü bilgiyi bir araya getirir.",
+    ar: "يجمع عراب سوريا بين الخبرة، الخصوصية، المتابعة الدقيقة، وفهم متطلبات برامج البث المباشر وصناع المحتوى.",
+    en: "عراب سوريا combines experience, privacy, careful follow-up, and an understanding of live-streaming programs and creator requirements.",
+    tr: "عراب سوريا; deneyimi, gizliliği, titiz takibi ve canlı yayın programları ile içerik üreticisi gerekliliklerine ilişkin bilgiyi bir araya getirir.",
   },
   agentSeoTitle: {
     ar: "عراب سوريا | الوكيل والمدير في HAMZA AGENCY",
-    en: "Agent Hamza | Agent and Manager at HAMZA AGENCY",
-    tr: "Temsilci Hamza | Hamza Ajansı Temsilcisi ve Yöneticisi",
+    en: "عراب سوريا | Agent and Manager at HAMZA AGENCY",
+    tr: "عراب سوريا | HAMZA AGENCY Temsilcisi ve Yöneticisi",
   },
   agentSeoDescription: {
-    ar: "HAMZA AGENCY بإدارة الوكيل عراب سوريا، أحد أبرز وأكثر الوكلاء أمانًا واحترافية على مستوى العالم في إدارة ودعم وتطوير صناع المحتوى وبرامج البث المباشر.",
-    en: "HAMZA AGENCY is managed by Agent Hamza, with professional support, development, privacy, safety, and follow-up for content creators and live-streaming programs.",
-    tr: "Hamza Ajansı, içerik üreticileri ve canlı yayın programları için profesyonel destek, gelişim, gizlilik, güvenlik ve takip sunan Temsilci Hamza tarafından yönetilmektedir.",
+    ar: "HAMZA AGENCY بإدارة الوكيل عراب سوريا، مع دعم وتطوير ومتابعة مهنية لصناع المحتوى وبرامج البث المباشر.",
+    en: "HAMZA AGENCY is managed by عراب سوريا, with professional support, development, privacy, and follow-up for content creators and live-streaming programs.",
+    tr: "HAMZA AGENCY, içerik üreticileri ve canlı yayın programları için profesyonel destek, gelişim, gizlilik ve takip sunan عراب سوريا tarafından yönetilmektedir.",
   },
 };
 
@@ -78,6 +81,14 @@ function localizedValue(rows: Map<string, string>, keys: Record<SiteLanguage, st
   return Object.fromEntries(languages.map((language) => [language, rows.get(keys[language])?.trim() || fallback[language]])) as LocalizedIdentityText;
 }
 
+function cleanLegacyAgentAliases(value: string) {
+  return value.replaceAll("Agent Hamza", "عراب سوريا").replaceAll("Temsilci Hamza", "عراب سوريا");
+}
+
+function sanitizeLocalizedIdentity(copy: LocalizedIdentityText): LocalizedIdentityText {
+  return Object.fromEntries(languages.map((language)=>[language,cleanLegacyAgentAliases(copy[language])])) as LocalizedIdentityText;
+}
+
 export async function getPublicIdentity(): Promise<PublicIdentity> {
   if (!isSupabaseConfigured || !supabase) return DEFAULT_PUBLIC_IDENTITY;
   try {
@@ -85,15 +96,15 @@ export async function getPublicIdentity(): Promise<PublicIdentity> {
     if (error || !data) return DEFAULT_PUBLIC_IDENTITY;
     const rows = new Map((data as SettingRow[]).flatMap((row) => row.setting_key && row.setting_value ? [[row.setting_key, row.setting_value] as const] : []));
     return {
-      agencyName: localizedValue(rows, PUBLIC_IDENTITY_SETTING_KEYS.agencyName, DEFAULT_PUBLIC_IDENTITY.agencyName),
-      agentReadableName: localizedValue(rows, PUBLIC_IDENTITY_SETTING_KEYS.agentReadableName, DEFAULT_PUBLIC_IDENTITY.agentReadableName),
-      agentDecoratedAr: rows.get(PUBLIC_IDENTITY_SETTING_KEYS.agentDecoratedAr)?.trim() || DEFAULT_PUBLIC_IDENTITY.agentDecoratedAr,
-      agentRoleLine: localizedValue(rows, PUBLIC_IDENTITY_SETTING_KEYS.agentRoleLine, DEFAULT_PUBLIC_IDENTITY.agentRoleLine),
-      agentLead: localizedValue(rows, PUBLIC_IDENTITY_SETTING_KEYS.agentLead, DEFAULT_PUBLIC_IDENTITY.agentLead),
-      agentManagementCopy: localizedValue(rows, PUBLIC_IDENTITY_SETTING_KEYS.agentManagementCopy, DEFAULT_PUBLIC_IDENTITY.agentManagementCopy),
-      agentAboutCopy: localizedValue(rows, PUBLIC_IDENTITY_SETTING_KEYS.agentAboutCopy, DEFAULT_PUBLIC_IDENTITY.agentAboutCopy),
-      agentSeoTitle: localizedValue(rows, PUBLIC_IDENTITY_SETTING_KEYS.agentSeoTitle, DEFAULT_PUBLIC_IDENTITY.agentSeoTitle),
-      agentSeoDescription: localizedValue(rows, PUBLIC_IDENTITY_SETTING_KEYS.agentSeoDescription, DEFAULT_PUBLIC_IDENTITY.agentSeoDescription),
+      agencyName: lockedAgencyName,
+      agentReadableName: lockedAgentName,
+      agentDecoratedAr: DEFAULT_PUBLIC_IDENTITY.agentDecoratedAr,
+      agentRoleLine: sanitizeLocalizedIdentity(localizedValue(rows, PUBLIC_IDENTITY_SETTING_KEYS.agentRoleLine, DEFAULT_PUBLIC_IDENTITY.agentRoleLine)),
+      agentLead: sanitizeLocalizedIdentity(localizedValue(rows, PUBLIC_IDENTITY_SETTING_KEYS.agentLead, DEFAULT_PUBLIC_IDENTITY.agentLead)),
+      agentManagementCopy: sanitizeLocalizedIdentity(localizedValue(rows, PUBLIC_IDENTITY_SETTING_KEYS.agentManagementCopy, DEFAULT_PUBLIC_IDENTITY.agentManagementCopy)),
+      agentAboutCopy: sanitizeLocalizedIdentity(localizedValue(rows, PUBLIC_IDENTITY_SETTING_KEYS.agentAboutCopy, DEFAULT_PUBLIC_IDENTITY.agentAboutCopy)),
+      agentSeoTitle: sanitizeLocalizedIdentity(localizedValue(rows, PUBLIC_IDENTITY_SETTING_KEYS.agentSeoTitle, DEFAULT_PUBLIC_IDENTITY.agentSeoTitle)),
+      agentSeoDescription: sanitizeLocalizedIdentity(localizedValue(rows, PUBLIC_IDENTITY_SETTING_KEYS.agentSeoDescription, DEFAULT_PUBLIC_IDENTITY.agentSeoDescription)),
     };
   } catch {
     return DEFAULT_PUBLIC_IDENTITY;
@@ -101,10 +112,8 @@ export async function getPublicIdentity(): Promise<PublicIdentity> {
 }
 
 function replaceApprovedIdentityTokens(value: string, language: SiteLanguage, identity: PublicIdentity, decorated = false) {
-  const defaultAgency = DEFAULT_PUBLIC_IDENTITY.agencyName[language];
-  const defaultReadable = DEFAULT_PUBLIC_IDENTITY.agentReadableName[language];
-  let output = value.replaceAll(defaultAgency, identity.agencyName[language]).replaceAll(defaultReadable, identity.agentReadableName[language]);
-  if (language !== "en") output = output.replaceAll("HAMZA AGENCY", identity.agencyName[language]);
+  let output = cleanLegacyAgentAliases(value);
+  if (language !== "en") output = output.replaceAll("Hamza Ajansı", identity.agencyName[language]);
   if (decorated && language === "ar") output = output.replaceAll(DEFAULT_PUBLIC_IDENTITY.agentDecoratedAr, identity.agentDecoratedAr);
   return output;
 }
@@ -122,6 +131,5 @@ export function getResolvedAgentCopy(identity: PublicIdentity, language: SiteLan
 export function getFooterIdentity(identity: PublicIdentity, language: SiteLanguage) {
   if (language === "ar") return `${identity.agencyName.ar} — بإدارة الوكيل ${identity.agentDecoratedAr}`;
   if (language === "tr") return `${identity.agencyName.tr} — ${identity.agentReadableName.tr} yönetiminde`;
-  const agency = identity.agencyName.en === DEFAULT_PUBLIC_IDENTITY.agencyName.en ? "Hamza Agency" : identity.agencyName.en;
-  return `${agency} — Managed by ${identity.agentReadableName.en}`;
+  return `${identity.agencyName.en} — Managed by ${identity.agentReadableName.en}`;
 }
