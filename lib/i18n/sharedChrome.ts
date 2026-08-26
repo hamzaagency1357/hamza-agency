@@ -27,6 +27,11 @@ const navigationCopyByHref: Record<string, StaticCopyKey> = {
   "/ai-policy": "aiPolicy",
 };
 
+const directNavigationCopy: Record<string, Record<SiteLanguage,string>> = {
+  "/blog": { ar: "المدونة", en: "Blog", tr: "Blog" },
+  "/agent/arab-syria": { ar: "الوكيل", en: "Agent", tr: "Temsilci" },
+};
+
 const navigationCopyByKey: Record<string, StaticCopyKey> = {
   primary_join: "applyNow",
   view_programs: "programs",
@@ -48,6 +53,7 @@ function normalizeHref(href: string) {
 export function getSharedNavigationLabel(language: SiteLanguage, link: PublicNavigationLink) {
   const href = normalizeHref(link.href);
   if (href === "/install-app" || link.key === "install_app") return getPwaRuntimeCopy(language).installButton;
+  if (directNavigationCopy[href]) return directNavigationCopy[href][language];
   const copyKey = (link.key ? navigationCopyByKey[link.key] : undefined) || navigationCopyByHref[href];
   return copyKey ? getStaticCopy(language, copyKey) : link.label;
 }
@@ -55,6 +61,7 @@ export function getSharedNavigationLabel(language: SiteLanguage, link: PublicNav
 export function getSharedNavigationLabelByHref(language: SiteLanguage, href: string, fallback: string) {
   const normalized = normalizeHref(href);
   if (normalized === "/install-app") return getPwaRuntimeCopy(language).installButton;
+  if (directNavigationCopy[normalized]) return directNavigationCopy[normalized][language];
   const copyKey = navigationCopyByHref[normalized];
   return copyKey ? getStaticCopy(language, copyKey) : fallback;
 }
