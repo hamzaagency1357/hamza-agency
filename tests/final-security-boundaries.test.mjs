@@ -109,6 +109,8 @@ test("Support creation remains production-only, replay-protected and DB-guarded"
   assert.match(preparation,/when 'support_request_create'[\s\S]*?pr100_guard_ai_answer\([\s\S]*?if coalesce\(\(v_guard->>'allowed'\)::boolean, false\) is not true[\s\S]*?pr4_create_support_request\(/);
 });
 
-test("Legacy Admin email fallback remains intentionally untouched until provisioning invariant is proven",()=>{
-  assert.match(serverBoundary,/user_id=is\.null&email=ilike/);
+test("Admin authority requires linked user_id and no legacy email fallback",()=>{
+  assert.match(serverBoundary,/user_id=eq\.\$\{encodeURIComponent\(user\.id\)\}/);
+  assert.doesNotMatch(serverBoundary,/user_id=is\.null&email=ilike/);
+  assert.doesNotMatch(serverBoundary,/admin_user_id=is\.null&admin_email=ilike/);
 });

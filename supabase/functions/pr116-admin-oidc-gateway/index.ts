@@ -88,13 +88,8 @@ async function resolveUser(supabaseUrl: string, anonKey: string, token: string) 
 async function resolveAdmin(supabaseUrl: string, serviceRole: string, user: { id: string; email: string }) {
   const fields = "id,user_id,email,role,assigned_program,is_active";
   const primary = await serviceFetch(supabaseUrl, serviceRole, `/admin_users?select=${fields}&user_id=eq.${encodeURIComponent(user.id)}&limit=1`);
-  let rows = primary.ok ? await primary.json().catch(() => []) as Record<string, unknown>[] : [];
-  let row = rows[0] || null;
-  if (!row && user.email) {
-    const fallback = await serviceFetch(supabaseUrl, serviceRole, `/admin_users?select=${fields}&user_id=is.null&email=ilike.${encodeURIComponent(user.email)}&limit=1`);
-    rows = fallback.ok ? await fallback.json().catch(() => []) as Record<string, unknown>[] : [];
-    row = rows[0] || null;
-  }
+  const rows = primary.ok ? await primary.json().catch(() => []) as Record<string, unknown>[] : [];
+  const row = rows[0] || null;
   if (!row || row.is_active === false || typeof row.role !== "string") return null;
   if (!["super_admin", "deputy_super_admin", "program_admin"].includes(row.role)) return null;
   return {
@@ -109,14 +104,9 @@ async function hasPermission(supabaseUrl: string, serviceRole: string, admin: { 
   if (admin.role === "program_admin" && !["dashboard", "applications", "programs"].includes(module)) return false;
   const fields = "can_view,can_create,can_edit,can_delete,can_export,can_manage";
   const primary = await serviceFetch(supabaseUrl, serviceRole, `/admin_permissions?select=${fields}&admin_user_id=eq.${admin.id}&module_key=eq.${encodeURIComponent(module)}&limit=1`);
-  let rows = primary.ok ? await primary.json().catch(() => []) as Record<string, unknown>[] : [];
-  let row = rows[0] || null;
-  if (!row && admin.email) {
-    const fallback = await serviceFetch(supabaseUrl, serviceRole, `/admin_permissions?select=${fields}&admin_user_id=is.null&admin_email=ilike.${encodeURIComponent(admin.email)}&module_key=eq.${encodeURIComponent(module)}&limit=1`);
-    rows = fallback.ok ? await fallback.json().catch(() => []) as Record<string, unknown>[] : [];
-    row = rows[0] || null;
-  }
-  if (!row) return admin.role === "deputy_super_admin";
+  const rows = primary.ok ? await primary.json().catch(() => []) as Record<string, unknown>[] : [];
+  const row = rows[0] || null;
+  if (!row) return false;
   return row.can_manage === true || row[permission] === true;
 }
 async function audit(supabaseUrl: string, serviceRole: string, actor: { id: string; email: string }, action: string, entityType: string, entityId: string | number | null, metadata: Record<string, unknown>, oldData?: unknown, newData?: unknown) {

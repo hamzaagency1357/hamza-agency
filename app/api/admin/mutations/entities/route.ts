@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   );
   if (!auth.ok) return NextResponse.json({ ok: false, message: auth.message }, { status: auth.status });
   try {
-    const result = await callPr116AdminOidcGateway<{ ok?: boolean; data?: unknown }>(request, auth.actor.user.accessToken, body.action, body.payload);
+    const result = await callPr116AdminOidcGateway<{ ok?: boolean; data?: unknown }>(auth.actor.user.accessToken, body.action, body.payload);
     return NextResponse.json({ ok: true, data: result.data ?? null });
   } catch (error) {
     if (error instanceof Pr116AdminGatewayError && error.reason === "preview_forbidden") return NextResponse.json({ ok: false, message: PREVIEW_READ_ONLY_MESSAGE }, { status: 403 });

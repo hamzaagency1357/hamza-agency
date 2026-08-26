@@ -1,4 +1,5 @@
 name: HAMZA Current-State Schema Verify
+# Exact-head schema evidence is intentionally rerun for the dependency/auth hardening closeout; no schema or migration behavior changes here.
 
 on:
   pull_request:

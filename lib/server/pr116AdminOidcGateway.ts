@@ -74,12 +74,12 @@ function localHarnessTarget(): GatewayTarget | null {
   return { url: LOCAL_GATEWAY_URL, workloadToken: secret };
 }
 
-function gatewayTarget(request: Request): GatewayTarget {
+function gatewayTarget(): GatewayTarget {
   const local = localHarnessTarget();
   if (local) return local;
 
   const supabaseUrl = normalizedSupabaseServerUrl();
-  const workloadToken = request.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
+  const workloadToken = process.env.VERCEL_OIDC_TOKEN || "";
   if (!supabaseUrl || !workloadToken) throw new Pr116AdminGatewayError("unconfigured");
   return { url: `${supabaseUrl}/functions/v1/${EDGE_FUNCTION_NAME}`, workloadToken };
 }
@@ -103,7 +103,6 @@ function safeFailureCode(value: unknown): Pr116AdminGatewayFailure | null {
 }
 
 export async function callPr116AdminOidcGateway<T = Record<string, unknown>>(
-  request: Request,
   userAccessToken: string,
   action: Pr116AdminGatewayAction | string,
   payload: Record<string, unknown>,
@@ -115,7 +114,7 @@ export async function callPr116AdminOidcGateway<T = Record<string, unknown>>(
     throw new Pr116AdminGatewayError("invalid_request");
   }
 
-  const target = gatewayTarget(request);
+  const target = gatewayTarget();
   const timestamp = Math.floor(Date.now() / 1000);
   const nonce = randomBytes(24).toString("base64url");
   const body = JSON.stringify(payload);

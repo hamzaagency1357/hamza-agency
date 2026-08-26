@@ -1,5 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { evaluateAdminPermission } from "@/lib/adminPermissionPolicy";
 
 export type AdminRole = "super_admin" | "deputy_super_admin" | "program_admin";
 
@@ -127,9 +128,6 @@ export async function getAdminModulePermission(
   const fields =
     "admin_user_id, admin_email, module_key, can_view, can_create, can_edit, can_delete, can_export, can_manage, notes";
 
-  let data: Record<string, unknown> | null = null;
-  let queryError: unknown = null;
-
   const primary = await supabase
     .from("admin_permissions")
     .select(fields)
@@ -137,23 +135,8 @@ export async function getAdminModulePermission(
     .eq("module_key", module)
     .maybeSingle();
 
-  data = primary.data as Record<string, unknown> | null;
-  queryError = primary.error;
-
-  if (!data && !queryError && profile.email) {
-    const fallback = await supabase
-      .from("admin_permissions")
-      .select(fields)
-      .is("admin_user_id", null)
-      .ilike("admin_email", profile.email.trim().toLowerCase())
-      .eq("module_key", module)
-      .maybeSingle();
-
-    data = fallback.data as Record<string, unknown> | null;
-    queryError = fallback.error;
-  }
-
-  if (queryError || !data) return null;
+  const data = primary.data as Record<string, unknown> | null;
+  if (primary.error || !data) return null;
 
   return {
     admin_user_id: typeof data.admin_user_id === "number" ? data.admin_user_id : null,
@@ -174,17 +157,9 @@ export async function canUseAdminModulePermission(
   module: AdminModule,
   action: AdminPermissionAction = "can_view"
 ): Promise<boolean> {
-  if (profile.role === "super_admin") return true;
   if (!canAccessAdminModule(profile.role, module)) return false;
-
-  const permission = await getAdminModulePermission(profile, module);
-
-  // Deputy administrators retain platform access unless a module-specific row
-  // is present. Program administrators require an explicit permission row,
-  // matching current_admin_has_module_permission() in PostgreSQL.
-  if (!permission) return profile.role === "deputy_super_admin";
-  if (permission.can_manage) return true;
-  return permission[action] === true;
+  const permission = profile.role === "super_admin" ? null : await getAdminModulePermission(profile, module);
+  return evaluateAdminPermission(profile.role, module, action, permission);
 }
 
 export async function getCurrentAdminProfile(): Promise<AdminAccessResult> {
@@ -207,23 +182,10 @@ export async function getCurrentAdminProfile(): Promise<AdminAccessResult> {
     .eq("user_id", session.user.id)
     .maybeSingle();
 
-  let data = primary.data;
-  let queryError = primary.error;
+  const data = primary.data;
   const email = session.user.email?.trim() || "";
 
-  if (!data && !queryError && email) {
-    const fallback = await supabase
-      .from("admin_users")
-      .select(fields)
-      .is("user_id", null)
-      .ilike("email", email)
-      .maybeSingle();
-
-    data = fallback.data;
-    queryError = fallback.error;
-  }
-
-  if (queryError || !data) {
+  if (primary.error || !data) {
     return { isAuthorized: false, reason: "not_admin", user: session.user, profile: null };
   }
 

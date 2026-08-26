@@ -25,13 +25,12 @@ function positiveInt(value: unknown): number | null {
 }
 
 async function invoke(
-  request: Request,
   token: string,
   action: Pr116AdminGatewayAction,
   payload: Record<string, unknown>,
 ) {
   try {
-    const result = await callPr116AdminOidcGateway<{ ok: true; data: unknown }>(request, token, action, payload);
+    const result = await callPr116AdminOidcGateway<{ ok: true; data: unknown }>(token, action, payload);
     return { ok: true as const, data: result.data };
   } catch (gatewayError) {
     if (gatewayError instanceof Pr116AdminGatewayError) {
@@ -63,7 +62,7 @@ export async function POST(request: Request) {
     if (!requestId || !action || !SUPPORT_ACTIONS.has(action) || value === undefined || note === undefined) return error("بيانات إجراء الدعم غير صالحة.", 400);
     const auth = await authorizeAdminMutation(request, "ai_support", "can_edit");
     if (!auth.ok) return error(auth.message, auth.status);
-    const result = await invoke(request, auth.actor.user.accessToken, "support_action", { requestId, action, value, note });
+    const result = await invoke(auth.actor.user.accessToken, "support_action", { requestId, action, value, note });
     return result.ok ? NextResponse.json({ ok: true, data: result.data }) : error(result.message, result.status);
   }
 
@@ -106,7 +105,7 @@ export async function POST(request: Request) {
       p_expires_at: expiresAt,
       p_status: status,
     };
-    const result = await invoke(request, auth.actor.user.accessToken, "knowledge_save", { rpc });
+    const result = await invoke(auth.actor.user.accessToken, "knowledge_save", { rpc });
     return result.ok ? NextResponse.json({ ok: true, data: result.data }) : error(result.message, result.status);
   }
 
@@ -115,7 +114,7 @@ export async function POST(request: Request) {
     if (!suggestionId) return error("بيانات الاقتراح غير صالحة.", 400);
     const auth = await authorizeAdminMutation(request, "knowledge_base", "can_create");
     if (!auth.ok) return error(auth.message, auth.status);
-    const result = await invoke(request, auth.actor.user.accessToken, "knowledge_promote", { suggestionId });
+    const result = await invoke(auth.actor.user.accessToken, "knowledge_promote", { suggestionId });
     return result.ok ? NextResponse.json({ ok: true, data: result.data }) : error(result.message, result.status);
   }
 
@@ -140,7 +139,7 @@ export async function POST(request: Request) {
       action = "translation_publish";
       rpc = { p_translation_revision_id: revisionId };
     }
-    const result = await invoke(request, auth.actor.user.accessToken, action, { rpc });
+    const result = await invoke(auth.actor.user.accessToken, action, { rpc });
     return result.ok ? NextResponse.json({ ok: true, data: result.data }) : error(result.message, result.status);
   }
 

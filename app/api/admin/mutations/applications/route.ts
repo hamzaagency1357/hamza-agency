@@ -65,7 +65,6 @@ export async function POST(request: Request) {
       ? "application_status_update"
       : "application_internal_notes_update";
     const data = await callPr116AdminOidcGateway<{ ok: true; data: unknown }>(
-      request,
       authorization.actor.user.accessToken,
       action,
       payload.operation === "updateApplicationStatus"

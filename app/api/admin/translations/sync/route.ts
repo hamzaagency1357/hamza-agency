@@ -113,7 +113,7 @@ async function getAuthorizedClient(request: NextRequest) {
   const { data, error } = await client
     .from("admin_users")
     .select("email, role, is_active")
-    .ilike("email", user.email)
+    .eq("user_id", user.id)
     .maybeSingle();
   const admin = data as AdminRow | null;
   if (error || !admin || admin.is_active === false) throw new Error("لا تملك صلاحية تشغيل الترجمة التلقائية.");
