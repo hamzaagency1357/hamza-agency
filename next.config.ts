@@ -30,6 +30,7 @@ const redirectDefinitions = [
 ] as const;
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
   images: { formats: ["image/avif", "image/webp"], deviceSizes: [360, 414, 640, 768, 1024, 1280, 1536], imageSizes: [32, 64, 96, 128, 256, 384] },
   async redirects() {
     return redirectDefinitions.map(([source, destination]) => ({ source, destination, permanent: true }));
