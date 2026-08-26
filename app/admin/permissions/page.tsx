@@ -1,6 +1,5 @@
 "use client";
 
-
 import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -57,9 +56,9 @@ const permissionFields: { key: PermissionKey; label: string; description: string
   { key: "can_view", label: "عرض", description: "مشاهدة القسم والبيانات." },
   { key: "can_create", label: "إضافة", description: "إنشاء عناصر جديدة." },
   { key: "can_edit", label: "تعديل", description: "تحديث العناصر الحالية." },
-  { key: "can_delete", label: "حذف", description: "حذف أو نقل العناصر للسلة." },
-  { key: "can_export", label: "تصدير", description: "تصدير البيانات CSV / Excel." },
-  { key: "can_manage", label: "إدارة", description: "تحكم إداري متقدم داخل القسم." },
+  { key: "can_delete", label: "حذف", description: "حذف العناصر أو نقلها إلى السلة حسب القسم." },
+  { key: "can_export", label: "تصدير", description: "تصدير البيانات إلى الملفات المسموح بها." },
+  { key: "can_manage", label: "إدارة كاملة للقسم", description: "صلاحية حساسة تمنح تحكمًا إداريًا متقدمًا داخل القسم." },
 ];
 
 const emptyForm: PermissionForm = {
@@ -81,7 +80,6 @@ function getString(row: AnyRow, keys: string[], fallback = "") {
     if (typeof value === "string" && value.trim()) return value.trim();
     if (typeof value === "number" || typeof value === "boolean") return String(value);
   }
-
   return fallback;
 }
 
@@ -90,7 +88,7 @@ function getBoolean(row: AnyRow, key: PermissionKey) {
 }
 
 function getModuleLabel(moduleKey: string) {
-  return moduleOptions.find((module) => module.key === moduleKey)?.label || moduleKey || "غير محدد";
+  return moduleOptions.find((module) => module.key === moduleKey)?.label || "قسم إداري";
 }
 
 function formatDate(value: string) {
@@ -137,7 +135,6 @@ function getPermissionSnapshot(row: AnyRow) {
 
 export default function AdminPermissionsPage() {
   const router = useRouter();
-
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isForbidden, setIsForbidden] = useState(false);
@@ -154,7 +151,6 @@ export default function AdminPermissionsPage() {
   useEffect(() => {
     async function checkAccess() {
       const access = await requireAdminModuleAccess("permissions");
-
       if (!access.isAuthorized || !access.profile) {
         setIsAuthorized(false);
         setIsCheckingAuth(false);
@@ -163,7 +159,6 @@ export default function AdminPermissionsPage() {
       }
 
       setAdminEmail(access.profile.email || access.user?.email || "");
-
       if (access.profile.role !== "super_admin") {
         setIsForbidden(true);
         setIsAuthorized(false);
@@ -174,7 +169,6 @@ export default function AdminPermissionsPage() {
       setIsAuthorized(true);
       setIsCheckingAuth(false);
     }
-
     checkAccess();
   }, [router]);
 
@@ -185,28 +179,25 @@ export default function AdminPermissionsPage() {
 
   async function loadData() {
     if (!supabase) {
-      setError("الاتصال بقاعدة البيانات غير مفعل.");
+      setError("تعذر الاتصال بخدمة البيانات حاليًا.");
       return;
     }
 
     setIsLoading(true);
     setError("");
     setMessage("");
-
     const [usersResult, permissionsResult] = await Promise.all([
       supabase.from("admin_users").select("*").limit(200),
       supabase.from("admin_permissions").select("*").limit(500),
     ]);
-
     setIsLoading(false);
 
     if (usersResult.error) {
-      setError("تعذر تحميل حسابات الإدارة. يرجى التأكد من صلاحيات جدول admin_users.");
+      setError("تعذر تحميل حسابات الإدارة. حاول مرة أخرى.");
       return;
     }
-
     if (permissionsResult.error) {
-      setError("تعذر تحميل الصلاحيات. يرجى التأكد من صلاحيات جدول admin_permissions.");
+      setError("تعذر تحميل الصلاحيات. حاول مرة أخرى.");
       return;
     }
 
@@ -217,7 +208,6 @@ export default function AdminPermissionsPage() {
   const filteredPermissions = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return permissions;
-
     return permissions.filter((permission) =>
       [
         getString(permission, ["admin_email", "email"], ""),
@@ -243,15 +233,13 @@ export default function AdminPermissionsPage() {
 
   function editPermission(permission: AnyRow) {
     setForm(toForm(permission));
-    setMessage("تم تحميل الصلاحية داخل النموذج للتعديل.");
+    setMessage("تم فتح الصلاحية للتعديل.");
     setError("");
   }
 
   async function savePermission() {
     if (!supabase) return;
-
     const email = normalizeEmail(form.admin_email);
-
     if (!email) {
       setError("يرجى اختيار أو كتابة بريد المدير.");
       return;
@@ -260,7 +248,6 @@ export default function AdminPermissionsPage() {
     setIsSaving(true);
     setError("");
     setMessage("");
-
     const payload = {
       admin_email: email,
       module_key: form.module_key,
@@ -280,12 +267,14 @@ export default function AdminPermissionsPage() {
       return permissionEmail === email && moduleKey === form.module_key;
     });
 
-    const { error: saveError } = await adminBoundaryMutation("pr116_permissions_page_entity_admin_permissions_upsert", { values: payload, filters: [], select: undefined, returnMode: "many", options: { onConflict: "admin_email,module_key" } });
-
+    const { error: saveError } = await adminBoundaryMutation(
+      "pr116_permissions_page_entity_admin_permissions_upsert",
+      { values: payload, filters: [], select: undefined, returnMode: "many", options: { onConflict: "admin_email,module_key" } }
+    );
     setIsSaving(false);
 
     if (saveError) {
-      setError(`تعذر حفظ الصلاحية: ${saveError.message}`);
+      setError("تعذر حفظ الصلاحية. لم يتم تأكيد التغيير؛ حاول مرة أخرى.");
       return;
     }
 
@@ -296,10 +285,7 @@ export default function AdminPermissionsPage() {
       recordId: `${email}:${form.module_key}`,
       details: oldPermission ? "تعديل صلاحية مدير من لوحة الإدارة" : "إنشاء صلاحية مدير من لوحة الإدارة",
       oldData: oldPermission ? getPermissionSnapshot(oldPermission) : null,
-      newData: {
-        ...payload,
-        module_label: getModuleLabel(form.module_key),
-      },
+      newData: { ...payload, module_label: getModuleLabel(form.module_key) },
     });
 
     setMessage("تم حفظ الصلاحية بنجاح.");
@@ -308,22 +294,36 @@ export default function AdminPermissionsPage() {
 
   async function deletePermission(permission: AnyRow) {
     if (!supabase) return;
-
     const email = getString(permission, ["admin_email", "email"], "");
     const moduleKey = getString(permission, ["module_key"], "");
-
     if (!email || !moduleKey) {
       setError("تعذر تحديد الصلاحية المطلوبة للحذف.");
       return;
     }
 
+    const confirmed = window.confirm(
+      `سيتم إزالة إعداد الصلاحيات الخاص بـ ${email} من قسم «${getModuleLabel(moduleKey)}». قد يتأثر وصول هذا الحساب إلى القسم. هل تريد المتابعة؟`
+    );
+    if (!confirmed) return;
+
     setError("");
     setMessage("");
-
-    const { error: deleteError } = await adminBoundaryMutation("pr116_permissions_page_entity_admin_permissions_delete", { values: undefined, filters: [{ op: "eq", field: "admin_email", value: email }, { op: "eq", field: "module_key", value: moduleKey }], select: undefined, returnMode: "many", options: undefined });
+    const { error: deleteError } = await adminBoundaryMutation(
+      "pr116_permissions_page_entity_admin_permissions_delete",
+      {
+        values: undefined,
+        filters: [
+          { op: "eq", field: "admin_email", value: email },
+          { op: "eq", field: "module_key", value: moduleKey },
+        ],
+        select: undefined,
+        returnMode: "many",
+        options: undefined,
+      }
+    );
 
     if (deleteError) {
-      setError(`تعذر حذف الصلاحية: ${deleteError.message}`);
+      setError("تعذر حذف إعداد الصلاحية. لم يتم تأكيد التغيير؛ حاول مرة أخرى.");
       return;
     }
 
@@ -337,7 +337,7 @@ export default function AdminPermissionsPage() {
       newData: null,
     });
 
-    setMessage("تم حذف الصلاحية بنجاح.");
+    setMessage("تم حذف إعداد الصلاحية بنجاح.");
     await loadData();
   }
 
@@ -345,7 +345,7 @@ export default function AdminPermissionsPage() {
     return (
       <main dir="rtl" className="min-h-screen bg-[#070009] p-6 text-white">
         <div className="mx-auto max-w-6xl rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center">
-          جاري التحقق من صلاحيات الإدارة...
+          جارٍ التحقق من صلاحيات الإدارة...
         </div>
       </main>
     );
@@ -356,9 +356,7 @@ export default function AdminPermissionsPage() {
       <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#070009] p-6 text-white">
         <div className="max-w-xl rounded-3xl border border-red-400/25 bg-red-500/10 p-8 text-center">
           <h1 className="text-3xl font-black text-red-100">غير مصرح بالدخول</h1>
-          <p className="mt-4 leading-8 text-white/65">
-            إدارة الصلاحيات متاحة فقط للمدير الأعلى.
-          </p>
+          <p className="mt-4 leading-8 text-white/65">إدارة الصلاحيات متاحة فقط للمدير الأعلى.</p>
           <Link href="/admin" className="mt-6 inline-flex rounded-full bg-purple-600 px-7 py-4 font-black text-white">
             العودة للوحة التحكم
           </Link>
@@ -368,7 +366,7 @@ export default function AdminPermissionsPage() {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#070009] p-6 text-white">
+    <main dir="rtl" className="min-h-screen bg-[#070009] p-4 text-white sm:p-6">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.28),transparent_44%)]" />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,8,60,0.32),rgba(7,0,9,0.96))]" />
@@ -377,22 +375,15 @@ export default function AdminPermissionsPage() {
       <section className="relative z-10 mx-auto max-w-7xl">
         <nav className="mb-8 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="text-sm text-purple-200">HAMZA AGENCY Admin</div>
+            <div className="text-sm text-purple-200">إدارة HAMZA AGENCY</div>
             <h1 className="mt-2 text-3xl font-black">إدارة صلاحيات المدراء</h1>
-            <p className="mt-2 text-sm text-white/50">{adminEmail}</p>
+            <p className="mt-2 text-sm text-white/50">الحساب الحالي: {adminEmail}</p>
           </div>
-
           <div className="flex flex-wrap gap-3">
-            <button
-              onClick={loadData}
-              className="rounded-full border border-purple-400/25 bg-purple-500/10 px-5 py-3 font-bold text-purple-100 transition hover:bg-purple-500/20"
-            >
+            <button type="button" onClick={loadData} className="rounded-full border border-purple-400/25 bg-purple-500/10 px-5 py-3 font-bold text-purple-100 transition hover:bg-purple-500/20">
               تحديث البيانات
             </button>
-            <button
-              onClick={resetForm}
-              className="rounded-full border border-yellow-400/25 bg-yellow-500/10 px-5 py-3 font-bold text-yellow-100 transition hover:bg-yellow-500/20"
-            >
+            <button type="button" onClick={resetForm} className="rounded-full border border-yellow-400/25 bg-yellow-500/10 px-5 py-3 font-bold text-yellow-100 transition hover:bg-yellow-500/20">
               صلاحية جديدة
             </button>
             <Link href="/admin" className="rounded-full border border-white/10 bg-white/[0.05] px-5 py-3 font-bold text-white/75 transition hover:text-white">
@@ -401,25 +392,17 @@ export default function AdminPermissionsPage() {
           </div>
         </nav>
 
-        {error && (
-          <div className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-center font-bold text-red-100">
-            {error}
-          </div>
-        )}
+        <div className="mb-6 rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-4 text-sm leading-7 text-yellow-50">
+          <strong>تنبيه:</strong> تغيير الصلاحيات قد يمنح أو يزيل وصولًا إداريًا. راجع اسم الحساب والقسم بعناية قبل الحفظ، وتجنب منح «إدارة كاملة للقسم» إلا عند الحاجة.
+        </div>
 
-        {message && (
-          <div className="mb-6 rounded-3xl border border-green-400/25 bg-green-500/10 p-5 text-center font-bold text-green-100">
-            {message}
-          </div>
-        )}
+        {error && <div role="alert" className="mb-6 rounded-3xl border border-red-400/25 bg-red-500/10 p-5 text-center font-bold text-red-100">{error}</div>}
+        {message && <div role="status" aria-live="polite" className="mb-6 rounded-3xl border border-green-400/25 bg-green-500/10 p-5 text-center font-bold text-green-100">{message}</div>}
 
         <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
           <section className="rounded-[2rem] border border-white/10 bg-black/25 p-5 backdrop-blur">
-            <h2 className="text-2xl font-black">نموذج الصلاحية</h2>
-            <p className="mt-2 text-sm leading-7 text-white/50">
-              اختر المدير والقسم ثم حدد الصلاحيات المناسبة. الصلاحيات تحفظ حسب البريد والقسم.
-            </p>
-
+            <h2 className="text-2xl font-black">إعداد الصلاحية</h2>
+            <p className="mt-2 text-sm leading-7 text-white/50">اختر المدير والقسم ثم حدد ما يُسمح لهذا الحساب بتنفيذه.</p>
             <div className="mt-6 grid gap-5">
               <label className="grid gap-2">
                 <span className="text-sm font-black text-white/70">بريد المدير</span>
@@ -428,7 +411,7 @@ export default function AdminPermissionsPage() {
                   value={form.admin_email}
                   onChange={(event) => updateForm("admin_email", event.target.value)}
                   placeholder="admin@example.com"
-                  className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 outline-none transition focus:border-purple-400/70"
+                  className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 outline-none transition focus:border-purple-400/70 focus-visible:ring-2 focus-visible:ring-purple-300"
                   dir="ltr"
                 />
                 <datalist id="admin-users-list">
@@ -444,13 +427,9 @@ export default function AdminPermissionsPage() {
                 <select
                   value={form.module_key}
                   onChange={(event) => updateForm("module_key", event.target.value)}
-                  className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 outline-none transition focus:border-purple-400/70"
+                  className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 outline-none transition focus:border-purple-400/70 focus-visible:ring-2 focus-visible:ring-purple-300"
                 >
-                  {moduleOptions.map((module) => (
-                    <option key={module.key} value={module.key}>
-                      {module.label} — {module.key}
-                    </option>
-                  ))}
+                  {moduleOptions.map((module) => <option key={module.key} value={module.key}>{module.label}</option>)}
                 </select>
               </label>
 
@@ -472,16 +451,17 @@ export default function AdminPermissionsPage() {
               </div>
 
               <label className="grid gap-2">
-                <span className="text-sm font-black text-white/70">ملاحظات</span>
+                <span className="text-sm font-black text-white/70">ملاحظات داخلية</span>
                 <textarea
                   value={form.notes}
                   onChange={(event) => updateForm("notes", event.target.value)}
-                  placeholder="ملاحظات داخلية اختيارية..."
-                  className="min-h-28 resize-none rounded-2xl border border-white/10 bg-black/30 px-5 py-4 outline-none transition focus:border-purple-400/70"
+                  placeholder="سبب منح الصلاحية أو ملاحظة للفريق..."
+                  className="min-h-28 resize-none rounded-2xl border border-white/10 bg-black/30 px-5 py-4 outline-none transition focus:border-purple-400/70 focus-visible:ring-2 focus-visible:ring-purple-300"
                 />
               </label>
 
               <button
+                type="button"
                 disabled={isSaving}
                 onClick={savePermission}
                 className="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-8 py-4 text-lg font-black shadow-[0_0_35px_rgba(168,85,247,0.24)] transition hover:scale-[1.01] disabled:opacity-60"
@@ -491,63 +471,45 @@ export default function AdminPermissionsPage() {
             </div>
           </section>
 
-          <section className="rounded-[2rem] border border-white/10 bg-black/25 p-5 backdrop-blur">
+          <section className="min-w-0 rounded-[2rem] border border-white/10 bg-black/25 p-5 backdrop-blur">
             <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-2xl font-black">الصلاحيات الحالية</h2>
-                <p className="mt-2 text-sm text-white/50">عدد السجلات: {filteredPermissions.length}</p>
+                <p className="mt-2 text-sm text-white/50">النتائج: {filteredPermissions.length}</p>
               </div>
-
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="بحث بالبريد أو القسم..."
-                className="rounded-2xl border border-white/10 bg-black/30 px-5 py-3 outline-none transition focus:border-purple-400/70"
+                className="min-w-0 rounded-2xl border border-white/10 bg-black/30 px-5 py-3 outline-none transition focus:border-purple-400/70"
               />
             </div>
 
             {isLoading ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center text-white/60">
-                جاري تحميل الصلاحيات...
-              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center text-white/60">جارٍ تحميل الصلاحيات...</div>
             ) : filteredPermissions.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center text-white/60">
-                لا توجد صلاحيات مطابقة حالياً.
-              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center text-white/60">لا توجد صلاحيات مطابقة حاليًا.</div>
             ) : (
               <div className="space-y-4">
                 {filteredPermissions.map((permission) => {
                   const email = getString(permission, ["admin_email", "email"], "");
                   const moduleKey = getString(permission, ["module_key"], "");
                   const key = `${email}-${moduleKey}`;
-
                   return (
                     <div key={key} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                        <div>
-                          <div className="font-black text-yellow-100" dir="ltr">{email}</div>
-                          <div className="mt-2 text-sm text-white/65">
-                            {getModuleLabel(moduleKey)}
-                            <span className="mr-2 text-white/35" dir="ltr">{moduleKey}</span>
-                          </div>
-                          <div className="mt-2 text-xs text-white/40">
-                            آخر تحديث: {formatDate(getString(permission, ["updated_at", "created_at"], ""))}
-                          </div>
+                        <div className="min-w-0">
+                          <div className="break-all font-black text-yellow-100" dir="ltr">{email}</div>
+                          <div className="mt-2 text-sm text-white/65">{getModuleLabel(moduleKey)}</div>
+                          <div className="mt-2 text-xs text-white/40">آخر تحديث: {formatDate(getString(permission, ["updated_at", "created_at"], ""))}</div>
+                          <details className="mt-2 text-xs text-white/40">
+                            <summary className="cursor-pointer">تفاصيل تقنية</summary>
+                            <span className="mt-1 block" dir="ltr">{moduleKey}</span>
+                          </details>
                         </div>
-
                         <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => editPermission(permission)}
-                            className="rounded-full border border-purple-400/25 bg-purple-500/10 px-4 py-2 text-sm font-bold text-purple-100"
-                          >
-                            تعديل
-                          </button>
-                          <button
-                            onClick={() => deletePermission(permission)}
-                            className="rounded-full border border-red-400/25 bg-red-500/10 px-4 py-2 text-sm font-bold text-red-100"
-                          >
-                            حذف
-                          </button>
+                          <button type="button" onClick={() => editPermission(permission)} className="rounded-full border border-purple-400/25 bg-purple-500/10 px-4 py-2 text-sm font-bold text-purple-100">تعديل</button>
+                          <button type="button" onClick={() => deletePermission(permission)} className="rounded-full border border-red-400/25 bg-red-500/10 px-4 py-2 text-sm font-bold text-red-100">إزالة الصلاحية</button>
                         </div>
                       </div>
 
@@ -556,16 +518,14 @@ export default function AdminPermissionsPage() {
                           <div key={field.key} className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm">
                             <span className="font-bold text-white/70">{field.label}: </span>
                             <span className={getBoolean(permission, field.key) ? "text-green-200" : "text-white/35"}>
-                              {getBoolean(permission, field.key) ? "مسموح" : "غير مفعل"}
+                              {getBoolean(permission, field.key) ? "مسموح" : "غير مفعّل"}
                             </span>
                           </div>
                         ))}
                       </div>
 
                       {getString(permission, ["notes"], "") && (
-                        <p className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-3 text-sm leading-7 text-white/60">
-                          {getString(permission, ["notes"], "")}
-                        </p>
+                        <p className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-3 text-sm leading-7 text-white/60">{getString(permission, ["notes"], "")}</p>
                       )}
                     </div>
                   );
