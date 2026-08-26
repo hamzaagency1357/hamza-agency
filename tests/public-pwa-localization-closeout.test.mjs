@@ -33,6 +33,18 @@ test("offline page is locale-pure and Smart Support uses the locked Arabic label
   assert.ok(support.includes("REQUEST_TIMEOUT_MS=12000"));
 });
 
+test("Turkish install copy preserves HAMZA AGENCY and the translation evidence forbids cross-locale leakage",()=>{
+  const pwa=read("lib/i18n/privacyAndPwaCopy.ts");
+  const translations=read("e2e/closeout/translations.spec.mjs");
+  assert.ok(pwa.includes('pageEyebrow:"HAMZA AGENCY uygulaması"'));
+  assert.ok(pwa.includes("HAMZA AGENCY'yi cihazınıza yükleyin"));
+  assert.ok(pwa.includes("HAMZA AGENCY'yi bağımsız uygulama modunda kullanıyorsunuz"));
+  assert.equal(pwa.includes("Hamza Ajansı"),false);
+  assert.ok(translations.includes('agency: "HAMZA AGENCY"'));
+  assert.ok(translations.includes('crossLocaleInstallLeakage'));
+  assert.equal(translations.includes("Hamza Ajansı"),false);
+});
+
 test("legacy agent aliases and framework generator are absent from public metadata sources",()=>{
   const metadata=read("lib/i18n/serverPublicMetadata.ts");
   const structured=read("components/StructuredData.tsx");
@@ -40,9 +52,28 @@ test("legacy agent aliases and framework generator are absent from public metada
   for(const source of [metadata,structured,seo]){
     assert.equal(source.includes("Agent Hamza"),false);
     assert.equal(source.includes("Temsilci Hamza"),false);
+    assert.equal(source.includes("Hamza Ajansı"),false);
   }
   assert.equal(metadata.includes('generator:"Next.js"'),false);
   assert.ok(seo.includes('en: { title: "عراب سوريا | Agent and Manager at HAMZA AGENCY"'));
+});
+
+test("Owner-approved global SEO positioning is localized and feeds metadata plus structured data",()=>{
+  const seo=read("lib/i18n/publicSeo.ts");
+  const metadata=read("lib/i18n/serverPublicMetadata.ts");
+  const structured=read("components/StructuredData.tsx");
+  for(const copy of[
+    "HAMZA AGENCY — من أبرز وأأمن الوكالات عالميًا في دعم وإدارة صناع المحتوى.",
+    "HAMZA AGENCY — one of the world’s leading and safest agencies for creator support and management.",
+    "HAMZA AGENCY — içerik üreticisi desteği ve yönetiminde dünyanın önde gelen ve en güvenli ajanslarından biri.",
+  ]) assert.ok(seo.includes(copy),copy);
+  assert.ok(seo.includes("Owner-approved marketing positioning"));
+  assert.ok(metadata.includes("description:copy.description"));
+  assert.ok(metadata.includes("openGraph:{title:copy.title,description:copy.description"));
+  assert.ok(metadata.includes("twitter:{card:\"summary_large_image\",title:copy.title,description:copy.description"));
+  assert.ok(structured.includes("buildOrganization(copy.description)"));
+  assert.ok(structured.includes("buildLocalBusiness(copy.description)"));
+  assert.ok(structured.includes('buildWebsite(language, getPublicSeoCopy("/", language).description)'));
 });
 
 test("reviewer name remains required independent of managed review form config",()=>{
