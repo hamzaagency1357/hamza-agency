@@ -79,7 +79,8 @@ test("PR116 local isolated workload auth is ephemeral, loopback-only, and fail c
   assert.match(gatewayClient, /!process\.env\.VERCEL_ENV/);
   assert.match(gatewayClient, /CLOSEOUT_SUPABASE_URL === LOCAL_SUPABASE_URL/);
   assert.match(gatewayClient, /NEXT_PUBLIC_SUPABASE_URL === LOCAL_PUBLIC_SUPABASE_URL/);
-  assert.match(gatewayClient, /request\.headers\.get\("x-vercel-oidc-token"\) \|\| process\.env\.VERCEL_OIDC_TOKEN/);
+  assert.match(gatewayClient, /const workloadToken = process\.env\.VERCEL_OIDC_TOKEN \|\| ""/);
+  assert.doesNotMatch(gatewayClient, /request\.headers\.get\("x-vercel-oidc-token"\)/);
   assert.match(gatewayClient, /process\.env\.VERCEL_ENV === "preview"/);
   assert.match(gatewayClient, /preview_forbidden/);
 });
