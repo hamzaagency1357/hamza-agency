@@ -44,7 +44,9 @@ const scopeOptions = [
   { value: "media", label: "الوسائط والصور" },
 ] as const;
 
-const scopeLabel = new Map(scopeOptions.map((item) => [item.value, item.label]));
+const scopeLabel: Map<string, string> = new Map(
+  scopeOptions.map((item) => [item.value, item.label])
+);
 const restoreConfirmation = "استعادة العناصر المحددة";
 
 const statusLabels: Record<string, string> = {
