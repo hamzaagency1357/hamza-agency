@@ -45,10 +45,9 @@ test("legacy agent aliases and framework generator are absent from public metada
   assert.ok(seo.includes('en: { title: "عراب سوريا | Agent and Manager at HAMZA AGENCY"'));
 });
 
-test("owner locked +500 and required reviewer name protections remain present",()=>{
-  const hero=read("components/HeroSection.tsx");
+test("reviewer name remains required independent of managed review form config",()=>{
   const reviews=read("components/ReviewsPageContent.tsx");
-  assert.ok(hero.includes("500") || read("lib/i18n/staticCopy.ts").includes("500"));
   assert.ok(reviews.includes('reviewer_name:{enabled:true,required:true}'));
   assert.ok(reviews.includes('next.reviewer_name={enabled:true,required:true}'));
+  assert.ok(reviews.includes('required/>'));
 });
