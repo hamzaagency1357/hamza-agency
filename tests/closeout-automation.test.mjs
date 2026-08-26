@@ -133,10 +133,13 @@ test("automatic closeout waits for an exact-head Preview before readonly evidenc
   const workflow = fs.readFileSync(path.resolve(".github/workflows/hamza-closeout-structure.yml"), "utf8");
   const health = fs.readFileSync(path.resolve("app/api/health/route.ts"), "utf8");
   assert.match(workflow, /^name: HAMZA AGENCY Full Project Closeout/m);
-  assert.match(workflow, /actual=.*api\/health/);
-  assert.match(workflow, /if \[ "\$actual" = "\$EXPECTED_SHA" \]/);
+  assert.match(workflow, /EXPECTED_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
+  assert.match(workflow, /node scripts\/closeout\/discover-vercel-preview\.mjs/);
+  assert.match(workflow, /test "\$\(git rev-parse HEAD\)" = "\$EXPECTED_SHA"/);
+  assert.match(workflow, /health_status=.*api\/health/s);
+  assert.match(workflow, /test "\$health_status" = ok/);
   for (const suite of ["public", "translations", "security"]) assert.match(workflow, new RegExp(`suite: ${suite}`));
-  assert.match(health, /commitSha: process\.env\.VERCEL_GIT_COMMIT_SHA/);
+  assert.doesNotMatch(health, /commitSha|VERCEL_GIT_COMMIT_SHA|GITHUB_SHA/);
 });
 
 test("Preview bypass stays masked, Header-only, exact-host, and read-only", () => {

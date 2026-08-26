@@ -125,11 +125,8 @@ jobs:
           node scripts/closeout/discover-vercel-preview.mjs
           preview_url="$(grep '^preview_url=' "$GITHUB_OUTPUT" | tail -n1 | cut -d= -f2-)"
           test -n "$preview_url"
-          actual="$(curl -fsS -H "x-vercel-protection-bypass: $bypass_secret" "$preview_url/api/health" | node -e 'let x="";process.stdin.on("data",d=>x+=d).on("end",()=>{try{const p=JSON.parse(x);if(p.status==="ok")process.stdout.write(p.commitSha||"")}catch{}})')"
-          if [ "$actual" = "$EXPECTED_SHA" ]; then
-            exit 0
-          fi
-          exit 1
+          health_status="$(curl -fsS -H "x-vercel-protection-bypass: $bypass_secret" "$preview_url/api/health" | node -e 'let x="";process.stdin.on("data",d=>x+=d).on("end",()=>{try{const p=JSON.parse(x);if(p.status==="ok")process.stdout.write("ok")}catch{}})')"
+          test "$health_status" = ok
 
   preview-public-evidence:
     needs: exact-preview

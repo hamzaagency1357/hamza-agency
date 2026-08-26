@@ -220,27 +220,27 @@ test("does not synthesize a Preview URL from a branch name or a Status inspector
   assert.equal(selectStatusCommentCandidate([statusWithBranchMetadata], []), null);
 });
 
-test("requires HTTP 200, status ok, and the exact health commit SHA", async () => {
+test("health is liveness-only and exposes no release identity", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => ({
     ok: true,
-    async json() { return { status: "ok", commitSha: SHA }; },
+    async json() { return { status: "ok" }; },
   });
   try {
-    assert.equal(await readPreviewCommitSha(PREVIEW, "masked"), SHA);
+    assert.equal(await readPreviewCommitSha(PREVIEW, "masked"), "");
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
 
-test("completes the full fallback when exact status, trusted comment, and health SHA agree", async () => {
+test("completes the full fallback when exact status and trusted comment identify the Head and health is ok", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (rawUrl) => {
     const url = String(rawUrl);
     if (url.includes("/deployments?")) return { ok: true, async json() { return []; } };
     if (url.includes(`/commits/${SHA}/statuses`)) return { ok: true, async json() { return [commitStatus()]; } };
     if (url.includes("/issues/107/comments")) return { ok: true, async json() { return [vercelComment()]; } };
-    if (url === `${PREVIEW}/api/health`) return { ok: true, async json() { return { status: "ok", commitSha: SHA }; } };
+    if (url === `${PREVIEW}/api/health`) return { ok: true, async json() { return { status: "ok" }; } };
     throw new Error(`Unexpected URL: ${url}`);
   };
   try {
@@ -261,14 +261,42 @@ test("completes the full fallback when exact status, trusted comment, and health
   }
 });
 
-test("rejects fallback when /api/health returns a different SHA", async () => {
+test("rejects fallback when exact-SHA metadata is absent even if health is ok", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (rawUrl) => {
+    const url = String(rawUrl);
+    if (url.includes("/deployments?")) return { ok: true, async json() { return []; } };
+    if (url.includes(`/commits/${SHA}/statuses`)) return { ok: true, async json() { return [commitStatus({ context: "Other CI" })]; } };
+    if (url.includes("/issues/107/comments")) return { ok: true, async json() { return [vercelComment()]; } };
+    if (url === `${PREVIEW}/api/health`) return { ok: true, async json() { return { status: "ok" }; } };
+    throw new Error(`Unexpected URL: ${url}`);
+  };
+  try {
+    await assert.rejects(
+      discoverExactHeadPreview({
+        repository: "hamzaagency1357/hamza-agency",
+        expectedSha: SHA,
+        prNumber: 107,
+        token: "github-token-fixture",
+        bypassSecret: "bypass-fixture",
+        attempts: 1,
+        intervalMs: 0,
+      }),
+      /No trusted Vercel Preview/
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("rejects exact metadata candidate when health is not ok", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (rawUrl) => {
     const url = String(rawUrl);
     if (url.includes("/deployments?")) return { ok: true, async json() { return []; } };
     if (url.includes(`/commits/${SHA}/statuses`)) return { ok: true, async json() { return [commitStatus()]; } };
     if (url.includes("/issues/107/comments")) return { ok: true, async json() { return [vercelComment()]; } };
-    if (url === `${PREVIEW}/api/health`) return { ok: true, async json() { return { status: "ok", commitSha: OTHER_SHA }; } };
+    if (url === `${PREVIEW}/api/health`) return { ok: true, async json() { return { status: "error" }; } };
     throw new Error(`Unexpected URL: ${url}`);
   };
   try {
