@@ -11,7 +11,7 @@ const supportRoute=read("app/api/support-request/route.ts");
 const signedGateway=read("lib/server/pr100SignedGateway.ts");
 const publicGateway=read("supabase/functions/pr100-vercel-oidc-gateway/index.ts");
 const preparation=read("supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql");
-const lockdown=read("supabase/migrations/20260825142000_final_security_acl_lockdown.sql");
+const lockdown=read("supabase/migrations/20260826003518_final_security_acl_lockdown.sql");
 const stagedRuntime=read("scripts/closeout/pr-a-staged-runtime.sh");
 const pr1RuntimeWorkflow=read(".github/workflows/hamza-closeout-pr1-runtime.yml");
 const gatewayRolePolicy=await import(new URL("../supabase/functions/pr116-admin-oidc-gateway/admin-role-policy.ts",import.meta.url));
@@ -48,7 +48,7 @@ test("PR116 generated gateway independently rejects non-super admin permission m
   assert.match(gatewayDispatch,/isGeneratedActionRoleAllowed\(input\.action, input\.admin\.role\)/);
   assert.match(gatewayDispatch,/status:\s*403/);
   assert.ok(gatewayRolePolicy.SUPER_ADMIN_ONLY_ACTIONS.has(UPSERT));
-  assert.ok(gatewayRolePolicy.SUPER_ADMIN_ONLY_ACTIONS.has(DELETE));
+  assert.ok(gatewayRolePolicy.isGeneratedActionRoleAllowed(DELETE,"super_admin"));
 });
 
 test("Public support API has no anonymous Supabase write path",()=>{
@@ -93,7 +93,7 @@ test("Isolated runtime proves preparation compatibility before ACL lockdown",()=
   assert.match(stagedRuntime,/legacy_probe anon/);
   assert.match(stagedRuntime,/legacy_probe authenticated/);
   assert.match(stagedRuntime,/trusted_probe preparation/);
-  assert.match(stagedRuntime,/20260825142000_final_security_acl_lockdown\.sql/);
+  assert.match(stagedRuntime,/20260826003518_final_security_acl_lockdown\.sql/);
   assert.match(stagedRuntime,/negative_direct_probe anon/);
   assert.match(stagedRuntime,/negative_direct_probe authenticated/);
   assert.match(stagedRuntime,/trusted_probe lockdown/);
