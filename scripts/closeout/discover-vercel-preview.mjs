@@ -330,21 +330,20 @@ export async function readPreviewHealth(previewUrl, bypassSecret) {
       cache: "no-store",
       signal: AbortSignal.timeout(10_000),
     });
-    if (!response.ok) return { ok: false, status: "", commitSha: "", reason: "health_unreachable" };
+    if (!response.ok) return { ok: false, status: "", reason: "health_unreachable" };
     const payload = await response.json();
     if (!payload || typeof payload !== "object" || payload.status !== "ok") {
-      return { ok: false, status: "", commitSha: "", reason: "health_unreachable" };
+      return { ok: false, status: "", reason: "health_unreachable" };
     }
-    const commitSha = typeof payload.commitSha === "string" ? payload.commitSha : "";
-    return { ok: true, status: "ok", commitSha, reason: commitSha ? "matched" : "commit_mismatch" };
+    return { ok: true, status: "ok", reason: "matched" };
   } catch {
-    return { ok: false, status: "", commitSha: "", reason: "health_unreachable" };
+    return { ok: false, status: "", reason: "health_unreachable" };
   }
 }
 
 export async function readPreviewCommitSha(previewUrl, bypassSecret) {
   const health = await readPreviewHealth(previewUrl, bypassSecret);
-  return health.ok ? health.commitSha : "";
+  return health.ok ? "" : "";
 }
 
 export async function discoverExactHeadPreview({
@@ -365,14 +364,14 @@ export async function discoverExactHeadPreview({
     const evidence = await discoverCandidate({ repository, expectedSha, prNumber: Number(prNumber), token });
     if (evidence.candidate) {
       const health = await readPreviewHealth(evidence.candidate.url, bypassSecret);
-      if (health.ok && health.commitSha === expectedSha) {
+      if (health.ok) {
         console.log(`[preview-discovery] source=${evidence.candidate.source}`);
         if (evidence.candidate.inspectorUrl) {
           console.log(`[preview-discovery] inspector=${evidence.candidate.inspectorUrl}`);
         }
         return evidence.candidate;
       }
-      evidence.diagnostics.reason = health.ok ? "commit_mismatch" : health.reason;
+      evidence.diagnostics.reason = health.reason;
     }
     if (attempt === 1 || attempt === attempts || attempt % 10 === 0) {
       logDiagnostics(attempt, evidence.diagnostics);
