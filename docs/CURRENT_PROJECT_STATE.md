@@ -1,16 +1,14 @@
 # HAMZA AGENCY — Current Project State
 
-This document is the single authoritative repository summary of the current project state. Historical closeout, remediation, checkpoint, and audit documents remain evidence only and must not be treated as current execution instructions.
+This document is the single authoritative repository summary of the durable current project state. Historical closeout, remediation, checkpoint, and audit documents remain evidence only and must not be treated as current execution instructions.
 
-## Production baseline
+## Production and release identity
 
 - Production: `https://hamza-agency.com`
-- Current GitHub main SHA: `60b7bf221c3ab06dab1811728456764b5ac0a1ec`
-- Current Vercel Production deployment Git SHA: `60b7bf221c3ab06dab1811728456764b5ac0a1ec`
-- Production release identity: **MATCHED**
-- `/api/health`: HTTP `200`, `status: "ok"`
-- `/api/health` is a liveness/status endpoint only and intentionally does **not** expose `commitSha`.
-- Exact release identity is verified through GitHub and trusted Vercel deployment metadata, not through public application responses.
+- **Current release identity is dynamic.** At verification time, the GitHub default branch `main` HEAD **must equal** the Git SHA reported by the current Vercel Production deployment.
+- That externally verified equality is the authoritative live release identity. This tracked document does **not** hardcode a literal SHA as permanently current.
+- `/api/health` is a liveness/status endpoint only. Expected result: HTTP `200` with `status: "ok"`.
+- `/api/health` intentionally does **not** expose `commitSha` and must not be used as release-SHA authority.
 - Production platform: Vercel
 - Database/Auth/Storage: Supabase
 - Public languages: Arabic, English, Turkish
@@ -24,6 +22,7 @@ This document is the single authoritative repository summary of the current proj
 - Public + PWA + Localization Closeout: **CLOSED via PR #128**
 - Admin Professionalism Closeout: **CLOSED via PR #129**
 - Documentation + Technical Exposure Closeout: **CLOSED via PR #130**
+- Final current-state documentation sync: **MERGED/CLOSED via PR #131**
 
 Closed phases are not reopened unless a new regression is proven.
 
@@ -53,6 +52,15 @@ The current execution path does not require a PAT/JIT database workflow. If a fu
 
 The MFA technical flow is prepared. Owner TOTP enrollment remains deferred before any future MFA enforcement and is not a current release blocker. No recovery secret, MFA seed, token, or credential belongs in the repository.
 
-## Documentation authority
+## Documentation authority and consistency rule
 
-Use this file for current project state. Other ledgers/checkpoints may preserve historical evidence, but any conflicting historical status is superseded by this document and current GitHub/Vercel/Supabase evidence.
+Use this file for durable current project state. Other ledgers/checkpoints may preserve historical evidence, but any conflicting historical status is superseded by this document and current external evidence.
+
+Documentation consistency must not require a literal SHA stored in this tracked file to equal Git HEAD. A tracked file cannot safely self-declare its own permanent current merge SHA because merging that update creates a new SHA.
+
+Correct verification rules are:
+
+- No historical SHA may be presented as the permanently live current SHA.
+- Current release identity is obtained dynamically at verification time.
+- GitHub `main` HEAD must equal the current Vercel Production deployment Git SHA.
+- `/api/health` remains liveness/status only and is not release-identity authority.
