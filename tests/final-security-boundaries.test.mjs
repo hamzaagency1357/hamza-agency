@@ -48,7 +48,7 @@ test("PR116 generated gateway independently rejects non-super admin permission m
   assert.match(gatewayDispatch,/isGeneratedActionRoleAllowed\(input\.action, input\.admin\.role\)/);
   assert.match(gatewayDispatch,/status:\s*403/);
   assert.ok(gatewayRolePolicy.SUPER_ADMIN_ONLY_ACTIONS.has(UPSERT));
-  assert.ok(gatewayRolePolicy.isGeneratedActionRoleAllowed(DELETE,"super_admin"));
+  assert.ok(gatewayRolePolicy.SUPER_ADMIN_ONLY_ACTIONS.has(DELETE));
 });
 
 test("Public support API has no anonymous Supabase write path",()=>{
