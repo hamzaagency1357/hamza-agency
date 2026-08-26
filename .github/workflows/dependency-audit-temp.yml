@@ -1,4 +1,4 @@
-name: Dependency Audit Diagnostic (temporary)
+name: Dependency Hardening Apply (temporary)
 
 on:
   push:
@@ -8,10 +8,10 @@ on:
       - .github/workflows/dependency-audit-temp.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  audit:
+  harden:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,22 +19,30 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - run: npm ci --ignore-scripts
-      - name: Runtime audit
+      - name: Apply exact source hardening
+        run: python3 scripts/temp-final-hardening.py
+      - name: Regenerate lockfile from targeted overrides
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Install exact lockfile
+        run: npm ci --ignore-scripts
+      - name: Verify dependency tree
+        run: npm ls next react react-dom sharp postcss nanoid @playwright/test brace-expansion js-yaml --all
+      - name: Require zero high runtime audit findings
+        run: npm audit --omit=dev --audit-level=high
+      - name: Require zero high full audit findings
+        run: npm audit --audit-level=high
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Focused auth tests
+        run: node --test tests/auth-hardening.test.mjs tests/admin-mutation-boundary.test.mjs
+      - name: Commit validated hardening
         shell: bash
         run: |
-          npm audit --omit=dev --json > runtime-audit.json || true
-          node -e "const a=require('./runtime-audit.json'); console.log(JSON.stringify({metadata:a.metadata,vulnerabilities:a.vulnerabilities},null,2))"
-      - name: Full audit
-        shell: bash
-        run: |
-          npm audit --json > full-audit.json || true
-          node -e "const a=require('./full-audit.json'); console.log(JSON.stringify({metadata:a.metadata,vulnerabilities:a.vulnerabilities},null,2))"
-      - name: Locked versions
-        run: npm ls next react react-dom sharp postcss nanoid @playwright/test --all
-      - name: Remaining transitive paths
-        run: npm ls brace-expansion js-yaml --all || true
-      - name: Non-force audit fix preview
-        run: npm audit fix --package-lock-only --ignore-scripts --dry-run || true
-      - name: Active Node declarations
-        run: grep -R "node-version:" .github/workflows || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json app/api/admin/mutations/workflows/route.ts app/api/admin/translations/sync/route.ts tests/auth-hardening.test.mjs
+          git diff --cached --check
+          git commit -m "security: close remaining auth and transitive dependency gaps"
+          git push
