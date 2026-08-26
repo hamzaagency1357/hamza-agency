@@ -103,7 +103,6 @@ function safeFailureCode(value: unknown): Pr116AdminGatewayFailure | null {
 }
 
 export async function callPr116AdminOidcGateway<T = Record<string, unknown>>(
-  request: Request,
   userAccessToken: string,
   action: Pr116AdminGatewayAction | string,
   payload: Record<string, unknown>,
