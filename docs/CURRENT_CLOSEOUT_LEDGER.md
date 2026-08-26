@@ -10,7 +10,7 @@ PR #116 was the Final Production Professional Closeout vehicle used before later
 
 The following product facts remain historically important and are still locked unless the Owner explicitly changes them:
 
-- monthly success opportunity: `+500`;
+- Monthly success opportunity statistic is **`+500`**.
 - decorated Arabic identity: `⚔عܓོراب✴سܓོوريا⚔`;
 - SEO identity: `عراب سوريا`;
 - reviewer name required;
