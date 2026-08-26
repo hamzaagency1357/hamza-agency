@@ -106,7 +106,7 @@ async function hasPermission(supabaseUrl: string, serviceRole: string, admin: { 
   const primary = await serviceFetch(supabaseUrl, serviceRole, `/admin_permissions?select=${fields}&admin_user_id=eq.${admin.id}&module_key=eq.${encodeURIComponent(module)}&limit=1`);
   const rows = primary.ok ? await primary.json().catch(() => []) as Record<string, unknown>[] : [];
   const row = rows[0] || null;
-  if (!row) return admin.role === "deputy_super_admin";
+  if (!row) return false;
   return row.can_manage === true || row[permission] === true;
 }
 async function audit(supabaseUrl: string, serviceRole: string, actor: { id: string; email: string }, action: string, entityType: string, entityId: string | number | null, metadata: Record<string, unknown>, oldData?: unknown, newData?: unknown) {
