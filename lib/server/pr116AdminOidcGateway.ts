@@ -74,7 +74,7 @@ function localHarnessTarget(): GatewayTarget | null {
   return { url: LOCAL_GATEWAY_URL, workloadToken: secret };
 }
 
-function gatewayTarget(request: Request): GatewayTarget {
+function gatewayTarget(): GatewayTarget {
   const local = localHarnessTarget();
   if (local) return local;
 
@@ -115,7 +115,7 @@ export async function callPr116AdminOidcGateway<T = Record<string, unknown>>(
     throw new Pr116AdminGatewayError("invalid_request");
   }
 
-  const target = gatewayTarget(request);
+  const target = gatewayTarget();
   const timestamp = Math.floor(Date.now() / 1000);
   const nonce = randomBytes(24).toString("base64url");
   const body = JSON.stringify(payload);
