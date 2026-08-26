@@ -11,8 +11,8 @@ const coreSeo:Record<SiteLanguage,Record<string,PublicSeoCopy>>={
  tr:{"/":{title:"HAMZA AGENCY | عراب سوريا Yönetiminde",description:ownerApprovedAgencyPositioning.tr,schemaType:"WebPage"},"/about":{title:"HAMZA AGENCY Hakkında | عراب سوريا Yönetiminde",description:"İçerik üreticisi desteği ve yönetiminde dünyanın önde gelen ve en güvenli ajanslarından biri olan HAMZA AGENCY'yi ve عراب سوريا'nın ajans yönetimi ve takibindeki rolünü tanıyın.",schemaType:"AboutPage"}},
 };
 const arabicRouteSeo: Record<string, PublicSeoCopy> = {
-  "/": coreSeo.ar["/"],
-  "/about": coreSeo.ar["/about"],
+  "/": { title: "HAMZA AGENCY | بإدارة الوكيل عراب سوريا", description: ownerApprovedAgencyPositioning.ar, schemaType: "WebPage" },
+  "/about": { title: "من نحن | HAMZA AGENCY بإدارة عراب سوريا", description: "تعرّف على HAMZA AGENCY، من أبرز وأأمن الوكالات عالميًا في دعم وإدارة صناع المحتوى، ودور عراب سوريا في إدارة ومتابعة مسارات الوكالة.", schemaType: "AboutPage" },
   "/apply": { title: "طلب الانضمام | HAMZA AGENCY", description: "اختر البرنامج المناسب وأرسل طلب الانضمام إلى HAMZA AGENCY عبر نموذج واضح وآمن.", schemaType: "WebPage" },
   "/programs": { title: "برامج HAMZA AGENCY لصناع المحتوى", description: "استعرض برامج TikTok وBIGO LIVE وYaahlan وXena وCatchii واختر المسار المناسب.", schemaType: "CollectionPage" },
   "/services": { title: "خدمات HAMZA AGENCY", description: "خدمات احترافية لمتابعة طلبات الانضمام ودعم البرامج والإرشاد العملي وتنظيم التواصل.", schemaType: "CollectionPage" },
