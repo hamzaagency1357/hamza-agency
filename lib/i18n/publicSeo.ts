@@ -29,11 +29,12 @@ const arabicRouteSeo: Record<string, PublicSeoCopy> = {
   "/ai-policy": { title: "سياسة الدعم الذكي | HAMZA AGENCY", description: "تعرف على دور الدعم الذكي وحدوده وقواعد الخصوصية والإشراف البشري.", schemaType: "WebPage" },
   "/ai-support": { title: "الدعم الذكي | HAMZA AGENCY", description: "احصل على إرشاد منظم مع تحويل الحالات الخاصة إلى الفريق عبر القنوات الرسمية.", schemaType: "WebPage" },
   "/blog": { title: "مدونة HAMZA AGENCY", description: "مقالات وإرشادات مهنية حول صناع المحتوى وبرامج البث المباشر والهوية الرقمية.", schemaType: "CollectionPage" },
+  "/offline": { title: "غير متصل | HAMZA AGENCY", description: "صفحة HAMZA AGENCY الآمنة عند عدم توفر الاتصال بالإنترنت.", schemaType: "WebPage" },
 };
 const agentSeo: Record<SiteLanguage, PublicSeoCopy> = {
   ar: { title: "عراب سوريا | الوكيل والمدير في HAMZA AGENCY", description: agencyDescription, schemaType: "WebPage" },
-  en: { title: "Agent Hamza | Agent and Manager at HAMZA AGENCY", description: "Agent Hamza manages creator support and development, privacy, safety, and live-streaming programs at HAMZA AGENCY through professional follow-up.", schemaType: "WebPage" },
-  tr: { title: "Temsilci Hamza | Hamza Ajansı Temsilcisi ve Yöneticisi", description: "Temsilci Hamza, Hamza Ajansı bünyesinde içerik üreticisi desteğini ve gelişimini, gizliliği, güvenliği ve canlı yayın programlarını profesyonel takiple yönetir.", schemaType: "WebPage" },
+  en: { title: "عراب سوريا | Agent and Manager at HAMZA AGENCY", description: "عراب سوريا manages creator support and development, privacy, safety, and live-streaming programs at HAMZA AGENCY through professional follow-up.", schemaType: "WebPage" },
+  tr: { title: "عراب سوريا | HAMZA AGENCY Temsilcisi ve Yöneticisi", description: "عراب سوريا, HAMZA AGENCY bünyesinde içerik üreticisi desteğini ve gelişimini, gizliliği, güvenliği ve canlı yayın programlarını profesyonel takiple yönetir.", schemaType: "WebPage" },
 };
 const programNames: Record<string,string>={tiktok:"TikTok","bigo-live":"BIGO LIVE",yaahlan:"Yaahlan",xena:"Xena",catchii:"Catchii"};
 const programSeoDescription:Record<SiteLanguage,(name:string)=>string>={
