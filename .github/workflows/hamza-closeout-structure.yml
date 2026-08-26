@@ -221,3 +221,50 @@ jobs:
     needs: validate
     uses: ./.github/workflows/hamza-macro-runtime-suite.yml
     with: { suite: workflows, expected_sha: "${{ github.event.pull_request.head.sha }}" }
+
+  pr1-runtime-evidence:
+    needs: validate
+    uses: ./.github/workflows/hamza-closeout-pr1-runtime.yml
+    with:
+      expected_sha: "${{ github.event.pull_request.head.sha }}"
+
+  aggregate:
+    if: >-
+      always() &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+    needs:
+      - validate
+      - exact-preview
+      - preview-public-evidence
+      - preview-translations-evidence
+      - preview-security-evidence
+      - public-evidence
+      - translations-evidence
+      - permissions-evidence
+      - security-evidence
+      - tracking-evidence
+      - admin-evidence
+      - page-builder-evidence
+      - backup-restore-evidence
+      - trash-evidence
+      - notifications-evidence
+      - commerce-evidence
+      - tasks-evidence
+      - sla-evidence
+      - workflows-evidence
+      - pr1-runtime-evidence
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail closed on any missing, skipped, or unsuccessful suite
+        env:
+          NEEDS_JSON: ${{ toJson(needs) }}
+        run: |
+          node - <<'NODE'
+          const needs=JSON.parse(process.env.NEEDS_JSON);
+          const failed=Object.entries(needs).filter(([,value])=>value.result!=='success');
+          if(failed.length) throw new Error(`Closeout failed: ${failed.map(([name,value])=>`${name}:${value.result}`).join(', ')}`);
+          NODE
