@@ -79,6 +79,32 @@ test("programs keep existing mutations while moving technical fields to advanced
   assert.ok(!text.includes('placeholder="status مثل active"'));
 });
 
+test("content management uses human Arabic copy while preserving existing mutations", async () => {
+  const text = await source("app/admin/pages/page.tsx");
+  for (const token of [
+    "إدارة محتوى الموقع",
+    "منشئ الصفحات",
+    "عنوان نتائج البحث",
+    "الكلمات المفتاحية",
+    "وصف نتائج البحث",
+    "صورة المشاركة",
+    "تعذر تحميل الصفحات. حاول مرة أخرى.",
+  ]) assert.ok(text.includes(token), token);
+
+  for (const forbidden of [
+    "Core CMS Foundation",
+    "أساس Page Builder",
+    "SEO Title",
+    "SEO Keywords",
+    "SEO Description",
+    "Open Graph Image URL",
+    "صلاحيات جدول pages",
+  ]) assert.ok(!text.includes(forbidden), forbidden);
+
+  assert.ok(text.includes('"pr116_pages_page_entity_pages_update"'));
+  assert.ok(text.includes('"pr116_pages_page_entity_pages_insert"'));
+});
+
 test("reviewer name requirement remains locked", async () => {
   const text = await source("app/admin/reviews/page.tsx");
   assert.ok(text.includes("if (!form.reviewerName.trim())"));
