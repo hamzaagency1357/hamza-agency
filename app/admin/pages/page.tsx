@@ -1,6 +1,5 @@
 "use client";
 
-
 import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -57,7 +56,7 @@ const filterOptions: { value: PageFilter; label: string }[] = [
   { value: "published", label: "منشورة" },
   { value: "draft", label: "غير منشورة" },
   { value: "homepage", label: "الرئيسية" },
-  { value: "needs_seo", label: "تحتاج SEO" },
+  { value: "needs_seo", label: "تحتاج تحسين الظهور في البحث" },
 ];
 
 const recommendedCorePages = [
@@ -154,7 +153,7 @@ export default function AdminPagesPage() {
   const loadPages = useCallback(async () => {
     if (!supabase) {
       setMessage("");
-      setError("الاتصال بقاعدة البيانات غير مفعل.");
+      setError("تعذر الاتصال بخدمة البيانات حاليًا.");
       return;
     }
 
@@ -173,7 +172,7 @@ export default function AdminPagesPage() {
 
     if (error) {
       setMessage("");
-      setError("تعذر تحميل الصفحات. تحقق من صلاحيات جدول pages.");
+      setError("تعذر تحميل الصفحات. حاول مرة أخرى.");
       return;
     }
 
@@ -280,7 +279,7 @@ export default function AdminPagesPage() {
     setError("");
 
     if (!supabase) {
-      showError("الاتصال بقاعدة البيانات غير مفعل.");
+      showError("تعذر الاتصال بخدمة البيانات حاليًا.");
       return;
     }
 
@@ -332,7 +331,7 @@ export default function AdminPagesPage() {
     setIsSaving(false);
 
     if (result.error) {
-      showError("فشل حفظ الصفحة. تأكد أن slug غير مكرر وأن صلاحيات الجدول صحيحة.");
+      showError("تعذر حفظ الصفحة. تحقق من رابط الصفحة وحاول مرة أخرى.");
       return;
     }
 
@@ -351,7 +350,7 @@ export default function AdminPagesPage() {
 
   async function togglePage(page: PageItem, field: "is_published" | "is_homepage") {
     if (!supabase) {
-      showError("الاتصال بقاعدة البيانات غير مفعل.");
+      showError("تعذر الاتصال بخدمة البيانات حاليًا.");
       return;
     }
 
@@ -370,7 +369,7 @@ export default function AdminPagesPage() {
       }, filters: [{ op: "eq", field: "id", value: page.id }], select: undefined, returnMode: "many", options: undefined });
 
     if (error) {
-      showError("فشل تحديث حالة الصفحة. تحقق من صلاحيات جدول pages.");
+      showError("تعذر تحديث حالة الصفحة. حاول مرة أخرى.");
       return;
     }
 
@@ -441,10 +440,10 @@ export default function AdminPagesPage() {
             <div>
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 <span className="rounded-full border border-purple-400/30 bg-purple-500/15 px-4 py-2 text-sm font-bold text-purple-100">
-                  Core CMS Foundation
+                  إدارة محتوى الموقع
                 </span>
                 <span className="rounded-full border border-yellow-400/25 bg-yellow-500/10 px-4 py-2 text-sm font-bold text-yellow-100">
-                  أساس Page Builder
+                  منشئ الصفحات
                 </span>
               </div>
 
@@ -452,11 +451,9 @@ export default function AdminPagesPage() {
                 إدارة الصفحات
               </h1>
               <p className="mt-4 max-w-3xl leading-8 text-white/62">
-                مركز إدارة صفحات HAMZA AGENCY، حالة النشر، الصفحة الرئيسية،
-                ترتيب الصفحات، ومعلومات SEO. هذه الصفحة هي الأساس الذي سنبني
-                فوقه إدارة الأقسام والـ Page Builder.
+                مركز إدارة صفحات HAMZA AGENCY وحالة النشر والصفحة الرئيسية وترتيب المحتوى ومعلومات الظهور في نتائج البحث.
               </p>
-              <p className="mt-3 text-sm text-white/45">الأدمن: {adminEmail}</p>
+              <p className="mt-3 text-sm text-white/45">الحساب الإداري: {adminEmail}</p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
@@ -466,7 +463,7 @@ export default function AdminPagesPage() {
                 disabled={isLoading}
                 className="rounded-2xl border border-purple-300/25 bg-purple-500/10 px-5 py-3 font-black text-purple-100 transition hover:bg-purple-500/15 disabled:opacity-60"
               >
-                {isLoading ? "جاري التحديث..." : "تحديث الصفحات"}
+                {isLoading ? "جارٍ التحديث..." : "تحديث الصفحات"}
               </button>
               <Link
                 href="/admin"
@@ -489,12 +486,14 @@ export default function AdminPagesPage() {
           <StatCard title="كل الصفحات" value={stats.total} tone="purple" />
           <StatCard title="منشورة" value={stats.published} tone="green" />
           <StatCard title="غير منشورة" value={stats.draft} tone="yellow" />
-          <StatCard title="تحتاج SEO" value={stats.needsSeo} tone="blue" />
+          <StatCard title="تحتاج تحسين الظهور" value={stats.needsSeo} tone="blue" />
           <StatCard title="صفحات أساسية ناقصة" value={stats.missingCorePages} tone="red" />
         </section>
 
         {(message || error) && (
           <section
+            role={error ? "alert" : "status"}
+            aria-live="polite"
             className={`mb-6 rounded-3xl border p-5 font-bold leading-8 ${
               error
                 ? "border-red-400/25 bg-red-500/10 text-red-100"
@@ -512,8 +511,7 @@ export default function AdminPagesPage() {
                 {selectedPage ? "تعديل صفحة" : "إضافة صفحة جديدة"}
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-7 text-white/52">
-                اكتب بيانات الصفحة الأساسية. سيتم استخدام نفس السجل لاحقاً عند
-                ربط الأقسام والقوالب داخل Page Builder.
+                عدّل بيانات الصفحة الأساسية، حالة نشرها، ومعلومات ظهورها في نتائج البحث.
               </p>
             </div>
 
@@ -552,7 +550,7 @@ export default function AdminPagesPage() {
                 />
               </Field>
 
-              <Field label="SEO Title" hint="عنوان مخصص لمحركات البحث">
+              <Field label="عنوان نتائج البحث" hint="العنوان الذي يظهر لمحركات البحث">
                 <input
                   value={form.seo_title}
                   onChange={(event) => updateField("seo_title", event.target.value)}
@@ -561,7 +559,7 @@ export default function AdminPagesPage() {
                 />
               </Field>
 
-              <Field label="SEO Keywords" hint="كلمات مفصولة بفواصل">
+              <Field label="الكلمات المفتاحية" hint="كلمات مفصولة بفواصل">
                 <input
                   value={form.seo_keywords}
                   onChange={(event) => updateField("seo_keywords", event.target.value)}
@@ -571,7 +569,7 @@ export default function AdminPagesPage() {
               </Field>
             </div>
 
-            <Field label="SEO Description" hint="وصف قصير يظهر في نتائج البحث والمشاركة">
+            <Field label="وصف نتائج البحث" hint="وصف قصير يظهر في نتائج البحث والمشاركة">
               <textarea
                 value={form.seo_description}
                 onChange={(event) => updateField("seo_description", event.target.value)}
@@ -581,7 +579,7 @@ export default function AdminPagesPage() {
               />
             </Field>
 
-            <Field label="Open Graph Image URL" hint="رابط صورة المشاركة، ويمكن ربطها لاحقاً بمكتبة الوسائط">
+            <Field label="صورة المشاركة" hint="رابط الصورة التي تظهر عند مشاركة الصفحة">
               <input
                 value={form.og_image}
                 onChange={(event) => updateField("og_image", event.target.value)}
@@ -591,7 +589,7 @@ export default function AdminPagesPage() {
               />
             </Field>
 
-            <Field label="محتوى الصفحة الأساسي" hint="هذا المحتوى يستخدم كقاعدة قبل ربط الأقسام المتقدمة">
+            <Field label="محتوى الصفحة الأساسي" hint="المحتوى النصي الأساسي للصفحة">
               <textarea
                 value={form.content}
                 onChange={(event) => updateField("content", event.target.value)}
@@ -657,7 +655,7 @@ export default function AdminPagesPage() {
             <div>
               <h2 className="text-3xl font-black">قائمة الصفحات</h2>
               <p className="mt-2 text-white/55">
-                راقب الصفحات الأساسية، حالة النشر، جاهزية SEO، وترتيب المحتوى.
+                راقب الصفحات الأساسية، حالة النشر، جاهزية الظهور في نتائج البحث، وترتيب المحتوى.
               </p>
             </div>
 
@@ -693,7 +691,7 @@ export default function AdminPagesPage() {
                   <th className="p-4 text-right">الصفحة</th>
                   <th className="p-4 text-right">الرابط</th>
                   <th className="p-4 text-right">الحالة</th>
-                  <th className="p-4 text-right">SEO</th>
+                  <th className="p-4 text-right">الظهور في البحث</th>
                   <th className="p-4 text-right">الترتيب</th>
                   <th className="p-4 text-right">آخر تحديث</th>
                   <th className="p-4 text-right">الإجراءات</th>
@@ -704,7 +702,7 @@ export default function AdminPagesPage() {
                 {filteredPages.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="p-8 text-center text-white/50">
-                      لا توجد صفحات مطابقة. أضف الصفحات الأساسية أو غيّر الفلتر الحالي.
+                      لا توجد صفحات مطابقة. أضف الصفحات الأساسية أو غيّر عامل التصفية الحالي.
                     </td>
                   </tr>
                 ) : (
@@ -859,8 +857,9 @@ function ToggleCard({
   return (
     <button
       type="button"
+      aria-pressed={checked}
       onClick={() => onChange(!checked)}
-      className={`rounded-2xl border p-4 text-right transition ${
+      className={`rounded-2xl border p-4 text-right transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 ${
         checked
           ? "border-purple-300/35 bg-purple-500/15 text-white"
           : "border-white/10 bg-white/[0.04] text-white/60 hover:border-purple-300/25"
