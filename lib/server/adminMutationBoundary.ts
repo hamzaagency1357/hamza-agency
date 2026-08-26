@@ -85,7 +85,7 @@ async function hasPermission(
   );
   const permission = primary.ok && Array.isArray(primary.data) ? primary.data[0] : null;
 
-  if (!permission) return actor.profile.role === "deputy_super_admin";
+  if (!permission) return false;
   return permission.can_manage === true || permission[action] === true;
 }
 
