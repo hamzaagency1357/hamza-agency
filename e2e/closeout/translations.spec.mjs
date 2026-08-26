@@ -62,10 +62,10 @@ const cases = {
     necessaryOnly: "Yalnızca gerekli",
     manage: "Tercihleri yönet",
     install: {
-      agency: "Hamza Ajansı",
-      eyebrow: "Hamza Ajansı uygulaması",
+      agency: "HAMZA AGENCY",
+      eyebrow: "HAMZA AGENCY uygulaması",
       title: "Web sitesini uygulama olarak yükleyin",
-      description: "Programlara, hizmetlere ve başvuru takibine hızlı erişmek için Hamza Ajansı'nı cihazınıza yükleyin.",
+      description: "Programlara, hizmetlere ve başvuru takibine hızlı erişmek için HAMZA AGENCY'yi cihazınıza yükleyin.",
       statusTitle: "Yükleme hazır",
       statusDescription: "Tarayıcıdaki yükleme seçeneğini açmak için “Uygulamayı yükle” düğmesini kullanın.",
       button: "Uygulamayı yükle",
@@ -80,6 +80,10 @@ const forbiddenVisibleCopy = [
   "Yüzen kartlar veya otomatik istemler olmadan",
   "beforeinstallprompt",
 ];
+const crossLocaleInstallLeakage = {
+  en: [cases.tr.install.title, cases.tr.install.statusTitle, cases.tr.install.button, cases.tr.install.back],
+  tr: [cases.en.install.title, cases.en.install.statusTitle, cases.en.install.button, cases.en.install.back],
+};
 const ownerMobileViewports = [
   {width:390,height:844},
   {width:320,height:720},
@@ -220,6 +224,9 @@ async function expectInstallCopy(page, locale, data) {
     expect(visible).not.toContain(forbidden);
   }
   if (locale !== "ar") expect(visible).not.toMatch(arabicPattern);
+  for (const leakage of crossLocaleInstallLeakage[locale] || []) {
+    expect(visible).not.toContain(leakage);
+  }
 }
 
 async function assertClickTargetInViewport(page, testId) {

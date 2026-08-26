@@ -1,6 +1,5 @@
-const CACHE_VERSION = "hamza-public-v2";
-const OFFLINE_URL = "/offline";
-const PUBLIC_SHELL = ["/", "/offline", "/manifest.webmanifest", "/cookie-policy", "/status"];
+const CACHE_VERSION = "hamza-public-v3";
+const PUBLIC_SHELL = ["/offline", "/en/offline", "/tr/offline", "/manifest.webmanifest"];
 const NEVER_CACHE = [
   "/admin",
   "/portal",
@@ -15,7 +14,12 @@ const NEVER_CACHE = [
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_VERSION).then((cache) => cache.addAll(PUBLIC_SHELL)));
+  event.waitUntil(
+    caches
+      .open(CACHE_VERSION)
+      .then((cache) => cache.addAll(PUBLIC_SHELL))
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener("activate", (event) => {
@@ -51,6 +55,12 @@ function publicResponse(response) {
   return response.ok && !/private|no-store/i.test(cacheControl) && !response.headers.has("set-cookie");
 }
 
+function localizedOfflineUrl(pathname) {
+  if (pathname === "/en" || pathname.startsWith("/en/")) return "/en/offline";
+  if (pathname === "/tr" || pathname.startsWith("/tr/")) return "/tr/offline";
+  return "/offline";
+}
+
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (!canCache(event.request, url)) return;
@@ -65,7 +75,10 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         })
-        .catch(async () => (await caches.match(event.request)) || (await caches.match(OFFLINE_URL))),
+        .catch(async () =>
+          (await caches.match(event.request)) ||
+          (await caches.match(localizedOfflineUrl(url.pathname))),
+        ),
     );
     return;
   }
