@@ -130,20 +130,27 @@ declare
   support_oid oid := to_regprocedure('public.pr4_create_support_request(text,text,text,text,text,boolean)');
   bridge_definition text;
   require_admin_definition text;
+  bridge_config text[];
+  require_admin_config text[];
 begin
   if bridge_oid is null or require_admin_oid is null or dry_run_oid is null or support_oid is null then
     raise exception 'trusted_actor_hotfix_required_function_missing';
   end if;
 
-  select pg_get_functiondef(bridge_oid) into bridge_definition;
-  select pg_get_functiondef(require_admin_oid) into require_admin_definition;
+  select pg_get_functiondef(bridge_oid), proconfig
+  into bridge_definition, bridge_config
+  from pg_proc where oid = bridge_oid;
+  select pg_get_functiondef(require_admin_oid), proconfig
+  into require_admin_definition, require_admin_config
+  from pg_proc where oid = require_admin_oid;
 
   if not (select prosecdef from pg_proc where oid = bridge_oid)
      or not (select prosecdef from pg_proc where oid = require_admin_oid) then
     raise exception 'trusted_actor_hotfix_security_definer_regression';
   end if;
-  if position('search_path=pg_catalog, public' in replace(bridge_definition, ' ', '')) > 0 then
-    null;
+  if not ('search_path=pg_catalog, public' = any(coalesce(bridge_config, '{}'::text[])))
+     or not ('search_path=pg_catalog, public' = any(coalesce(require_admin_config, '{}'::text[]))) then
+    raise exception 'trusted_actor_hotfix_search_path_regression';
   end if;
 
   if position('user_id = v_user_id' in bridge_definition) = 0
