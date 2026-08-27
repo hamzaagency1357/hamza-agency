@@ -154,12 +154,12 @@ begin
   end if;
 
   if position('user_id = v_user_id' in bridge_definition) = 0
-     or position('user_id is null' in lower(bridge_definition)) > 0 then
+     or position('or user_id is null' in lower(bridge_definition)) > 0 then
     raise exception 'trusted_actor_hotfix_user_id_authority_regression';
   end if;
   if position('admin_user.user_id = v_user_id' in require_admin_definition) = 0
      or position('auth.jwt()' in require_admin_definition) > 0
-     or position('user_id is null' in lower(require_admin_definition)) > 0 then
+     or position('admin_user.user_id is null' in lower(require_admin_definition)) > 0 then
     raise exception 'trusted_actor_hotfix_legacy_email_authority_regression';
   end if;
 
