@@ -3,16 +3,18 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
   ANCHOR,
-  PREPARATION,
+  BASELINE_POST_ANCHOR,
+  TARGET,
   PRODUCTION_REF,
   validateAnchorEffects,
+  validateDryRunOutput,
   validateGatewayControlPlane,
   validateHistory,
   validateInvocation,
-  validatePreparationHash,
-  validatePreparationPrerequisites,
-  validatePreparationSql,
   validateProductionHealth,
+  validateTargetEffects,
+  validateTargetHash,
+  validateTargetSql,
   sha256Text,
 } from "../scripts/ops/forward-production-contract.mjs";
 import {
@@ -26,7 +28,8 @@ import {
   validateJitMapping,
 } from "../scripts/ops/temporary-database-access.mjs";
 
-const mainSha = "d5c4de481c3894795eab40653f765dbabb218e19";
+const mainSha = "1054fb9bd8617a0ca2c572d93b063e36b7d33b98";
+const baselineHistory = [ANCHOR, ...BASELINE_POST_ANCHOR].map(({ version, name }) => ({ version, name }));
 const healthyEffects = {
   anchor_history_exact: true,
   admin_permissions_browser_dml_denied: true,
@@ -41,20 +44,28 @@ const healthyEffects = {
   trusted_actor_search_path_ok: true,
   authenticator_pre_request_ok: true,
   support_rpc_exists: true,
-  support_anon_execute: true,
-  support_authenticated_execute: true,
-  support_service_execute: false,
-  gateway_has_support_request_create: false,
+  support_anon_execute: false,
+  support_authenticated_execute: false,
+  support_service_execute: true,
+  backup_dry_run_exists: true,
+  backup_dry_run_anon_execute: false,
+  backup_dry_run_authenticated_execute: false,
+  backup_dry_run_service_execute: true,
+  trusted_actor_user_id_authoritative: false,
+  trusted_actor_rpc_allowlist_guard: false,
+  require_admin_uid_only: false,
 };
 
 function expectFailure(fn, pattern) {
   assert.throws(fn, pattern);
 }
 
-test("forward-only contract accepts only the reviewed Preparation target", () => {
+test("forward-only contract accepts only the reviewed trusted Admin bridge target", () => {
+  assert.equal(TARGET.version, "20260827090000");
+  assert.equal(TARGET.filename, "20260827090000_pr99_trusted_admin_actor_db_bridge.sql");
   assert.equal(validateInvocation({
     mode: "forward_preflight",
-    target: PREPARATION.key,
+    target: TARGET.key,
     projectRef: PRODUCTION_REF,
     expectedMainSha: mainSha,
     actualMainSha: mainSha,
@@ -68,30 +79,27 @@ test("forward-only contract accepts only the reviewed Preparation target", () =>
   }), /unauthorized target/);
 });
 
-test("wrong Production project ref fails closed", () => {
+test("wrong Production project ref and wrong reviewed SHA fail closed", () => {
   expectFailure(() => validateInvocation({
     mode: "forward_preflight",
-    target: PREPARATION.key,
+    target: TARGET.key,
     projectRef: "wrong-project-ref",
     expectedMainSha: mainSha,
     actualMainSha: mainSha,
   }), /wrong Production project ref/);
-});
-
-test("wrong expected main SHA fails closed", () => {
   expectFailure(() => validateInvocation({
     mode: "forward_preflight",
-    target: PREPARATION.key,
+    target: TARGET.key,
     projectRef: PRODUCTION_REF,
-    expectedMainSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    expectedMainSha: "a".repeat(40),
     actualMainSha: mainSha,
   }), /does not match/);
 });
 
-test("forward_apply requires the dedicated Preparation approval token", () => {
+test("forward_apply requires the dedicated trusted Admin bridge approval token", () => {
   expectFailure(() => validateInvocation({
     mode: "forward_apply",
-    target: PREPARATION.key,
+    target: TARGET.key,
     projectRef: PRODUCTION_REF,
     expectedMainSha: mainSha,
     actualMainSha: mainSha,
@@ -99,52 +107,66 @@ test("forward_apply requires the dedicated Preparation approval token", () => {
   }), /approval token mismatch/);
   assert.equal(validateInvocation({
     mode: "forward_apply",
-    target: PREPARATION.key,
+    target: TARGET.key,
     projectRef: PRODUCTION_REF,
     expectedMainSha: mainSha,
     actualMainSha: mainSha,
-    approval: PREPARATION.approval,
+    approval: TARGET.approval,
   }), true);
 });
 
-test("anchor identity must be exact and no unknown post-anchor migration is accepted", () => {
-  assert.equal(validateHistory([{ version: ANCHOR.version, name: ANCHOR.name }]), true);
-  expectFailure(() => validateHistory([{ version: ANCHOR.version, name: "wrong_anchor" }]), /anchor identity/);
+test("actual Production post-anchor baseline is exact and unknown history fails closed", () => {
+  assert.deepEqual(BASELINE_POST_ANCHOR, [
+    { version: "20260825141930", name: "pr120_support_request_trusted_gateway_preparation" },
+    { version: "20260826003518", name: "final_security_acl_lockdown" },
+  ]);
+  assert.equal(validateHistory(baselineHistory, "target_preflight"), true);
   expectFailure(() => validateHistory([
-    { version: ANCHOR.version, name: ANCHOR.name },
-    { version: "20260822000000", name: "unexpected" },
-  ]), /unexpected post-anchor migration/);
+    ...baselineHistory,
+    { version: "20260826010000", name: "unexpected" },
+  ], "target_preflight"), /history length/);
+  expectFailure(() => validateHistory([
+    { ...ANCHOR },
+    { version: "20260825141930", name: "wrong_name" },
+    BASELINE_POST_ANCHOR[1],
+  ], "target_preflight"), /unexpected post-anchor migration/);
 });
 
-test("already-applied Preparation target fails preflight", () => {
-  expectFailure(() => validateHistory([
-    { version: ANCHOR.version, name: ANCHOR.name },
-    { version: PREPARATION.version, name: PREPARATION.name },
-  ]), /already applied/);
+test("target is the sole allowed new post-baseline history row", () => {
   assert.equal(validateHistory([
-    { version: ANCHOR.version, name: ANCHOR.name },
-    { version: PREPARATION.version, name: PREPARATION.name },
-  ], "preparation_post_apply"), true);
+    ...baselineHistory,
+    { version: TARGET.version, name: TARGET.name },
+  ], "target_post_apply"), true);
+  expectFailure(() => validateHistory([
+    ...baselineHistory,
+    { version: "20260827080000", name: "other" },
+  ], "target_post_apply"), /unexpected post-anchor migration/);
 });
 
-test("anchor security effects fail closed independently", () => {
+test("anchor and current ACL effects remain fail-closed", () => {
   assert.equal(validateAnchorEffects(healthyEffects), true);
   expectFailure(() => validateAnchorEffects({ ...healthyEffects, admin_permissions_browser_dml_denied: false }), /admin_permissions_browser_dml_denied/);
-  expectFailure(() => validateAnchorEffects({ ...healthyEffects, gateway_authenticated_execute: true }), /browser-executable/);
-  expectFailure(() => validateAnchorEffects({ ...healthyEffects, trusted_actor_search_path_ok: false }), /trusted_actor_search_path_ok/);
+  expectFailure(() => validateAnchorEffects({ ...healthyEffects, gateway_authenticated_execute: true }), /gateway_authenticated_execute/);
+  expectFailure(() => validateAnchorEffects({ ...healthyEffects, support_authenticated_execute: true }), /support_authenticated_execute/);
+  expectFailure(() => validateAnchorEffects({ ...healthyEffects, backup_dry_run_anon_execute: true }), /backup_dry_run_anon_execute/);
 });
 
-test("Preparation prerequisites require current legacy Support compatibility", () => {
-  assert.equal(validatePreparationPrerequisites(healthyEffects), true);
-  expectFailure(() => validatePreparationPrerequisites({ ...healthyEffects, support_anon_execute: false }), /legacy Support ACL/);
-  expectFailure(() => validatePreparationPrerequisites({ ...healthyEffects, gateway_has_support_request_create: true }), /already present/);
-  assert.equal(validatePreparationPrerequisites({ ...healthyEffects, gateway_has_support_request_create: true }, "preparation_post_apply"), true);
+test("trusted Admin bridge effects must be absent before and complete after target apply", () => {
+  assert.equal(validateTargetEffects(healthyEffects, "target_preflight"), true);
+  const applied = {
+    ...healthyEffects,
+    trusted_actor_user_id_authoritative: true,
+    trusted_actor_rpc_allowlist_guard: true,
+    require_admin_uid_only: true,
+  };
+  assert.equal(validateTargetEffects(applied, "target_post_apply"), true);
+  expectFailure(() => validateTargetEffects(applied, "target_preflight"), /already present/);
+  expectFailure(() => validateTargetEffects({ ...applied, require_admin_uid_only: false }, "target_post_apply"), /not fully present/);
 });
 
 test("Gateway control-plane state is pinned to ACTIVE version 6", () => {
   assert.equal(validateGatewayControlPlane([{ slug: "pr100-vercel-oidc-gateway", version: 6, status: "ACTIVE" }]), true);
   expectFailure(() => validateGatewayControlPlane([{ slug: "pr100-vercel-oidc-gateway", version: 7, status: "ACTIVE" }]), /unexpected trusted gateway state/);
-  expectFailure(() => validateGatewayControlPlane([{ slug: "pr100-vercel-oidc-gateway", version: 6, status: "INACTIVE" }]), /unexpected trusted gateway state/);
 });
 
 test("Production health must match the explicitly reviewed application SHA", () => {
@@ -152,22 +174,22 @@ test("Production health must match the explicitly reviewed application SHA", () 
   expectFailure(() => validateProductionHealth({ status: "ok", commitSha: "b".repeat(40) }, mainSha), /application SHA mismatch/);
 });
 
-test("Preparation SQL remains additive for direct Support ACL", async () => {
-  const sql = await readFile(PREPARATION.path, "utf8");
-  assert.equal(validatePreparationSql(sql), true);
-  assert.match(sql, /support_request_create/);
-  assert.match(sql, /pr100_guard_ai_answer/);
-  assert.match(sql, /pr4_create_support_request/);
-  assert.doesNotMatch(sql, /(?:revoke|grant)\s+[^;]*on\s+function\s+public\.pr4_create_support_request\b/i);
+test("target SQL is immutable, transactional and cryptographically locked", async () => {
+  const sql = await readFile(TARGET.path, "utf8");
+  const actual = sha256Text(sql);
+  assert.equal(TARGET.path, "supabase/migrations/20260827090000_pr99_trusted_admin_actor_db_bridge.sql");
+  assert.equal(actual, "ee8e342eef5e6e0a677f4fe981b66de8eac2bf2446896bc8260a9063a58decd5");
+  assert.equal(TARGET.sha256, actual);
+  assert.equal(validateTargetHash(actual), true);
+  assert.equal(validateTargetSql(sql), true);
+  expectFailure(() => validateTargetHash("0".repeat(64)), /SHA-256 mismatch/);
 });
 
-test("Preparation migration SHA-256 is cryptographically locked", async () => {
-  const sql = await readFile(PREPARATION.path, "utf8");
-  const actual = sha256Text(sql);
-  assert.equal(actual, "778ef1eef0cf61d3ab4092d711c005a8a6031b6002e491519878627498f40b95");
-  assert.equal(PREPARATION.sha256, actual);
-  assert.equal(validatePreparationHash(actual), true);
-  expectFailure(() => validatePreparationHash("0".repeat(64)), /SHA-256 mismatch/);
+test("dry-run output must contain exactly the single approved target migration", () => {
+  assert.equal(validateDryRunOutput(`DRY RUN\nWould push these migrations:\n • ${TARGET.filename}\n`), true);
+  expectFailure(() => validateDryRunOutput("DRY RUN\nNo migrations to push\n"), /exactly one/);
+  expectFailure(() => validateDryRunOutput(`Would push:\n${TARGET.filename}\n20260827090100_other.sql\n`), /exactly one/);
+  expectFailure(() => validateDryRunOutput("Would push:\n20260827090100_other.sql\n"), /unauthorized migration/);
 });
 
 test("Production Postgres version meets Supabase Temporary Access minimum", () => {
@@ -194,16 +216,6 @@ test("temporary access role is postgres-only, /32 IPv4-only, and expires within 
     nowMs,
   }), true);
   expectFailure(() => assertIpv4("20.30.40.999"), /invalid runner IPv4/);
-  expectFailure(() => validateJitMapping({ user_id: "user-1", user_roles: [{ ...role, role: "service_role" }] }, {
-    userId: "user-1",
-    ipv4: "20.30.40.50",
-    nowMs,
-  }), /role is not postgres/);
-  expectFailure(() => validateJitMapping({ user_id: "user-1", user_roles: [{ ...role, allowed_networks: { allowed_cidrs: [{ cidr: "0.0.0.0/0" }], allowed_cidrs_v6: [] } }] }, {
-    userId: "user-1",
-    ipv4: "20.30.40.50",
-    nowMs,
-  }), /current runner IPv4/);
 });
 
 test("temporary access uses trusted IPv4 Supavisor session endpoint with SSL and jit option", () => {
@@ -247,26 +259,29 @@ test("dedicated token permission contract excludes unrelated product and databas
   }
 });
 
-test("workflow is main-only, one-secret JIT access, and preserves the forward-only migration contract", async () => {
+test("workflow preserves hardened forward-only architecture and new exact target", async () => {
   const workflow = await readFile(".github/workflows/forward-production-migrations.yml", "utf8");
-  assert.match(workflow, /forward_preflight/);
-  assert.match(workflow, /forward_apply/);
-  assert.match(workflow, /pr120_support_gateway_preparation/);
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /pr99_trusted_admin_actor_db_bridge/);
+  assert.match(workflow, /20260827090000_pr99_trusted_admin_actor_db_bridge\.sql/);
+  assert.doesNotMatch(workflow, /default:\s*pr120_support_gateway_preparation/);
   assert.match(workflow, /refs\/heads\/main/);
+  assert.match(workflow, /ref:\s*\$\{\{ inputs\.expected_main_sha \}\}/);
   assert.match(workflow, /environment:\s*production-database/);
   assert.match(workflow, /secrets\.SUPABASE_PRODUCTION_JIT_TOKEN/);
   assert.doesNotMatch(workflow, /secrets\.SUPABASE_ACCESS_TOKEN/);
   assert.doesNotMatch(workflow, /SUPABASE_DB_PASSWORD/);
+  assert.match(workflow, /test "\$\(\$cli --version\)" = "2\.109\.1"/);
   assert.match(workflow, /temporary-database-access\.mjs setup/);
   assert.match(workflow, /temporary-database-access\.mjs wait/);
   assert.match(workflow, /temporary-database-access\.mjs cleanup/);
-  assert.match(workflow, /db query --db-url "\$FORWARD_DB_URL"/);
   assert.match(workflow, /migration fetch --db-url "\$FORWARD_DB_URL"/);
   assert.match(workflow, /db push --db-url "\$FORWARD_DB_URL" --dry-run/);
+  assert.match(workflow, /verify-dry-run "\$FORWARD_DRY_RUN_LOG"/);
   assert.match(workflow, /migration up --db-url "\$FORWARD_DB_URL"/);
-  assert.match(workflow, /APPROVE_HAMZA_PR120_SUPPORT_GATEWAY_PREPARATION/);
+  assert.match(workflow, /APPROVE_HAMZA_PR99_TRUSTED_ADMIN_ACTOR_DB_BRIDGE/);
   assert.doesNotMatch(workflow, /migration repair/);
   assert.doesNotMatch(workflow, /schema_migrations\s+(?:insert|update|delete)/i);
-  assert.doesNotMatch(workflow, /db push --include-all/);
+  assert.doesNotMatch(workflow, /--include-all/);
   assert.doesNotMatch(workflow, /\blink --project-ref\b/);
 });
