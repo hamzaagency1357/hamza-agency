@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { validateProductionDeploymentEvidence } from "./vercel-production-attestation.mjs";
 
 export const PRODUCTION_REF = "fvaurkfnsvsfohpzguho";
 export const ANCHOR = Object.freeze({
@@ -168,10 +169,8 @@ export function validateGatewayControlPlane(functions) {
   return true;
 }
 
-export function validateProductionHealth(health, expectedProductionSha) {
-  if (!/^[0-9a-f]{40}$/i.test(expectedProductionSha || "")) fail("expected Production application SHA must be a full commit SHA");
+export function validateProductionHealth(health) {
   if (health?.status !== "ok") fail("Production /api/health is not ok");
-  if (String(health?.commitSha || "").toLowerCase() !== expectedProductionSha.toLowerCase()) fail("Production application SHA mismatch");
   return true;
 }
 
@@ -244,6 +243,7 @@ async function main() {
   const historyRows = parseCliRows(await readFile(process.env.FORWARD_HISTORY_JSON, "utf8"));
   const effectsRows = parseCliRows(await readFile(process.env.FORWARD_EFFECTS_JSON, "utf8"));
   const functions = parseFunctionList(await readFile(process.env.FORWARD_FUNCTIONS_JSON, "utf8"));
+  const vercel = await loadJson(process.env.FORWARD_VERCEL_JSON);
   const health = await loadJson(process.env.FORWARD_HEALTH_JSON);
   if (effectsRows.length !== 1) fail("expected exactly one effects row");
 
@@ -251,7 +251,8 @@ async function main() {
   validateAnchorEffects(effectsRows[0]);
   validateTargetEffects(effectsRows[0], phase);
   validateGatewayControlPlane(functions);
-  validateProductionHealth(health, process.env.FORWARD_EXPECTED_PRODUCTION_SHA);
+  validateProductionDeploymentEvidence(vercel, process.env.FORWARD_EXPECTED_MAIN_SHA);
+  validateProductionHealth(health);
   console.log(JSON.stringify({ ok: true, mode, phase, target: TARGET.key, anchor: ANCHOR.version }));
 }
 
