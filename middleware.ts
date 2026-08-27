@@ -33,6 +33,7 @@ const maintenanceSettingKeys = [
 ];
 
 const publicAssetPattern = /\.(?:css|js|map|png|jpg|jpeg|gif|webp|svg|ico|txt|xml|json|webmanifest|woff|woff2|ttf|otf)$/i;
+const localizedReservedPathPattern = /^\/(?:admin|api|_next|en|tr|login|portal|reset-password|robots\.txt|sitemap\.xml|manifest\.webmanifest|opengraph-image|favicon\.ico)(?:\/|$)/;
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -56,7 +57,11 @@ export async function middleware(request: NextRequest) {
   const hasLocalePrefix = localizedPath.language !== "ar";
   const publicPath = localizedPath.publicPath;
 
-  if (hasLocalePrefix && !isSupportedPublicPath(publicPath)) {
+  if (
+    hasLocalePrefix &&
+    !isSupportedPublicPath(publicPath) &&
+    localizedReservedPathPattern.test(publicPath)
+  ) {
     const fallbackUrl = request.nextUrl.clone();
     fallbackUrl.pathname = `/${localizedPath.language}`;
     fallbackUrl.search = "";
