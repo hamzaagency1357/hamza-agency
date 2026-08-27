@@ -42,9 +42,14 @@ test("service_role gateway path requires a forwarded UUID user id", () => {
 });
 
 test("trusted actor resolution is user_id authoritative, active, and role bounded", () => {
-  assert.match(migration, /where user_id = v_user_id\s+and is_active is true\s+and role in \('super_admin', 'deputy_super_admin', 'program_admin'\)/i);
-  assert.doesNotMatch(migration, /or\s+user_id\s+is\s+null/i);
-  assert.match(migration, /raise exception 'pr116_unverified_actor_user_id'/i);
+  const functionBlock =
+    migration.match(
+      /create or replace function public\.pr116_apply_trusted_admin_actor_context\(\)[\s\S]*?\$pr116_actor\$;/i,
+    )?.[0] ?? "";
+  assert.ok(functionBlock);
+  assert.match(functionBlock, /where user_id = v_user_id\s+and is_active is true\s+and role in \('super_admin', 'deputy_super_admin', 'program_admin'\)/i);
+  assert.doesNotMatch(functionBlock, /or\s+user_id\s+is\s+null/i);
+  assert.match(functionBlock, /raise exception 'pr116_unverified_actor_user_id'/i);
 });
 
 test("forwarded email is corroboration only and mismatch fails closed", () => {
