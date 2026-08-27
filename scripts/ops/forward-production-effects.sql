@@ -5,13 +5,21 @@ with gateway as (
   where n.nspname = 'public'
     and p.oid = to_regprocedure('public.pr100_oidc_gateway(text,bigint,text,text,text,text,text,text,text,text,text,text,bigint,bigint)')
 ), actor as (
-  select p.oid, p.prosecdef, p.proconfig
+  select p.oid, p.prosecdef, p.proconfig, pg_get_functiondef(p.oid) as definition
   from pg_proc p
   join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public'
     and p.oid = to_regprocedure('public.pr116_apply_trusted_admin_actor_context()')
+), require_admin as (
+  select p.oid, p.prosecdef, p.proconfig, pg_get_functiondef(p.oid) as definition
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and p.oid = to_regprocedure('public.pr99_require_admin()')
 ), support as (
   select to_regprocedure('public.pr4_create_support_request(text,text,text,text,text,boolean)')::oid as oid
+), backup_dry_run as (
+  select to_regprocedure('public.pr99_backup_dry_run(jsonb,text[])')::oid as oid
 ), sensitive(signature) as (
   values
     ('public.pr99_submit_application(jsonb,text,timestamp with time zone,text)'),
@@ -62,4 +70,17 @@ select
   coalesce((select has_function_privilege('anon', oid, 'EXECUTE') from support), false) as support_anon_execute,
   coalesce((select has_function_privilege('authenticated', oid, 'EXECUTE') from support), false) as support_authenticated_execute,
   coalesce((select has_function_privilege('service_role', oid, 'EXECUTE') from support), false) as support_service_execute,
-  coalesce((select position('support_request_create' in pg_get_functiondef(oid)) > 0 from gateway), false) as gateway_has_support_request_create;
+  coalesce((select oid is not null from backup_dry_run), false) as backup_dry_run_exists,
+  coalesce((select has_function_privilege('anon', oid, 'EXECUTE') from backup_dry_run), false) as backup_dry_run_anon_execute,
+  coalesce((select has_function_privilege('authenticated', oid, 'EXECUTE') from backup_dry_run), false) as backup_dry_run_authenticated_execute,
+  coalesce((select has_function_privilege('service_role', oid, 'EXECUTE') from backup_dry_run), false) as backup_dry_run_service_execute,
+  coalesce((select position('where user_id = v_user_id' in lower(definition)) > 0
+              and position('or user_id is null' in lower(definition)) = 0
+            from actor), false) as trusted_actor_user_id_authoritative,
+  coalesce((select position('v_trusted_rpc boolean' in lower(definition)) > 0
+              and position('pr116_actor_context_rpc_not_allowed' in lower(definition)) > 0
+            from actor), false) as trusted_actor_rpc_allowlist_guard,
+  coalesce((select position('admin_user.user_id = v_user_id' in lower(definition)) > 0
+              and position('auth.jwt()' in lower(definition)) = 0
+              and position('admin_user.user_id is null' in lower(definition)) = 0
+            from require_admin), false) as require_admin_uid_only;

@@ -11,7 +11,7 @@ on:
       - "tests/temporary-database-access-containment.test.mjs"
       - "tests/temporary-database-access-reliability.test.mjs"
       - "docs/ops/FORWARD_PRODUCTION_MIGRATIONS.md"
-      - "supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql"
+      - "supabase/migrations/20260827090000_pr99_trusted_admin_actor_db_bridge.sql"
   workflow_dispatch:
     inputs:
       mode:
@@ -26,9 +26,9 @@ on:
         description: "Hard allowlisted forward migration target"
         required: true
         type: choice
-        default: pr120_support_gateway_preparation
+        default: pr99_trusted_admin_actor_db_bridge
         options:
-          - pr120_support_gateway_preparation
+          - pr99_trusted_admin_actor_db_bridge
       expected_main_sha:
         description: "Exact reviewed main SHA to execute"
         required: true
@@ -87,6 +87,7 @@ jobs:
       FORWARD_EFFECTS_JSON: /tmp/hamza-forward-effects.json
       FORWARD_FUNCTIONS_JSON: /tmp/hamza-forward-functions.json
       FORWARD_HEALTH_JSON: /tmp/hamza-forward-health.json
+      FORWARD_DRY_RUN_LOG: /tmp/hamza-forward-dry-run.log
     steps:
       - uses: actions/checkout@v4
         with:
@@ -102,10 +103,10 @@ jobs:
           [[ "$FORWARD_EXPECTED_PRODUCTION_SHA" =~ ^[0-9a-fA-F]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$FORWARD_EXPECTED_MAIN_SHA"
           test "$FORWARD_PROJECT_REF" = "fvaurkfnsvsfohpzguho"
-          test "$FORWARD_TARGET" = "pr120_support_gateway_preparation"
+          test "$FORWARD_TARGET" = "pr99_trusted_admin_actor_db_bridge"
           case "$FORWARD_MODE" in forward_preflight|forward_apply) ;; *) exit 1 ;; esac
           if [ "$FORWARD_MODE" = "forward_apply" ]; then
-            test "$FORWARD_APPROVAL" = "APPROVE_HAMZA_PR120_SUPPORT_GATEWAY_PREPARATION"
+            test "$FORWARD_APPROVAL" = "APPROVE_HAMZA_PR99_TRUSTED_ADMIN_ACTOR_DB_BRIDGE"
           fi
 
       - uses: actions/setup-node@v4
@@ -175,7 +176,7 @@ jobs:
         shell: bash
         env:
           FORWARD_ACTUAL_MAIN_SHA: ${{ github.sha }}
-          FORWARD_PHASE: preparation_preflight
+          FORWARD_PHASE: target_preflight
         run: |
           set -euo pipefail
           node scripts/ops/forward-production-contract.mjs verify-live
@@ -187,34 +188,35 @@ jobs:
           rm -rf "$FORWARD_WORKDIR/supabase/migrations"
           mkdir -p "$FORWARD_WORKDIR/supabase/migrations"
           "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" migration fetch --db-url "$FORWARD_DB_URL"
-          test ! -e "$FORWARD_WORKDIR/supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql"
-          cp "$GITHUB_WORKSPACE/supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql" "$FORWARD_WORKDIR/supabase/migrations/"
-          test "$(sha256sum "$FORWARD_WORKDIR/supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql" | awk '{print $1}')" = "$(node scripts/ops/forward-production-contract.mjs hash)"
+          test ! -e "$FORWARD_WORKDIR/supabase/migrations/20260827090000_pr99_trusted_admin_actor_db_bridge.sql"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20260827090000_pr99_trusted_admin_actor_db_bridge.sql" "$FORWARD_WORKDIR/supabase/migrations/"
+          test "$(sha256sum "$FORWARD_WORKDIR/supabase/migrations/20260827090000_pr99_trusted_admin_actor_db_bridge.sql" | awk '{print $1}')" = "$(node scripts/ops/forward-production-contract.mjs hash)"
 
       - name: Official Supabase dry-run for the single pending target
         shell: bash
         run: |
           set -euo pipefail
-          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db push --db-url "$FORWARD_DB_URL" --dry-run
+          "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" db push --db-url "$FORWARD_DB_URL" --dry-run 2>&1 | tee "$FORWARD_DRY_RUN_LOG"
+          node scripts/ops/forward-production-contract.mjs verify-dry-run "$FORWARD_DRY_RUN_LOG"
 
       - name: Stop after read-only preflight
         if: inputs.mode == 'forward_preflight'
         run: echo "Forward-only Production preflight PASS; no migration was applied."
 
-      - name: Apply exact Preparation through official Supabase migration tracking
+      - name: Apply exact trusted Admin actor bridge through official Supabase migration tracking
         if: inputs.mode == 'forward_apply'
         shell: bash
         run: |
           set -euo pipefail
-          test "$FORWARD_APPROVAL" = "APPROVE_HAMZA_PR120_SUPPORT_GATEWAY_PREPARATION"
+          test "$FORWARD_APPROVAL" = "APPROVE_HAMZA_PR99_TRUSTED_ADMIN_ACTOR_DB_BRIDGE"
           "$SUPABASE_BIN" --workdir "$FORWARD_WORKDIR" migration up --db-url "$FORWARD_DB_URL"
 
-      - name: Verify Preparation post-apply contract
+      - name: Verify trusted Admin actor bridge post-apply contract
         if: inputs.mode == 'forward_apply'
         shell: bash
         env:
           FORWARD_ACTUAL_MAIN_SHA: ${{ github.sha }}
-          FORWARD_PHASE: preparation_post_apply
+          FORWARD_PHASE: target_post_apply
         run: |
           set -euo pipefail
           test "$FORWARD_PROJECT_REF" = "fvaurkfnsvsfohpzguho"
@@ -237,4 +239,4 @@ jobs:
         shell: bash
         run: |
           set +e
-          rm -rf "$FORWARD_WORKDIR" "$FORWARD_HISTORY_JSON" "$FORWARD_EFFECTS_JSON" "$FORWARD_FUNCTIONS_JSON" "$FORWARD_HEALTH_JSON" supabase/.temp
+          rm -rf "$FORWARD_WORKDIR" "$FORWARD_HISTORY_JSON" "$FORWARD_EFFECTS_JSON" "$FORWARD_FUNCTIONS_JSON" "$FORWARD_HEALTH_JSON" "$FORWARD_DRY_RUN_LOG" supabase/.temp
