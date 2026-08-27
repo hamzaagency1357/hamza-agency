@@ -52,7 +52,8 @@ test("localized not-found UI preserves AR EN TR copy and direction contract", ()
   assert.ok(notFound.includes('title: "Page not found"'));
   assert.ok(notFound.includes('title: "Sayfa bulunamadı"'));
   assert.ok(notFound.includes("getRequestSiteContext"));
-  assert.ok(layout.includes('dir={initialLanguage === "ar" ? "rtl" : "ltr"}'));
+  assert.ok(layout.includes("lang={siteContext.language}"));
+  assert.ok(layout.includes("dir={siteContext.direction}"));
 });
 
 test("representative valid localized routes remain supported", () => {
