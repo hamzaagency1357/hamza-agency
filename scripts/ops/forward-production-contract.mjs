@@ -139,13 +139,19 @@ export function validateAnchorEffects(row) {
 }
 
 export function validateTargetEffects(row, phase = "target_preflight") {
-  const hardened = asBoolean(row?.trusted_actor_user_id_authoritative)
-    && asBoolean(row?.trusted_actor_rpc_allowlist_guard)
-    && asBoolean(row?.require_admin_uid_only);
+  const keys = [
+    "trusted_actor_user_id_authoritative",
+    "trusted_actor_rpc_allowlist_guard",
+    "require_admin_uid_only",
+  ];
   if (phase === "target_preflight") {
-    if (hardened) fail("target effects are already present without the target migration history row");
+    for (const key of keys) {
+      if (asBoolean(row?.[key])) fail(`target effect is already present before migration: ${key}`);
+    }
   } else if (phase === "target_post_apply") {
-    if (!hardened) fail("target effects are not fully present after apply");
+    for (const key of keys) {
+      if (!asBoolean(row?.[key])) fail(`target effect is missing after apply: ${key}`);
+    }
   } else {
     fail(`unsupported target effect phase: ${phase}`);
   }
