@@ -190,7 +190,9 @@ export function validateTargetSql(sql) {
     "trusted_actor_hotfix_support_acl_regression",
   ];
   for (const marker of required) if (!lower.includes(marker.toLowerCase())) fail(`target SQL missing required marker: ${marker}`);
-  if (lower.includes("or user_id is null")) fail("target SQL restores nullable user_id authority");
+  const actor = sql.match(/create or replace function public\.pr116_apply_trusted_admin_actor_context\(\)[\s\S]*?\$pr116_actor\$;/i)?.[0] || "";
+  if (!actor) fail("target SQL trusted actor bridge definition is missing");
+  if (/or\s+user_id\s+is\s+null/i.test(actor)) fail("target SQL restores nullable user_id authority");
   const requireAdmin = sql.match(/create or replace function public\.pr99_require_admin\(\)[\s\S]*?\$pr99_admin\$;/i)?.[0] || "";
   if (!requireAdmin) fail("target SQL pr99_require_admin definition is missing");
   if (/auth\.jwt\(\)/i.test(requireAdmin) || /admin_user\.user_id\s+is\s+null/i.test(requireAdmin)) {
