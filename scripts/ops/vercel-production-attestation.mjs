@@ -74,7 +74,9 @@ export function validateVercelStatusCorrelation({ deploymentStatus, commitStatus
 export function validateProductionDeploymentEvidence(evidence, expectedSha) {
   if (!isFullGitSha(expectedSha)) fail("expected Git SHA must be a full commit SHA");
   if (!evidence || evidence.source !== "github-vercel-deployment") fail("trusted Production deployment evidence is missing");
-  if (!["vercel", "vercel-status"].includes(evidence.trustedApp)) fail("Production deployment was not correlated to trusted Vercel status evidence");
+  if (!["vercel", "vercel-status"].includes(evidence.trustedApp)) {
+    fail("Production deployment was not created by the trusted Vercel GitHub App or correlated to trusted Vercel status evidence");
+  }
   if (String(evidence.environment || "").toLowerCase() !== PRODUCTION_ENVIRONMENT) {
     fail("resolved Vercel deployment is not Production");
   }
