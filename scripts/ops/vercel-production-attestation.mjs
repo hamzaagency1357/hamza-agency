@@ -78,6 +78,9 @@ export function validateProductionDeploymentEvidence(evidence, expectedSha) {
   if (String(evidence.environment || "").toLowerCase() !== PRODUCTION_ENVIRONMENT) {
     fail("resolved Vercel deployment is not Production");
   }
+  if (evidence.trustedApp === "vercel" && evidence.productionEnvironment !== true) {
+    fail("resolved Vercel deployment is not Production");
+  }
   if (evidence.readyState !== "READY") fail(`Vercel Production deployment is not READY: ${evidence.readyState || "missing"}`);
   if (!isFullGitSha(evidence.gitSha)) fail("Vercel Production deployment Git SHA is missing or invalid");
   if (evidence.gitSha.toLowerCase() !== expectedSha.toLowerCase()) {
@@ -95,8 +98,6 @@ export function buildProductionDeploymentEvidence(deployment, status, expectedSh
     deploymentUrl = validateVercelStatusCorrelation({ deploymentStatus: status, commitStatus, repository });
     trustedApp = "vercel-status";
   } else if (deployment?.performed_via_github_app?.slug === "vercel") {
-    // Backward-compatible pure helper path for existing unit fixtures only.
-    // resolveCurrentProductionDeployment never uses this metadata as a trust root.
     trustedApp = "vercel";
   }
   const evidence = {
@@ -105,7 +106,9 @@ export function buildProductionDeploymentEvidence(deployment, status, expectedSh
     statusId: Number(status?.id || 0),
     trustedApp,
     environment: deployment.environment || "",
-    productionEnvironment: String(deployment.environment || "").toLowerCase() === PRODUCTION_ENVIRONMENT,
+    productionEnvironment: commitStatus
+      ? String(deployment.environment || "").toLowerCase() === PRODUCTION_ENVIRONMENT
+      : deployment.production_environment === true,
     readyState: state === "success" ? "READY" : (state ? state.toUpperCase() : ""),
     gitSha: typeof deployment.sha === "string" ? deployment.sha : "",
     ...(deploymentUrl ? { deploymentUrl } : {}),
