@@ -153,6 +153,9 @@ test("anchor and current ACL effects remain fail-closed", () => {
 
 test("trusted Admin bridge effects must be absent before and complete after target apply", () => {
   assert.equal(validateTargetEffects(healthyEffects, "target_preflight"), true);
+  for (const key of ["trusted_actor_user_id_authoritative", "trusted_actor_rpc_allowlist_guard", "require_admin_uid_only"]) {
+    expectFailure(() => validateTargetEffects({ ...healthyEffects, [key]: true }, "target_preflight"), /already present/);
+  }
   const applied = {
     ...healthyEffects,
     trusted_actor_user_id_authoritative: true,
@@ -160,13 +163,13 @@ test("trusted Admin bridge effects must be absent before and complete after targ
     require_admin_uid_only: true,
   };
   assert.equal(validateTargetEffects(applied, "target_post_apply"), true);
-  expectFailure(() => validateTargetEffects(applied, "target_preflight"), /already present/);
-  expectFailure(() => validateTargetEffects({ ...applied, require_admin_uid_only: false }, "target_post_apply"), /not fully present/);
+  expectFailure(() => validateTargetEffects({ ...applied, require_admin_uid_only: false }, "target_post_apply"), /missing after apply/);
 });
 
 test("Gateway control-plane state is pinned to ACTIVE version 6", () => {
   assert.equal(validateGatewayControlPlane([{ slug: "pr100-vercel-oidc-gateway", version: 6, status: "ACTIVE" }]), true);
   expectFailure(() => validateGatewayControlPlane([{ slug: "pr100-vercel-oidc-gateway", version: 7, status: "ACTIVE" }]), /unexpected trusted gateway state/);
+  expectFailure(() => validateGatewayControlPlane([{ slug: "pr100-vercel-oidc-gateway", version: 6, status: "INACTIVE" }]), /unexpected trusted gateway state/);
 });
 
 test("Production health must match the explicitly reviewed application SHA", () => {
@@ -216,6 +219,16 @@ test("temporary access role is postgres-only, /32 IPv4-only, and expires within 
     nowMs,
   }), true);
   expectFailure(() => assertIpv4("20.30.40.999"), /invalid runner IPv4/);
+  expectFailure(() => validateJitMapping({ user_id: "user-1", user_roles: [{ ...role, role: "service_role" }] }, {
+    userId: "user-1",
+    ipv4: "20.30.40.50",
+    nowMs,
+  }), /role is not postgres/);
+  expectFailure(() => validateJitMapping({ user_id: "user-1", user_roles: [{ ...role, allowed_networks: { allowed_cidrs: [{ cidr: "0.0.0.0/0" }], allowed_cidrs_v6: [] } }] }, {
+    userId: "user-1",
+    ipv4: "20.30.40.50",
+    nowMs,
+  }), /current runner IPv4/);
 });
 
 test("temporary access uses trusted IPv4 Supavisor session endpoint with SSL and jit option", () => {
@@ -261,8 +274,11 @@ test("dedicated token permission contract excludes unrelated product and databas
 
 test("workflow preserves hardened forward-only architecture and new exact target", async () => {
   const workflow = await readFile(".github/workflows/forward-production-migrations.yml", "utf8");
+  const dryRunIndex = workflow.indexOf('db push --db-url "$FORWARD_DB_URL" --dry-run');
+  const applyIndex = workflow.indexOf('migration up --db-url "$FORWARD_DB_URL"');
   assert.match(workflow, /workflow_dispatch:/);
-  assert.match(workflow, /pr99_trusted_admin_actor_db_bridge/);
+  assert.match(workflow, /github\.event_name == 'workflow_dispatch'/);
+  assert.match(workflow, /target:\n[\s\S]*?type:\s*choice[\s\S]*?default:\s*pr99_trusted_admin_actor_db_bridge[\s\S]*?options:\n\s*- pr99_trusted_admin_actor_db_bridge/);
   assert.match(workflow, /20260827090000_pr99_trusted_admin_actor_db_bridge\.sql/);
   assert.doesNotMatch(workflow, /default:\s*pr120_support_gateway_preparation/);
   assert.match(workflow, /refs\/heads\/main/);
@@ -279,6 +295,7 @@ test("workflow preserves hardened forward-only architecture and new exact target
   assert.match(workflow, /db push --db-url "\$FORWARD_DB_URL" --dry-run/);
   assert.match(workflow, /verify-dry-run "\$FORWARD_DRY_RUN_LOG"/);
   assert.match(workflow, /migration up --db-url "\$FORWARD_DB_URL"/);
+  assert.ok(dryRunIndex >= 0 && applyIndex > dryRunIndex, "dry-run must occur before apply");
   assert.match(workflow, /APPROVE_HAMZA_PR99_TRUSTED_ADMIN_ACTOR_DB_BRIDGE/);
   assert.doesNotMatch(workflow, /migration repair/);
   assert.doesNotMatch(workflow, /schema_migrations\s+(?:insert|update|delete)/i);
