@@ -22,19 +22,28 @@ const missingCases = [
 ];
 
 test("AR EN TR unknown routes return real localized 404 responses without redirects", async ({
+  page,
   request,
 }) => {
   for (const item of missingCases) {
-    const response = await request.get(item.path, { maxRedirects: 0 });
-    expect(response.status(), item.path).toBe(404);
-    expect(response.headers()["location"], item.path).toBeUndefined();
+    const apiResponse = await request.get(item.path, { maxRedirects: 0 });
+    expect(apiResponse.status(), item.path).toBe(404);
+    expect(apiResponse.headers()["location"], item.path).toBeUndefined();
+    expect(await apiResponse.text(), item.path).toMatch(/noindex/i);
 
-    const html = await response.text();
-    expect(html, item.path).toContain(
-      `<html lang="${item.language}" dir="${item.direction}"`,
+    const navigationResponse = await page.goto(item.path, {
+      waitUntil: "domcontentloaded",
+    });
+    expect(navigationResponse?.status(), item.path).toBe(404);
+    await expect(page.locator("html"), item.path).toHaveAttribute(
+      "lang",
+      item.language,
     );
-    expect(html, item.path).toContain(item.heading);
-    expect(html, item.path).toMatch(/noindex/i);
+    await expect(page.locator("html"), item.path).toHaveAttribute(
+      "dir",
+      item.direction,
+    );
+    await expect(page.getByRole("heading", { name: item.heading }), item.path).toBeVisible();
   }
 });
 
