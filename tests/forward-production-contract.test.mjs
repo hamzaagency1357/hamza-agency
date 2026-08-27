@@ -18,6 +18,11 @@ import {
   sha256Text,
 } from "../scripts/ops/forward-production-contract.mjs";
 import {
+  buildProductionDeploymentEvidence,
+  isTrustedVercelProductionDeployment,
+  validateProductionDeploymentEvidence,
+} from "../scripts/ops/vercel-production-attestation.mjs";
+import {
   REQUIRED_FINE_GRAINED_PERMISSIONS,
   TEMP_ACCESS,
   assertIpv4,
@@ -28,7 +33,7 @@ import {
   validateJitMapping,
 } from "../scripts/ops/temporary-database-access.mjs";
 
-const mainSha = "1054fb9bd8617a0ca2c572d93b063e36b7d33b98";
+const mainSha = "d767ef11f3fed91cd0d8f0f5cd2111211347ea30";
 const baselineHistory = [ANCHOR, ...BASELINE_POST_ANCHOR].map(({ version, name }) => ({ version, name }));
 const healthyEffects = {
   anchor_history_exact: true,
@@ -54,6 +59,16 @@ const healthyEffects = {
   trusted_actor_user_id_authoritative: false,
   trusted_actor_rpc_allowlist_guard: false,
   require_admin_uid_only: false,
+};
+const trustedProductionEvidence = {
+  source: "github-vercel-deployment",
+  deploymentId: 123,
+  statusId: 456,
+  trustedApp: "vercel",
+  environment: "Production",
+  productionEnvironment: true,
+  readyState: "READY",
+  gitSha: mainSha,
 };
 
 function expectFailure(fn, pattern) {
@@ -172,9 +187,50 @@ test("Gateway control-plane state is pinned to ACTIVE version 6", () => {
   expectFailure(() => validateGatewayControlPlane([{ slug: "pr100-vercel-oidc-gateway", version: 6, status: "INACTIVE" }]), /unexpected trusted gateway state/);
 });
 
-test("Production health must match the explicitly reviewed application SHA", () => {
-  assert.equal(validateProductionHealth({ status: "ok", commitSha: mainSha }, mainSha), true);
-  expectFailure(() => validateProductionHealth({ status: "ok", commitSha: "b".repeat(40) }, mainSha), /application SHA mismatch/);
+test("Production health is liveness-only and does not require commitSha", () => {
+  assert.equal(validateProductionHealth({ status: "ok" }), true);
+  assert.equal(validateProductionHealth({ status: "ok", commitSha: "b".repeat(40) }), true);
+  expectFailure(() => validateProductionHealth({ status: "degraded" }), /api\/health is not ok/);
+  expectFailure(() => validateProductionHealth({}), /api\/health is not ok/);
+});
+
+test("trusted Vercel Production READY deployment with exact Git SHA passes", () => {
+  assert.equal(validateProductionDeploymentEvidence(trustedProductionEvidence, mainSha), true);
+  const deployment = {
+    id: 123,
+    sha: mainSha,
+    environment: "Production",
+    production_environment: true,
+    performed_via_github_app: { slug: "vercel" },
+  };
+  assert.equal(isTrustedVercelProductionDeployment(deployment), true);
+  assert.deepEqual(buildProductionDeploymentEvidence(deployment, { id: 456, state: "success" }, mainSha), trustedProductionEvidence);
+});
+
+test("Vercel Production SHA mismatch and missing SHA fail closed", () => {
+  expectFailure(
+    () => validateProductionDeploymentEvidence({ ...trustedProductionEvidence, gitSha: "b".repeat(40) }, mainSha),
+    /Git SHA mismatch/
+  );
+  expectFailure(
+    () => validateProductionDeploymentEvidence({ ...trustedProductionEvidence, gitSha: "" }, mainSha),
+    /Git SHA is missing or invalid/
+  );
+});
+
+test("non-READY or untrusted/non-Production Vercel deployment fails closed", () => {
+  expectFailure(
+    () => validateProductionDeploymentEvidence({ ...trustedProductionEvidence, readyState: "BUILDING" }, mainSha),
+    /not READY/
+  );
+  expectFailure(
+    () => validateProductionDeploymentEvidence({ ...trustedProductionEvidence, trustedApp: "other" }, mainSha),
+    /trusted Vercel GitHub App/
+  );
+  expectFailure(
+    () => validateProductionDeploymentEvidence({ ...trustedProductionEvidence, productionEnvironment: false }, mainSha),
+    /not Production/
+  );
 });
 
 test("target SQL is immutable, transactional and cryptographically locked", async () => {
@@ -272,10 +328,12 @@ test("dedicated token permission contract excludes unrelated product and databas
   }
 });
 
-test("workflow preserves hardened forward-only architecture and new exact target", async () => {
+test("workflow preserves hardened forward-only architecture and Vercel Production attestation", async () => {
   const workflow = await readFile(".github/workflows/forward-production-migrations.yml", "utf8");
   const dryRunIndex = workflow.indexOf('db push --db-url "$FORWARD_DB_URL" --dry-run');
   const applyIndex = workflow.indexOf('migration up --db-url "$FORWARD_DB_URL"');
+  const vercelIndex = workflow.indexOf("node scripts/ops/vercel-production-attestation.mjs");
+  const credentialIndex = workflow.indexOf("Mask and require short-lived Production PAT");
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /github\.event_name == 'workflow_dispatch'/);
   assert.match(workflow, /target:\n[\s\S]*?type:\s*choice[\s\S]*?default:\s*pr99_trusted_admin_actor_db_bridge[\s\S]*?options:\n\s*- pr99_trusted_admin_actor_db_bridge/);
@@ -284,6 +342,15 @@ test("workflow preserves hardened forward-only architecture and new exact target
   assert.match(workflow, /refs\/heads\/main/);
   assert.match(workflow, /ref:\s*\$\{\{ inputs\.expected_main_sha \}\}/);
   assert.match(workflow, /environment:\s*production-database/);
+  assert.match(workflow, /permissions:\n\s+contents:\s*read\n\s+deployments:\s*read\n\s+statuses:\s*read/);
+  assert.match(workflow, /GITHUB_TOKEN:\s*\$\{\{ secrets\.GITHUB_TOKEN \}\}/);
+  assert.match(workflow, /EXPECTED_SHA:\s*\$\{\{ inputs\.expected_main_sha \}\}/);
+  assert.match(workflow, /node scripts\/ops\/vercel-production-attestation\.mjs/);
+  assert.ok(vercelIndex >= 0 && credentialIndex > vercelIndex, "Vercel identity must be proven before requiring Supabase Production credentials");
+  assert.doesNotMatch(workflow, /expected_production_sha|FORWARD_EXPECTED_PRODUCTION_SHA|health\.commitSha|payload\.commitSha/);
+  assert.doesNotMatch(workflow, /VERCEL_TOKEN/);
+  assert.match(workflow, /health_http_code="\$\(curl[\s\S]*?--write-out '%\{http_code\}' https:\/\/hamza-agency\.com\/api\/health\)"/);
+  assert.match(workflow, /test "\$health_http_code" = "200"/);
   assert.match(workflow, /secrets\.SUPABASE_PRODUCTION_JIT_TOKEN/);
   assert.doesNotMatch(workflow, /secrets\.SUPABASE_ACCESS_TOKEN/);
   assert.doesNotMatch(workflow, /SUPABASE_DB_PASSWORD/);
