@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authorizeAdminMutation, PREVIEW_READ_ONLY_MESSAGE } from "@/lib/server/adminMutationBoundary";
 import { PR116_ADMIN_ACTION_CONTRACTS, type Pr116AdminActionContract } from "@/lib/server/pr116AdminActionContracts";
 import { callPr116AdminOidcGateway, Pr116AdminGatewayError } from "@/lib/server/pr116AdminOidcGateway";
+import { backupScopeMatchesPayload, normalizeBackupPayload } from "@/lib/adminBackupPayloadContract";
 import type { AdminModule, AdminPermissionAction } from "@/lib/adminAccess";
 
 function isRecord(value: unknown): value is Record<string, unknown> { return !!value && typeof value === "object" && !Array.isArray(value); }
@@ -26,6 +27,15 @@ function validatePayload(contract: Pr116AdminActionContract, payload: Record<str
   return false;
 }
 
+function normalizeBackupDryRunPayload(action: string, payload: Record<string, unknown>) {
+  if (action !== "pr116_admin_backup_dry_run") return payload;
+  if (!isRecord(payload.args)) return null;
+  const backup = normalizeBackupPayload(payload.args.p_backup);
+  const scope = payload.args.p_scope;
+  if (!backup || !backupScopeMatchesPayload(backup, scope)) return null;
+  return { ...payload, args: { ...payload.args, p_backup: backup, p_scope: scope } };
+}
+
 function localDiagnostic(reason: string) {
   return process.env.CLOSEOUT_EXECUTION_MODE === "local-isolated" ? { closeoutDiagnostic: reason } : {};
 }
@@ -41,6 +51,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "سجل التدقيق يُنشأ تلقائيًا من البوابة الموثوقة ولا يقبل إدخالًا من المتصفح." }, { status: 400 });
   }
   if (!validatePayload(contract, body.payload)) return NextResponse.json({ ok: false, message: "بيانات الحفظ لا تطابق العقد المعتمد." }, { status: 400 });
+  const normalizedPayload = normalizeBackupDryRunPayload(body.action, body.payload);
+  if (!normalizedPayload) return NextResponse.json({ ok: false, message: "ملف النسخة أو النطاق المحدد لا يطابق عقد النسخ الاحتياطي المعتمد." }, { status: 400 });
   const requiredRole = contract.kind === "entity" && contract.table === "admin_permissions" ? "super_admin" : null;
   const auth = await authorizeAdminMutation(
     request,
@@ -50,7 +62,7 @@ export async function POST(request: Request) {
   );
   if (!auth.ok) return NextResponse.json({ ok: false, message: auth.message }, { status: auth.status });
   try {
-    const result = await callPr116AdminOidcGateway<{ ok?: boolean; data?: unknown }>(auth.actor.user.accessToken, body.action, body.payload);
+    const result = await callPr116AdminOidcGateway<{ ok?: boolean; data?: unknown }>(auth.actor.user.accessToken, body.action, normalizedPayload);
     return NextResponse.json({ ok: true, data: result.data ?? null });
   } catch (error) {
     if (error instanceof Pr116AdminGatewayError && error.reason === "preview_forbidden") return NextResponse.json({ ok: false, message: PREVIEW_READ_ONLY_MESSAGE }, { status: 403 });
