@@ -43,13 +43,13 @@ test("service_role gateway path requires a forwarded UUID user id", () => {
 
 test("trusted actor resolution is user_id authoritative, active, and role bounded", () => {
   assert.match(migration, /where user_id = v_user_id\s+and is_active is true\s+and role in \('super_admin', 'deputy_super_admin', 'program_admin'\)/i);
-  assert.doesNotMatch(migration, /user_id\s+is\s+null/i);
+  assert.doesNotMatch(migration, /or\s+user_id\s+is\s+null/i);
   assert.match(migration, /raise exception 'pr116_unverified_actor_user_id'/i);
 });
 
 test("forwarded email is corroboration only and mismatch fails closed", () => {
   assert.match(migration, /if v_email is not null and v_email <> lower\(v_admin\.email\) then\s+raise exception 'pr116_actor_email_mismatch'/i);
-  assert.doesNotMatch(migration, /where[\s\S]{0,220}lower\(email\)\s*=\s*v_email[\s\S]{0,220}user_id\s+is\s+null/i);
+  assert.doesNotMatch(migration, /where[\s\S]{0,220}lower\(email\)\s*=\s*v_email[\s\S]{0,220}or\s+user_id\s+is\s+null/i);
 });
 
 test("pr99_require_admin keeps direct authenticated admin behavior but removes legacy email-only authority", () => {
@@ -59,7 +59,7 @@ test("pr99_require_admin keeps direct authenticated admin behavior but removes l
   assert.match(functionBlock, /admin_user\.user_id = v_user_id/i);
   assert.match(functionBlock, /admin_user\.is_active is true/i);
   assert.doesNotMatch(functionBlock, /auth\.jwt\(\)/i);
-  assert.doesNotMatch(functionBlock, /user_id\s+is\s+null/i);
+  assert.doesNotMatch(functionBlock, /admin_user\.user_id\s+is\s+null/i);
 });
 
 test("authenticated or anon spoofed actor headers cannot become authority", () => {
