@@ -10,6 +10,8 @@ const PROJECT_NAME = "hamza-agency";
 const ALLOWED_ENVIRONMENT = "production";
 const JWKS = createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks`));
 const encoder = new TextEncoder();
+const DEFAULT_ADMIN_BODY_MAX_BYTES = 50_000;
+const BACKUP_DRY_RUN_BODY_MAX_BYTES = 12_000_000;
 
 const ACTIONS = new Set([
   ...GENERATED_ACTIONS,
@@ -61,6 +63,9 @@ function positiveInt(value: unknown): number | null {
 }
 function normalizeProgramScope(value: string | null | undefined) {
   return (value || "").trim().toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+}
+function maxBodyBytes(action: string) {
+  return action === "pr116_admin_backup_dry_run" ? BACKUP_DRY_RUN_BODY_MAX_BYTES : DEFAULT_ADMIN_BODY_MAX_BYTES;
 }
 async function serviceFetch(url: string, key: string, path: string, init?: RequestInit) {
   return fetch(`${url}/rest/v1${path}`, {
@@ -179,7 +184,7 @@ Deno.serve(async (request: Request) => {
   if (!ACTIONS.has(action)) return json(400, { ok: false, code: "invalid_action" });
   if (timestamp < now - 120 || timestamp > now + 30) return json(400, { ok: false, code: "stale_request" });
   if (!/^[A-Za-z0-9_-]{24,80}$/.test(nonce)) return json(400, { ok: false, code: "invalid_nonce" });
-  if (!body || encoder.encode(body).byteLength > 50_000) return json(400, { ok: false, code: "invalid_payload" });
+  if (!body || encoder.encode(body).byteLength > maxBodyBytes(action)) return json(400, { ok: false, code: "invalid_payload" });
   if (!/^[a-f0-9]{64}$/.test(bodyDigest) || (await sha256(body)) !== bodyDigest) return json(400, { ok: false, code: "digest_mismatch" });
 
   let payload: Record<string, unknown>;
