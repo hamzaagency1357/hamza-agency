@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 const PRODUCTION_ENVIRONMENT = "production";
 const VERCEL_STATUS_CONTEXT = "Vercel";
 const VERCEL_INSPECTOR_HOST = "vercel.com";
+const VERCEL_EVIDENCE_CHANNEL = "vercel-status";
 
 function fail(message) {
   throw new Error(`[vercel production attestation] ${message}`);
@@ -21,7 +22,7 @@ function timestamp(value) {
 function newest(records) {
   if (!Array.isArray(records) || records.length === 0) return null;
   return [...records].sort((left, right) => {
-    const timeDelta = timestamp(right.updated_at || right.created_at) - timestamp(left.updated_at || left.created_at);
+    const timeDelta = timestamp(right.created_at || right.updated_at) - timestamp(left.created_at || left.updated_at);
     if (timeDelta !== 0) return timeDelta;
     return Number(right.id || 0) - Number(left.id || 0);
   })[0];
@@ -32,17 +33,35 @@ function normalizeVercelInspectorUrl(value, repository) {
   try {
     parsed = new URL(value || "");
   } catch {
-    return "";
+    fail("malformed/untrusted Vercel inspector URL");
   }
-  if (parsed.protocol !== "https:" || parsed.hostname !== VERCEL_INSPECTOR_HOST) return "";
-  if (parsed.username || parsed.password || parsed.search || parsed.hash) return "";
-  const segments = parsed.pathname.split("/").filter(Boolean);
-  if (segments.length !== 3) return "";
-  const [, project, deploymentIdentity] = segments;
+
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.hostname !== VERCEL_INSPECTOR_HOST ||
+    parsed.username ||
+    parsed.password ||
+    parsed.search ||
+    parsed.hash ||
+    parsed.pathname.includes("//") ||
+    /%2f|%5c/i.test(parsed.pathname)
+  ) {
+    fail("malformed/untrusted Vercel inspector URL");
+  }
+
+  const segments = parsed.pathname.split("/");
+  if (segments.length !== 4 || segments[0] !== "" || segments.slice(1).some((segment) => !segment)) {
+    fail("malformed/untrusted Vercel inspector URL");
+  }
+  const [, scope, project, deploymentIdentity] = segments;
   const repoName = String(repository || "").split("/")[1] || "";
-  if (!repoName || project !== repoName) return "";
-  if (!/^[A-Za-z0-9_-]+$/.test(deploymentIdentity)) return "";
-  return `https://${VERCEL_INSPECTOR_HOST}/${segments.join("/")}`;
+  if (!repoName) fail("malformed/untrusted Vercel inspector URL");
+  if (project !== repoName) fail(`wrong Vercel project: expected ${repoName}`);
+  if (!/^[A-Za-z0-9_-]+$/.test(scope) || !/^[A-Za-z0-9_-]+$/.test(deploymentIdentity)) {
+    fail("malformed/untrusted Vercel inspector URL");
+  }
+
+  return `https://${VERCEL_INSPECTOR_HOST}/${scope}/${project}/${deploymentIdentity}`;
 }
 
 export function isTrustedVercelProductionDeployment(deployment, expectedSha = deployment?.sha) {
@@ -56,64 +75,88 @@ export function isTrustedVercelProductionDeployment(deployment, expectedSha = de
   );
 }
 
-export function validateVercelStatusCorrelation({ deploymentStatus, commitStatus, repository }) {
-  if (String(deploymentStatus?.state || "").toLowerCase() !== "success") {
-    fail(`Vercel Production deployment is not READY: ${deploymentStatus?.state || "missing"}`);
+export function validateVercelStatusCorrelation({ deploymentStatus, commitStatus, repository, deploymentId = 0 }) {
+  if (!deploymentStatus) {
+    fail(`no Deployment status${deploymentId ? ` for deployment ${deploymentId}` : ""}`);
   }
-  if (commitStatus?.context !== VERCEL_STATUS_CONTEXT || String(commitStatus?.state || "").toLowerCase() !== "success") {
-    fail("successful Vercel commit status evidence is missing");
+  if (deploymentStatus.state !== "success") {
+    fail(
+      `Deployment status not success: state=${deploymentStatus.state || "missing"}` +
+      `${deploymentId ? ` deploymentId=${deploymentId}` : ""}` +
+      `${deploymentStatus.id ? ` statusId=${deploymentStatus.id}` : ""}`
+    );
   }
-  const deploymentTarget = normalizeVercelInspectorUrl(deploymentStatus?.target_url, repository);
-  const commitTarget = normalizeVercelInspectorUrl(commitStatus?.target_url, repository);
-  if (!deploymentTarget || !commitTarget || deploymentTarget !== commitTarget) {
-    fail("Vercel deployment identity correlation failed");
+  if (commitStatus?.context !== VERCEL_STATUS_CONTEXT) {
+    fail("no Vercel commit status for exact context Vercel");
   }
-  return deploymentTarget;
+  if (commitStatus.state !== "success") {
+    fail(
+      `latest Vercel commit status not success: state=${commitStatus.state || "missing"}` +
+      `${commitStatus.id ? ` statusId=${commitStatus.id}` : ""}`
+    );
+  }
+  return normalizeVercelInspectorUrl(commitStatus.target_url, repository);
 }
 
 export function validateProductionDeploymentEvidence(evidence, expectedSha) {
   if (!isFullGitSha(expectedSha)) fail("expected Git SHA must be a full commit SHA");
-  if (!evidence || evidence.source !== "github-vercel-deployment") fail("trusted Production deployment evidence is missing");
-  if (!["vercel", "vercel-status"].includes(evidence.trustedApp)) {
-    fail("Production deployment was not created by the trusted Vercel GitHub App or correlated to trusted Vercel status evidence");
-  }
-  if (String(evidence.environment || "").toLowerCase() !== PRODUCTION_ENVIRONMENT) {
-    fail("resolved Vercel deployment is not Production");
-  }
-  if (evidence.trustedApp === "vercel" && evidence.productionEnvironment !== true) {
-    fail("resolved Vercel deployment is not Production");
-  }
-  if (evidence.readyState !== "READY") fail(`Vercel Production deployment is not READY: ${evidence.readyState || "missing"}`);
-  if (!isFullGitSha(evidence.gitSha)) fail("Vercel Production deployment Git SHA is missing or invalid");
+  if (!isFullGitSha(evidence?.gitSha)) fail("final evidence validation failure: resolved SHA is missing or malformed");
   if (evidence.gitSha.toLowerCase() !== expectedSha.toLowerCase()) {
-    fail(`Vercel Production deployment Git SHA mismatch: expected ${expectedSha}, received ${evidence.gitSha}`);
+    fail(`SHA mismatch: expected ${expectedSha}, received ${evidence.gitSha}`);
   }
+
+  if (
+    !evidence ||
+    evidence.source !== "github-vercel-deployment" ||
+    evidence.trustedApp !== VERCEL_EVIDENCE_CHANNEL ||
+    String(evidence.environment || "").toLowerCase() !== PRODUCTION_ENVIRONMENT ||
+    evidence.readyState !== "READY" ||
+    !Number.isFinite(evidence.deploymentId) ||
+    evidence.deploymentId <= 0 ||
+    !Number.isFinite(evidence.statusId) ||
+    evidence.statusId <= 0
+  ) {
+    fail(
+      "final evidence validation failure" +
+      `: deploymentId=${Number(evidence?.deploymentId || 0)}` +
+      ` sha=${evidence?.gitSha || "missing"}` +
+      ` environment=${evidence?.environment || "missing"}` +
+      ` readyState=${evidence?.readyState || "missing"}`
+    );
+  }
+
+  normalizeVercelInspectorUrl(evidence.deploymentUrl, evidence.repository);
   return true;
 }
 
-export function buildProductionDeploymentEvidence(deployment, status, expectedSha, commitStatus = null, repository = "") {
-  if (!isTrustedVercelProductionDeployment(deployment, expectedSha)) fail("trusted Vercel Production deployment could not be resolved");
-  const state = String(status?.state || "").toLowerCase();
-  let trustedApp = "";
-  let deploymentUrl = "";
-  if (commitStatus) {
-    deploymentUrl = validateVercelStatusCorrelation({ deploymentStatus: status, commitStatus, repository });
-    trustedApp = "vercel-status";
-  } else if (deployment?.performed_via_github_app?.slug === "vercel") {
-    trustedApp = "vercel";
+export function buildProductionDeploymentEvidence(deployment, status, expectedSha, commitStatus, repository = "") {
+  if (!isFullGitSha(expectedSha)) fail("expected Git SHA must be a full commit SHA");
+  if (!isFullGitSha(deployment?.sha)) fail("deployment SHA is missing or malformed");
+  if (deployment.sha.toLowerCase() !== expectedSha.toLowerCase()) {
+    fail(`SHA mismatch: expected ${expectedSha}, received ${deployment.sha}`);
   }
+  if (String(deployment?.environment || "").toLowerCase() !== PRODUCTION_ENVIRONMENT) {
+    fail(`no exact-SHA Production deployment candidate: sha=${expectedSha} environment=${deployment?.environment || "missing"}`);
+  }
+
+  const deploymentUrl = validateVercelStatusCorrelation({
+    deploymentStatus: status,
+    commitStatus,
+    repository,
+    deploymentId: Number(deployment.id || 0),
+  });
   const evidence = {
     source: "github-vercel-deployment",
     deploymentId: Number(deployment.id || 0),
     statusId: Number(status?.id || 0),
-    trustedApp,
+    trustedApp: VERCEL_EVIDENCE_CHANNEL,
+    repository,
     environment: deployment.environment || "",
-    productionEnvironment: commitStatus
-      ? String(deployment.environment || "").toLowerCase() === PRODUCTION_ENVIRONMENT
-      : deployment.production_environment === true,
-    readyState: state === "success" ? "READY" : (state ? state.toUpperCase() : ""),
-    gitSha: typeof deployment.sha === "string" ? deployment.sha : "",
-    ...(deploymentUrl ? { deploymentUrl } : {}),
+    productionEnvironment: String(deployment.environment || "").toLowerCase() === PRODUCTION_ENVIRONMENT,
+    readyState: "READY",
+    gitSha: deployment.sha,
+    deploymentUrl,
+    deploymentStatusTargetUrl: typeof status?.target_url === "string" ? status.target_url : "",
   };
   validateProductionDeploymentEvidence(evidence, expectedSha);
   return evidence;
@@ -143,38 +186,65 @@ export async function resolveCurrentProductionDeployment({ repository, expectedS
     token
   );
   if (!Array.isArray(deployments)) fail("GitHub deployments response is invalid");
-
-  const candidates = deployments.filter((deployment) => isTrustedVercelProductionDeployment(deployment, expectedSha));
-  if (candidates.length === 0) fail("trusted Vercel Production deployment could not be resolved");
-
-  const combinedStatus = await githubJson(`/repos/${repository}/commits/${expectedSha}/status?per_page=100`, token);
-  if (!Array.isArray(combinedStatus?.statuses)) fail("GitHub commit status response is invalid");
-  const vercelCommitStatuses = combinedStatus.statuses.filter(
-    (status) => status?.context === VERCEL_STATUS_CONTEXT && String(status?.state || "").toLowerCase() === "success"
-  );
-  if (vercelCommitStatuses.length === 0) fail("successful Vercel commit status evidence is missing");
-
-  const orderedCandidates = [...candidates].sort((left, right) => {
-    const timeDelta = timestamp(right.updated_at || right.created_at) - timestamp(left.updated_at || left.created_at);
-    if (timeDelta !== 0) return timeDelta;
-    return Number(right.id || 0) - Number(left.id || 0);
-  });
-
-  for (const deployment of orderedCandidates) {
-    const statuses = await githubJson(`/repos/${repository}/deployments/${deployment.id}/statuses?per_page=100`, token);
-    if (!Array.isArray(statuses)) fail("GitHub deployment statuses response is invalid");
-    const latestStatus = newest(statuses);
-    if (!latestStatus || String(latestStatus.state || "").toLowerCase() !== "success") continue;
-    for (const commitStatus of vercelCommitStatuses) {
-      try {
-        return buildProductionDeploymentEvidence(deployment, latestStatus, expectedSha, commitStatus, repository);
-      } catch (error) {
-        if (!String(error?.message || "").includes("Vercel deployment identity correlation failed")) throw error;
-      }
-    }
+  if (deployments.length === 0) {
+    fail(`no exact-SHA Production deployment candidate: sha=${expectedSha} environment=Production`);
   }
 
-  fail("Vercel deployment identity correlation failed");
+  const productionDeployments = deployments.filter(
+    (deployment) => String(deployment?.environment || "").toLowerCase() === PRODUCTION_ENVIRONMENT
+  );
+  if (productionDeployments.length === 0) {
+    fail(`no exact-SHA Production deployment candidate: sha=${expectedSha} environment=Production`);
+  }
+
+  const malformedSha = productionDeployments.find((deployment) => !isFullGitSha(deployment?.sha));
+  if (malformedSha) {
+    fail(`deployment SHA is missing or malformed: deploymentId=${Number(malformedSha?.id || 0)} environment=${malformedSha?.environment || "missing"}`);
+  }
+
+  const candidates = productionDeployments.filter(
+    (deployment) => deployment.sha.toLowerCase() === expectedSha.toLowerCase()
+  );
+  if (candidates.length === 0) {
+    const receivedSha = newest(productionDeployments)?.sha || "missing";
+    fail(`SHA mismatch: expected ${expectedSha}, received ${receivedSha}`);
+  }
+
+  // Candidate rule: newest exact-SHA Production deployment by created_at, then numeric id.
+  const current = newest(candidates);
+  if (!current) fail(`no exact-SHA Production deployment candidate: sha=${expectedSha} environment=Production`);
+
+  const statuses = await githubJson(`/repos/${repository}/deployments/${current.id}/statuses?per_page=100`, token);
+  if (!Array.isArray(statuses)) fail(`GitHub deployment statuses response is invalid: deploymentId=${current.id}`);
+  const latestStatus = newest(statuses);
+  if (!latestStatus) fail(`no Deployment status for deployment ${current.id}`);
+  if (latestStatus.state !== "success") {
+    fail(
+      `Deployment status not success: state=${latestStatus.state || "missing"}` +
+      ` deploymentId=${current.id}` +
+      `${latestStatus.id ? ` statusId=${latestStatus.id}` : ""}`
+    );
+  }
+
+  const commitStatuses = await githubJson(`/repos/${repository}/commits/${expectedSha}/statuses?per_page=100`, token);
+  if (!Array.isArray(commitStatuses)) fail("GitHub commit statuses response is invalid");
+  const vercelCommitStatuses = commitStatuses.filter((status) => status?.context === VERCEL_STATUS_CONTEXT);
+  if (vercelCommitStatuses.length === 0) {
+    fail(`no Vercel commit status for exact context Vercel: sha=${expectedSha}`);
+  }
+
+  // Vercel rule: newest exact-context status by created_at, then numeric id; stale success cannot override it.
+  const commitStatus = newest(vercelCommitStatuses);
+  if (!commitStatus) fail(`no Vercel commit status for exact context Vercel: sha=${expectedSha}`);
+  if (commitStatus.state !== "success") {
+    fail(
+      `latest Vercel commit status not success: state=${commitStatus.state || "missing"}` +
+      ` sha=${expectedSha}` +
+      `${commitStatus.id ? ` statusId=${commitStatus.id}` : ""}`
+    );
+  }
+
+  return buildProductionDeploymentEvidence(current, latestStatus, expectedSha, commitStatus, repository);
 }
 
 async function main() {
