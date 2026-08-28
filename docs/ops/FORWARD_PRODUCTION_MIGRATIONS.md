@@ -2,152 +2,125 @@
 
 ## Governing baseline
 
-Production migration history before and including `20260810203000_pr116_admin_oidc_boundary_lockdown` is treated as a frozen legacy baseline.
+Production migration history before and including `20260810203000_pr116_admin_oidc_boundary_lockdown` is a frozen legacy baseline. Historical bookkeeping before the anchor is intentionally not repaired or replayed merely to make repository history look canonical.
 
-The pre-anchor history is known to be non-canonical in bookkeeping. Historical categories include timestamp-only differences, duplicate history rows, reconstructed source migrations, repository-only migrations whose schema effects are already present or superseded, and older equivalence questions that are intentionally not repaired merely for cosmetic canonicality.
+The verified post-anchor baseline currently contains:
 
-This does **not** mean the old SQL is pending, compromised, or safe to replay. Never use the repository's full historical migration directory as authority for a Production replay.
+1. `20260825141930_pr120_support_request_trusted_gateway_preparation`
+2. `20260826003518_final_security_acl_lockdown`
 
-The controlling Production rule after the anchor is:
+Those are historical applied baseline rows. PR120 remains part of Production history, but it is **not** the active forward target anymore.
 
-1. verify the exact anchor identity;
-2. verify the current security effects of that anchor;
-3. reject every unknown post-anchor migration;
-4. verify the exact reviewed target path and SHA-256;
-5. verify the exact Production project and reviewed main/application SHAs;
-6. verify target-specific current-schema prerequisites;
-7. use Supabase's official migration mechanism so SQL execution and migration bookkeeping are one operation;
-8. verify the resulting history and schema effects immediately after an apply.
+The controlling rule after the anchor is: verify the exact history and security effects, reject unknown post-anchor rows, verify the reviewed target path and SHA-256, derive an isolated migration workspace from remote history, require an official Supabase dry-run, then apply only the single allowlisted target through official migration tracking.
 
-## Anchor
+## Current forward target
 
-- Version: `20260810203000`
-- Name: `pr116_admin_oidc_boundary_lockdown`
-- Production project: `fvaurkfnsvsfohpzguho`
+The only active executable target is:
 
-Preflight independently checks the important PR116 security effects instead of assuming that a history row alone proves safety.
+- Key: `pr99_trusted_admin_actor_db_bridge`
+- Version: `20260827090000`
+- Name: `pr99_trusted_admin_actor_db_bridge`
+- Path: `supabase/migrations/20260827090000_pr99_trusted_admin_actor_db_bridge.sql`
+- SHA-256: `ee8e342eef5e6e0a677f4fe981b66de8eac2bf2446896bc8260a9063a58decd5`
+- Apply approval: `APPROVE_HAMZA_PR99_TRUSTED_ADMIN_ACTOR_DB_BRIDGE`
 
-## Current allowlist
+There is no arbitrary migration-version input. The workflow does not use `--include-all`, `migration repair`, or manual `schema_migrations` writes.
 
-The first and only executable target in this contract is:
+## Modes and execution boundary
 
-- Key: `pr120_support_gateway_preparation`
-- Version: `20260825141930`
-- Name: `pr120_support_request_trusted_gateway_preparation`
-- Path: `supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql`
-- Apply approval: `APPROVE_HAMZA_PR120_SUPPORT_GATEWAY_PREPARATION`
+`forward_preflight` performs the full reviewed identity/history/effect checks and the official Supabase `db push --dry-run` against the isolated remote-history-derived workspace. It does not apply the migration.
 
-There is no arbitrary migration-version input. The later ACL-lockdown migration is intentionally not executable by this first Ops contract.
+`forward_apply` performs the same preflight, requires the exact approval value above, and then runs `migration up --db-url` from the same isolated workspace. Post-apply verification must observe exactly the baseline plus `20260827090000` and the new trusted Admin actor contract.
 
-## Modes
+The Production job runs only for an explicit `workflow_dispatch` on `main`, in the protected GitHub Environment `production-database`.
 
-`forward_preflight` is read-only with respect to application/schema data. It checks the repository/main identity, Production project, application health SHA, anchor/history tail, security effects, trusted gateway control-plane state, target hash, target prerequisites, and an official Supabase dry-run. Temporary Database Access control-plane setup is ephemeral authorization state, not a migration or business-data write.
+## Production concurrency
 
-`forward_apply` performs the same preflight and additionally requires the exact Preparation approval value. It may then apply only the allowlisted Preparation migration through the pinned Supabase CLI and immediately repeat the forward-history/effect checks.
+The Production job uses one repository-wide concurrency group:
 
-## Legacy isolation mechanism
+- group: `hamza-forward-production-migrations`
+- `cancel-in-progress: false`
 
-The workflow never runs `db push` or `migration up` against the repository's historical `supabase/migrations` directory.
+This queues a later forward-production run instead of cancelling an active migration run. Pull-request contract validation has no Production execution capability because the Production job itself is gated to `workflow_dispatch` on `main`.
 
-It creates a transient work directory and uses the explicit temporary JIT database URL with `supabase migration fetch --db-url` to materialize the **actual remote history**. It then copies exactly one hash-locked allowlisted migration into that directory. An official `supabase db push --db-url ... --dry-run` runs against the derived directory. Apply mode uses `supabase migration up --db-url` from the same directory, so official Supabase migration tracking is preserved while already-recorded legacy versions remain skipped and only the new target can be pending.
+## Supabase credential contract
 
-No `migration repair`, direct `schema_migrations` write, historical timestamp rewrite, legacy SQL replay, `--include-all`, or link-time database password is part of this mechanism.
-
-## Supabase Temporary Database Access
-
-Production currently runs Postgres `17.6.1.127`. Supabase Temporary Database Access requires `17.6.1.081` or newer, so the Production engine supports it.
-
-Supabase's current Temporary Access documentation supports a Personal Access Token (PAT) or a Scoped PAT as the temporary Postgres password after the user has a valid JIT role mapping. The preferred least-privilege credential for this workflow is a project-bound Scoped PAT.
-
-### Corrected credential availability assumption
-
-As of 2026-08-24, the Owner account does **not** expose Scoped PAT creation in Account → Access Tokens. The visible classic token form and the experimental-API token form provide only name and expiry, with no project binding or permission selection.
-
-Supabase Studio source contains the Scoped PAT creation UI and payload (`permissions`, `project_refs`, and `organization_slugs`), but that UI is guarded by the `scopedPAT` feature flag. The Studio implementation is evidence that Scoped PATs exist in Supabase; it is **not** permission to bypass the feature flag through an undocumented internal Studio endpoint. Until Supabase exposes the feature to this account through a supported Dashboard/public API/CLI path, this workflow must not claim that its runtime token is fine-grained.
-
-PR #122 therefore had one incorrect operational assumption: it correctly designed a seven-permission Scoped PAT boundary, but assumed the Owner could currently create that credential. The database/JIT containment design remains valid; the credential issuance assumption is corrected here.
-
-### Current safe fallback: short-lived classic PAT
-
-For the blocked release window, the supported fallback is a normal/classic PAT created from the standard Supabase Account → Access Tokens flow, with the shortest practical expiry that covers the reviewed closeout window.
-
-A classic PAT is **account-wide**, not project-bound and not permission-bound. Its effective Management API authority is the issuing user's live Supabase platform authority across the organizations and projects that user can access. For an Owner account this is materially broader than the preferred Scoped PAT in two independent dimensions:
-
-- resource boundary: all organizations/projects accessible to the Owner instead of only `fvaurkfnsvsfohpzguho`;
-- permission boundary: all Management API operations authorized to the Owner instead of only the seven listed fine-grained permissions.
-
-Consequently, a classic PAT can have unrelated Management API authority such as Auth configuration, Storage configuration, API-key/secrets surfaces, project administration, and other organization/project operations whenever the Owner role permits them. Repository code must therefore treat the token as broad even though the workflow is narrow.
-
-The old PR #122 negative-scope probes are intentionally **not valid for a classic PAT**. They tested whether the credential issuer had withheld unrelated scopes. A legitimate classic Owner PAT is expected to be broader, so keeping those probes would make the supported fallback fail by design. They have been removed explicitly and replaced with a positive fail-closed request allowlist in `scripts/ops/temporary-database-access.mjs`.
-
-The allowlist accepts only the exact Management API method/path pairs used for this JIT flow:
-
-- `GET /profile`
-- `GET /projects/fvaurkfnsvsfohpzguho`
-- `GET /projects/fvaurkfnsvsfohpzguho/ssl-enforcement`
-- `GET /projects/fvaurkfnsvsfohpzguho/jit-access`
-- `PUT /projects/fvaurkfnsvsfohpzguho/jit-access`
-- `GET /projects/fvaurkfnsvsfohpzguho/database/jit`
-- `PUT /projects/fvaurkfnsvsfohpzguho/database/jit`
-- `DELETE /projects/fvaurkfnsvsfohpzguho/database/jit/{one-valid-user-uuid}`
-- `GET /projects/fvaurkfnsvsfohpzguho/config/database/pooler`
-
-Any different method, unrelated product endpoint, query-string variant, malformed cleanup target, or different project ref fails before a Management API request is sent. The workflow also hard-codes the same Production ref for the only remaining Supabase CLI Management read (`functions list`); it does not accept a user-supplied project ref.
-
-### Why OAuth is not the fallback
-
-Supabase OAuth Apps support Management API scopes, but the published OAuth scopes are product-level (`Database` read/write, `Projects` read/write, `Edge Functions` read/write, and similar), not the seven fine-grained FGA permission IDs above. For example, Database Write covers SQL queries and several database configuration mutations, and Projects Write covers project creation/upgrades/network mutations. That is a broader permission package than the desired JIT-only set.
-
-OAuth also requires an interactive initial authorization flow plus client/refresh-token lifecycle for unattended CI. Most importantly for this specific design, the current Temporary Access guide explicitly documents PAT/Scoped PAT credentials as the temporary Postgres password. It does not document an OAuth access token as that password. Using OAuth here would therefore either rely on an undocumented assumption or require a second database credential. The short-lived classic PAT with repository-side containment is the safer supported fallback for this one closeout workflow.
-
-### Preferred Scoped PAT boundary if/when exposed
-
-If Supabase later exposes Scoped PAT creation to this account through a supported path, bind it only to project `fvaurkfnsvsfohpzguho` and grant only:
-
-- `project_admin_read`
-- `project_admin_write`
-- `database_jit_read`
-- `database_jit_write`
-- `database_pooling_config_read`
-- `database_ssl_config_read`
-- `edge_functions_read`
-
-Do not grant `database_write`, `database_config_write`, `database_migrations_write`, Auth config permissions, Storage config permissions, Edge Functions write, API-key permissions, organization administration, or unrelated service permissions.
-
-### JIT and database containment (unchanged)
-
-Before any database connection, `scripts/ops/temporary-database-access.mjs` fails closed unless all of the following hold:
-
-- the hard-coded project is exactly `fvaurkfnsvsfohpzguho`;
-- every direct Management API method/path is on the explicit allowlist above;
-- the live Postgres version still meets the Temporary Access minimum;
-- Production SSL enforcement is already enabled; the workflow will not change SSL enforcement because that setting can reboot the database;
-- Temporary Database Access is enabled, enabling only that project-level feature if necessary;
-- the current token user's mapping contains exactly one database role: `postgres`;
-- the mapping is restricted to the current GitHub-hosted runner's discovered IPv4 address as one `/32` CIDR;
-- no IPv6 range is permitted;
-- the mapping expires within 45 minutes;
-- the client endpoint is a `*.pooler.supabase.com` endpoint and uses the documented IPv4 shared-pooler session port `5432` with `jit=true`;
-- the generated database URL requires SSL.
-
-The runner IP restriction is intentionally created dynamically because GitHub-hosted runner addresses are not stable. It restricts each individual run without depending on a brittle static GitHub IP allowlist.
-
-The workflow masks both the PAT and generated temporary database URL before database commands. The JIT mapping is deleted in an `always()` cleanup step; a cleanup failure fails the workflow. The server-side 45-minute expiry remains a second revocation boundary if runner cleanup cannot complete.
-
-The project-level Temporary Access feature may remain enabled after the job. Enabling the feature by itself grants no database role: the workflow-specific user mapping is still required and is removed after every run.
-
-## Token and log boundaries
-
-The only Supabase GitHub Environment secret required by this workflow is:
+The only Supabase secret required by this workflow is:
 
 - `SUPABASE_PRODUCTION_JIT_TOKEN`
 
-For the current fallback this secret contains the short-lived classic PAT. Store it only in the protected `production-database` GitHub Environment. Do not create `SUPABASE_DB_PASSWORD` and do not create a generic repository-level Production database credential.
+Store it only in the protected `production-database` GitHub Environment. For the current supported fallback it is a **fresh short-lived Supabase Personal Access Token (classic PAT)**. The same token is used as:
 
-The PAT is never written into repository files or artifacts. It is masked immediately and used only by the reviewed workflow. Query outputs remain transient runner files and are deleted in cleanup. The workflow does not upload database dumps, raw query artifacts, credentials, or migration internals as public application artifacts.
+- Bearer authentication for the narrow Supabase Management API allowlist used by Temporary Access; and
+- the temporary Postgres password after a valid JIT mapping exists.
 
-Revoke the PAT in Supabase immediately after the PR-A/Preparation operational closeout is complete, regardless of the configured expiry. If the workflow is not going to run, do not create the PAT early.
+Do not use a permanent database password, service-role key, OAuth redesign, or generic repository-level Production credential. Do not place the token value in source, artifacts, comments, or chat. Revoke it after the closeout run regardless of its configured expiry.
 
-## PR120 release boundary
+If the Environment secret is missing or unavailable, the workflow fails before CLI installation or any Temporary Access mutation with the safe diagnostic `required Production Supabase JIT token is unavailable`.
 
-The Preparation migration is additive and intentionally preserves the current direct Support RPC compatibility ACL. The ACL-lockdown migration remains outside this Ops PR and must not be applied until PR #120 is merged, the new trusted support path is proven in Production, and a separately reviewed lockdown preflight passes.
+## Temporary Database Access safety
+
+The contained flow remains pinned to:
+
+- project: `fvaurkfnsvsfohpzguho`
+- minimum PostgreSQL version: `17.6.1.081`
+- role: `postgres`
+- one GitHub-runner IPv4 `/32`
+- no IPv6 CIDR
+- maximum mapping lifetime: 45 minutes
+- trusted shared Supavisor host ending in `.pooler.supabase.com`
+- session port: `5432`
+- SSL required
+- `jit=true`
+
+Production SSL enforcement and the live PostgreSQL version are checked fail-closed before database access.
+
+### JIT ownership contract
+
+Knowing the authenticated Supabase `user_id` does **not** establish ownership.
+
+Before the workflow updates the current user's JIT mapping, it reads the current JIT mapping/list. If a mapping for that user already exists, the workflow fails with `pre-existing Production JIT mapping detected; refusing to modify it`. It does not overwrite, extend, shorten, change, or delete that mapping.
+
+When no mapping exists, the workflow submits the reviewed one-role JIT mapping. Ownership is established only after the Management API PUT has returned a successful response. The ownership state is persisted immediately after that confirmed success and before later response/schema verification, so a confirmed mutation can still be cleaned up if a later validation step fails.
+
+Run-owned mapping state is bound to safe non-secret data:
+
+- exact Supabase user ID;
+- exact `GITHUB_RUN_ID`;
+- `created_by_this_run = true` state;
+- runner `/32` CIDR; and
+- exact expiry used for the mapping.
+
+If the PUT result is ambiguous (for example, the request may have reached the server but the client did not receive a confirmed successful response), the workflow does **not** claim ownership and cleanup does not issue a blind DELETE. The server-side expiry remains the bounded fallback.
+
+### Cleanup ownership rule
+
+The `always()` cleanup issues a JIT DELETE only when all of the following are true:
+
+1. this run recorded `created_by_this_run = true` after a confirmed successful PUT;
+2. the stored owner run ID exactly equals the current `GITHUB_RUN_ID`;
+3. the stored Supabase user ID is valid;
+4. a fresh JIT list/read still shows a mapping for that exact user; and
+5. that live mapping still matches this run's role/CIDR/expiry ownership fingerprint.
+
+If the mapping is already absent, cleanup is idempotent and succeeds without DELETE. If the live mapping no longer matches the run-owned fingerprint, cleanup refuses to delete it. A foreign run ID, foreign user, pre-existing mapping, merely resolved user ID, or unconfirmed PUT can never authorize DELETE.
+
+If this run itself enabled the project-level Temporary Access feature, cleanup restores it to disabled only when that feature state is owned by the same GitHub run and no other JIT mapping exists. Otherwise it prefers leaving the feature enabled over modifying unrelated access state; enabling the feature alone grants no database role.
+
+## Management API containment
+
+Repository code permits only the exact Management API method/path pairs needed for this flow, including profile/project/version/SSL/JIT-state reads, JIT list/read/update, exact-user cleanup DELETE, and pooler configuration read. Requests for unrelated Auth, Storage, key, organization, or cross-project surfaces fail before network dispatch.
+
+The current JIT update payload follows the supported Management API shape using `user_id` plus `user_roles`.
+
+## Legacy isolation mechanism
+
+The workflow never runs `db push` or `migration up` against the repository's full historical `supabase/migrations` directory.
+
+It creates `/tmp/hamza-forward-production`, copies only the Supabase config, recreates an empty migrations directory, fetches the actual remote migration history with `migration fetch --db-url`, verifies the target is absent, copies exactly the hash-locked target migration, and then performs the official dry-run. Apply mode uses that same workspace and explicit temporary DB URL.
+
+This preserves official Supabase migration bookkeeping while preventing replay of repository-only legacy migrations.
+
+## Historical note: PR120
+
+`20260825141930_pr120_support_request_trusted_gateway_preparation` was a previous forward target and remains part of the required post-anchor Production baseline. The related support/ACL closeout has already advanced past that target. References to PR120 in historical rationale are retained only as history; they must not be interpreted as the currently executable migration.

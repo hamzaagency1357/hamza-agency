@@ -5,6 +5,8 @@ import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
 
 const execFile = promisify(execFileCallback);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const RUN_ID_RE = /^\d+$/;
 
 export const TEMP_ACCESS = Object.freeze({
   apiBase: "https://api.supabase.com/v1",
@@ -18,9 +20,6 @@ export const TEMP_ACCESS = Object.freeze({
 
 export const READINESS_RETRY_DELAYS_MS = Object.freeze([0, 2_000, 4_000, 8_000, 12_000]);
 
-// Preferred least-privilege boundary if Supabase exposes Scoped PAT creation to this account.
-// The current operational fallback is a short-lived classic PAT, so these permissions are
-// documentation/test evidence rather than a runtime credential claim.
 export const PREFERRED_SCOPED_PAT_PERMISSIONS = Object.freeze([
   "project_admin_read",
   "project_admin_write",
@@ -31,8 +30,6 @@ export const PREFERRED_SCOPED_PAT_PERMISSIONS = Object.freeze([
   "edge_functions_read",
 ]);
 
-// Backward-compatible export retained so the pre-existing PR #122 contract test keeps pinning
-// the least-privilege target. It must not be interpreted as proof that the runtime PAT is scoped.
 export const REQUIRED_FINE_GRAINED_PERMISSIONS = PREFERRED_SCOPED_PAT_PERMISSIONS;
 
 const JIT_LIST_PATH = `/projects/${TEMP_ACCESS.projectRef}/database/jit/list`;
@@ -56,6 +53,18 @@ function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function assertUserId(value, label = "JIT user id") {
+  const id = String(value || "");
+  if (!UUID_RE.test(id)) fail(`${label} is invalid`);
+  return id;
+}
+
+function assertRunId(value, label = "GitHub run id") {
+  const runId = String(value || "");
+  if (!RUN_ID_RE.test(runId)) fail(`${label} is invalid`);
+  return runId;
+}
+
 export function assertAllowedManagementRequest(method, path) {
   const normalizedMethod = String(method).toUpperCase();
   const normalizedPath = String(path);
@@ -74,10 +83,7 @@ export function assertAllowedManagementRequest(method, path) {
     } catch {
       fail("invalid encoded JIT cleanup user id");
     }
-    if (
-      encodedUserId.includes("/") ||
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)
-    ) {
+    if (encodedUserId.includes("/") || !UUID_RE.test(userId)) {
       fail("JIT cleanup is not restricted to one valid user id");
     }
     return true;
@@ -145,6 +151,44 @@ export function validateJitMapping(mapping, { userId, ipv4, nowMs = Date.now() }
   const remaining = role.expires_at - nowMs;
   if (remaining <= 0 || remaining > TEMP_ACCESS.ttlMs + 60_000) fail("JIT mapping expiry exceeds the 45-minute contract");
   return true;
+}
+
+export function findJitMappingForUser(data, { userId }) {
+  const id = assertUserId(userId);
+  if (!data || !Array.isArray(data.items)) fail("JIT list response omitted items array");
+  return data.items.find((item) => item?.user_id === id) ?? null;
+}
+
+export function buildRunOwnership({ userId, runId, ipv4, expiresAt }) {
+  const id = assertUserId(userId, "ownership user id");
+  const ownerRunId = assertRunId(runId, "ownership GitHub run id");
+  const cidr = `${assertIpv4(ipv4)}/32`;
+  if (!Number.isSafeInteger(expiresAt) || expiresAt <= 0) fail("ownership expiry is invalid");
+  return Object.freeze({
+    createdByThisRun: true,
+    userId: id,
+    runId: ownerRunId,
+    cidr,
+    expiresAt,
+  });
+}
+
+export function mappingMatchesRunOwnership(mapping, ownership) {
+  if (!mapping || !ownership?.createdByThisRun) return false;
+  if (mapping.user_id !== ownership.userId) return false;
+  const roles = mapping.user_roles ?? mapping.roles;
+  if (!Array.isArray(roles) || roles.length !== 1) return false;
+  const role = roles[0];
+  const cidrs = role?.allowed_networks?.allowed_cidrs;
+  const cidrsV6 = role?.allowed_networks?.allowed_cidrs_v6 ?? [];
+  return role?.role === TEMP_ACCESS.postgresRole
+    && role?.branches_only !== true
+    && Array.isArray(cidrs)
+    && cidrs.length === 1
+    && cidrs[0]?.cidr === ownership.cidr
+    && Array.isArray(cidrsV6)
+    && cidrsV6.length === 0
+    && role?.expires_at === ownership.expiresAt;
 }
 
 export function selectPoolerHost(config) {
@@ -286,20 +330,73 @@ function getProjectDatabaseVersion(project) {
 
 function getProfileUserId(profile) {
   const userId = profile?.gotrue_id ?? profile?.id;
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(userId))) {
-    fail("Management API profile omitted a valid gotrue user id");
-  }
+  if (!UUID_RE.test(String(userId))) fail("Management API profile omitted a valid gotrue user id");
   return String(userId);
+}
+
+function persistRunOwnership(ownership, writeEnvImpl = writeGithubEnv) {
+  writeEnvImpl("FORWARD_JIT_CREATED_BY_THIS_RUN", "true");
+  writeEnvImpl("FORWARD_JIT_OWNER_RUN_ID", ownership.runId);
+  writeEnvImpl("FORWARD_JIT_OWNED_USER_ID", ownership.userId);
+  writeEnvImpl("FORWARD_JIT_OWNED_CIDR", ownership.cidr);
+  writeEnvImpl("FORWARD_JIT_OWNED_EXPIRES_AT", String(ownership.expiresAt));
+}
+
+export async function createRunOwnedJitMapping({
+  token,
+  userId,
+  ipv4,
+  runId,
+  nowMs = Date.now(),
+  fetchImpl = fetch,
+  writeEnvImpl = writeGithubEnv,
+}) {
+  const id = assertUserId(userId);
+  const ownerRunId = assertRunId(runId);
+  const before = await apiRequest(token, JIT_LIST_PATH, { expected: [200], fetchImpl });
+  if (findJitMappingForUser(before.data, { userId: id })) {
+    fail("pre-existing Production JIT mapping detected; refusing to modify it");
+  }
+
+  const role = buildJitRole(ipv4, nowMs);
+  const mapping = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/database/jit`, {
+    method: "PUT",
+    body: { user_id: id, user_roles: [role] },
+    expected: [200],
+    fetchImpl,
+  })).data;
+
+  const ownership = buildRunOwnership({
+    userId: id,
+    runId: ownerRunId,
+    ipv4,
+    expiresAt: role.expires_at,
+  });
+  persistRunOwnership(ownership, writeEnvImpl);
+
+  validateJitMapping(mapping, { userId: id, ipv4, nowMs });
+  const after = await apiRequest(token, JIT_LIST_PATH, { expected: [200], fetchImpl });
+  const verifiedMapping = findJitMappingForUser(after.data, { userId: id });
+  if (!verifiedMapping) fail("created JIT mapping was not found during verification");
+  validateJitMapping(verifiedMapping, { userId: id, ipv4, nowMs });
+  if (!mappingMatchesRunOwnership(verifiedMapping, ownership)) fail("created JIT mapping ownership fingerprint mismatch");
+  return ownership;
 }
 
 async function setup() {
   const token = process.env.SUPABASE_PRODUCTION_JIT_TOKEN;
+  const runId = process.env.GITHUB_RUN_ID;
   if (!token) fail("SUPABASE_PRODUCTION_JIT_TOKEN is missing");
-  console.log(`::add-mask::${token}`);
+  assertRunId(runId);
 
   const profile = (await apiRequest(token, "/profile")).data;
   const userId = getProfileUserId(profile);
   writeGithubEnv("FORWARD_JIT_USER_ID", userId);
+
+  const preExistingMappingState = await apiRequest(token, JIT_LIST_PATH, { expected: [200] });
+  if (findJitMappingForUser(preExistingMappingState.data, { userId })) {
+    fail("pre-existing Production JIT mapping detected; refusing to modify it");
+  }
 
   const project = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}`)).data;
   if (project?.ref !== TEMP_ACCESS.projectRef && project?.id !== TEMP_ACCESS.projectRef) fail("Management API project-ref mismatch");
@@ -312,26 +409,20 @@ async function setup() {
 
   let jitState = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/jit-access`)).data;
   const jitWasEnabled = jitState?.state === "enabled";
-  writeGithubEnv("FORWARD_JIT_WAS_ENABLED", jitWasEnabled ? "true" : "false");
   if (!jitWasEnabled) {
     jitState = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/jit-access`, {
       method: "PUT",
       body: { state: "enabled" },
     })).data;
+    if (jitState?.state !== "enabled" || jitState?.appliedSuccessfully === false) fail("Temporary Database Access is not enabled");
+    writeGithubEnv("FORWARD_JIT_FEATURE_ENABLED_BY_THIS_RUN", "true");
+    writeGithubEnv("FORWARD_JIT_FEATURE_OWNER_RUN_ID", runId);
+  } else if (jitState?.state !== "enabled" || jitState?.appliedSuccessfully === false) {
+    fail("Temporary Database Access is not enabled");
   }
-  if (jitState?.state !== "enabled" || jitState?.appliedSuccessfully === false) fail("Temporary Database Access is not enabled");
 
   const ipv4 = await getRunnerIpv4();
-  const nowMs = Date.now();
-  const role = buildJitRole(ipv4, nowMs);
-  const mapping = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/database/jit`, {
-    method: "PUT",
-    body: { user_id: userId, roles: [role] },
-  })).data;
-  validateJitMapping(mapping, { userId, ipv4, nowMs });
-
-  const verifiedMapping = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/database/jit`)).data;
-  validateJitMapping(verifiedMapping, { userId, ipv4, nowMs });
+  await createRunOwnedJitMapping({ token, userId, ipv4, runId });
 
   const pooler = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/config/database/pooler`)).data;
   const host = selectPoolerHost(pooler);
@@ -340,58 +431,76 @@ async function setup() {
   writeGithubEnv("SUPABASE_ACCESS_TOKEN", token);
   writeGithubEnv("FORWARD_DB_URL", dbUrl);
   writeGithubEnv("FORWARD_JIT_CIDR", `${ipv4}/32`);
-  console.log("Supabase Temporary Database Access prepared with one postgres role, runner /32 restriction, and 45-minute expiry.");
+  console.log("Supabase Temporary Database Access prepared with one run-owned postgres role, runner /32 restriction, and 45-minute expiry.");
 }
 
 export function assertNoResidualJitMapping(data, { userId }) {
-  const id = String(userId);
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
-    fail("cleanup user id is invalid");
-  }
+  const id = assertUserId(userId, "cleanup user id");
   if (!data || !Array.isArray(data.items)) fail("JIT list response omitted items array");
   if (data.items.some((item) => item?.user_id === id)) fail("JIT user mapping remains after cleanup");
   return true;
 }
 
-export async function cleanupTemporaryDatabaseMapping({ token, userId, jitWasEnabled, fetchImpl = fetch }) {
+export async function cleanupRunOwnedJitMapping({ token, ownership, currentRunId, fetchImpl = fetch }) {
   if (typeof token !== "string" || token.length < 20 || /\s/.test(token)) fail("invalid Supabase token");
-  const id = String(userId);
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
-    fail("cleanup user id is invalid");
+  if (!ownership?.createdByThisRun) return { deleted: false, reason: "not-owned" };
+  const runId = assertRunId(currentRunId, "current GitHub run id");
+  const ownerRunId = assertRunId(ownership.runId, "ownership GitHub run id");
+  if (ownerRunId !== runId) fail("cleanup ownership belongs to a different GitHub run; refusing JIT delete");
+  const id = assertUserId(ownership.userId, "cleanup ownership user id");
+
+  const before = await apiRequest(token, JIT_LIST_PATH, { expected: [200], fetchImpl });
+  const current = findJitMappingForUser(before.data, { userId: id });
+  if (!current) return { deleted: false, reason: "already-absent" };
+  if (!mappingMatchesRunOwnership(current, ownership)) {
+    fail("current JIT mapping does not match this run ownership fingerprint; refusing JIT delete");
   }
 
+  await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/database/jit/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    expected: [200, 404],
+    fetchImpl,
+  });
+  const after = await apiRequest(token, JIT_LIST_PATH, { expected: [200], fetchImpl });
+  assertNoResidualJitMapping(after.data, { userId: id });
+  return { deleted: true, reason: "owned" };
+}
+
+export async function cleanupRunOwnedTemporaryAccess({
+  token,
+  ownership,
+  currentRunId,
+  featureEnabledByThisRun = false,
+  featureOwnerRunId = "",
+  fetchImpl = fetch,
+}) {
   const errors = [];
-  if (jitWasEnabled !== true && jitWasEnabled !== false) {
-    errors.push("initial Temporary Access state was not recorded");
-  }
-
   try {
-    await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/database/jit/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-      expected: [200, 404],
-      fetchImpl,
-    });
+    await cleanupRunOwnedJitMapping({ token, ownership, currentRunId, fetchImpl });
   } catch (error) {
     errors.push(errorMessage(error));
   }
 
-  try {
-    const after = await apiRequest(token, JIT_LIST_PATH, { expected: [200], fetchImpl });
-    assertNoResidualJitMapping(after.data, { userId: id });
-  } catch (error) {
-    errors.push(errorMessage(error));
-  }
-
-  if (jitWasEnabled === false) {
+  if (featureEnabledByThisRun) {
     try {
-      const restored = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/jit-access`, {
-        method: "PUT",
-        body: { state: "disabled" },
-        expected: [200],
-        fetchImpl,
-      })).data;
-      if (restored?.state !== "disabled" || restored?.appliedSuccessfully === false) {
-        throw new Error("Temporary Database Access state was not restored to disabled");
+      const runId = assertRunId(currentRunId, "current GitHub run id");
+      if (assertRunId(featureOwnerRunId, "feature ownership GitHub run id") !== runId) {
+        fail("Temporary Access feature ownership belongs to a different GitHub run; refusing state change");
+      }
+      const mappings = await apiRequest(token, JIT_LIST_PATH, { expected: [200], fetchImpl });
+      if (!Array.isArray(mappings.data?.items)) fail("JIT list response omitted items array");
+      if (mappings.data.items.length === 0) {
+        const restored = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/jit-access`, {
+          method: "PUT",
+          body: { state: "disabled" },
+          expected: [200],
+          fetchImpl,
+        })).data;
+        if (restored?.state !== "disabled" || restored?.appliedSuccessfully === false) {
+          fail("Temporary Database Access state was not restored to disabled");
+        }
+      } else {
+        console.warn("Temporary Access remains enabled because another JIT mapping now exists; refusing unrelated state change.");
       }
     } catch (error) {
       errors.push(errorMessage(error));
@@ -402,18 +511,35 @@ export async function cleanupTemporaryDatabaseMapping({ token, userId, jitWasEna
   return true;
 }
 
+function ownershipFromEnvironment() {
+  if (process.env.FORWARD_JIT_CREATED_BY_THIS_RUN !== "true") return null;
+  const expiresAt = Number(process.env.FORWARD_JIT_OWNED_EXPIRES_AT);
+  return buildRunOwnership({
+    userId: process.env.FORWARD_JIT_OWNED_USER_ID,
+    runId: process.env.FORWARD_JIT_OWNER_RUN_ID,
+    ipv4: String(process.env.FORWARD_JIT_OWNED_CIDR || "").replace(/\/32$/, ""),
+    expiresAt,
+  });
+}
+
 async function cleanup() {
   const token = process.env.SUPABASE_PRODUCTION_JIT_TOKEN;
-  const userId = process.env.FORWARD_JIT_USER_ID;
-  if (!token || !userId) {
-    console.log("No temporary JIT user mapping was recorded for cleanup.");
+  const currentRunId = process.env.GITHUB_RUN_ID;
+  const ownership = ownershipFromEnvironment();
+  const featureEnabledByThisRun = process.env.FORWARD_JIT_FEATURE_ENABLED_BY_THIS_RUN === "true";
+  if (!token || (!ownership && !featureEnabledByThisRun)) {
+    console.log("No run-owned temporary JIT state was recorded for cleanup.");
     return;
   }
-  const state = process.env.FORWARD_JIT_WAS_ENABLED;
-  const jitWasEnabled = state === "true" ? true : state === "false" ? false : undefined;
-  console.log(`::add-mask::${token}`);
-  await cleanupTemporaryDatabaseMapping({ token, userId, jitWasEnabled });
-  console.log("Supabase temporary postgres JIT mapping removed, absence verified, and Temporary Access state restored when required.");
+  assertRunId(currentRunId);
+  await cleanupRunOwnedTemporaryAccess({
+    token,
+    ownership,
+    currentRunId,
+    featureEnabledByThisRun,
+    featureOwnerRunId: process.env.FORWARD_JIT_FEATURE_OWNER_RUN_ID || "",
+  });
+  console.log("Run-owned Supabase temporary JIT state cleanup completed without touching unrelated mappings.");
 }
 
 async function main() {

@@ -126,7 +126,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${SUPABASE_PRODUCTION_JIT_TOKEN:-}"
+          if [ -z "${SUPABASE_PRODUCTION_JIT_TOKEN:-}" ]; then
+            echo "::error::required Production Supabase JIT token is unavailable"
+            exit 1
+          fi
           echo "::add-mask::$SUPABASE_PRODUCTION_JIT_TOKEN"
 
       - name: Install pinned Supabase CLI
@@ -237,7 +240,7 @@ jobs:
           test "$health_http_code" = "200"
           node scripts/ops/forward-production-contract.mjs verify-live
 
-      - name: Always revoke temporary Production database mapping
+      - name: Always revoke run-owned temporary Production database mapping
         if: always()
         shell: bash
         run: |
