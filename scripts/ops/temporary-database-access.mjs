@@ -366,9 +366,6 @@ export async function createRunOwnedJitMapping({
     fetchImpl,
   })).data;
 
-  // A successful HTTP response is the first point at which this run may claim ownership.
-  // Persist ownership before validating the body so cleanup can remove a confirmed mutation
-  // even if a later response/schema assertion fails.
   const ownership = buildRunOwnership({
     userId: id,
     runId: ownerRunId,
@@ -395,6 +392,11 @@ async function setup() {
   const profile = (await apiRequest(token, "/profile")).data;
   const userId = getProfileUserId(profile);
   writeGithubEnv("FORWARD_JIT_USER_ID", userId);
+
+  const preExistingMappingState = await apiRequest(token, JIT_LIST_PATH, { expected: [200] });
+  if (findJitMappingForUser(preExistingMappingState.data, { userId })) {
+    fail("pre-existing Production JIT mapping detected; refusing to modify it");
+  }
 
   const project = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}`)).data;
   if (project?.ref !== TEMP_ACCESS.projectRef && project?.id !== TEMP_ACCESS.projectRef) fail("Management API project-ref mismatch");
