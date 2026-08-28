@@ -34,6 +34,9 @@ import {
 } from "../scripts/ops/temporary-database-access.mjs";
 
 const mainSha = "d767ef11f3fed91cd0d8f0f5cd2111211347ea30";
+const repository = "hamzaagency1357/hamza-agency";
+const inspector = "https://vercel.com/hamzaagencysy-3009s-projects/hamza-agency/contractEvidence123";
+const deploymentStatusTargetUrl = "https://example.invalid/deployment-status-informational";
 const baselineHistory = [ANCHOR, ...BASELINE_POST_ANCHOR].map(({ version, name }) => ({ version, name }));
 const healthyEffects = {
   anchor_history_exact: true,
@@ -64,11 +67,14 @@ const trustedProductionEvidence = {
   source: "github-vercel-deployment",
   deploymentId: 123,
   statusId: 456,
-  trustedApp: "vercel",
+  trustedApp: "vercel-status",
+  repository,
   environment: "Production",
   productionEnvironment: true,
   readyState: "READY",
   gitSha: mainSha,
+  deploymentUrl: inspector,
+  deploymentStatusTargetUrl,
 };
 
 function expectFailure(fn, pattern) {
@@ -200,36 +206,38 @@ test("trusted Vercel Production READY deployment with exact Git SHA passes", () 
     id: 123,
     sha: mainSha,
     environment: "Production",
-    production_environment: true,
-    performed_via_github_app: { slug: "vercel" },
+    production_environment: false,
+    performed_via_github_app: null,
   };
+  const status = { id: 456, state: "success", target_url: deploymentStatusTargetUrl };
+  const commitStatus = { context: "Vercel", state: "success", target_url: inspector };
   assert.equal(isTrustedVercelProductionDeployment(deployment), true);
-  assert.deepEqual(buildProductionDeploymentEvidence(deployment, { id: 456, state: "success" }, mainSha), trustedProductionEvidence);
+  assert.deepEqual(buildProductionDeploymentEvidence(deployment, status, mainSha, commitStatus, repository), trustedProductionEvidence);
 });
 
 test("Vercel Production SHA mismatch and missing SHA fail closed", () => {
   expectFailure(
     () => validateProductionDeploymentEvidence({ ...trustedProductionEvidence, gitSha: "b".repeat(40) }, mainSha),
-    /Git SHA mismatch/
+    /SHA mismatch/
   );
   expectFailure(
     () => validateProductionDeploymentEvidence({ ...trustedProductionEvidence, gitSha: "" }, mainSha),
-    /Git SHA is missing or invalid/
+    /resolved SHA is missing or malformed/
   );
 });
 
-test("non-READY or untrusted/non-Production Vercel deployment fails closed", () => {
+test("non-READY, untrusted, or non-Production final evidence fails closed", () => {
   expectFailure(
     () => validateProductionDeploymentEvidence({ ...trustedProductionEvidence, readyState: "BUILDING" }, mainSha),
-    /not READY/
+    /final evidence validation failure/
   );
   expectFailure(
     () => validateProductionDeploymentEvidence({ ...trustedProductionEvidence, trustedApp: "other" }, mainSha),
-    /trusted Vercel GitHub App/
+    /final evidence validation failure/
   );
   expectFailure(
-    () => validateProductionDeploymentEvidence({ ...trustedProductionEvidence, productionEnvironment: false }, mainSha),
-    /not Production/
+    () => validateProductionDeploymentEvidence({ ...trustedProductionEvidence, environment: "Preview" }, mainSha),
+    /final evidence validation failure/
   );
 });
 
