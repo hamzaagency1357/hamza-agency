@@ -35,10 +35,13 @@ function createMockJitServer({
   ambiguousBeforeMutation = false,
   malformedPutResponse = false,
   apiError = null,
+  canonicalFeatureMissing = false,
 } = {}) {
   let mapping = preexisting;
   let featureState = "enabled";
   const calls = [];
+  const canonicalFeaturePath = `/projects/${TEMP_ACCESS.projectRef}/jit-access`;
+  const legacyFeaturePath = `/projects/${TEMP_ACCESS.projectRef}/database/jit-access`;
   const fetchImpl = async (url, init = {}) => {
     const path = new URL(url).pathname;
     const method = init.method ?? "GET";
@@ -61,11 +64,13 @@ function createMockJitServer({
       mapping = null;
       return response(200, {});
     }
-    if (method === "GET" && path.endsWith(`/projects/${TEMP_ACCESS.projectRef}/database/jit-access`)) {
+    if ((method === "GET" || method === "PUT") && path === canonicalFeaturePath) {
+      if (canonicalFeatureMissing) return response(404, { message: "not found" });
+      if (method === "PUT") featureState = JSON.parse(init.body).state;
       return response(200, { state: featureState, appliedSuccessfully: true });
     }
-    if (method === "PUT" && path.endsWith(`/projects/${TEMP_ACCESS.projectRef}/database/jit-access`)) {
-      featureState = JSON.parse(init.body).state;
+    if ((method === "GET" || method === "PUT") && path === legacyFeaturePath) {
+      if (method === "PUT") featureState = JSON.parse(init.body).state;
       return response(200, { state: featureState, appliedSuccessfully: true });
     }
     throw new Error(`unexpected request ${method} ${path}`);
@@ -205,9 +210,21 @@ test("Temporary Access feature restore occurs only for current-run ownership and
   const server = createMockJitServer();
   await cleanupRunOwnedTemporaryAccess({ token, ownership: null, currentRunId: runId, featureEnabledByThisRun: true, featureOwnerRunId: runId, fetchImpl: server.fetchImpl });
   assert.equal(server.getFeatureState(), "disabled");
+  assert.equal(server.calls.some((call) => call.method === "PUT" && call.path.endsWith(`/projects/${TEMP_ACCESS.projectRef}/jit-access`)), true);
   const foreignServer = createMockJitServer();
   await assert.rejects(cleanupRunOwnedTemporaryAccess({ token, ownership: null, currentRunId: runId, featureEnabledByThisRun: true, featureOwnerRunId: "999999", fetchImpl: foreignServer.fetchImpl }), /different GitHub run/);
   assert.equal(foreignServer.getFeatureState(), "enabled");
+});
+
+test("Temporary Access uses documented path first and bounded legacy fallback only on 404", async () => {
+  const server = createMockJitServer({ canonicalFeatureMissing: true });
+  await cleanupRunOwnedTemporaryAccess({ token, ownership: null, currentRunId: runId, featureEnabledByThisRun: true, featureOwnerRunId: runId, fetchImpl: server.fetchImpl });
+  const featurePuts = server.calls.filter((call) => call.method === "PUT" && call.path.endsWith("jit-access"));
+  assert.deepEqual(featurePuts.map((call) => call.path), [
+    `/v1/projects/${TEMP_ACCESS.projectRef}/jit-access`,
+    `/v1/projects/${TEMP_ACCESS.projectRef}/database/jit-access`,
+  ]);
+  assert.equal(server.getFeatureState(), "disabled");
 });
 
 test("safe Management API diagnostic exposes only bounded structured code/message", async () => {
