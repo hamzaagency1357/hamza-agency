@@ -32,6 +32,8 @@ test("classic PAT fallback can call only the explicit Production Management API 
     ["GET", `/projects/${ref}/ssl-enforcement`],
     ["GET", `/projects/${ref}/jit-access`],
     ["PUT", `/projects/${ref}/jit-access`],
+    ["GET", `/projects/${ref}/database/jit-access`],
+    ["PUT", `/projects/${ref}/database/jit-access`],
     ["GET", `/projects/${ref}/database/jit`],
     ["GET", `/projects/${ref}/database/jit/list`],
     ["PUT", `/projects/${ref}/database/jit`],
