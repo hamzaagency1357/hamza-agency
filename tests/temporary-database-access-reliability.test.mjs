@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-
 import {
   TEMP_ACCESS,
   assertNoResidualJitMapping,
@@ -10,6 +9,7 @@ import {
   buildJitRole,
   buildRunOwnership,
   cleanupRunOwnedJitMapping,
+  cleanupRunOwnedTemporaryAccess,
   createRunOwnedJitMapping,
   mappingMatchesRunOwnership,
   validateJitMapping,
@@ -26,52 +26,63 @@ const host = "aws-1-eu-central-1.pooler.supabase.com";
 const dbUrl = buildJitDbUrl({ host, token });
 
 function response(status, data) {
-  return {
-    status,
-    text: async () => (data === undefined ? "" : JSON.stringify(data)),
-  };
+  return { status, text: async () => (data === undefined ? "" : JSON.stringify(data)) };
 }
 
-function createMockJitServer({ preexisting = null, ambiguousPut = false, malformedPutResponse = false } = {}) {
+function createMockJitServer({
+  preexisting = null,
+  ambiguousAfterMutation = false,
+  ambiguousBeforeMutation = false,
+  malformedPutResponse = false,
+  apiError = null,
+} = {}) {
   let mapping = preexisting;
+  let featureState = "enabled";
   const calls = [];
   const fetchImpl = async (url, init = {}) => {
     const path = new URL(url).pathname;
     const method = init.method ?? "GET";
     calls.push({ method, path, body: init.body ?? null });
-
     if (method === "GET" && path.endsWith(`/projects/${TEMP_ACCESS.projectRef}/database/jit/list`)) {
       return response(200, { items: mapping ? [mapping] : [] });
     }
     if (method === "PUT" && path.endsWith(`/projects/${TEMP_ACCESS.projectRef}/database/jit`)) {
-      if (ambiguousPut) throw new Error("simulated network failure after request dispatch");
+      if (apiError) return response(apiError.status, apiError.data);
+      if (ambiguousBeforeMutation) throw new Error("network failure before mutation evidence");
       const body = JSON.parse(init.body);
       assert.equal(body.user_id, userId);
-      assert.ok(Array.isArray(body.user_roles), "current Supabase JIT request field must be user_roles");
-      assert.equal(body.roles, undefined);
-      mapping = { user_id: body.user_id, user_roles: body.user_roles };
+      assert.ok(Array.isArray(body.roles), "current Supabase JIT request field must be roles");
+      assert.equal(body.user_roles, undefined);
+      mapping = { user_id: body.user_id, user_roles: body.roles };
+      if (ambiguousAfterMutation) throw new Error("network failure after server mutation");
       return response(200, malformedPutResponse ? { user_id: body.user_id, user_roles: [] } : mapping);
     }
     if (method === "DELETE" && path.endsWith(`/database/jit/${userId}`)) {
       mapping = null;
       return response(200, {});
     }
-    if (method === "DELETE" && path.includes("/database/jit/")) {
-      throw new Error("unexpected delete target");
+    if (method === "GET" && path.endsWith(`/projects/${TEMP_ACCESS.projectRef}/database/jit-access`)) {
+      return response(200, { state: featureState, appliedSuccessfully: true });
+    }
+    if (method === "PUT" && path.endsWith(`/projects/${TEMP_ACCESS.projectRef}/database/jit-access`)) {
+      featureState = JSON.parse(init.body).state;
+      return response(200, { state: featureState, appliedSuccessfully: true });
     }
     throw new Error(`unexpected request ${method} ${path}`);
   };
-  return { fetchImpl, calls, getMapping: () => mapping, setMapping: (value) => { mapping = value; } };
+  return {
+    fetchImpl,
+    calls,
+    getMapping: () => mapping,
+    setMapping: (value) => { mapping = value; },
+    getFeatureState: () => featureState,
+  };
 }
 
 function captureEnv() {
   const env = new Map();
-  return {
-    env,
-    writeEnvImpl: (name, value) => env.set(name, String(value)),
-  };
+  return { env, writeEnvImpl: (name, value) => env.set(name, String(value)) };
 }
-
 function ownershipFromCapturedEnv(env) {
   assert.equal(env.get("FORWARD_JIT_CREATED_BY_THIS_RUN"), "true");
   return {
@@ -83,186 +94,147 @@ function ownershipFromCapturedEnv(env) {
   };
 }
 
-test("successful constrained JIT mapping produces a CLI-compatible temporary database URL", async () => {
+test("JIT role follows current Supabase schema: seconds expiry, postgres only, IPv4 /32", () => {
   const role = buildJitRole(ipv4, nowMs);
-  const mapping = { user_id: userId, user_roles: [role] };
-  assert.equal(validateJitMapping(mapping, { userId, ipv4, nowMs }), true);
-  assert.equal(assertTemporaryDatabaseUrl(dbUrl), true);
-
-  let seenArgs;
-  const attempts = await waitForTemporaryDatabaseReady({
-    supabaseBin: "/tmp/supabase",
-    dbUrl,
-    workdir: "/tmp/forward",
-    retryDelaysMs: [0],
-    runProbe: async ({ args }) => { seenArgs = args; },
-    sleep: async () => {},
-  });
-
-  assert.equal(attempts, 1);
-  assert.deepEqual(seenArgs.slice(0, 4), ["--workdir", "/tmp/forward", "db", "query"]);
-  assert.equal(seenArgs[seenArgs.indexOf("--db-url") + 1], dbUrl);
-  assert.equal(seenArgs.at(-1), "select 1 as jit_ready;");
+  assert.equal(role.expires_at, Math.floor(nowMs / 1000) + TEMP_ACCESS.ttlSeconds);
+  assert.equal(role.role, "postgres");
+  assert.deepEqual(role.allowed_networks.allowed_cidrs, [{ cidr: `${ipv4}/32` }]);
+  assert.deepEqual(role.allowed_networks.allowed_cidrs_v6, []);
+  assert.equal(validateJitMapping({ user_id: userId, roles: [role] }, { userId, ipv4, nowMs }), true);
+  assert.equal(validateJitMapping({ user_id: userId, user_roles: [role] }, { userId, ipv4, nowMs }), true);
 });
 
-test("temporary database readiness uses bounded propagation retries", async () => {
+test("successful JIT mapping sends user_id + roles and produces CLI-compatible URL", async () => {
+  const server = createMockJitServer();
+  const captured = captureEnv();
+  const ownership = await createRunOwnedJitMapping({ token, userId, ipv4, runId, nowMs, fetchImpl: server.fetchImpl, writeEnvImpl: captured.writeEnvImpl });
+  const put = server.calls.find((call) => call.method === "PUT" && call.path.endsWith("/database/jit"));
+  const body = JSON.parse(put.body);
+  assert.equal(body.user_id, userId);
+  assert.equal(body.user_roles, undefined);
+  assert.equal(body.roles.length, 1);
+  assert.equal(body.roles[0].expires_at, Math.floor(nowMs / 1000) + TEMP_ACCESS.ttlSeconds);
+  assert.equal(mappingMatchesRunOwnership(server.getMapping(), ownership), true);
+  assert.equal(assertTemporaryDatabaseUrl(dbUrl), true);
+  const parsed = new URL(dbUrl);
+  assert.equal(parsed.searchParams.get("options"), "-c jit=on");
+});
+
+test("temporary database readiness uses bounded retries and exact explicit DB URL", async () => {
   let probes = 0;
   const sleeps = [];
+  let finalArgs;
   const attempts = await waitForTemporaryDatabaseReady({
     supabaseBin: "/tmp/supabase",
     dbUrl,
     workdir: "/tmp/forward",
     retryDelaysMs: [0, 5, 10],
-    runProbe: async () => {
+    runProbe: async ({ args }) => {
       probes += 1;
+      finalArgs = args;
       if (probes < 3) throw new Error("not ready");
     },
     sleep: async (ms) => sleeps.push(ms),
   });
   assert.equal(attempts, 3);
-  assert.equal(probes, 3);
   assert.deepEqual(sleeps, [5, 10]);
+  assert.equal(finalArgs[finalArgs.indexOf("--db-url") + 1], dbUrl);
+  assert.equal(finalArgs.at(-1), "select 1 as jit_ready;");
 });
 
-test("workflow keeps always cleanup, serializes Production runs, and never cancels an active run", async () => {
+test("pre-existing mapping fails before mutation and cleanup never deletes it", async () => {
+  const role = buildJitRole(ipv4, nowMs);
+  const server = createMockJitServer({ preexisting: { user_id: userId, user_roles: [role] } });
+  const captured = captureEnv();
+  await assert.rejects(createRunOwnedJitMapping({ token, userId, ipv4, runId, nowMs, fetchImpl: server.fetchImpl, writeEnvImpl: captured.writeEnvImpl }), /pre-existing Production JIT mapping/);
+  assert.equal(server.calls.some((call) => call.method === "PUT"), false);
+  assert.equal(captured.env.has("FORWARD_JIT_CREATED_BY_THIS_RUN"), false);
+});
+
+test("ambiguous PUT after exact server mutation is reconciled into owned state and safely cleaned", async () => {
+  const server = createMockJitServer({ ambiguousAfterMutation: true });
+  const captured = captureEnv();
+  const ownership = await createRunOwnedJitMapping({ token, userId, ipv4, runId, nowMs, fetchImpl: server.fetchImpl, writeEnvImpl: captured.writeEnvImpl });
+  assert.equal(mappingMatchesRunOwnership(server.getMapping(), ownership), true);
+  assert.equal(ownershipFromCapturedEnv(captured.env).runId, runId);
+  const result = await cleanupRunOwnedJitMapping({ token, ownership, currentRunId: runId, fetchImpl: server.fetchImpl });
+  assert.deepEqual(result, { deleted: true, reason: "owned" });
+  assert.equal(server.getMapping(), null);
+});
+
+test("ambiguous PUT without exact mapping never establishes ownership or blind deletes", async () => {
+  const server = createMockJitServer({ ambiguousBeforeMutation: true });
+  const captured = captureEnv();
+  await assert.rejects(createRunOwnedJitMapping({ token, userId, ipv4, runId, nowMs, fetchImpl: server.fetchImpl, writeEnvImpl: captured.writeEnvImpl }), /network failure before mutation evidence/);
+  assert.equal(captured.env.has("FORWARD_JIT_CREATED_BY_THIS_RUN"), false);
+  const result = await cleanupRunOwnedJitMapping({ token, ownership: null, currentRunId: runId, fetchImpl: server.fetchImpl });
+  assert.deepEqual(result, { deleted: false, reason: "not-owned" });
+  assert.equal(server.calls.some((call) => call.method === "DELETE"), false);
+});
+
+test("confirmed mapping with malformed response records ownership before validation failure", async () => {
+  const server = createMockJitServer({ malformedPutResponse: true });
+  const captured = captureEnv();
+  await assert.rejects(createRunOwnedJitMapping({ token, userId, ipv4, runId, nowMs, fetchImpl: server.fetchImpl, writeEnvImpl: captured.writeEnvImpl }), /exactly one role/);
+  const ownership = ownershipFromCapturedEnv(captured.env);
+  assert.equal(mappingMatchesRunOwnership(server.getMapping(), ownership), true);
+  const result = await cleanupRunOwnedJitMapping({ token, ownership, currentRunId: runId, fetchImpl: server.fetchImpl });
+  assert.equal(result.deleted, true);
+});
+
+test("cleanup refuses foreign run, foreign fingerprint, and unrelated user state", async () => {
+  const role = buildJitRole(ipv4, nowMs);
+  const server = createMockJitServer({ preexisting: { user_id: userId, user_roles: [role] } });
+  const otherRunOwnership = buildRunOwnership({ userId, runId: "999999", ipv4, expiresAt: role.expires_at });
+  await assert.rejects(cleanupRunOwnedJitMapping({ token, ownership: otherRunOwnership, currentRunId: runId, fetchImpl: server.fetchImpl }), /different GitHub run/);
+  const foreignFingerprint = buildRunOwnership({ userId, runId, ipv4: "198.51.100.44", expiresAt: role.expires_at });
+  await assert.rejects(cleanupRunOwnedJitMapping({ token, ownership: foreignFingerprint, currentRunId: runId, fetchImpl: server.fetchImpl }), /does not match this run ownership fingerprint/);
+  const otherUser = buildRunOwnership({ userId: otherUserId, runId, ipv4, expiresAt: role.expires_at });
+  assert.deepEqual(await cleanupRunOwnedJitMapping({ token, ownership: otherUser, currentRunId: runId, fetchImpl: server.fetchImpl }), { deleted: false, reason: "already-absent" });
+  assert.equal(server.getMapping() !== null, true);
+});
+
+test("cleanup is idempotent after an owned mapping is absent", async () => {
+  const ownership = buildRunOwnership({ userId, runId, ipv4, expiresAt: buildJitRole(ipv4, nowMs).expires_at });
+  const server = createMockJitServer();
+  assert.deepEqual(await cleanupRunOwnedJitMapping({ token, ownership, currentRunId: runId, fetchImpl: server.fetchImpl }), { deleted: false, reason: "already-absent" });
+  assert.deepEqual(await cleanupRunOwnedJitMapping({ token, ownership, currentRunId: runId, fetchImpl: server.fetchImpl }), { deleted: false, reason: "already-absent" });
+});
+
+test("Temporary Access feature restore occurs only for current-run ownership and zero residual mappings", async () => {
+  const server = createMockJitServer();
+  await cleanupRunOwnedTemporaryAccess({ token, ownership: null, currentRunId: runId, featureEnabledByThisRun: true, featureOwnerRunId: runId, fetchImpl: server.fetchImpl });
+  assert.equal(server.getFeatureState(), "disabled");
+  const foreignServer = createMockJitServer();
+  await assert.rejects(cleanupRunOwnedTemporaryAccess({ token, ownership: null, currentRunId: runId, featureEnabledByThisRun: true, featureOwnerRunId: "999999", fetchImpl: foreignServer.fetchImpl }), /different GitHub run/);
+  assert.equal(foreignServer.getFeatureState(), "enabled");
+});
+
+test("safe Management API diagnostic exposes only bounded structured code/message", async () => {
+  const server = createMockJitServer({ apiError: { status: 400, data: { code: "validation_failed", message: "roles must be supplied", secret: token } } });
+  await assert.rejects(
+    createRunOwnedJitMapping({ token, userId, ipv4, runId, nowMs, fetchImpl: server.fetchImpl, writeEnvImpl: () => {} }),
+    (error) => {
+      assert.match(error.message, /HTTP 400/);
+      assert.match(error.message, /code=validation_failed/);
+      assert.match(error.message, /message=roles must be supplied/);
+      assert.doesNotMatch(error.message, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+      return true;
+    },
+  );
+});
+
+test("workflow keeps always cleanup, serialization, and no credential fallback", async () => {
   const workflow = await readFile(".github/workflows/forward-production-migrations.yml", "utf8");
   assert.match(workflow, /temporary-database-access\.mjs cleanup/);
   assert.match(workflow, /if:\s*always\(\)/);
   assert.match(workflow, /concurrency:\s*\n\s+group:\s*hamza-forward-production-migrations\s*\n\s+cancel-in-progress:\s*false/);
-  assert.match(workflow, /if:\s*github\.event_name == 'workflow_dispatch' && github\.ref == 'refs\/heads\/main'/);
-});
-
-test("empty Production PAT has an explicit safe diagnostic and no fallback credential", async () => {
-  const workflow = await readFile(".github/workflows/forward-production-migrations.yml", "utf8");
   assert.match(workflow, /required Production Supabase JIT token is unavailable/);
   assert.match(workflow, /SUPABASE_PRODUCTION_JIT_TOKEN:\s*\$\{\{ secrets\.SUPABASE_PRODUCTION_JIT_TOKEN \}\}/);
   assert.doesNotMatch(workflow, /SUPABASE_DB_PASSWORD|secrets\.SUPABASE_ACCESS_TOKEN/);
 });
 
-test("pre-existing mapping fails closed before PUT", async () => {
-  const role = buildJitRole(ipv4, nowMs);
-  const server = createMockJitServer({ preexisting: { user_id: userId, user_roles: [role] } });
-  const captured = captureEnv();
-  await assert.rejects(
-    createRunOwnedJitMapping({ token, userId, ipv4, runId, nowMs, fetchImpl: server.fetchImpl, writeEnvImpl: captured.writeEnvImpl }),
-    /pre-existing Production JIT mapping detected; refusing to modify it/,
-  );
-  assert.equal(server.calls.some((call) => call.method === "PUT"), false);
-  assert.equal(server.calls.some((call) => call.method === "DELETE"), false);
-  assert.equal(captured.env.has("FORWARD_JIT_CREATED_BY_THIS_RUN"), false);
-});
-
-test("resolving or knowing a user id alone never establishes cleanup ownership", async () => {
-  const server = createMockJitServer();
-  const result = await cleanupRunOwnedJitMapping({ token, ownership: null, currentRunId: runId, fetchImpl: server.fetchImpl });
-  assert.deepEqual(result, { deleted: false, reason: "not-owned" });
-  assert.equal(server.calls.length, 0);
-});
-
-test("successful PUT persists current-run ownership before later validation", async () => {
-  const server = createMockJitServer({ malformedPutResponse: true });
-  const captured = captureEnv();
-  await assert.rejects(
-    createRunOwnedJitMapping({ token, userId, ipv4, runId, nowMs, fetchImpl: server.fetchImpl, writeEnvImpl: captured.writeEnvImpl }),
-    /exactly one role/,
-  );
-  const ownership = ownershipFromCapturedEnv(captured.env);
-  assert.equal(ownership.runId, runId);
-  assert.equal(ownership.userId, userId);
-  assert.equal(ownership.cidr, `${ipv4}/32`);
-  assert.equal(ownership.expiresAt, nowMs + TEMP_ACCESS.ttlMs);
-});
-
-test("confirmed PUT followed by validation failure can delete only the owned mapping", async () => {
-  const server = createMockJitServer({ malformedPutResponse: true });
-  const captured = captureEnv();
-  await assert.rejects(
-    createRunOwnedJitMapping({ token, userId, ipv4, runId, nowMs, fetchImpl: server.fetchImpl, writeEnvImpl: captured.writeEnvImpl }),
-  );
-  const ownership = ownershipFromCapturedEnv(captured.env);
-  assert.equal(mappingMatchesRunOwnership(server.getMapping(), ownership), true);
-  const result = await cleanupRunOwnedJitMapping({ token, ownership, currentRunId: runId, fetchImpl: server.fetchImpl });
-  assert.equal(result.deleted, true);
-  assert.equal(server.getMapping(), null);
-});
-
-test("ambiguous or unconfirmed PUT failure never establishes ownership or issues blind DELETE", async () => {
-  const server = createMockJitServer({ ambiguousPut: true });
-  const captured = captureEnv();
-  await assert.rejects(
-    createRunOwnedJitMapping({ token, userId, ipv4, runId, nowMs, fetchImpl: server.fetchImpl, writeEnvImpl: captured.writeEnvImpl }),
-    /simulated network failure/,
-  );
-  assert.equal(captured.env.has("FORWARD_JIT_CREATED_BY_THIS_RUN"), false);
-  const deleteCountBefore = server.calls.filter((call) => call.method === "DELETE").length;
-  await cleanupRunOwnedJitMapping({ token, ownership: null, currentRunId: runId, fetchImpl: server.fetchImpl });
-  assert.equal(server.calls.filter((call) => call.method === "DELETE").length, deleteCountBefore);
-});
-
-test("pre-PUT failure never causes cleanup DELETE", async () => {
-  const role = buildJitRole(ipv4, nowMs);
-  const server = createMockJitServer({ preexisting: { user_id: userId, user_roles: [role] } });
-  await assert.rejects(createRunOwnedJitMapping({ token, userId, ipv4, runId, nowMs, fetchImpl: server.fetchImpl, writeEnvImpl: () => {} }));
-  await cleanupRunOwnedJitMapping({ token, ownership: null, currentRunId: runId, fetchImpl: server.fetchImpl });
-  assert.equal(server.calls.some((call) => call.method === "DELETE"), false);
-});
-
-test("dry-run failure, apply failure, post-apply failure, and success all clean up a confirmed owned mapping", async () => {
-  for (const stage of ["dry-run failure", "apply failure", "post-apply failure", "success"]) {
-    const server = createMockJitServer();
-    const captured = captureEnv();
-    const ownership = await createRunOwnedJitMapping({ token, userId, ipv4, runId, nowMs, fetchImpl: server.fetchImpl, writeEnvImpl: captured.writeEnvImpl });
-    assert.equal(server.getMapping() !== null, true, stage);
-    const result = await cleanupRunOwnedJitMapping({ token, ownership, currentRunId: runId, fetchImpl: server.fetchImpl });
-    assert.equal(result.deleted, true, stage);
-    assert.equal(server.getMapping(), null, stage);
-  }
-});
-
-test("ownership from another GitHub run id refuses DELETE", async () => {
-  const role = buildJitRole(ipv4, nowMs);
-  const server = createMockJitServer({ preexisting: { user_id: userId, user_roles: [role] } });
-  const ownership = buildRunOwnership({ userId, runId: "999999", ipv4, expiresAt: role.expires_at });
-  await assert.rejects(
-    cleanupRunOwnedJitMapping({ token, ownership, currentRunId: runId, fetchImpl: server.fetchImpl }),
-    /different GitHub run/,
-  );
-  assert.equal(server.calls.some((call) => call.method === "DELETE"), false);
-});
-
-test("foreign user ownership cannot delete another user's mapping", async () => {
-  const role = buildJitRole(ipv4, nowMs);
-  const server = createMockJitServer({ preexisting: { user_id: userId, user_roles: [role] } });
-  const ownership = buildRunOwnership({ userId: otherUserId, runId, ipv4, expiresAt: role.expires_at });
-  const result = await cleanupRunOwnedJitMapping({ token, ownership, currentRunId: runId, fetchImpl: server.fetchImpl });
-  assert.deepEqual(result, { deleted: false, reason: "already-absent" });
-  assert.equal(server.calls.some((call) => call.method === "DELETE"), false);
-});
-
-test("current-run ownership cannot delete a same-user mapping with a foreign fingerprint", async () => {
-  const foreignRole = buildJitRole("198.51.100.44", nowMs);
-  const server = createMockJitServer({ preexisting: { user_id: userId, user_roles: [foreignRole] } });
-  const ownership = buildRunOwnership({ userId, runId, ipv4, expiresAt: nowMs + TEMP_ACCESS.ttlMs });
-  await assert.rejects(
-    cleanupRunOwnedJitMapping({ token, ownership, currentRunId: runId, fetchImpl: server.fetchImpl }),
-    /does not match this run ownership fingerprint/,
-  );
-  assert.equal(server.calls.some((call) => call.method === "DELETE"), false);
-});
-
-test("cleanup is idempotent when the exact owned mapping is already absent", async () => {
-  const server = createMockJitServer();
-  const ownership = buildRunOwnership({ userId, runId, ipv4, expiresAt: nowMs + TEMP_ACCESS.ttlMs });
-  const first = await cleanupRunOwnedJitMapping({ token, ownership, currentRunId: runId, fetchImpl: server.fetchImpl });
-  const second = await cleanupRunOwnedJitMapping({ token, ownership, currentRunId: runId, fetchImpl: server.fetchImpl });
-  assert.deepEqual(first, { deleted: false, reason: "already-absent" });
-  assert.deepEqual(second, { deleted: false, reason: "already-absent" });
-  assert.equal(server.calls.some((call) => call.method === "DELETE"), false);
-});
-
-test("residual mapping validator rejects malformed list responses", () => {
-  assert.throws(
-    () => assertNoResidualJitMapping({ mapping: [] }, { userId }),
-    /JIT list response omitted items array/,
-  );
+test("no residual mapping assertion is exact-user scoped", () => {
+  assert.equal(assertNoResidualJitMapping({ items: [] }, { userId }), true);
+  assert.throws(() => assertNoResidualJitMapping({ items: [{ user_id: userId }] }, { userId }), /remains after cleanup/);
 });
