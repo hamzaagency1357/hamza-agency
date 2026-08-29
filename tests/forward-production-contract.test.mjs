@@ -17,6 +17,7 @@ import {
   validateTargetSql,
   sha256Text,
 } from "../scripts/ops/forward-production-contract.mjs";
+import { validateMigrationText } from "../scripts/verify-safe-migrations.mjs";
 import {
   buildProductionDeploymentEvidence,
   isTrustedVercelProductionDeployment,
@@ -24,9 +25,7 @@ import {
 } from "../scripts/ops/vercel-production-attestation.mjs";
 import {
   REQUIRED_FINE_GRAINED_PERMISSIONS,
-  TEMP_ACCESS,
   assertIpv4,
-  assertSupportedPostgresVersion,
   buildJitDbUrl,
   buildJitRole,
   selectPoolerHost,
@@ -143,10 +142,12 @@ test("target SQL is hash locked and relies on CLI transaction boundary", async (
   assert.equal(TARGET.sha256, actual);
   assert.equal(validateTargetHash(actual), true);
   assert.equal(validateTargetSql(sql), true);
+  assert.deepEqual(validateMigrationText(TARGET.filename, sql), []);
   assert.doesNotMatch(sql.replace(/^(?:\s*--[^\n]*(?:\n|$))*/g, "").trimStart(), /^begin\s*;/i);
   assert.doesNotMatch(sql, /\bcommit\s*;\s*$/i);
   expectFailure(() => validateTargetHash("0".repeat(64)), /SHA-256 mismatch/);
   expectFailure(() => validateTargetSql(`-- test\nbegin;\n${sql}\ncommit;`), /implicit transaction/);
+  assert.match(validateMigrationText(TARGET.filename, `begin;\n${sql}\ncommit;`).join("\n"), /outer BEGIN\/COMMIT is forbidden/);
 });
 
 test("dry-run output must contain exactly one approved target", () => {
