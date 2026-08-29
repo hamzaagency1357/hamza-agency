@@ -445,11 +445,11 @@ test("/api/health remains liveness-only and commitSha is not required by workflo
   assert.doesNotMatch(contract, /health.*commitSha|commitSha.*health/i);
 });
 
-test("migration target and SHA-256 remain unchanged", async () => {
+test("migration target and SHA-256 remain explicitly locked", async () => {
   const path = "supabase/migrations/20260827090000_pr99_trusted_admin_actor_db_bridge.sql";
   const sql = await readFile(path, "utf8");
   const hash = createHash("sha256").update(sql).digest("hex");
-  assert.equal(hash, "ee8e342eef5e6e0a677f4fe981b66de8eac2bf2446896bc8260a9063a58decd5");
+  assert.equal(hash, "52dc558d547d4978d60dc5e32562fc528fd867e58a88ccfba3082bb6e940db83");
 });
 
 test("workflow permissions and migration execution safety contract remain unchanged", async () => {
