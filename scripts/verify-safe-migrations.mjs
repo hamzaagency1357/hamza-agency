@@ -30,6 +30,9 @@ const atomicMigrationRunnerFiles = new Set([
   "20260730234000_pr101_kpi_schema_guard.sql",
   "20260730234500_pr101_product_expansion_hardening.sql",
 ]);
+const cliTransactionOwnedMigrations = new Set([
+  "20260827090000_pr99_trusted_admin_actor_db_bridge.sql",
+]);
 
 function dollarTagAt(sql, index) {
   const match = sql.slice(index).match(/^\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/);
@@ -51,13 +54,10 @@ export function stripSqlComments(sql) {
       if (current === "\n" || current === "\r") {
         output += current;
         mode = "normal";
-      } else {
-        output += " ";
-      }
+      } else output += " ";
       index += 1;
       continue;
     }
-
     if (mode === "block-comment") {
       if (current === "/" && next === "*") {
         output += "  ";
@@ -76,7 +76,6 @@ export function stripSqlComments(sql) {
       index += 1;
       continue;
     }
-
     if (mode === "single-quote") {
       output += current;
       if (current === "\\" && next) {
@@ -93,7 +92,6 @@ export function stripSqlComments(sql) {
       index += 1;
       continue;
     }
-
     if (mode === "double-quote") {
       output += current;
       if (current === '"' && next === '"') {
@@ -105,14 +103,12 @@ export function stripSqlComments(sql) {
       index += 1;
       continue;
     }
-
     if (dollarTag && sql.startsWith(dollarTag, index)) {
       output += dollarTag;
       index += dollarTag.length;
       dollarTag = null;
       continue;
     }
-
     if (!dollarTag && current === "$") {
       const tag = dollarTagAt(sql, index);
       if (tag) {
@@ -122,8 +118,7 @@ export function stripSqlComments(sql) {
         continue;
       }
     }
-
-    if (current === "'" ) {
+    if (current === "'") {
       output += current;
       mode = "single-quote";
       index += 1;
@@ -148,11 +143,9 @@ export function stripSqlComments(sql) {
       index += 2;
       continue;
     }
-
     output += current;
     index += 1;
   }
-
   return output;
 }
 
@@ -160,12 +153,10 @@ export function extractPermanentDeleteFunction(sql) {
   const match = sql.match(/create\s+or\s+replace\s+function\s+public\.pr99_permanent_delete_trash\b[\s\S]*?\$\$\s*;/i);
   return match?.[0] || "";
 }
-
 export function extractSecurityRetentionFunction(sql) {
   const match = sql.match(/create\s+or\s+replace\s+function\s+public\.pr100_cleanup_security_guards\b[\s\S]*?\$\$\s*;/i);
   return match?.[0] || "";
 }
-
 export function validateProtectedPermanentDelete(sql) {
   const fn = extractPermanentDeleteFunction(sql);
   const errors = [];
@@ -183,7 +174,6 @@ export function validateProtectedPermanentDelete(sql) {
   for (const [pattern, label] of requirements) if (!pattern.test(fn)) errors.push(`protected permanent delete lacks ${label}`);
   return errors;
 }
-
 export function validateSecurityRetention(sql) {
   const fn = extractSecurityRetentionFunction(sql);
   if (!fn) return ["security-retention function is missing"];
@@ -194,16 +184,12 @@ export function validateSecurityRetention(sql) {
   ];
   return requiredDeletes.every((pattern) => pattern.test(fn)) ? [] : ["security-retention deletes are not bounded by the documented windows"];
 }
-
 export function validateDeploymentOrdering(file, sql) {
   const errors = [];
   if (!/pr100/i.test(file)) return errors;
   if (/post[-_]?deploy/i.test(file)) errors.push(`${file}: post-deploy SQL must not live in supabase/migrations`);
   for (const functionName of legacyPublicRpcNames) {
-    const prematureRevoke = new RegExp(
-      `revoke\\s+all\\s+on\\s+function\\s+public\\.${functionName}\\b[\\s\\S]*?from\\s+public\\s*,\\s*anon\\s*,\\s*authenticated`,
-      "i",
-    );
+    const prematureRevoke = new RegExp(`revoke\\s+all\\s+on\\s+function\\s+public\\.${functionName}\\b[\\s\\S]*?from\\s+public\\s*,\\s*anon\\s*,\\s*authenticated`, "i");
     if (prematureRevoke.test(sql)) errors.push(`${file}: legacy public RPC ${functionName} may be revoked only by the guarded manual post-deploy runbook`);
   }
   return errors;
@@ -211,20 +197,24 @@ export function validateDeploymentOrdering(file, sql) {
 
 export function validateMigrationText(file, sql) {
   const errors = [];
-  const scanText = stripSqlComments(
-    sql.replace(/revoke\s+truncate(?:\s*,\s*(?:trigger|references))*\s+on\s+all\s+tables\s+in\s+schema\s+public\s+from\s+anon\s*,\s*authenticated\s*;/gi, ""),
-  );
+  const scanText = stripSqlComments(sql.replace(/revoke\s+truncate(?:\s*,\s*(?:trigger|references))*\s+on\s+all\s+tables\s+in\s+schema\s+public\s+from\s+anon\s*,\s*authenticated\s*;/gi, ""));
   for (const pattern of forbidden) if (pattern.test(scanText)) errors.push(`${file}: forbidden destructive SQL ${pattern}`);
   for (const pattern of secrets) if (pattern.test(sql)) errors.push(`${file}: possible secret ${pattern}`);
 
-  if (
+  const outerSql = scanText.trim();
+  const hasOuterBegin = /^begin\s*;/i.test(outerSql);
+  const hasOuterCommit = /\bcommit\s*;\s*$/i.test(outerSql);
+  if (cliTransactionOwnedMigrations.has(file)) {
+    if (hasOuterBegin || hasOuterCommit) errors.push(`${file}: outer BEGIN/COMMIT is forbidden because Supabase CLI owns the migration transaction and history batch`);
+  } else if (
     file !== restoredAppliedMigration &&
     !atomicMigrationRunnerFiles.has(file) &&
     (!/\bbegin\s*;/i.test(scanText) || !/\bcommit\s*;/i.test(scanText))
-  ) errors.push(`${file}: migration should be transactional`);
+  ) {
+    errors.push(`${file}: migration should be transactional`);
+  }
 
   errors.push(...validateDeploymentOrdering(file, scanText));
-
   const permanentFn = extractPermanentDeleteFunction(sql);
   const retentionFn = extractSecurityRetentionFunction(sql);
   let withoutProtectedDeletes = permanentFn ? sql.replace(permanentFn, "") : sql;
@@ -236,12 +226,8 @@ export function validateMigrationText(file, sql) {
   const deleteMatches = withoutProtectedDeletes.match(/\bdelete\s+from\b/gi) || [];
   const retentionDeletes = withoutProtectedDeletes.match(/delete\s+from\s+public\.version_history[\s\S]*?offset\s+30/gi) || [];
   if (deleteMatches.length > retentionDeletes.length) errors.push(`${file}: hard delete outside documented version retention or protected trash function`);
-  if (/\bdelete\s+from\b/i.test(permanentFn)) {
-    for (const error of validateProtectedPermanentDelete(sql)) errors.push(`${file}: ${error}`);
-  }
-  if (/\bdelete\s+from\b/i.test(retentionFn)) {
-    for (const error of validateSecurityRetention(sql)) errors.push(`${file}: ${error}`);
-  }
+  if (/\bdelete\s+from\b/i.test(permanentFn)) for (const error of validateProtectedPermanentDelete(sql)) errors.push(`${file}: ${error}`);
+  if (/\bdelete\s+from\b/i.test(retentionFn)) for (const error of validateSecurityRetention(sql)) errors.push(`${file}: ${error}`);
   if (/pr101/i.test(file) && /create\s+table\s+(?!if\s+not\s+exists)/i.test(scanText)) errors.push(`${file}: PR101 create-table statements must be additive and idempotent`);
   return errors;
 }

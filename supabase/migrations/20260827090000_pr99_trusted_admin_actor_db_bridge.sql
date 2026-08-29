@@ -1,8 +1,6 @@
 -- HAMZA AGENCY — trusted Admin actor database bridge hotfix.
 -- Narrow forward-only function-definition change. No table/data mutation and no ACL widening.
 
-begin;
-
 create or replace function public.pr116_apply_trusted_admin_actor_context()
 returns void
 language plpgsql
@@ -176,5 +174,3 @@ begin
   end if;
 end
 $trusted_actor_contract$;
-
-commit;
