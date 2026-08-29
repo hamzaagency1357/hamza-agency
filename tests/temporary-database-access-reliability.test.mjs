@@ -64,12 +64,12 @@ function createMockJitServer({
       mapping = null;
       return response(200, {});
     }
-    if ((method === "GET" || method === "PUT") && path === canonicalFeaturePath) {
+    if ((method === "GET" || method === "PUT") && path.endsWith(canonicalFeaturePath)) {
       if (canonicalFeatureMissing) return response(404, { message: "not found" });
       if (method === "PUT") featureState = JSON.parse(init.body).state;
       return response(200, { state: featureState, appliedSuccessfully: true });
     }
-    if ((method === "GET" || method === "PUT") && path === legacyFeaturePath) {
+    if ((method === "GET" || method === "PUT") && path.endsWith(legacyFeaturePath)) {
       if (method === "PUT") featureState = JSON.parse(init.body).state;
       return response(200, { state: featureState, appliedSuccessfully: true });
     }
