@@ -7,4 +7,4 @@
 - Do not edit `main` directly and do not merge without explicit owner approval.
 - Reuse the existing Quality Gates, Playwright setup, helpers, migrations, routes, tables, and RPCs whenever they are safe to extend.
 - Never commit, log, upload, or expose secrets, cookies, access tokens, refresh tokens, MFA material, recovery codes, private keys, or sensitive user data.
-- Update only the progressive closeout record: [`docs/HAMZA_AGENCY_FULL_PROJECT_CLOSEOUT.md`](docs/HAMZA_AGENCY_FULL_PROJECT_CLOSEOUT.md).
+- Keep documentation updates in the progressive closeout record by default. For an Owner-approved closeout blocker on the current PR, narrowly edit only the minimum operational code, workflow, migration, tests, runbook/docs, and repository rules required to make that approved closeout path safe and verifiable; keep all such changes in the same PR and record the resulting state in [`docs/HAMZA_AGENCY_FULL_PROJECT_CLOSEOUT.md`](docs/HAMZA_AGENCY_FULL_PROJECT_CLOSEOUT.md). This exception does not authorize Production writes, migrations, restores, permission changes, direct `main` edits, or merge.
