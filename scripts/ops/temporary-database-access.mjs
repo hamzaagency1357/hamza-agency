@@ -33,13 +33,16 @@ export const REQUIRED_FINE_GRAINED_PERMISSIONS = PREFERRED_SCOPED_PAT_PERMISSION
 
 const JIT_LIST_PATH = `/projects/${TEMP_ACCESS.projectRef}/database/jit/list`;
 const JIT_MAPPING_PATH = `/projects/${TEMP_ACCESS.projectRef}/database/jit`;
-const JIT_FEATURE_PATH = `/projects/${TEMP_ACCESS.projectRef}/database/jit-access`;
+const JIT_FEATURE_PRIMARY_PATH = `/projects/${TEMP_ACCESS.projectRef}/jit-access`;
+const JIT_FEATURE_LEGACY_PATH = `/projects/${TEMP_ACCESS.projectRef}/database/jit-access`;
 const EXACT_MANAGEMENT_API_ALLOWLIST = new Set([
   "GET /profile",
   `GET /projects/${TEMP_ACCESS.projectRef}`,
   `GET /projects/${TEMP_ACCESS.projectRef}/ssl-enforcement`,
-  `GET ${JIT_FEATURE_PATH}`,
-  `PUT ${JIT_FEATURE_PATH}`,
+  `GET ${JIT_FEATURE_PRIMARY_PATH}`,
+  `PUT ${JIT_FEATURE_PRIMARY_PATH}`,
+  `GET ${JIT_FEATURE_LEGACY_PATH}`,
+  `PUT ${JIT_FEATURE_LEGACY_PATH}`,
   `PUT ${JIT_MAPPING_PATH}`,
   `GET ${JIT_MAPPING_PATH}`,
   `GET ${JIT_LIST_PATH}`,
@@ -227,6 +230,11 @@ async function apiRequest(token, path, { method = "GET", body, expected = [200],
   }
   return { status: response.status, data };
 }
+async function jitFeatureRequest(token, { method = "GET", body, fetchImpl = fetch } = {}) {
+  const primary = await apiRequest(token, JIT_FEATURE_PRIMARY_PATH, { method, body, expected: [200, 404], fetchImpl });
+  if (primary.status !== 404) return primary;
+  return apiRequest(token, JIT_FEATURE_LEGACY_PATH, { method, body, expected: [200], fetchImpl });
+}
 async function getRunnerIpv4() {
   const response = await fetch("https://api.ipify.org", { headers: { Accept: "text/plain" } });
   if (!response.ok) fail(`runner IPv4 discovery returned HTTP ${response.status}`);
@@ -315,7 +323,7 @@ export async function cleanupRunOwnedTemporaryAccess({ token, ownership, current
       const mappings = await apiRequest(token, JIT_LIST_PATH, { expected: [200], fetchImpl });
       if (!Array.isArray(mappings.data?.items)) fail("JIT list response omitted items array");
       if (mappings.data.items.length === 0) {
-        const restored = (await apiRequest(token, JIT_FEATURE_PATH, { method: "PUT", body: { state: "disabled" }, expected: [200], fetchImpl })).data;
+        const restored = (await jitFeatureRequest(token, { method: "PUT", body: { state: "disabled" }, fetchImpl })).data;
         if (restored?.state !== "disabled" || restored?.appliedSuccessfully === false) fail("Temporary Database Access state was not restored to disabled");
       } else console.warn("Temporary Access remains enabled because another JIT mapping now exists; refusing unrelated state change.");
     } catch (error) { errors.push(errorMessage(error)); }
@@ -339,10 +347,10 @@ async function setup() {
   assertSupportedPostgresVersion(getProjectDatabaseVersion(project));
   const ssl = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/ssl-enforcement`)).data;
   if (ssl?.currentConfig?.database !== true || ssl?.appliedSuccessfully === false) fail("Production SSL enforcement must already be enabled; workflow will not mutate SSL settings");
-  let jitState = (await apiRequest(token, JIT_FEATURE_PATH)).data;
+  let jitState = (await jitFeatureRequest(token)).data;
   const wasEnabled = jitState?.state === "enabled";
   if (!wasEnabled) {
-    jitState = (await apiRequest(token, JIT_FEATURE_PATH, { method: "PUT", body: { state: "enabled" } })).data;
+    jitState = (await jitFeatureRequest(token, { method: "PUT", body: { state: "enabled" } })).data;
     if (jitState?.state !== "enabled" || jitState?.appliedSuccessfully === false) fail("Temporary Database Access is not enabled");
     writeGithubEnv("FORWARD_JIT_FEATURE_ENABLED_BY_THIS_RUN", "true");
     writeGithubEnv("FORWARD_JIT_FEATURE_OWNER_RUN_ID", runId);
