@@ -163,7 +163,7 @@ export function buildJitDbUrl({ host, token }) {
   url.username = `postgres.${TEMP_ACCESS.projectRef}`;
   url.password = token;
   url.searchParams.set("sslmode", "require");
-  url.searchParams.set("options", "-c jit=on");
+  url.searchParams.set("options", "-c jit=true");
   return url.toString();
 }
 export function assertTemporaryDatabaseUrl(dbUrl) {
@@ -174,7 +174,7 @@ export function assertTemporaryDatabaseUrl(dbUrl) {
   if (decodeURIComponent(url.username) !== `postgres.${TEMP_ACCESS.projectRef}`) fail("temporary database URL username mismatch");
   if (!url.password) fail("temporary database URL has no password");
   if (url.searchParams.get("sslmode") !== "require") fail("temporary database URL must require SSL");
-  if (url.searchParams.get("options") !== "-c jit=on") fail("temporary database URL must enable JIT through startup options");
+  if (url.searchParams.get("options") !== "-c jit=true") fail("temporary database URL must enable JIT through startup options");
   return true;
 }
 export function readinessProbeArgs({ dbUrl, workdir }) {
