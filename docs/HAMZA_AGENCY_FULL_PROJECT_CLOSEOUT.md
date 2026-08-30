@@ -1,10 +1,61 @@
 # HAMZA AGENCY — Full Project Closeout
 
+## 2026-08-30 — Run #48 Temporary Access readiness closeout
+
+This section is the current authoritative record for the targeted forward-production correction after Production workflow run #48. It does not reopen already closed product phases and it does not authorize a new Production dispatch or merge.
+
+### Current state
+
+- Repository: `hamzaagency1357/hamza-agency`
+- Production `main`: `206dbd09d45105cbdc77f3e61ed7d1ff364d4f85`
+- Corrective branch: `fix/run48-jit-readiness-closeout`
+- Target migration: `20260827090000_pr99_trusted_admin_actor_db_bridge.sql`
+- Locked target SHA-256: `52dc558d547d4978d60dc5e32562fc528fd867e58a88ccfba3082bb6e940db83`
+- Production migration: **Not applied**
+- Run #48: **Failed before Production database readiness / dry-run / apply**
+- Run #48 cleanup: **Passed**
+- `pr116-admin-oidc-gateway`: **Deployed / ACTIVE / version 1 / verify_jwt=false**
+- Vercel Production for current `main`: **READY**
+- New Production workflow dispatch: **Blocked until this corrective PR is fully green, explicitly approved for merge, merged, and the new Production identity is re-attested**
+
+### Run #48 evidence
+
+Run `33293140527` passed the contract suite, exact reviewed-main assertion, Vercel Production identity, short-lived PAT requirement, pinned Supabase CLI `2.109.1`, explicit `--db-url` support, JIT setup, and isolated workspace preparation. It then failed at `Wait for contained temporary Postgres access readiness` after five bounded probes.
+
+Because readiness failed, the workflow did **not** execute the live migration-history/effects read, official Supabase dry-run, migration apply, or post-apply verification. The `always()` cleanup removed the run-owned JIT mapping and transient tooling state. Run #48 must never be rerun.
+
+A separate read-only Production audit after #48 verified that the post-anchor migration history still ends at `20260826003518_final_security_acl_lockdown`, the target remains absent, all anchor/ACL/gateway prerequisites are present, and the three target effects remain absent exactly as expected before apply.
+
+### Design gap closed by the corrective branch
+
+The previous Temporary Access implementation bound the JIT role to the `/32` returned by one outbound IP-discovery request from a standard GitHub-hosted runner. That is not a deterministic egress-identity contract for a later connection to Supavisor, so the migration path depended on a network assumption that could succeed during Management API setup and still fail at the first Postgres connection.
+
+The corrective branch therefore:
+
+- removes IP-discovery and the unstable hosted-runner `/32` dependency;
+- keeps exactly one current-user `postgres` JIT role;
+- reduces maximum JIT lifetime from 45 minutes to 25 minutes;
+- keeps Unix-seconds expiry, `roles` request payload, session port `5432`, SSL required, and locks the Temporary Access startup option to `-c jit=true`;
+- continues to fail on any pre-existing current-user mapping;
+- preserves exact user/run/role/expiry ownership and refuses foreign-state deletion;
+- accepts only an absent or empty server-normalized network restriction; an unexpected non-empty restriction fails validation;
+- keeps `always()` cleanup and Temporary Access feature restoration ownership-scoped;
+- expands readiness to six finite probes rather than an unbounded retry loop; and
+- reports the last connection error through bounded secret-safe sanitization so another failure cannot collapse into an opaque “not ready” result.
+
+Regression tests explicitly reject a return of `api.ipify.org`, `FORWARD_JIT_OWNED_CIDR`, and the stale `jit=on` startup value; verify the 25-minute role contract; verify cleanup ownership; and assert that readiness diagnostics cannot expose the PAT or Postgres URL.
+
+### Release gate
+
+No Production retry is permitted from this record. The corrective branch must first become one reviewed PR, return green on all required repository workflows, and have no unresolved review blockers. Merge still requires explicit Owner approval. After merge, the then-current exact `main` SHA and exact Vercel Production deployment must be attested again, `pr116-admin-oidc-gateway` must remain ACTIVE with `verify_jwt=false`, the target migration must still be absent, and only then may one **new** workflow dispatch be considered. Old runs #37 and #48 are historical and must never be rerun.
+
+---
+
 ## 2026-08-29 — Forward-production closeout (PR #141)
 
-This section is the current authoritative record for the targeted forward-production closeout that follows failed Production workflow run #37. It supplements the historical PR #105 record below; it does not rewrite or reopen previously closed product phases.
+This section is the historical record for the targeted forward-production closeout that followed failed Production workflow run #37. It supplements the historical PR #105 record below; it does not rewrite or reopen previously closed product phases.
 
-### Current PR state
+### Recorded PR state
 
 - Repository: `hamzaagency1357/hamza-agency`
 - Pull request: `#141`
@@ -13,13 +64,6 @@ This section is the current authoritative record for the targeted forward-produc
 - Reviewed pre-documentation Head with all six PR workflows green: `7299a052a586a1531d193bd061557c877cadaf2f`
 - Target migration: `20260827090000_pr99_trusted_admin_actor_db_bridge.sql`
 - Current locked target SHA-256: `52dc558d547d4978d60dc5e32562fc528fd867e58a88ccfba3082bb6e940db83`
-- PR state: **Open / unmerged**
-- Production migration: **Not applied**
-- Production database write from PR #141: **None**
-- Merge: **Not authorized by this record**
-- New Production workflow dispatch: **Not authorized by this record**
-
-The exact final PR Head changes when this closeout record is committed. Therefore the final Head must pass the same required workflows again before merge readiness can be declared; older green runs are evidence for the preceding Head only.
 
 ### Run #37 historical result
 
@@ -27,40 +71,19 @@ Run #37 is a failed historical Production attempt and **must not be rerun**. It 
 
 ### Blockers closed in PR #141
 
-PR #141 keeps all repairs in one closeout vehicle and closes the discovered path blockers together:
-
 - JIT grant request sends `user_id` plus `roles`, never the obsolete request field `user_roles`.
-- JIT role expiry is Unix timestamp seconds and remains bounded to 45 minutes.
+- JIT role expiry uses Unix timestamp seconds.
 - Temporary Access uses the documented `/projects/{ref}/jit-access` path first and permits the legacy `/database/jit-access` path only as a bounded compatibility fallback on HTTP 404.
-- Ambiguous JIT network results are reconciled by a fresh read and can become run-owned only when the complete user/run/CIDR/role/expiry fingerprint matches exactly.
-- Cleanup never blind-deletes a pre-existing or foreign mapping and remains exact-run ownership scoped.
-- Management API errors expose only bounded structured `code`/`message` diagnostics and do not echo response bodies, tokens, database URLs, or secrets.
-- The target migration has no outer `BEGIN;` / `COMMIT;`; the pinned Supabase CLI owns the migration transaction and migration-history batch. The migration safety verifier has a narrow exception for this exact execution model rather than weakening the repository-wide rule.
-- The target migration hash is relocked to `52dc558d547d4978d60dc5e32562fc528fd867e58a88ccfba3082bb6e940db83` everywhere that asserts it.
-- Forward Production preflight now requires both the trusted PR100 gateway and the actual `pr116-admin-oidc-gateway`; PR116 must be present exactly once, `ACTIVE`, have a positive version, and use `verify_jwt=false`.
-- Regression tests cover current JIT payload/expiry behavior, bounded path compatibility, ambiguous mutation reconciliation, safe cleanup, gateway control-plane requirements, target transaction ownership, and the locked target hash.
-- Repository scope rules now expressly permit the minimum Owner-approved operational code/workflow/migration/test/runbook changes needed to close a blocker on the current PR while preserving the no-Production-write/no-merge boundaries.
+- Ambiguous JIT mutation results are reconciled by a fresh read before ownership can be claimed.
+- Cleanup never blind-deletes a pre-existing or foreign mapping.
+- Management API errors expose only bounded structured diagnostics.
+- The target migration has no outer `BEGIN;` / `COMMIT;`; the pinned Supabase CLI owns the migration transaction and migration-history batch.
+- The target migration hash is locked to `52dc558d547d4978d60dc5e32562fc528fd867e58a88ccfba3082bb6e940db83`.
+- Forward Production preflight requires both the trusted PR100 gateway and the actual `pr116-admin-oidc-gateway`.
 
-### Exact-head evidence before this documentation update
+### Exact-head evidence
 
-Head `7299a052a586a1531d193bd061557c877cadaf2f` completed all six relevant PR workflows successfully:
-
-| Workflow | Run | Result |
-| --- | ---: | --- |
-| HAMZA AGENCY Full Project Closeout | `#660` | **Success** |
-| HAMZA Current-State Schema Verify | `#392` | **Success** |
-| HAMZA Forward-Only Production Migrations | `#45` | **Success**; Production job gated/skipped on PR |
-| HAMZA AGENCY Quality Gate | `#1184` | **Success** |
-| PR99 Management Quality Gate | `#1171` | **Success** |
-| PR119 Admin Visual Evidence | `#152` | **Success** |
-
-The final documentation/rules Head must independently return green before PR #141 is considered ready to merge.
-
-### Remaining Production prerequisite after merge
-
-The Production database migration must remain blocked until `pr116-admin-oidc-gateway` is deployed to the exact Supabase Production project and independently attested as present, `ACTIVE`, positive-version, and `verify_jwt=false`. The Vercel Admin API uses this gateway, so database migration success without the gateway would not constitute a valid release state.
-
-Deploying that Edge Function is a separate Production write and requires explicit Owner authorization for that exact Production operation. After it is deployed and attested, a future migration attempt must be a **new** `workflow_dispatch` from the then-current exact `main` SHA; old run #37 must never be rerun.
+Head `7299a052a586a1531d193bd061557c877cadaf2f` completed all six relevant PR workflows successfully before the final documentation/rules update. PR #141 was subsequently completed, explicitly approved for merge, and merged into `main` as `206dbd09d45105cbdc77f3e61ed7d1ff364d4f85`.
 
 ---
 
