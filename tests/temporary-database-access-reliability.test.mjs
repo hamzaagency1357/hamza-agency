@@ -131,7 +131,7 @@ test("successful JIT mapping sends user_id + roles and produces CLI-compatible U
   assert.equal(mappingMatchesRunOwnership(server.getMapping(), ownership), true);
   assert.equal(assertTemporaryDatabaseUrl(dbUrl), true);
   const parsed = new URL(dbUrl);
-  assert.equal(parsed.searchParams.get("options"), "-c jit=on");
+  assert.equal(parsed.searchParams.get("options"), "-c jit=true");
 });
 
 test("temporary database readiness uses bounded retries and exact explicit DB URL", async () => {
