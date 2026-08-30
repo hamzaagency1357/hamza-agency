@@ -115,6 +115,12 @@ test("JIT role follows current Supabase schema with short expiry and no unstable
     () => validateJitMapping({ user_id: userId, user_roles: [{ ...role, allowed_networks: { allowed_cidrs: [{ cidr: "203.0.113.10/32" }], allowed_cidrs_v6: [] } }] }, { userId, nowMs }),
     /network restriction/,
   );
+  for (const malformed of ["", [], { unexpected: [] }, { allowed_cidrs: "" }, { allowed_cidrs_v6: "" }]) {
+    assert.throws(
+      () => validateJitMapping({ user_id: userId, user_roles: [{ ...role, allowed_networks: malformed }] }, { userId, nowMs }),
+      /network restriction/,
+    );
+  }
 });
 
 test("successful JIT mapping sends user_id + roles and produces CLI-compatible URL", async () => {
@@ -156,9 +162,10 @@ test("temporary database readiness uses bounded retries and exact explicit DB UR
   assert.equal(finalArgs.at(-1), "select 1 as jit_ready;");
 });
 
-test("readiness failure preserves a bounded safe diagnostic without token or database URL", async () => {
+test("readiness failure preserves a bounded safe diagnostic without raw or URL-encoded secrets", async () => {
+  const encodedToken = encodeURIComponent(token);
   const error = new Error(`connection failed ${dbUrl} token=${token}`);
-  error.stderr = `FATAL: password authentication failed for ${dbUrl}; Bearer ${token}; sbp_secretmaterial123456789`;
+  error.stderr = `FATAL: password authentication failed; password=${encodedToken}; Bearer ${token}; sbp_secret%40material%3A123456789`;
   await assert.rejects(
     waitForTemporaryDatabaseReady({
       supabaseBin: "/tmp/supabase",
@@ -173,14 +180,16 @@ test("readiness failure preserves a bounded safe diagnostic without token or dat
       assert.match(failure.message, /last probe:/);
       assert.match(failure.message, /password authentication failed/);
       assert.equal(failure.message.includes(token), false);
+      assert.equal(failure.message.includes(encodedToken), false);
       assert.equal(failure.message.includes(dbUrl), false);
       assert.doesNotMatch(failure.message, /postgresql:\/\//);
-      assert.doesNotMatch(failure.message, /sbp_secretmaterial/);
+      assert.doesNotMatch(failure.message, /sbp_secret/i);
       return true;
     },
   );
   const direct = safeProbeDiagnostic(error, [token, dbUrl]);
   assert.ok(direct.length <= 240);
+  assert.equal(direct.includes(encodedToken), false);
 });
 
 test("pre-existing mapping fails before mutation and cleanup never deletes it", async () => {
@@ -192,15 +201,18 @@ test("pre-existing mapping fails before mutation and cleanup never deletes it", 
   assert.equal(captured.env.has("FORWARD_JIT_CREATED_BY_THIS_RUN"), false);
 });
 
-test("ambiguous PUT after exact server mutation is reconciled into owned state and safely cleaned", async () => {
+test("ambiguous PUT never establishes delete ownership even when a matching mapping appears", async () => {
   const server = createMockJitServer({ ambiguousAfterMutation: true });
   const captured = captureEnv();
-  const ownership = await createRunOwnedJitMapping({ token, userId, runId, nowMs, fetchImpl: server.fetchImpl, writeEnvImpl: captured.writeEnvImpl });
-  assert.equal(mappingMatchesRunOwnership(server.getMapping(), ownership), true);
-  assert.equal(ownershipFromCapturedEnv(captured.env).runId, runId);
-  const result = await cleanupRunOwnedJitMapping({ token, ownership, currentRunId: runId, fetchImpl: server.fetchImpl });
-  assert.deepEqual(result, { deleted: true, reason: "owned" });
-  assert.equal(server.getMapping(), null);
+  await assert.rejects(
+    createRunOwnedJitMapping({ token, userId, runId, nowMs, fetchImpl: server.fetchImpl, writeEnvImpl: captured.writeEnvImpl }),
+    /cannot be safely attributed to this run/,
+  );
+  assert.equal(captured.env.has("FORWARD_JIT_CREATED_BY_THIS_RUN"), false);
+  assert.equal(server.getMapping() !== null, true);
+  const result = await cleanupRunOwnedJitMapping({ token, ownership: null, currentRunId: runId, fetchImpl: server.fetchImpl });
+  assert.deepEqual(result, { deleted: false, reason: "not-owned" });
+  assert.equal(server.calls.some((call) => call.method === "DELETE"), false);
 });
 
 test("ambiguous PUT without exact mapping never establishes ownership or blind deletes", async () => {
