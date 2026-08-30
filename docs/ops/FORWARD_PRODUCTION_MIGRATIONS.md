@@ -41,7 +41,7 @@ Workflow run `33293140527` (`HAMZA Forward-Only Production Migrations #48`) prov
 
 Run #48 must never be rerun. A future Production dispatch is allowed only from a subsequently reviewed and merged closeout revision after all PR checks pass again.
 
-The deterministic design gap exposed by #48 was relying on a single `/32` obtained from one outbound request on a standard GitHub-hosted runner. Standard hosted-runner egress is not a stable single-address contract for later connections to another service, so the workflow must not assume the IP observed by an IP-discovery request is necessarily the IP Supavisor will observe.
+The deterministic design gap exposed by #48 was relying on a single `/32` obtained from one outbound IP-discovery request on a standard GitHub-hosted runner. Standard hosted-runner egress is not a stable single-address contract for later connections to another service, so the workflow must not assume the IP observed by an IP-discovery request is necessarily the IP Supavisor will observe.
 
 The pre-merge closeout audit also locked the Supavisor startup option to the exact Temporary Access form `-c jit=true`; the prior `-c jit=on` spelling is rejected by the repository contract.
 
@@ -98,11 +98,11 @@ The contained flow remains pinned to:
 - SSL required
 - startup option: `-c jit=true`
 - bounded readiness probes only
-- exact run-owned cleanup in `always()`
+- exact run-owned cleanup in `always()` for confirmed grants only
 
 Production SSL enforcement and the live PostgreSQL version are checked fail-closed before database access.
 
-Network restriction is intentionally omitted for this standard GitHub-hosted runner path because a discovered outbound `/32` cannot be treated as stable egress identity across separate destinations. Least privilege remains bounded by exact project, exact PAT owner, one `postgres` role, short expiry, refusal to overwrite pre-existing mappings, exact run ownership, serialized Production execution, and mandatory cleanup. If a future runner has reviewed static egress, CIDR pinning may be reintroduced only as a separate reviewed change.
+Network restriction is intentionally omitted for this standard GitHub-hosted runner path because a discovered outbound `/32` cannot be treated as stable egress identity across separate destinations. Least privilege remains bounded by exact project, exact PAT owner, one `postgres` role, short expiry, refusal to overwrite pre-existing mappings, exact confirmed-run ownership, serialized Production execution, and mandatory cleanup. If a future runner has reviewed static egress, CIDR pinning may be reintroduced only as a separate reviewed change.
 
 ### Current JIT request contract
 
@@ -119,6 +119,8 @@ The workflow accepts `roles` or `user_roles` only when reading a server mapping 
 
 Before mutation, the workflow lists mappings and fails if the PAT owner already has a Production JIT mapping. It never overwrites or adopts a pre-existing mapping.
 
+A live mapping is accepted as structurally unrestricted only when `allowed_networks` is absent/null or is an object containing only recognized CIDR-array fields whose arrays are empty. Strings, arrays, unknown fields, non-array CIDR fields, or any nonempty CIDR list fail closed.
+
 The proposed mapping fingerprint is bound to:
 
 - exact Supabase user ID;
@@ -128,13 +130,13 @@ The proposed mapping fingerprint is bound to:
 - no unexpected network restriction returned by the live mapping; and
 - exact bounded expiry in Unix seconds.
 
-After a confirmed successful PUT, ownership is persisted before later validation so cleanup can remove the exact run-owned mapping.
+After a confirmed successful PUT response, ownership is persisted before later validation so cleanup can remove the exact run-owned mapping if a subsequent validation step fails.
 
-If the PUT result is ambiguous because the network fails after dispatch, the workflow performs one fail-closed reconciliation read. It claims ownership only if the live mapping matches the complete proposed fingerprint exactly. If no exact match exists, ownership is not claimed and no DELETE is authorized.
+If the PUT result is ambiguous because the network fails after dispatch, the workflow may perform a reconciliation read for diagnosis, but it **never** converts that ambiguous outcome into cleanup ownership. Even if an exact-looking live mapping appears, the workflow fails closed because it cannot prove that mapping was created by this run. No DELETE is authorized from ambiguous evidence; the bounded mapping must disappear/expire before another attempt is allowed.
 
 ### Readiness diagnostics
 
-The readiness phase uses six bounded probes with a finite delay schedule rather than an unbounded retry loop. If all probes fail, the last CLI diagnostic is reduced to a short sanitized message. Tokens, bearer credentials, Postgres URLs, and `sbp_...` material are redacted before any diagnostic is printed.
+The readiness phase uses six bounded probes with a finite delay schedule rather than an unbounded retry loop. If all probes fail, the last CLI diagnostic is reduced to a short sanitized message. Raw secrets, URL-encoded secret variants, bearer credentials, Postgres URLs, and raw or percent-encoded `sbp_...` material are redacted before any diagnostic is printed.
 
 This makes a future connection failure actionable without exposing Production credentials and prevents another opaque “not ready” loop.
 
@@ -142,13 +144,13 @@ This makes a future connection failure actionable without exposing Production cr
 
 The `always()` cleanup issues a JIT DELETE only when:
 
-1. current-run ownership was persisted;
+1. current-run ownership was persisted after a confirmed successful grant response;
 2. the stored run ID equals the current `GITHUB_RUN_ID`;
 3. the user ID is valid;
 4. a fresh JIT read/list still shows that same user mapping; and
 5. role/no-network-restriction/expiry all exactly match the run-owned fingerprint.
 
-If already absent, cleanup is idempotent. If the live mapping differs, cleanup refuses to delete it. A foreign run, foreign user, merely resolved user ID, or unmatched ambiguous mutation can never authorize deletion.
+If already absent, cleanup is idempotent. If the live mapping differs, cleanup refuses to delete it. A foreign run, foreign user, merely resolved user ID, or any ambiguous mutation can never authorize deletion.
 
 If this run itself enabled project Temporary Access, cleanup restores it to disabled only when the feature ownership belongs to the same run and no JIT mappings remain. Otherwise it leaves unrelated state untouched.
 
