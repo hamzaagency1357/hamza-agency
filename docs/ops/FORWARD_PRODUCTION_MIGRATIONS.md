@@ -43,6 +43,8 @@ Run #48 must never be rerun. A future Production dispatch is allowed only from a
 
 The deterministic design gap exposed by #48 was relying on a single `/32` obtained from one outbound request on a standard GitHub-hosted runner. Standard hosted-runner egress is not a stable single-address contract for later connections to another service, so the workflow must not assume the IP observed by an IP-discovery request is necessarily the IP Supavisor will observe.
 
+The pre-merge closeout audit also locked the Supavisor startup option to the exact Temporary Access form `-c jit=true`; the prior `-c jit=on` spelling is rejected by the repository contract.
+
 ## Modes and execution boundary
 
 `forward_preflight` performs the full reviewed identity/history/effect/function checks and the official Supabase `db push --dry-run` against the isolated remote-history-derived workspace. It does not apply the migration.
@@ -94,7 +96,7 @@ The contained flow remains pinned to:
 - trusted shared Supavisor host ending in `.pooler.supabase.com`
 - session port: `5432`
 - SSL required
-- startup option: `-c jit=on`
+- startup option: `-c jit=true`
 - bounded readiness probes only
 - exact run-owned cleanup in `always()`
 
