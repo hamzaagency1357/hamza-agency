@@ -35,7 +35,7 @@ The corrective branch therefore:
 - removes IP-discovery and the unstable hosted-runner `/32` dependency;
 - keeps exactly one current-user `postgres` JIT role;
 - reduces maximum JIT lifetime from 45 minutes to 25 minutes;
-- keeps Unix-seconds expiry, `roles` request payload, session port `5432`, SSL required, and `-c jit=on` unchanged;
+- keeps Unix-seconds expiry, `roles` request payload, session port `5432`, SSL required, and locks the Temporary Access startup option to `-c jit=true`;
 - continues to fail on any pre-existing current-user mapping;
 - preserves exact user/run/role/expiry ownership and refuses foreign-state deletion;
 - accepts only an absent or empty server-normalized network restriction; an unexpected non-empty restriction fails validation;
@@ -43,7 +43,7 @@ The corrective branch therefore:
 - expands readiness to six finite probes rather than an unbounded retry loop; and
 - reports the last connection error through bounded secret-safe sanitization so another failure cannot collapse into an opaque “not ready” result.
 
-Regression tests explicitly reject a return of `api.ipify.org` or `FORWARD_JIT_OWNED_CIDR`, verify the 25-minute role contract, verify cleanup ownership, and assert that readiness diagnostics cannot expose the PAT or Postgres URL.
+Regression tests explicitly reject a return of `api.ipify.org`, `FORWARD_JIT_OWNED_CIDR`, and the stale `jit=on` startup value; verify the 25-minute role contract; verify cleanup ownership; and assert that readiness diagnostics cannot expose the PAT or Postgres URL.
 
 ### Release gate
 
