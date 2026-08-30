@@ -95,10 +95,17 @@ export function assertSupportedPostgresVersion(version) {
 }
 
 function hasNoNetworkRestriction(role) {
-  if (role?.allowed_networks === undefined || role?.allowed_networks === null) return true;
-  const v4 = role.allowed_networks?.allowed_cidrs ?? [];
-  const v6 = role.allowed_networks?.allowed_cidrs_v6 ?? [];
-  return Array.isArray(v4) && v4.length === 0 && Array.isArray(v6) && v6.length === 0;
+  const networks = role?.allowed_networks;
+  if (networks === undefined || networks === null) return true;
+  if (typeof networks !== "object" || Array.isArray(networks)) return false;
+  const allowedKeys = new Set(["allowed_cidrs", "allowed_cidrs_v6"]);
+  if (Object.keys(networks).some((key) => !allowedKeys.has(key))) return false;
+  for (const key of allowedKeys) {
+    const value = networks[key];
+    if (value === undefined) continue;
+    if (!Array.isArray(value) || value.length !== 0) return false;
+  }
+  return true;
 }
 
 export function buildJitRole(nowMs = Date.now()) {
@@ -190,13 +197,19 @@ export function safeProbeDiagnostic(error, secrets = []) {
   const stderr = typeof error?.stderr === "string" ? error.stderr : "";
   const stdout = typeof error?.stdout === "string" ? error.stdout : "";
   let value = (stderr || stdout || errorMessage(error)).replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim();
+  const variants = new Set();
   for (const secret of secrets) {
-    if (typeof secret === "string" && secret.length >= 8) value = value.split(secret).join("[REDACTED]");
+    if (typeof secret !== "string" || secret.length < 8) continue;
+    variants.add(secret);
+    try { variants.add(encodeURIComponent(secret)); } catch {}
+  }
+  for (const variant of [...variants].sort((a, b) => b.length - a.length)) {
+    if (variant) value = value.split(variant).join("[REDACTED]");
   }
   value = value
     .replace(/\b(?:postgres|postgresql):\/\/\S+/gi, "[REDACTED_DB_URL]")
     .replace(/\bBearer\s+\S+/gi, "Bearer [REDACTED]")
-    .replace(/\bsbp_[A-Za-z0-9._~+\/-]+/g, "[REDACTED_TOKEN]");
+    .replace(/\bsbp_(?:[A-Za-z0-9._~+\/-]|%[0-9A-Fa-f]{2})+/g, "[REDACTED_TOKEN]");
   return value.slice(0, 240);
 }
 
@@ -295,11 +308,9 @@ export async function createRunOwnedJitMapping({ token, userId, runId, nowMs = D
     const reconciled = await apiRequest(token, JIT_LIST_PATH, { expected: [200], fetchImpl }).catch(() => null);
     const live = reconciled ? findJitMappingForUser(reconciled.data, { userId: id }) : null;
     if (live && mappingMatchesRunOwnership(live, ownership)) {
-      persistRunOwnership(ownership, writeEnvImpl);
-      mapping = live;
-    } else {
-      throw error;
+      fail("JIT grant outcome is ambiguous; matching live mapping cannot be safely attributed to this run, so cleanup ownership is refused");
     }
+    throw error;
   }
   validateJitMapping(mapping, { userId: id, nowMs });
   const after = await apiRequest(token, JIT_LIST_PATH, { expected: [200], fetchImpl });
