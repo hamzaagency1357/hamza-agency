@@ -25,7 +25,7 @@ import {
 } from "../scripts/ops/vercel-production-attestation.mjs";
 import {
   REQUIRED_FINE_GRAINED_PERMISSIONS,
-  assertIpv4,
+  TEMP_ACCESS,
   buildJitDbUrl,
   buildJitRole,
   selectPoolerHost,
@@ -156,18 +156,21 @@ test("dry-run output must contain exactly one approved target", () => {
   expectFailure(() => validateDryRunOutput(`Would push:\n${TARGET.filename}\n20260827090100_other.sql\n`), /exactly one/);
 });
 
-test("Temporary Access JIT role uses current Supabase seconds schema and bounded runner CIDR", () => {
+test("Temporary Access uses short current-schema JIT role without unstable hosted-runner CIDR pinning", async () => {
   const nowMs = 1_800_000_000_000;
-  const role = buildJitRole("20.30.40.50", nowMs);
+  const role = buildJitRole(nowMs);
   assert.deepEqual(role, {
     role: "postgres",
-    allowed_networks: { allowed_cidrs: [{ cidr: "20.30.40.50/32" }], allowed_cidrs_v6: [] },
-    expires_at: Math.floor(nowMs / 1000) + (45 * 60),
+    expires_at: Math.floor(nowMs / 1000) + (25 * 60),
     branches_only: false,
   });
-  assert.equal(validateJitMapping({ user_id: "user-1", roles: [role] }, { userId: "user-1", ipv4: "20.30.40.50", nowMs }), true);
-  assert.equal(validateJitMapping({ user_id: "user-1", user_roles: [role] }, { userId: "user-1", ipv4: "20.30.40.50", nowMs }), true);
-  expectFailure(() => assertIpv4("20.30.40.999"), /invalid runner IPv4/);
+  assert.equal(TEMP_ACCESS.ttlSeconds, 25 * 60);
+  assert.equal(validateJitMapping({ user_id: "123e4567-e89b-42d3-a456-426614174000", roles: [role] }, { userId: "123e4567-e89b-42d3-a456-426614174000", nowMs }), true);
+  assert.equal(validateJitMapping({ user_id: "123e4567-e89b-42d3-a456-426614174000", user_roles: [{ ...role, allowed_networks: { allowed_cidrs: [], allowed_cidrs_v6: [] } }] }, { userId: "123e4567-e89b-42d3-a456-426614174000", nowMs }), true);
+  const source = await readFile("scripts/ops/temporary-database-access.mjs", "utf8");
+  assert.doesNotMatch(source, /api\.ipify\.org/);
+  assert.doesNotMatch(source, /FORWARD_JIT_OWNED_CIDR/);
+  assert.match(source, /25-minute expiry/);
 });
 
 test("temporary DB URL uses trusted Supavisor session endpoint with SSL and jit=on", () => {
