@@ -24,6 +24,25 @@ The migration file intentionally has no outer `BEGIN;` / `COMMIT;`. Supabase CLI
 
 There is no arbitrary migration-version input. The workflow does not use `--include-all`, `migration repair`, or manual `schema_migrations` writes.
 
+## Run #48 failure evidence and retry rule
+
+Workflow run `33293140527` (`HAMZA Forward-Only Production Migrations #48`) proved the following before stopping:
+
+- contract tests passed;
+- exact reviewed `main` dispatch passed;
+- exact Vercel Production identity passed;
+- the short-lived Production PAT was available and masked;
+- pinned Supabase CLI `2.109.1` and explicit `--db-url` support passed;
+- the run-owned Temporary Access/JIT mapping was created and verified;
+- the isolated CLI workspace was prepared;
+- the first actual temporary Postgres readiness probe never became ready within the bounded retry window;
+- migration-history read, live-effects read, official dry-run, migration apply, and post-apply verification were therefore never reached; and
+- `always()` cleanup successfully removed the run-owned JIT mapping and transient tooling state.
+
+Run #48 must never be rerun. A future Production dispatch is allowed only from a subsequently reviewed and merged closeout revision after all PR checks pass again.
+
+The deterministic design gap exposed by #48 was relying on a single `/32` obtained from one outbound request on a standard GitHub-hosted runner. Standard hosted-runner egress is not a stable single-address contract for later connections to another service, so the workflow must not assume the IP observed by an IP-discovery request is necessarily the IP Supavisor will observe.
+
 ## Modes and execution boundary
 
 `forward_preflight` performs the full reviewed identity/history/effect/function checks and the official Supabase `db push --dry-run` against the isolated remote-history-derived workspace. It does not apply the migration.
@@ -68,16 +87,20 @@ The contained flow remains pinned to:
 
 - project: `fvaurkfnsvsfohpzguho`
 - minimum PostgreSQL version: `17.6.1.081`
-- role: `postgres`
-- one GitHub-runner IPv4 `/32`
-- no IPv6 CIDR
-- maximum mapping lifetime: 45 minutes
+- exactly one `postgres` role for the current PAT owner
+- no branch-only access
+- maximum mapping lifetime: 25 minutes
+- no hosted-runner `/32` assumption
 - trusted shared Supavisor host ending in `.pooler.supabase.com`
 - session port: `5432`
 - SSL required
 - startup option: `-c jit=on`
+- bounded readiness probes only
+- exact run-owned cleanup in `always()`
 
 Production SSL enforcement and the live PostgreSQL version are checked fail-closed before database access.
+
+Network restriction is intentionally omitted for this standard GitHub-hosted runner path because a discovered outbound `/32` cannot be treated as stable egress identity across separate destinations. Least privilege remains bounded by exact project, exact PAT owner, one `postgres` role, short expiry, refusal to overwrite pre-existing mappings, exact run ownership, serialized Production execution, and mandatory cleanup. If a future runner has reviewed static egress, CIDR pinning may be reintroduced only as a separate reviewed change.
 
 ### Current JIT request contract
 
@@ -98,14 +121,20 @@ The proposed mapping fingerprint is bound to:
 
 - exact Supabase user ID;
 - exact `GITHUB_RUN_ID`;
-- one `postgres` role;
-- runner `/32` CIDR;
-- no IPv6 ranges; and
+- exactly one `postgres` role;
+- no branch-only access;
+- no unexpected network restriction returned by the live mapping; and
 - exact bounded expiry in Unix seconds.
 
 After a confirmed successful PUT, ownership is persisted before later validation so cleanup can remove the exact run-owned mapping.
 
 If the PUT result is ambiguous because the network fails after dispatch, the workflow performs one fail-closed reconciliation read. It claims ownership only if the live mapping matches the complete proposed fingerprint exactly. If no exact match exists, ownership is not claimed and no DELETE is authorized.
+
+### Readiness diagnostics
+
+The readiness phase uses six bounded probes with a finite delay schedule rather than an unbounded retry loop. If all probes fail, the last CLI diagnostic is reduced to a short sanitized message. Tokens, bearer credentials, Postgres URLs, and `sbp_...` material are redacted before any diagnostic is printed.
+
+This makes a future connection failure actionable without exposing Production credentials and prevents another opaque “not ready” loop.
 
 ### Cleanup ownership rule
 
@@ -115,7 +144,7 @@ The `always()` cleanup issues a JIT DELETE only when:
 2. the stored run ID equals the current `GITHUB_RUN_ID`;
 3. the user ID is valid;
 4. a fresh JIT read/list still shows that same user mapping; and
-5. role/CIDR/IPv6/expiry all exactly match the run-owned fingerprint.
+5. role/no-network-restriction/expiry all exactly match the run-owned fingerprint.
 
 If already absent, cleanup is idempotent. If the live mapping differs, cleanup refuses to delete it. A foreign run, foreign user, merely resolved user ID, or unmatched ambiguous mutation can never authorize deletion.
 
