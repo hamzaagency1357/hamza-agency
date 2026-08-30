@@ -13,13 +13,13 @@ export const TEMP_ACCESS = Object.freeze({
   projectRef: "fvaurkfnsvsfohpzguho",
   minimumPostgresVersion: "17.6.1.081",
   postgresRole: "postgres",
-  ttlSeconds: 45 * 60,
-  ttlMs: 45 * 60 * 1000,
+  ttlSeconds: 25 * 60,
+  ttlMs: 25 * 60 * 1000,
   poolerPort: 5432,
   poolerHostSuffix: ".pooler.supabase.com",
 });
 
-export const READINESS_RETRY_DELAYS_MS = Object.freeze([0, 2_000, 4_000, 8_000, 12_000]);
+export const READINESS_RETRY_DELAYS_MS = Object.freeze([0, 3_000, 7_000, 15_000, 30_000, 45_000]);
 export const PREFERRED_SCOPED_PAT_PERMISSIONS = Object.freeze([
   "project_admin_read",
   "project_admin_write",
@@ -93,38 +93,35 @@ export function assertSupportedPostgresVersion(version) {
   if (comparePgVersions(version, TEMP_ACCESS.minimumPostgresVersion) < 0) fail(`Postgres ${version} does not support Temporary Database Access`);
   return true;
 }
-export function assertIpv4(value) {
-  const parts = String(value).trim().split(".");
-  if (parts.length !== 4 || parts.some((p) => !/^\d{1,3}$/.test(p) || Number(p) > 255)) fail(`invalid runner IPv4 ${value}`);
-  return parts.map(Number).join(".");
+
+function hasNoNetworkRestriction(role) {
+  if (role?.allowed_networks === undefined || role?.allowed_networks === null) return true;
+  const v4 = role.allowed_networks?.allowed_cidrs ?? [];
+  const v6 = role.allowed_networks?.allowed_cidrs_v6 ?? [];
+  return Array.isArray(v4) && v4.length === 0 && Array.isArray(v6) && v6.length === 0;
 }
 
-export function buildJitRole(ipv4, nowMs = Date.now()) {
-  const ip = assertIpv4(ipv4);
+export function buildJitRole(nowMs = Date.now()) {
   if (!Number.isSafeInteger(nowMs) || nowMs <= 0) fail("invalid current time");
   return {
     role: TEMP_ACCESS.postgresRole,
-    allowed_networks: { allowed_cidrs: [{ cidr: `${ip}/32` }], allowed_cidrs_v6: [] },
     expires_at: Math.floor(nowMs / 1000) + TEMP_ACCESS.ttlSeconds,
     branches_only: false,
   };
 }
 
-export function validateJitMapping(mapping, { userId, ipv4, nowMs = Date.now() }) {
+export function validateJitMapping(mapping, { userId, nowMs = Date.now() }) {
   if (!mapping || mapping.user_id !== userId) fail("JIT mapping user mismatch");
   const roles = mapping.user_roles ?? mapping.roles;
   if (!Array.isArray(roles) || roles.length !== 1) fail("JIT mapping must contain exactly one role");
   const role = roles[0];
   if (role.role !== TEMP_ACCESS.postgresRole) fail("JIT mapping role is not postgres");
   if (role.branches_only === true) fail("JIT mapping is branches-only");
-  const cidrs = role.allowed_networks?.allowed_cidrs;
-  const cidrsV6 = role.allowed_networks?.allowed_cidrs_v6 ?? [];
-  if (!Array.isArray(cidrs) || cidrs.length !== 1 || cidrs[0]?.cidr !== `${assertIpv4(ipv4)}/32`) fail("JIT mapping is not restricted to the current runner IPv4 /32");
-  if (!Array.isArray(cidrsV6) || cidrsV6.length !== 0) fail("JIT mapping unexpectedly permits IPv6");
+  if (!hasNoNetworkRestriction(role)) fail("JIT mapping unexpectedly contains a network restriction");
   if (!Number.isFinite(role.expires_at)) fail("JIT mapping has no finite expiry");
   const nowSeconds = Math.floor(nowMs / 1000);
   const remaining = role.expires_at - nowSeconds;
-  if (remaining <= 0 || remaining > TEMP_ACCESS.ttlSeconds + 60) fail("JIT mapping expiry exceeds the 45-minute contract");
+  if (remaining <= 0 || remaining > TEMP_ACCESS.ttlSeconds + 60) fail("JIT mapping expiry exceeds the 25-minute contract");
   return true;
 }
 
@@ -133,22 +130,21 @@ export function findJitMappingForUser(data, { userId }) {
   if (!data || !Array.isArray(data.items)) fail("JIT list response omitted items array");
   return data.items.find((item) => item?.user_id === id) ?? null;
 }
-export function buildRunOwnership({ userId, runId, ipv4, expiresAt }) {
+export function buildRunOwnership({ userId, runId, expiresAt }) {
   const id = assertUserId(userId, "ownership user id");
   const ownerRunId = assertRunId(runId, "ownership GitHub run id");
-  const cidr = `${assertIpv4(ipv4)}/32`;
   if (!Number.isSafeInteger(expiresAt) || expiresAt <= 0) fail("ownership expiry is invalid");
-  return Object.freeze({ createdByThisRun: true, userId: id, runId: ownerRunId, cidr, expiresAt });
+  return Object.freeze({ createdByThisRun: true, userId: id, runId: ownerRunId, expiresAt });
 }
 export function mappingMatchesRunOwnership(mapping, ownership) {
   if (!mapping || !ownership?.createdByThisRun || mapping.user_id !== ownership.userId) return false;
   const roles = mapping.user_roles ?? mapping.roles;
   if (!Array.isArray(roles) || roles.length !== 1) return false;
   const role = roles[0];
-  const cidrs = role?.allowed_networks?.allowed_cidrs;
-  const cidrsV6 = role?.allowed_networks?.allowed_cidrs_v6 ?? [];
-  return role?.role === TEMP_ACCESS.postgresRole && role?.branches_only !== true && Array.isArray(cidrs) && cidrs.length === 1
-    && cidrs[0]?.cidr === ownership.cidr && Array.isArray(cidrsV6) && cidrsV6.length === 0 && role?.expires_at === ownership.expiresAt;
+  return role?.role === TEMP_ACCESS.postgresRole
+    && role?.branches_only !== true
+    && hasNoNetworkRestriction(role)
+    && role?.expires_at === ownership.expiresAt;
 }
 
 export function selectPoolerHost(config) {
@@ -189,18 +185,46 @@ export function readinessProbeArgs({ dbUrl, workdir }) {
 async function defaultRunProbe({ supabaseBin, args }) {
   await execFile(supabaseBin, args, { env: process.env, timeout: 20_000, maxBuffer: 128 * 1024 });
 }
-export async function waitForTemporaryDatabaseReady({ supabaseBin, dbUrl, workdir, retryDelaysMs = READINESS_RETRY_DELAYS_MS, runProbe = defaultRunProbe, sleep = (ms) => sleepTimer(ms) }) {
+
+export function safeProbeDiagnostic(error, secrets = []) {
+  const stderr = typeof error?.stderr === "string" ? error.stderr : "";
+  const stdout = typeof error?.stdout === "string" ? error.stdout : "";
+  let value = (stderr || stdout || errorMessage(error)).replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim();
+  for (const secret of secrets) {
+    if (typeof secret === "string" && secret.length >= 8) value = value.split(secret).join("[REDACTED]");
+  }
+  value = value
+    .replace(/\b(?:postgres|postgresql):\/\/\S+/gi, "[REDACTED_DB_URL]")
+    .replace(/\bBearer\s+\S+/gi, "Bearer [REDACTED]")
+    .replace(/\bsbp_[A-Za-z0-9._~+\/-]+/g, "[REDACTED_TOKEN]");
+  return value.slice(0, 240);
+}
+
+export async function waitForTemporaryDatabaseReady({
+  supabaseBin,
+  dbUrl,
+  workdir,
+  retryDelaysMs = READINESS_RETRY_DELAYS_MS,
+  runProbe = defaultRunProbe,
+  sleep = (ms) => sleepTimer(ms),
+  diagnosticSecrets = [process.env.SUPABASE_PRODUCTION_JIT_TOKEN, dbUrl].filter(Boolean),
+}) {
   if (typeof supabaseBin !== "string" || !supabaseBin) fail("SUPABASE_BIN is missing");
   if (!Array.isArray(retryDelaysMs) || retryDelaysMs.length === 0) fail("readiness retry schedule is empty");
   const args = readinessProbeArgs({ dbUrl, workdir });
+  let lastError = null;
   for (let i = 0; i < retryDelaysMs.length; i += 1) {
     const delayMs = retryDelaysMs[i];
     if (!Number.isSafeInteger(delayMs) || delayMs < 0) fail("invalid readiness retry delay");
     if (delayMs > 0) await sleep(delayMs);
     try { await runProbe({ supabaseBin, args, attempt: i + 1 }); return i + 1; }
-    catch { if (i + 1 < retryDelaysMs.length) console.warn(`Temporary database access is not ready after attempt ${i + 1}; retrying.`); }
+    catch (error) {
+      lastError = error;
+      if (i + 1 < retryDelaysMs.length) console.warn(`Temporary database access is not ready after attempt ${i + 1}; retrying.`);
+    }
   }
-  fail(`temporary Postgres access did not become ready after ${retryDelaysMs.length} bounded attempts`);
+  const diagnostic = safeProbeDiagnostic(lastError, diagnosticSecrets);
+  fail(`temporary Postgres access did not become ready after ${retryDelaysMs.length} bounded attempts${diagnostic ? `; last probe: ${diagnostic}` : ""}`);
 }
 
 function writeGithubEnv(name, value) {
@@ -235,11 +259,6 @@ async function jitFeatureRequest(token, { method = "GET", body, fetchImpl = fetc
   if (primary.status !== 404) return primary;
   return apiRequest(token, JIT_FEATURE_LEGACY_PATH, { method, body, expected: [200], fetchImpl });
 }
-async function getRunnerIpv4() {
-  const response = await fetch("https://api.ipify.org", { headers: { Accept: "text/plain" } });
-  if (!response.ok) fail(`runner IPv4 discovery returned HTTP ${response.status}`);
-  return assertIpv4(await response.text());
-}
 function getProjectDatabaseVersion(project) {
   const version = project?.database?.version ?? project?.database?.version_string ?? project?.postgres_version;
   if (!version) fail("Management API project response omitted Postgres version");
@@ -254,16 +273,15 @@ function persistRunOwnership(ownership, writeEnvImpl = writeGithubEnv) {
   writeEnvImpl("FORWARD_JIT_CREATED_BY_THIS_RUN", "true");
   writeEnvImpl("FORWARD_JIT_OWNER_RUN_ID", ownership.runId);
   writeEnvImpl("FORWARD_JIT_OWNED_USER_ID", ownership.userId);
-  writeEnvImpl("FORWARD_JIT_OWNED_CIDR", ownership.cidr);
   writeEnvImpl("FORWARD_JIT_OWNED_EXPIRES_AT", String(ownership.expiresAt));
 }
 
-export async function createRunOwnedJitMapping({ token, userId, ipv4, runId, nowMs = Date.now(), fetchImpl = fetch, writeEnvImpl = writeGithubEnv }) {
+export async function createRunOwnedJitMapping({ token, userId, runId, nowMs = Date.now(), fetchImpl = fetch, writeEnvImpl = writeGithubEnv }) {
   const id = assertUserId(userId), ownerRunId = assertRunId(runId);
   const before = await apiRequest(token, JIT_LIST_PATH, { expected: [200], fetchImpl });
   if (findJitMappingForUser(before.data, { userId: id })) fail("pre-existing Production JIT mapping detected; refusing to modify it");
-  const role = buildJitRole(ipv4, nowMs);
-  const ownership = buildRunOwnership({ userId: id, runId: ownerRunId, ipv4, expiresAt: role.expires_at });
+  const role = buildJitRole(nowMs);
+  const ownership = buildRunOwnership({ userId: id, runId: ownerRunId, expiresAt: role.expires_at });
   let mapping;
   try {
     mapping = (await apiRequest(token, JIT_MAPPING_PATH, {
@@ -283,11 +301,11 @@ export async function createRunOwnedJitMapping({ token, userId, ipv4, runId, now
       throw error;
     }
   }
-  validateJitMapping(mapping, { userId: id, ipv4, nowMs });
+  validateJitMapping(mapping, { userId: id, nowMs });
   const after = await apiRequest(token, JIT_LIST_PATH, { expected: [200], fetchImpl });
   const verified = findJitMappingForUser(after.data, { userId: id });
   if (!verified) fail("created JIT mapping was not found during verification");
-  validateJitMapping(verified, { userId: id, ipv4, nowMs });
+  validateJitMapping(verified, { userId: id, nowMs });
   if (!mappingMatchesRunOwnership(verified, ownership)) fail("created JIT mapping ownership fingerprint mismatch");
   return ownership;
 }
@@ -355,22 +373,19 @@ async function setup() {
     writeGithubEnv("FORWARD_JIT_FEATURE_ENABLED_BY_THIS_RUN", "true");
     writeGithubEnv("FORWARD_JIT_FEATURE_OWNER_RUN_ID", runId);
   }
-  const ipv4 = await getRunnerIpv4();
-  await createRunOwnedJitMapping({ token, userId, ipv4, runId });
+  await createRunOwnedJitMapping({ token, userId, runId });
   const pooler = (await apiRequest(token, `/projects/${TEMP_ACCESS.projectRef}/config/database/pooler`)).data;
   const dbUrl = buildJitDbUrl({ host: selectPoolerHost(pooler), token });
   console.log(`::add-mask::${dbUrl}`);
   writeGithubEnv("SUPABASE_ACCESS_TOKEN", token);
   writeGithubEnv("FORWARD_DB_URL", dbUrl);
-  writeGithubEnv("FORWARD_JIT_CIDR", `${ipv4}/32`);
-  console.log("Supabase Temporary Database Access prepared with one run-owned postgres role, runner /32 restriction, and 45-minute expiry.");
+  console.log("Supabase Temporary Database Access prepared with one run-owned postgres role and 25-minute expiry; no runner-IP pinning is used because standard GitHub-hosted runner egress is not a stable single-IP contract.");
 }
 function ownershipFromEnvironment() {
   if (process.env.FORWARD_JIT_CREATED_BY_THIS_RUN !== "true") return null;
   return buildRunOwnership({
     userId: process.env.FORWARD_JIT_OWNED_USER_ID,
     runId: process.env.FORWARD_JIT_OWNER_RUN_ID,
-    ipv4: String(process.env.FORWARD_JIT_OWNED_CIDR || "").replace(/\/32$/, ""),
     expiresAt: Number(process.env.FORWARD_JIT_OWNED_EXPIRES_AT),
   });
 }
