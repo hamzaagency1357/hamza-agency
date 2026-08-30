@@ -173,14 +173,14 @@ test("Temporary Access uses short current-schema JIT role without unstable hoste
   assert.match(source, /25-minute expiry/);
 });
 
-test("temporary DB URL uses trusted Supavisor session endpoint with SSL and jit=on", () => {
+test("temporary DB URL uses trusted Supavisor session endpoint with SSL and jit=true", () => {
   const host = selectPoolerHost([{ database_type: "PRIMARY", connection_string: "postgresql://postgres.fvaurkfnsvsfohpzguho:placeholder@aws-0-eu-central-1.pooler.supabase.com:6543/postgres" }]);
   const dbUrl = new URL(buildJitDbUrl({ host, token: "sbp_test_token_12345678901234567890" }));
   assert.equal(dbUrl.hostname, "aws-0-eu-central-1.pooler.supabase.com");
   assert.equal(dbUrl.port, "5432");
   assert.equal(dbUrl.username, `postgres.${PRODUCTION_REF}`);
   assert.equal(dbUrl.searchParams.get("sslmode"), "require");
-  assert.equal(dbUrl.searchParams.get("options"), "-c jit=on");
+  assert.equal(dbUrl.searchParams.get("options"), "-c jit=true");
 });
 
 test("least-privilege PAT contract excludes unrelated write scopes", () => {
