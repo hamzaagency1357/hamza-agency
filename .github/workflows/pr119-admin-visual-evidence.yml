@@ -67,7 +67,7 @@ jobs:
 
       - name: Upload Admin visual evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pr119-admin-visual-evidence-${{ github.event.pull_request.head.sha }}
           path: artifacts/admin-visual-evidence
