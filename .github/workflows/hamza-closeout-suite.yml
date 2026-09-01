@@ -203,7 +203,7 @@ jobs:
         run: node scripts/closeout/scan-safe-artifacts.mjs artifacts/safe
       - name: Upload safe reports only
         if: always() && steps.sanitize.outcome == 'success' && steps.secret_scan.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: closeout-${{ inputs.execution_mode }}-${{ inputs.suite }}-${{ inputs.expected_sha }}
           path: artifacts/safe
