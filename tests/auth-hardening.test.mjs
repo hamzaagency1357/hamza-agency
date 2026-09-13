@@ -43,11 +43,15 @@ test("legacy email authority fallback is absent from authoritative admin lookups
   assert.doesNotMatch(translationSync, /\.ilike\("email", user\.email\)/);
 });
 
-test("OIDC gateway token is server sourced and preview is denied", () => {
-  const source = read("lib/server/pr116AdminOidcGateway.ts");
-  assert.match(source, /process\.env\.VERCEL_OIDC_TOKEN/);
-  assert.doesNotMatch(source, /request\.headers\.get\("x-vercel-oidc-token"\)/);
-  assert.match(source, /process\.env\.VERCEL_ENV === "preview"/);
+test("OIDC gateway token is request scoped, server sourced, and preview is denied", () => {
+  const gateway = read("lib/server/pr116AdminOidcGateway.ts");
+  const requestContext = read("lib/server/vercelOidcRequestContext.ts");
+  assert.match(gateway, /getRequestScopedVercelOidcToken\(\)/);
+  assert.doesNotMatch(gateway, /process\.env\.VERCEL_OIDC_TOKEN/);
+  assert.match(requestContext, /Symbol\.for\("@vercel\/request-context"\)/);
+  assert.match(requestContext, /x-vercel-oidc-token/);
+  assert.doesNotMatch(requestContext, /process\.env\.VERCEL_OIDC_TOKEN\s*(?:\|\||\?\?)/);
+  assert.match(gateway, /process\.env\.VERCEL_ENV === "preview"/);
 });
 
 test("disabled admins are denied at every authoritative boundary", () => {
