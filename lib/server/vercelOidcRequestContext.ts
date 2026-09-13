@@ -4,12 +4,12 @@ type VercelRequestContext = {
   headers?: Record<string, string>;
 };
 
+type VercelRequestContextProvider = {
+  get?: () => VercelRequestContext;
+};
+
 const REQUEST_CONTEXT_SYMBOL = Symbol.for("@vercel/request-context");
 const OIDC_HEADER = "x-vercel-oidc-token";
-
-type GlobalWithVercelRequestContext = typeof globalThis & {
-  [REQUEST_CONTEXT_SYMBOL]?: { get?: () => VercelRequestContext };
-};
 
 /**
  * Return the request-scoped Vercel workload token injected by the Vercel runtime.
@@ -20,7 +20,8 @@ type GlobalWithVercelRequestContext = typeof globalThis & {
  * the current invocation and avoids caching it across requests.
  */
 export function getRequestScopedVercelOidcToken() {
-  const context = (globalThis as GlobalWithVercelRequestContext)[REQUEST_CONTEXT_SYMBOL]?.get?.();
+  const runtime = globalThis as typeof globalThis & { [key: symbol]: VercelRequestContextProvider | undefined };
+  const context = runtime[REQUEST_CONTEXT_SYMBOL]?.get?.();
   const token = context?.headers?.[OIDC_HEADER];
   return typeof token === "string" ? token.trim() : "";
 }
