@@ -36,7 +36,7 @@ function assertApprovedNext15Residual(audit, label) {
 
 const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
 const packages = lock.packages || {};
-assert.equal(packages["node_modules/next"]?.version, "15.5.22", "Next must remain on approved secure Next 15 patch");
+assert.equal(packages["node_modules/next"]?.version, "15.5.24", "Next must remain on approved secure Next 15 patch");
 assert.equal(packages["node_modules/postcss"]?.version, "8.5.26", "direct PostCSS security target regressed");
 assert.equal(packages["node_modules/sharp"]?.version, "0.35.3", "direct Sharp security target regressed");
 assert.equal(packages["node_modules/nanoid"]?.version, "3.3.18", "nanoid security target regressed");
@@ -51,4 +51,4 @@ assertApprovedNext15Residual(runtimeAudit, "runtime audit");
 const fullAudit = runAudit([]);
 assertApprovedNext15Residual(fullAudit, "full audit");
 
-console.log("Dependency security gate PASS: direct/dev findings fixed; only documented Next 15 nested PostCSS/Sharp residual remains, with remediation requiring Next 16.");
+console.log("Dependency security gate PASS: critical Next 15 advisory patched; only documented Next 15 nested PostCSS/Sharp residual remains, with remediation requiring Next 16.");
