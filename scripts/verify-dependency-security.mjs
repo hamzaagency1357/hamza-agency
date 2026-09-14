@@ -43,7 +43,7 @@ assert.equal(packages["node_modules/brace-expansion"]?.version, "1.1.18", "brace
 assert.equal(packages["node_modules/@typescript-eslint/typescript-estree/node_modules/brace-expansion"]?.version, "5.0.9", "brace-expansion modern-line fix regressed");
 
 const runtimeAudit = runAudit(["--omit=dev"]);
-assertApprovedNext15Residual(runtimeAudit, "runtime audit", 2);
+assertApprovedNext15Residual(runtimeAudit, "runtime audit", 1);
 
 const fullAudit = runAudit([]);
 assertApprovedNext15Residual(fullAudit, "full audit", 3);
