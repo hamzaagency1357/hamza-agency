@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
+import { getRequestScopedVercelOidcToken } from "@/lib/server/vercelOidcRequestContext";
 
 const EDGE_FUNCTION_NAME = "pr116-admin-oidc-gateway";
 const LOCAL_SUPABASE_URL = "http://127.0.0.1:54321";
@@ -79,7 +80,7 @@ function gatewayTarget(): GatewayTarget {
   if (local) return local;
 
   const supabaseUrl = normalizedSupabaseServerUrl();
-  const workloadToken = process.env.VERCEL_OIDC_TOKEN || "";
+  const workloadToken = getRequestScopedVercelOidcToken();
   if (!supabaseUrl || !workloadToken) throw new Pr116AdminGatewayError("unconfigured");
   return { url: `${supabaseUrl}/functions/v1/${EDGE_FUNCTION_NAME}`, workloadToken };
 }

@@ -9,6 +9,7 @@ const wrapper = readFileSync(join(root, "supabase/functions/pr116-admin-oidc-gat
 const trusted = readFileSync(join(root, "supabase/functions/pr116-admin-oidc-gateway/trusted-rpc-dispatch.ts"), "utf8");
 const proxy = readFileSync(join(root, "scripts/closeout/local-https-proxy.mjs"), "utf8");
 const gatewayClient = readFileSync(join(root, "lib/server/pr116AdminOidcGateway.ts"), "utf8");
+const oidcRequestContext = readFileSync(join(root, "lib/server/vercelOidcRequestContext.ts"), "utf8");
 const closeoutWorkflow = readFileSync(join(root, ".github/workflows/hamza-closeout-suite.yml"), "utf8");
 const macroWorkflow = readFileSync(join(root, ".github/workflows/hamza-macro-runtime-suite.yml"), "utf8");
 const localContract = readFileSync(join(root, "tests/pr116-local-migration-contract.sql"), "utf8");
@@ -79,8 +80,10 @@ test("PR116 local isolated workload auth is ephemeral, loopback-only, and fail c
   assert.match(gatewayClient, /!process\.env\.VERCEL_ENV/);
   assert.match(gatewayClient, /CLOSEOUT_SUPABASE_URL === LOCAL_SUPABASE_URL/);
   assert.match(gatewayClient, /NEXT_PUBLIC_SUPABASE_URL === LOCAL_PUBLIC_SUPABASE_URL/);
-  assert.match(gatewayClient, /const workloadToken = process\.env\.VERCEL_OIDC_TOKEN \|\| ""/);
-  assert.doesNotMatch(gatewayClient, /request\.headers\.get\("x-vercel-oidc-token"\)/);
+  assert.match(gatewayClient, /const workloadToken = getRequestScopedVercelOidcToken\(\)/);
+  assert.doesNotMatch(gatewayClient, /process\.env\.VERCEL_OIDC_TOKEN/);
+  assert.match(oidcRequestContext, /Symbol\.for\("@vercel\/request-context"\)/);
+  assert.match(oidcRequestContext, /x-vercel-oidc-token/);
   assert.match(gatewayClient, /process\.env\.VERCEL_ENV === "preview"/);
   assert.match(gatewayClient, /preview_forbidden/);
 });

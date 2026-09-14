@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { authorizeAdminMutation, PREVIEW_READ_ONLY_MESSAGE } from "@/lib/server/adminMutationBoundary";
 import { PR116_ADMIN_ACTION_CONTRACTS, type Pr116AdminActionContract } from "@/lib/server/pr116AdminActionContracts";
 import { callPr116AdminOidcGateway, Pr116AdminGatewayError } from "@/lib/server/pr116AdminOidcGateway";
-import { backupScopeMatchesPayload, normalizeBackupPayload } from "@/lib/adminBackupPayloadContract";
+import { BACKUP_UPLOAD_MAX_BYTES, backupScopeMatchesPayload, normalizeBackupPayload } from "@/lib/adminBackupPayloadContract";
 import type { AdminModule, AdminPermissionAction } from "@/lib/adminAccess";
+
+const textEncoder = new TextEncoder();
 
 function isRecord(value: unknown): value is Record<string, unknown> { return !!value && typeof value === "object" && !Array.isArray(value); }
 function keysAllowed(value: unknown, allowed: readonly string[]) {
@@ -11,7 +13,8 @@ function keysAllowed(value: unknown, allowed: readonly string[]) {
   return rows.every((row) => isRecord(row) && Object.keys(row).every((key) => allowed.includes(key)));
 }
 function validatePayload(contract: Pr116AdminActionContract, payload: Record<string, unknown>) {
-  if (JSON.stringify(payload).length > 12_000_000) return false;
+  const serializedPayload = JSON.stringify(payload);
+  if (textEncoder.encode(serializedPayload).byteLength > BACKUP_UPLOAD_MAX_BYTES) return false;
   if (contract.kind === "entity") {
     if (contract.method !== "delete" && !keysAllowed(payload.values, contract.allowedFields)) return false;
     const filters = Array.isArray(payload.filters) ? payload.filters : [];
@@ -67,6 +70,14 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof Pr116AdminGatewayError && error.reason === "preview_forbidden") return NextResponse.json({ ok: false, message: PREVIEW_READ_ONLY_MESSAGE }, { status: 403 });
     if (error instanceof Pr116AdminGatewayError && (error.reason === "unauthorized" || error.reason === "forbidden")) return NextResponse.json({ ok: false, message: "لا تملك صلاحية تنفيذ هذا التغيير.", ...localDiagnostic(error.reason) }, { status: 403 });
+    if (body.action === "pr116_admin_backup_dry_run") {
+      return NextResponse.json({
+        ok: false,
+        code: "backup_validation_unavailable",
+        message: "تعذر الوصول إلى خدمة فحص النسخة حاليًا. لم يثبت وجود مشكلة في ملف النسخة.",
+        ...(error instanceof Pr116AdminGatewayError ? localDiagnostic(error.reason) : {}),
+      }, { status: 503 });
+    }
     return NextResponse.json({ ok: false, message: "تعذر حفظ التغيير الإداري بأمان.", ...(error instanceof Pr116AdminGatewayError ? localDiagnostic(error.reason) : {}) }, { status: 503 });
   }
 }
