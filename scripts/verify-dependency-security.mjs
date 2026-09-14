@@ -38,7 +38,10 @@ assert.equal(packages["node_modules/postcss"]?.version, "8.5.26", "direct PostCS
 assert.equal(packages["node_modules/sharp"]?.version, "0.35.4", "direct Sharp security target regressed");
 assert.equal(packages["node_modules/nanoid"]?.version, "3.3.18", "nanoid security target regressed");
 assert.equal(packages["node_modules/@playwright/test"]?.version, "1.62.1", "Playwright security target regressed");
-assert.equal(packages["node_modules/js-yaml"]?.version, "4.3.1", "js-yaml dev transitive fix regressed");
+assert.equal(packages["node_modules/js-yaml"]?.version, "4.3.2", "js-yaml dev transitive fix regressed");
+assert.equal(packages["node_modules/browserslist"]?.version, "4.28.9", "browserslist dev transitive fix regressed");
+assert.equal(packages["node_modules/baseline-browser-mapping"]?.version, "2.11.22", "baseline-browser-mapping dev transitive fix regressed");
+assert.equal(packages["node_modules/postcss-selector-parser"]?.version, "6.1.3", "postcss-selector-parser dev transitive fix regressed");
 assert.equal(packages["node_modules/brace-expansion"]?.version, "1.1.18", "brace-expansion legacy-line fix regressed");
 assert.equal(packages["node_modules/@typescript-eslint/typescript-estree/node_modules/brace-expansion"]?.version, "5.0.9", "brace-expansion modern-line fix regressed");
 
@@ -46,6 +49,6 @@ const runtimeAudit = runAudit(["--omit=dev"]);
 assertApprovedNext15Residual(runtimeAudit, "runtime audit", 1);
 
 const fullAudit = runAudit([]);
-assertApprovedNext15Residual(fullAudit, "full audit", 3);
+assertApprovedNext15Residual(fullAudit, "full audit", 1);
 
-console.log("Dependency security gate PASS: direct Next/Sharp patch advisories fixed; only documented Next 15/PostCSS residual advisories remain, with complete remediation requiring Next 16.");
+console.log("Dependency security gate PASS: direct Next/Sharp and dev transitive advisories fixed; only documented Next 15/PostCSS residual advisories remain, with complete remediation requiring Next 16.");
