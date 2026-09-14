@@ -14,12 +14,12 @@ function runAudit(args) {
   return JSON.parse(result.stdout);
 }
 
-function assertApprovedNext15Residual(audit, label) {
+function assertApprovedNext15Residual(audit, label, expectedHighCount) {
   const vulnerabilities = audit.vulnerabilities || {};
   const keys = Object.keys(vulnerabilities).sort();
   assert.deepEqual(keys, ["next", "postcss", "sharp"], `${label}: unexpected vulnerability set: ${keys.join(", ")}`);
   assert.equal(audit.metadata?.vulnerabilities?.critical || 0, 0, `${label}: critical vulnerability detected`);
-  assert.equal(audit.metadata?.vulnerabilities?.high || 0, 3, `${label}: high vulnerability count changed`);
+  assert.equal(audit.metadata?.vulnerabilities?.high || 0, expectedHighCount, `${label}: high vulnerability count changed`);
 
   const next = vulnerabilities.next;
   const postcss = vulnerabilities.postcss;
@@ -46,9 +46,9 @@ assert.equal(packages["node_modules/brace-expansion"]?.version, "1.1.18", "brace
 assert.equal(packages["node_modules/@typescript-eslint/typescript-estree/node_modules/brace-expansion"]?.version, "5.0.9", "brace-expansion modern-line fix regressed");
 
 const runtimeAudit = runAudit(["--omit=dev"]);
-assertApprovedNext15Residual(runtimeAudit, "runtime audit");
+assertApprovedNext15Residual(runtimeAudit, "runtime audit", 2);
 
 const fullAudit = runAudit([]);
-assertApprovedNext15Residual(fullAudit, "full audit");
+assertApprovedNext15Residual(fullAudit, "full audit", 4);
 
-console.log("Dependency security gate PASS: critical Next 15 advisory patched; only documented Next 15 nested PostCSS/Sharp residual remains, with remediation requiring Next 16.");
+console.log("Dependency security gate PASS: critical Next 15 advisory patched; only documented Next 15 residual advisories remain, with complete remediation requiring Next 16.");
