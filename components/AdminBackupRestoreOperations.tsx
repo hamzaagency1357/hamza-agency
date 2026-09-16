@@ -1,6 +1,7 @@
 "use client";
 
 import { adminBoundaryMutation } from "@/lib/adminBoundaryMutationClient";
+import { BACKUP_UPLOAD_MAX_BYTES } from "@/lib/adminBackupPayloadContract";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -155,8 +156,9 @@ export default function AdminBackupRestoreOperations() {
     setValidation(null);
     setConfirmOne(false);
     setConfirmText("");
-    if (file.size > 25 * 1024 * 1024) {
-      setMessage("حجم ملف النسخة يتجاوز الحد المسموح.");
+    if (file.size > BACKUP_UPLOAD_MAX_BYTES) {
+      setFilePayload(null);
+      setMessage("حجم ملف النسخة يتجاوز الحد المسموح (12 ميغابايت). اختر ملفًا أصغر.");
       return;
     }
     try {
@@ -179,11 +181,11 @@ export default function AdminBackupRestoreOperations() {
     setBusy(false);
     if (result.error) {
       setValidation(null);
-      setMessage("لم يجتز ملف النسخة فحص السلامة. راجع الملف والنطاق المحدد ثم حاول مرة أخرى.");
+      setMessage(result.error.message || "تعذر تشغيل فحص سلامة النسخة حاليًا.");
       return;
     }
     setValidation(result.data as Validation);
-    setMessage("تم التحقق من توافق النسخة وسلامتها. لم يتم تغيير أي بيانات.");
+    setMessage("تم التحقق من توافق النسخة وسلامتها. لم تتغير بيانات الموقع؛ سُجّل الفحص فقط في سجل العمليات.");
   }
 
   async function restore() {
@@ -290,7 +292,7 @@ export default function AdminBackupRestoreOperations() {
           <div className="rounded-3xl border border-white/10 bg-white/[.04] p-6">
             <h2 className="text-2xl font-black">فحص نسخة قبل الاستعادة</h2>
             <p className="mt-2 text-sm leading-7 text-white/50">
-              ارفع ملف النسخة ثم شغّل الفحص. هذه الخطوة لا تغيّر البيانات.
+              ارفع ملف النسخة ثم شغّل الفحص. لا تتم استعادة أو استبدال بيانات الموقع؛ يُسجّل الفحص فقط في سجل العمليات.
             </p>
             <label className="mt-5 block">
               <span className="mb-2 block text-sm font-bold text-white/70">ملف النسخة الاحتياطية</span>

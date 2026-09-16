@@ -43,11 +43,15 @@ test("legacy email authority fallback is absent from authoritative admin lookups
   assert.doesNotMatch(translationSync, /\.ilike\("email", user\.email\)/);
 });
 
-test("OIDC gateway token is server sourced and preview is denied", () => {
-  const source = read("lib/server/pr116AdminOidcGateway.ts");
-  assert.match(source, /process\.env\.VERCEL_OIDC_TOKEN/);
-  assert.doesNotMatch(source, /request\.headers\.get\("x-vercel-oidc-token"\)/);
-  assert.match(source, /process\.env\.VERCEL_ENV === "preview"/);
+test("OIDC gateway token is request scoped, server sourced, and preview is denied", () => {
+  const gateway = read("lib/server/pr116AdminOidcGateway.ts");
+  const requestContext = read("lib/server/vercelOidcRequestContext.ts");
+  assert.match(gateway, /getRequestScopedVercelOidcToken\(\)/);
+  assert.doesNotMatch(gateway, /process\.env\.VERCEL_OIDC_TOKEN/);
+  assert.match(requestContext, /Symbol\.for\("@vercel\/request-context"\)/);
+  assert.match(requestContext, /x-vercel-oidc-token/);
+  assert.doesNotMatch(requestContext, /process\.env\.VERCEL_OIDC_TOKEN\s*(?:\|\||\?\?)/);
+  assert.match(gateway, /process\.env\.VERCEL_ENV === "preview"/);
 });
 
 test("disabled admins are denied at every authoritative boundary", () => {
@@ -74,8 +78,8 @@ test("runtime dependency contract stays within approved majors", () => {
   const lock = JSON.parse(read("package-lock.json"));
   const p = lock.packages;
   assert.equal(pkg.engines.node, "24.x");
-  assert.equal(p["node_modules/next"].version, "15.5.22");
-  assert.equal(p["node_modules/sharp"].version, "0.35.3");
+  assert.equal(p["node_modules/next"].version, "15.5.24");
+  assert.equal(p["node_modules/sharp"].version, "0.35.4");
   assert.equal(p["node_modules/postcss"].version, "8.5.26");
   assert.equal(p["node_modules/nanoid"].version, "3.3.18");
   assert.equal(p["node_modules/@playwright/test"].version, "1.62.1");

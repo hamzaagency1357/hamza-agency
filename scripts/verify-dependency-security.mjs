@@ -14,41 +14,41 @@ function runAudit(args) {
   return JSON.parse(result.stdout);
 }
 
-function assertApprovedNext15Residual(audit, label) {
+function assertApprovedNext15Residual(audit, label, expectedHighCount) {
   const vulnerabilities = audit.vulnerabilities || {};
   const keys = Object.keys(vulnerabilities).sort();
-  assert.deepEqual(keys, ["next", "postcss", "sharp"], `${label}: unexpected vulnerability set: ${keys.join(", ")}`);
+  assert.deepEqual(keys, ["next", "postcss"], `${label}: unexpected vulnerability set: ${keys.join(", ")}`);
   assert.equal(audit.metadata?.vulnerabilities?.critical || 0, 0, `${label}: critical vulnerability detected`);
-  assert.equal(audit.metadata?.vulnerabilities?.high || 0, 3, `${label}: high vulnerability count changed`);
+  assert.equal(audit.metadata?.vulnerabilities?.high || 0, expectedHighCount, `${label}: high vulnerability count changed`);
 
   const next = vulnerabilities.next;
   const postcss = vulnerabilities.postcss;
-  const sharp = vulnerabilities.sharp;
 
   assert.equal(next?.isDirect, true, `${label}: Next must remain the only direct affected package`);
   assert.equal(postcss?.isDirect, false, `${label}: nested PostCSS unexpectedly became direct`);
-  assert.equal(sharp?.isDirect, false, `${label}: nested Sharp unexpectedly became direct`);
   assert.deepEqual(postcss?.nodes, ["node_modules/next/node_modules/postcss"], `${label}: PostCSS advisory path changed`);
-  assert.deepEqual(sharp?.nodes, ["node_modules/next/node_modules/sharp"], `${label}: Sharp advisory path changed`);
   assert.equal(next?.fixAvailable?.isSemVerMajor, true, `${label}: Next remediation is no longer a major-only boundary`);
   assert.match(String(next?.fixAvailable?.version || ""), /^16\./, `${label}: expected Next 16 remediation boundary`);
 }
 
 const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
 const packages = lock.packages || {};
-assert.equal(packages["node_modules/next"]?.version, "15.5.22", "Next must remain on approved secure Next 15 patch");
+assert.equal(packages["node_modules/next"]?.version, "15.5.24", "Next must remain on approved secure Next 15 patch");
 assert.equal(packages["node_modules/postcss"]?.version, "8.5.26", "direct PostCSS security target regressed");
-assert.equal(packages["node_modules/sharp"]?.version, "0.35.3", "direct Sharp security target regressed");
+assert.equal(packages["node_modules/sharp"]?.version, "0.35.4", "direct Sharp security target regressed");
 assert.equal(packages["node_modules/nanoid"]?.version, "3.3.18", "nanoid security target regressed");
 assert.equal(packages["node_modules/@playwright/test"]?.version, "1.62.1", "Playwright security target regressed");
-assert.equal(packages["node_modules/js-yaml"]?.version, "4.3.1", "js-yaml dev transitive fix regressed");
+assert.equal(packages["node_modules/js-yaml"]?.version, "4.3.2", "js-yaml dev transitive fix regressed");
+assert.equal(packages["node_modules/browserslist"]?.version, "4.28.9", "browserslist dev transitive fix regressed");
+assert.equal(packages["node_modules/baseline-browser-mapping"]?.version, "2.11.22", "baseline-browser-mapping dev transitive fix regressed");
+assert.equal(packages["node_modules/postcss-selector-parser"]?.version, "6.1.3", "postcss-selector-parser dev transitive fix regressed");
 assert.equal(packages["node_modules/brace-expansion"]?.version, "1.1.18", "brace-expansion legacy-line fix regressed");
 assert.equal(packages["node_modules/@typescript-eslint/typescript-estree/node_modules/brace-expansion"]?.version, "5.0.9", "brace-expansion modern-line fix regressed");
 
 const runtimeAudit = runAudit(["--omit=dev"]);
-assertApprovedNext15Residual(runtimeAudit, "runtime audit");
+assertApprovedNext15Residual(runtimeAudit, "runtime audit", 1);
 
 const fullAudit = runAudit([]);
-assertApprovedNext15Residual(fullAudit, "full audit");
+assertApprovedNext15Residual(fullAudit, "full audit", 1);
 
-console.log("Dependency security gate PASS: direct/dev findings fixed; only documented Next 15 nested PostCSS/Sharp residual remains, with remediation requiring Next 16.");
+console.log("Dependency security gate PASS: direct Next/Sharp and dev transitive advisories fixed; only documented Next 15/PostCSS residual advisories remain, with complete remediation requiring Next 16.");
