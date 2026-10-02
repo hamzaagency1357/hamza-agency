@@ -27,6 +27,16 @@ On 2026-10-02, direct HTTP reads returned:
 - Preserves the approved positioning text used on other pages, existing application flow, program-media controls and crawling rules.
 - Does not imply platform accreditation, guaranteed earnings, guaranteed acceptance or first-position rankings.
 
+### Required dependency-gate correction
+
+The first review commit reached a successful Vercel preview build, but GitHub Quality Gate stopped at the dependency audit. Newly published `brace-expansion` advisories affected the existing pinned transitive versions, independently of the discovery content change.
+
+The review candidate updates only the two existing overrides and their lockfile entries: `1.1.18` to `1.1.21`, and `5.0.9` to `5.0.12`. The security gate's version assertions follow those patched versions. Its allowed vulnerability set, severity counts and approved Next 15 remediation boundary remain unchanged. The lockfile comparison confirmed that no other package version changed.
+
+The corrected dependency gate passes locally. This is a narrow prerequisite for the requested release candidate, with no framework-major upgrade or new vulnerability exception. The previously documented Next 15/nested PostCSS residual remains governed by the existing gate.
+
+Reference: https://github.com/advisories/GHSA-q2hr-2g5m-vwhr
+
 ### Local verification
 
 - `npm run lint`: PASS.
@@ -34,6 +44,7 @@ On 2026-10-02, direct HTTP reads returned:
 - `npm test`: PASS, 387 tests, no failures or skips.
 - `npm run build`: PASS, including the existing translation, product-expansion, smart-support and admin-mutation prebuild gates.
 - `npm run verify:secrets`: PASS.
+- `npm run verify:dependencies`: PASS after the two transitive security patch updates.
 - `e2e/search-discovery.spec.mjs` against the local production build: PASS, 3 request-based tests. For `/`, `/en` and `/tr`, the crawler response contains the correct document language/direction, visible localized answers before JavaScript, four localized links returning HTTP 200, and indexable metadata.
 - Desktop/mobile visual checks and browser navigation after hydration: NOT TESTED; the available Chromium download returned an unusable archive. The request-based tests do not claim browser coverage.
 
