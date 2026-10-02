@@ -1,5 +1,57 @@
 # HAMZA AGENCY — Full Project Closeout
 
+## 2026-10-02 — Search and AI discovery content review
+
+This is a separate, narrowly scoped public-content improvement requested by the Owner. It does not reopen the historical Production/database closeout below.
+
+- Reviewed base: `main` at `140804d126ec7f6bc36cec793dc6cfb4761b6604`.
+- Review branch: `feat/agency-search-discovery-20261002`.
+- Scope: localized homepage metadata, visible service/application answers, and the correct initial rendered language in Arabic, English and Turkish.
+- Release state: review candidate; merge and Production publication require explicit Owner approval under `AGENTS.md`.
+
+### Read-only public evidence
+
+On 2026-10-02, direct HTTP reads returned:
+
+- `/robots.txt`: HTTP 200; both the general rule and explicit `OAI-SearchBot` rule allow public crawling and retain private-route exclusions.
+- `/sitemap.xml`: HTTP 200; 87 URLs, including the homepage and all five program pages in Arabic, English and Turkish.
+- `/`, `/programs`, `/programs/tiktok`, `/faq`: HTTP 200, `index, follow`, canonical URLs and structured data present; no `X-Robots-Tag` exclusion returned to this request.
+- Independent web searches found public homepage, programs, about and contact results. This establishes discoverability in the search provider tested, not a universal ranking or proof of inclusion in every engine.
+
+### Review candidate
+
+- Introduces one localized copy source for factual homepage search descriptions and visible answers about creator support, applications, TikTok and BIGO LIVE.
+- Adds readable content and localized links to the existing services, programs and program-detail routes. Arabic copy includes the commonly used names تيك توك and بيجو لايف alongside the platform names.
+- Uses descriptive homepage search titles in all three languages while retaining HAMZA AGENCY and عراب سوريا identity. Existing published SEO overrides still take precedence.
+- Fixes a locale rewrite issue found by reading the local production build without JavaScript: `/en` had English document metadata but Arabic initial content. The public language provider now uses the URL-derived server locale for server rendering and initial hydration, then follows the browser URL for navigation.
+- Preserves the approved positioning text used on other pages, existing application flow, program-media controls and crawling rules.
+- Does not imply platform accreditation, guaranteed earnings, guaranteed acceptance or first-position rankings.
+
+### Local verification
+
+- `npm run lint`: PASS.
+- `npm run typecheck`: PASS.
+- `npm test`: PASS, 387 tests, no failures or skips.
+- `npm run build`: PASS, including the existing translation, product-expansion, smart-support and admin-mutation prebuild gates.
+- `npm run verify:secrets`: PASS.
+- `e2e/search-discovery.spec.mjs` against the local production build: PASS, 3 request-based tests. For `/`, `/en` and `/tr`, the crawler response contains the correct document language/direction, visible localized answers before JavaScript, four localized links returning HTTP 200, and indexable metadata.
+- Desktop/mobile visual checks and browser navigation after hydration: NOT TESTED; the available Chromium download returned an unusable archive. The request-based tests do not claim browser coverage.
+
+### Work outside this change
+
+Search Console verification, Google URL inspection, Bing Webmaster Tools registration, sitemap submission, hosting firewall access for verified crawler IPs, third-party coverage and actual creator testimonials were not tested or changed. Those require the corresponding account access or real supporting evidence. Existing dashboard configuration may override the fallback titles and descriptions and must be checked on the approved deployed revision.
+
+Allowing a search crawler improves eligibility; it does not guarantee a recommendation in ChatGPT or a position in any search engine. No training-crawler setting or special AI text file is required for the improvement in this branch.
+
+Official references reviewed:
+
+- https://developers.openai.com/api/docs/bots
+- https://help.openai.com/en/articles/12627856-publishers-and-developers-faq
+- https://developers.google.com/search/docs/appearance/ai-features
+- https://www.bing.com/webmasters/help/sitemaps-3b5cf6ed
+
+---
+
 ## 2026-08-30 — Run #48 Temporary Access readiness closeout
 
 This section is the current authoritative record for the targeted forward-production correction after Production workflow run #48. It does not reopen already closed product phases and it does not authorize a new Production dispatch or merge.
