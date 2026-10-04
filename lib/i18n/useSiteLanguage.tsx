@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useState,
   type ReactNode,
 } from "react";
 import { applySiteLanguage, type SiteLanguage } from "@/lib/i18n/locale";
@@ -24,10 +25,17 @@ export function SiteLanguageProvider({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const [isHydrated, setIsHydrated] = useState(false);
   const nextLanguage = getPathLanguage(pathname || "/");
-  const language = isSupportedPublicPath(pathname || "/")
+  // Rewrites can expose the internal Arabic route during server rendering.
+  // Use the URL-derived server locale until the browser pathname is available.
+  const language = isHydrated && isSupportedPublicPath(pathname || "/")
     ? nextLanguage
     : initialLanguage;
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   useEffect(() => {
     applySiteLanguage(language);

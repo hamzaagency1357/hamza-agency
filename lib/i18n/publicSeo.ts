@@ -1,4 +1,5 @@
 import type { SiteLanguage } from "@/lib/i18n/locale";
+import { agencyDiscoveryCopy } from "@/lib/i18n/agencyDiscoveryCopy";
 import { AGENT_PUBLIC_PATH, getProgramSlugFromPath, stripLocalePrefix } from "@/lib/i18n/publicLocales";
 import { getSiteRuntimeMetadata, type RuntimeRouteMetadata } from "@/lib/i18n/siteRuntimeTranslations";
 
@@ -6,12 +7,12 @@ export type PublicSeoCopy = RuntimeRouteMetadata & { schemaType: "AboutPage" | "
 // Owner-approved marketing positioning. These are brand claims, not technical benchmark assertions.
 const ownerApprovedAgencyPositioning:Record<SiteLanguage,string>={ar:"HAMZA AGENCY — من أبرز وأأمن الوكالات عالميًا في دعم وإدارة صناع المحتوى.",en:"HAMZA AGENCY — one of the world’s leading and safest agencies for creator support and management.",tr:"HAMZA AGENCY — içerik üreticisi desteği ve yönetiminde dünyanın önde gelen ve en güvenli ajanslarından biri."};
 const coreSeo:Record<SiteLanguage,Record<string,PublicSeoCopy>>={
- ar:{"/":{title:"HAMZA AGENCY | بإدارة الوكيل عراب سوريا",description:ownerApprovedAgencyPositioning.ar,schemaType:"WebPage"},"/about":{title:"من نحن | HAMZA AGENCY بإدارة عراب سوريا",description:"تعرّف على HAMZA AGENCY، من أبرز وأأمن الوكالات عالميًا في دعم وإدارة صناع المحتوى، ودور عراب سوريا في إدارة ومتابعة مسارات الوكالة.",schemaType:"AboutPage"}},
- en:{"/":{title:"HAMZA AGENCY | Managed by عراب سوريا",description:ownerApprovedAgencyPositioning.en,schemaType:"WebPage"},"/about":{title:"About HAMZA AGENCY | Managed by عراب سوريا",description:"Learn about HAMZA AGENCY, one of the world’s leading and safest agencies for creator support and management, and the role of عراب سوريا in agency management and follow-up.",schemaType:"AboutPage"}},
- tr:{"/":{title:"HAMZA AGENCY | عراب سوريا Yönetiminde",description:ownerApprovedAgencyPositioning.tr,schemaType:"WebPage"},"/about":{title:"HAMZA AGENCY Hakkında | عراب سوريا Yönetiminde",description:"İçerik üreticisi desteği ve yönetiminde dünyanın önde gelen ve en güvenli ajanslarından biri olan HAMZA AGENCY'yi ve عراب سوريا'nın ajans yönetimi ve takibindeki rolünü tanıyın.",schemaType:"AboutPage"}},
+ ar:{"/":{title:agencyDiscoveryCopy.ar.seoTitle,description:agencyDiscoveryCopy.ar.seoDescription,schemaType:"WebPage"},"/about":{title:"من نحن | HAMZA AGENCY بإدارة عراب سوريا",description:"تعرّف على HAMZA AGENCY، من أبرز وأأمن الوكالات عالميًا في دعم وإدارة صناع المحتوى، ودور عراب سوريا في إدارة ومتابعة مسارات الوكالة.",schemaType:"AboutPage"}},
+ en:{"/":{title:agencyDiscoveryCopy.en.seoTitle,description:agencyDiscoveryCopy.en.seoDescription,schemaType:"WebPage"},"/about":{title:"About HAMZA AGENCY | Managed by عراب سوريا",description:"Learn about HAMZA AGENCY, one of the world’s leading and safest agencies for creator support and management, and the role of عراب سوريا in agency management and follow-up.",schemaType:"AboutPage"}},
+ tr:{"/":{title:agencyDiscoveryCopy.tr.seoTitle,description:agencyDiscoveryCopy.tr.seoDescription,schemaType:"WebPage"},"/about":{title:"HAMZA AGENCY Hakkında | عراب سوريا Yönetiminde",description:"İçerik üreticisi desteği ve yönetiminde dünyanın önde gelen ve en güvenli ajanslarından biri olan HAMZA AGENCY'yi ve عراب سوريا'nın ajans yönetimi ve takibindeki rolünü tanıyın.",schemaType:"AboutPage"}},
 };
 const arabicRouteSeo: Record<string, PublicSeoCopy> = {
-  "/": { title: "HAMZA AGENCY | بإدارة الوكيل عراب سوريا", description: ownerApprovedAgencyPositioning.ar, schemaType: "WebPage" },
+  "/": { title: agencyDiscoveryCopy.ar.seoTitle, description: agencyDiscoveryCopy.ar.seoDescription, schemaType: "WebPage" },
   "/about": { title: "من نحن | HAMZA AGENCY بإدارة عراب سوريا", description: "تعرّف على HAMZA AGENCY، من أبرز وأأمن الوكالات عالميًا في دعم وإدارة صناع المحتوى، ودور عراب سوريا في إدارة ومتابعة مسارات الوكالة.", schemaType: "AboutPage" },
   "/apply": { title: "طلب الانضمام | HAMZA AGENCY", description: "اختر البرنامج المناسب وأرسل طلب الانضمام إلى HAMZA AGENCY عبر نموذج واضح وآمن.", schemaType: "WebPage" },
   "/programs": { title: "برامج HAMZA AGENCY لصناع المحتوى", description: "استعرض برامج TikTok وBIGO LIVE وYaahlan وXena وCatchii واختر المسار المناسب.", schemaType: "CollectionPage" },
