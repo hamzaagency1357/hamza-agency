@@ -26,7 +26,7 @@ function assertApprovedNext15Residual(audit, label, expectedHighCount) {
       );
       return `- ${name}: severity=${finding.severity}; affected=${finding.range}; fix=${JSON.stringify(finding.fixAvailable)}; via=${via.join("; ")}`;
     });
-    throw new Error(`${label}: dependency vulnerability set changed. Investigate and remediate rather than expanding the allowlist.\\n${details.join("\\n")}`);
+    throw new Error(`${label}: dependency vulnerability set changed. Investigate and remediate rather than expanding the allowlist.\n${details.join("\n")}`);
   }
   assert.equal(audit.metadata?.vulnerabilities?.critical || 0, 0, `${label}: critical vulnerability detected`);
   assert.equal(audit.metadata?.vulnerabilities?.high || 0, expectedHighCount, `${label}: high vulnerability count changed`);
