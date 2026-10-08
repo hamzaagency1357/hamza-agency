@@ -17,7 +17,17 @@ function runAudit(args) {
 function assertApprovedNext15Residual(audit, label, expectedHighCount) {
   const vulnerabilities = audit.vulnerabilities || {};
   const keys = Object.keys(vulnerabilities).sort();
-  assert.deepEqual(keys, ["next", "postcss"], `${label}: unexpected vulnerability set: ${keys.join(", ")}`);
+  const approved = ["next", "postcss"];
+  if (JSON.stringify(keys) !== JSON.stringify(approved)) {
+    const details = keys.map((name) => {
+      const finding = vulnerabilities[name];
+      const via = (finding.via || []).map((item) =>
+        typeof item === "string" ? item : [item.name, item.title, item.url].filter(Boolean).join(" | ")
+      );
+      return `- ${name}: severity=${finding.severity}; affected=${finding.range}; fix=${JSON.stringify(finding.fixAvailable)}; via=${via.join("; ")}`;
+    });
+    throw new Error(`${label}: dependency vulnerability set changed. Investigate and remediate rather than expanding the allowlist.\\n${details.join("\\n")}`);
+  }
   assert.equal(audit.metadata?.vulnerabilities?.critical || 0, 0, `${label}: critical vulnerability detected`);
   assert.equal(audit.metadata?.vulnerabilities?.high || 0, expectedHighCount, `${label}: high vulnerability count changed`);
 
