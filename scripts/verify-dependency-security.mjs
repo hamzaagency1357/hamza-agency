@@ -14,11 +14,10 @@ function runAudit(args) {
   return JSON.parse(result.stdout);
 }
 
-function assertApprovedNext15Residual(audit, label, expectedHighCount) {
+function assertNoVulnerabilities(audit, label) {
   const vulnerabilities = audit.vulnerabilities || {};
   const keys = Object.keys(vulnerabilities).sort();
-  const approved = ["next"];
-  if (JSON.stringify(keys) !== JSON.stringify(approved)) {
+  if (keys.length > 0) {
     const details = keys.map((name) => {
       const finding = vulnerabilities[name];
       const via = (finding.via || []).map((item) =>
@@ -26,17 +25,9 @@ function assertApprovedNext15Residual(audit, label, expectedHighCount) {
       );
       return `- ${name}: severity=${finding.severity}; affected=${finding.range}; fix=${JSON.stringify(finding.fixAvailable)}; via=${via.join("; ")}`;
     });
-    throw new Error(`${label}: dependency vulnerability set changed. Investigate and remediate rather than expanding the allowlist.\n${details.join("\n")}`);
+    throw new Error(`${label}: unresolved dependency vulnerabilities detected. Remediate rather than expanding an allowlist.\n${details.join("\n")}`);
   }
-  assert.equal(audit.metadata?.vulnerabilities?.critical || 0, 0, `${label}: critical vulnerability detected`);
-  assert.equal(audit.metadata?.vulnerabilities?.high || 0, expectedHighCount, `${label}: high vulnerability count changed`);
-
-  const next = vulnerabilities.next;
-
-  assert.equal(next?.isDirect, true, `${label}: Next must remain the only direct affected package`);
-  // npm audit returns true for an available in-range fix, or a versioned object for major upgrades.
-  // Do not silently approve additional advisories: affected names, severity and counts remain asserted above.
-  assert.ok(next?.fixAvailable === true || (typeof next?.fixAvailable === "object" && Boolean(next.fixAvailable.version)), `${label}: Next remediation unexpectedly unavailable`);
+  assert.equal(audit.metadata?.vulnerabilities?.total || 0, 0, `${label}: vulnerability count is not zero`);
 }
 
 const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
@@ -55,9 +46,9 @@ assert.equal(packages["node_modules/brace-expansion"]?.version, "1.1.21", "brace
 assert.equal(packages["node_modules/@typescript-eslint/typescript-estree/node_modules/brace-expansion"]?.version, "5.0.12", "brace-expansion modern-line fix regressed");
 
 const runtimeAudit = runAudit(["--omit=dev"]);
-assertApprovedNext15Residual(runtimeAudit, "runtime audit", 0);
+assertNoVulnerabilities(runtimeAudit, "runtime audit");
 
 const fullAudit = runAudit([]);
-assertApprovedNext15Residual(fullAudit, "full audit", 0);
+assertNoVulnerabilities(fullAudit, "full audit");
 
-console.log("Dependency security gate PASS: direct Next/Sharp and dev transitive advisories fixed; only documented Next 15 residual advisories remain, with complete remediation requiring Next 16.");
+console.log("Dependency security gate PASS: runtime and full npm audits report zero vulnerabilities.");
