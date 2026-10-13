@@ -41,7 +41,8 @@ assert.equal(packages["node_modules/@playwright/test"]?.version, "1.62.1", "Play
 assert.equal(packages["node_modules/js-yaml"]?.version, "4.3.2", "js-yaml dev transitive fix regressed");
 assert.equal(packages["node_modules/browserslist"]?.version, "4.28.9", "browserslist dev transitive fix regressed");
 assert.equal(packages["node_modules/baseline-browser-mapping"]?.version, "2.11.22", "baseline-browser-mapping dev transitive fix regressed");
-assert.equal(packages["node_modules/postcss-selector-parser"]?.version, "6.1.3", "postcss-selector-parser dev transitive fix regressed");
+assert.equal(packages["node_modules/tailwindcss"]?.version, "4.3.3", "Tailwind v4 security target regressed");
+assert.equal(packages["node_modules/@tailwindcss/postcss"]?.version, "4.3.3", "Tailwind PostCSS adapter version regressed");
 assert.equal(packages["node_modules/brace-expansion"]?.version, "1.1.21", "brace-expansion legacy-line fix regressed");
 assert.equal(packages["node_modules/@typescript-eslint/typescript-estree/node_modules/brace-expansion"]?.version, "5.0.12", "brace-expansion modern-line fix regressed");
 
