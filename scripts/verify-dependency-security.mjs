@@ -45,7 +45,7 @@ const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
 const packages = lock.packages || {};
 assert.equal(packages["node_modules/next"]?.version, "15.5.24", "Next must remain on approved secure Next 15 patch");
 assert.equal(packages["node_modules/postcss"]?.version, "8.5.26", "direct PostCSS security target regressed");
-assert.equal(packages["node_modules/sharp"]?.version, "0.35.4", "direct Sharp security target regressed");
+assert.equal(packages["node_modules/sharp"]?.version, "0.35.5", "direct Sharp security target regressed");
 assert.equal(packages["node_modules/nanoid"]?.version, "3.3.18", "nanoid security target regressed");
 assert.equal(packages["node_modules/@playwright/test"]?.version, "1.62.1", "Playwright security target regressed");
 assert.equal(packages["node_modules/js-yaml"]?.version, "4.3.2", "js-yaml dev transitive fix regressed");
