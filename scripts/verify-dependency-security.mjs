@@ -17,7 +17,7 @@ function runAudit(args) {
 function assertApprovedNext15Residual(audit, label, expectedHighCount) {
   const vulnerabilities = audit.vulnerabilities || {};
   const keys = Object.keys(vulnerabilities).sort();
-  const approved = ["next", "postcss"];
+  const approved = ["next"];
   if (JSON.stringify(keys) !== JSON.stringify(approved)) {
     const details = keys.map((name) => {
       const finding = vulnerabilities[name];
@@ -32,11 +32,8 @@ function assertApprovedNext15Residual(audit, label, expectedHighCount) {
   assert.equal(audit.metadata?.vulnerabilities?.high || 0, expectedHighCount, `${label}: high vulnerability count changed`);
 
   const next = vulnerabilities.next;
-  const postcss = vulnerabilities.postcss;
 
   assert.equal(next?.isDirect, true, `${label}: Next must remain the only direct affected package`);
-  assert.equal(postcss?.isDirect, false, `${label}: nested PostCSS unexpectedly became direct`);
-  assert.deepEqual(postcss?.nodes, ["node_modules/next/node_modules/postcss"], `${label}: PostCSS advisory path changed`);
   // npm audit returns true for an available in-range fix, or a versioned object for major upgrades.
   // Do not silently approve additional advisories: affected names, severity and counts remain asserted above.
   assert.ok(next?.fixAvailable === true || (typeof next?.fixAvailable === "object" && Boolean(next.fixAvailable.version)), `${label}: Next remediation unexpectedly unavailable`);
@@ -58,9 +55,9 @@ assert.equal(packages["node_modules/brace-expansion"]?.version, "1.1.21", "brace
 assert.equal(packages["node_modules/@typescript-eslint/typescript-estree/node_modules/brace-expansion"]?.version, "5.0.12", "brace-expansion modern-line fix regressed");
 
 const runtimeAudit = runAudit(["--omit=dev"]);
-assertApprovedNext15Residual(runtimeAudit, "runtime audit", 1);
+assertApprovedNext15Residual(runtimeAudit, "runtime audit", 0);
 
 const fullAudit = runAudit([]);
-assertApprovedNext15Residual(fullAudit, "full audit", 1);
+assertApprovedNext15Residual(fullAudit, "full audit", 0);
 
-console.log("Dependency security gate PASS: direct Next/Sharp and dev transitive advisories fixed; only documented Next 15/PostCSS residual advisories remain, with complete remediation requiring Next 16.");
+console.log("Dependency security gate PASS: direct Next/Sharp and dev transitive advisories fixed; only documented Next 15 residual advisories remain, with complete remediation requiring Next 16.");
