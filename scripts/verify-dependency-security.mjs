@@ -46,6 +46,17 @@ assert.equal(packages["node_modules/@tailwindcss/postcss"]?.version, "4.3.3", "T
 assert.equal(packages["node_modules/brace-expansion"]?.version, "1.1.21", "brace-expansion legacy-line fix regressed");
 assert.equal(packages["node_modules/@typescript-eslint/typescript-estree/node_modules/brace-expansion"]?.version, "5.0.12", "brace-expansion modern-line fix regressed");
 
+// The upstream braces advisory (GHSA-vfj7-8cjw-p6xm) has no patched
+// npm release as of 2026-10-13. Never silently suppress it in the full
+// audit. Assert that the known affected dependency is dev-only and cannot
+// enter the runtime dependency graph without failing this gate.
+for (const name of ["braces", "micromatch", "fast-glob", "@next/eslint-plugin-next"]) {
+  const entry = packages[`node_modules/${name}`];
+  if (entry) {
+    assert.equal(entry.dev, true, `${name} must remain dev-only; production exposure requires immediate remediation`);
+  }
+}
+
 const runtimeAudit = runAudit(["--omit=dev"]);
 assertNoVulnerabilities(runtimeAudit, "runtime audit");
 
