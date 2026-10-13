@@ -4,6 +4,9 @@ on:
     branches:
       - fix/csp-remove-unsafe-eval-20261008
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
 permissions:
   contents: write
 jobs:
