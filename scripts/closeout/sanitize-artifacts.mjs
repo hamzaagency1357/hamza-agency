@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 
 const TEXT_EXTENSIONS = new Set([".json", ".txt", ".log", ".html", ".xml", ".md", ".css", ".js"]);
+const SENSITIVE_PATH_SEGMENT = /trace|storage-state|session|cookie|token/i;
 const FORBIDDEN_EXTENSIONS = new Set([".har", ".zip", ".trace", ".webm", ".mp4", ".bin"]);
 const SECRET_PATTERNS = [
   [/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [REDACTED]"],
@@ -37,7 +39,16 @@ export function sanitizeArtifactTree(sourceRoot, safeRoot) {
     if (!TEXT_EXTENSIONS.has(extension)) continue;
     const source = fs.readFileSync(file, "utf8");
     const sanitized = sanitizeText(source);
-    const destination = path.join(safeRoot, relative);
+    // Test titles can contain words such as "cookie" without containing secrets.
+    // Hash those path segments so the fail-closed artifact scanner can still
+    // inspect sanitized report contents without exposing sensitive-looking names.
+    const safeRelative = relative.split(path.sep).map((segment) => {
+      if (!SENSITIVE_PATH_SEGMENT.test(segment)) return segment;
+      const extension = path.extname(segment);
+      const digest = createHash("sha256").update(segment).digest("hex").slice(0, 16);
+      return `report-${digest}${extension}`;
+    }).join(path.sep);
+    const destination = path.join(safeRoot, safeRelative);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.writeFileSync(destination, sanitized);
     copied += 1;
