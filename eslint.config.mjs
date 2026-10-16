@@ -13,13 +13,9 @@ const eslintConfig = [
     settings: { react: { version: "detect" } },
     languageOptions: { parser: tsParser, parserOptions: { ecmaFeatures: { jsx: true } } },
     rules: {
-      ...react.configs.recommended.rules,
-      ...reactHooks.configs.recommended.rules,
-      ...jsxA11y.configs.recommended.rules,
-      "react/react-in-jsx-scope": "off",
-      "react/prop-types": "off",
-      "react/no-unescaped-entities": "off",
-      "react-hooks/exhaustive-deps": "warn"
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+      "react/jsx-no-target-blank": "off"
     }
   },
   {
