@@ -29,7 +29,8 @@ const FOOTER_LINKS = {
   ],
   Connect: [
     { label: "WhatsApp", href: "#", onClick: () => openWhatsApp() },
-    { label: "Instagram", href: "#" },
+    { label: "Instagram", href: "https://www.instagram.com/hamza_agency/" },
+    { label: "Facebook", href: "https://www.facebook.com/share/1CPDPhC8MW/" },
     { label: "LinkedIn", href: "#" },
     { label: "TikTok", href: "#" },
     { label: "YouTube", href: "#" },
@@ -113,6 +114,8 @@ export default function Footer() {
                   <li key={link.label}>
                     <a
                       href={link.href}
+                      target={link.href.startsWith("https://") ? "_blank" : undefined}
+                      rel={link.href.startsWith("https://") ? "noopener noreferrer" : undefined}
                       onClick={
                         "onClick" in link
                           ? (e) => {

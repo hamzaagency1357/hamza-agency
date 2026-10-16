@@ -138,7 +138,6 @@ export default function AdminSecurityPage() {
       {enrollment && (
         <section className="space-y-4 rounded-2xl border border-yellow-300/20 bg-yellow-300/[0.04] p-5">
           <h2 className="font-bold">ربط تطبيق المصادقة</h2>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={enrollment.qrCode}
             alt="رمز QR لإعداد التحقق الثنائي"

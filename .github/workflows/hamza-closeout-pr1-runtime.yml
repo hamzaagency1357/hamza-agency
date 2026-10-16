@@ -23,7 +23,7 @@ jobs:
       PR1_APPLY_FILE: /tmp/hamza-pr1-current-state.apply.sql
       PR1_START_LOG: /tmp/hamza-pr1-supabase-start.log
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.expected_sha }}
           fetch-depth: 1
@@ -38,7 +38,7 @@ jobs:
           test -z "${SUPABASE_ACCESS_TOKEN:-}"
           test -z "${HAMZA_PRODUCTION_READONLY_URL:-}"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm

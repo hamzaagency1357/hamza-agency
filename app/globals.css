@@ -1,6 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../tailwind.config.ts";
+@custom-variant dark (&:where(.dark, .dark *));
 
 * {
   box-sizing: border-box;
@@ -318,4 +318,11 @@ button {
   .public-site-page footer > div {
     width: min(100% - 72px, 1560px);
   }
+}
+
+/* Keep the open language menu above the Install App page content.
+   Tailwind v4 creates stacking contexts differently from the legacy build;
+   raising only the menu cannot escape its header's stacking context. */
+header:has([data-language-switcher="dropdown"][aria-expanded="true"]) {
+  z-index: 10000 !important;
 }
