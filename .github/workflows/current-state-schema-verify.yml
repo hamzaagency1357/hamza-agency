@@ -32,7 +32,7 @@ jobs:
     timeout-minutes: 40
     steps:
       - name: Checkout exact trusted PR Head
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
@@ -51,7 +51,7 @@ jobs:
           test ! -d supabase/current-state-schema/parts
           test ! -d supabase/current-state-schema/generated
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
