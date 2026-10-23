@@ -1,0 +1,48 @@
+name: PR154 One-Time Next.js Security Lock Refresh
+
+on:
+  push:
+    branches:
+      - fix/csp-remove-unsafe-eval-20261008
+    paths:
+      - .github/workflows/pr154-next-security-lock-refresh.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-lockfile:
+    if: github.repository == 'hamzaagency1357/hamza-agency' && github.ref == 'refs/heads/fix/csp-remove-unsafe-eval-20261008'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: true
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Regenerate lockfile from official npm registry
+        run: npm install next@15.5.28 --save-exact --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Verify clean installation
+        run: npm ci --no-audit --no-fund
+      - name: Verify dependency security without exemptions
+        run: npm run verify:dependencies
+      - name: Check lint and report any remaining errors
+        continue-on-error: true
+        run: npm run lint
+      - name: Commit only audited dependency refresh and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node -p 'require("./package.json").dependencies.next')" = '15.5.28'
+          git rm .github/workflows/pr154-next-security-lock-refresh.yml
+          git add package.json package-lock.json
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(security): upgrade Next.js to 15.5.28 and refresh npm lock"
+          git push origin "HEAD:fix/csp-remove-unsafe-eval-20261008"
