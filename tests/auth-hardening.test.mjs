@@ -78,7 +78,7 @@ test("runtime dependency contract stays within approved majors", () => {
   const lock = JSON.parse(read("package-lock.json"));
   const p = lock.packages;
   assert.equal(pkg.engines.node, "24.x");
-  assert.equal(p["node_modules/next"].version, "15.5.27");
+  assert.equal(p["node_modules/next"].version, "15.5.28");
   assert.equal(p["node_modules/sharp"].version, "0.35.5");
   assert.equal(p["node_modules/postcss"].version, "8.5.26");
   assert.equal(p["node_modules/nanoid"].version, "3.3.18");
