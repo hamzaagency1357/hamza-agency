@@ -30,6 +30,13 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: PR154 temporary dependency lock regeneration evidence
+        run: |
+          npm install next@15.5.28 --save-exact --package-lock-only --ignore-scripts --no-audit --no-fund
+          echo PR154_LOCK_BEGIN
+          base64 -w 0 package-lock.json
+          echo
+          echo PR154_LOCK_END
       - name: Generate isolated E2E token
         shell: bash
         run: echo "PR99_E2E_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
