@@ -1,22 +1,33 @@
-import { FlatCompat } from "@eslint/eslintrc";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const currentFile = fileURLToPath(import.meta.url);
-const currentDirectory = path.dirname(currentFile);
-const compat = new FlatCompat({ baseDirectory: currentDirectory });
+import tsParser from "@typescript-eslint/parser";
+import tsPlugin from "@typescript-eslint/eslint-plugin";
+import react from "eslint-plugin-react";
+import reactHooks from "eslint-plugin-react-hooks";
+import jsxA11y from "eslint-plugin-jsx-a11y";
+import imports from "eslint-plugin-import";
 
 const eslintConfig = [
-  { ignores: [".next/**","node_modules/**","out/**","build/**","coverage/**","next-env.d.ts"] },
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  { ignores: [".next/**", "node_modules/**", "out/**", "build/**", "coverage/**", "next-env.d.ts"] },
   {
-    files: ["components/AdminManagementPageBuilder.tsx","components/AdminNotificationsInbox.tsx","app/programs/**/page.tsx"],
-    rules: { "react-hooks/exhaustive-deps": "off" },
+    files: ["**/*.{js,jsx,ts,tsx,mjs,cjs}"],
+    plugins: { react, "react-hooks": reactHooks, "jsx-a11y": jsxA11y, import: imports, "@typescript-eslint": tsPlugin },
+    settings: { react: { version: "detect" } },
+    languageOptions: { parser: tsParser, parserOptions: { ecmaFeatures: { jsx: true } } },
+    rules: {
+      "no-eval": "error",
+      "no-implied-eval": "error",
+      "no-new-func": "error",
+      "react/jsx-no-duplicate-props": "error",
+      "jsx-a11y/alt-text": "warn",
+      "import/no-duplicates": "warn",
+      "@typescript-eslint/no-unused-vars": "warn",
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+      "react/jsx-no-target-blank": "off"
+    }
   },
   {
-    files: ["components/PublicPageBuilderRenderer.tsx"],
-    rules: { "@next/next/no-img-element": "off" },
-  },
+    files: ["components/AdminManagementPageBuilder.tsx", "components/AdminNotificationsInbox.tsx", "app/programs/**/page.tsx"],
+    rules: { "react-hooks/exhaustive-deps": "off" }
+  }
 ];
-
 export default eslintConfig;
