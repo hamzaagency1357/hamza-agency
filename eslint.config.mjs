@@ -13,6 +13,13 @@ const eslintConfig = [
     settings: { react: { version: "detect" } },
     languageOptions: { parser: tsParser, parserOptions: { ecmaFeatures: { jsx: true } } },
     rules: {
+      "no-eval": "error",
+      "no-implied-eval": "error",
+      "no-new-func": "error",
+      "react/jsx-no-duplicate-props": "error",
+      "jsx-a11y/alt-text": "warn",
+      "import/no-duplicates": "warn",
+      "@typescript-eslint/no-unused-vars": "warn",
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
       "react/jsx-no-target-blank": "off"
