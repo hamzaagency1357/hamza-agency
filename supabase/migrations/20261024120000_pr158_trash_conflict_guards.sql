@@ -27,11 +27,21 @@ begin
   -- Reject malformed/incomplete snapshots instead of silently losing columns.
   if jsonb_typeof(coalesce(v_item.item_data,v_item.data)) <> 'object' then raise exception 'Invalid trash snapshot'; end if;
   if not (coalesce(v_item.item_data,v_item.data) ? 'id') then raise exception 'Missing snapshot identifier'; end if;
+  select string_agg(format('%I',c.column_name),',' order by c.ordinal_position),
+         string_agg(format('x.%I',c.column_name),',' order by c.ordinal_position)
+    into v_columns,v_select_columns
+    from information_schema.columns c
+    where c.table_schema='public' and c.table_name=v_item.item_type
+      and c.column_name in (select key from jsonb_each(coalesce(v_item.item_data,v_item.data)))
+      and c.is_generated='NEVER'
+      and (c.is_identity='NO' or c.identity_generation='BY DEFAULT');
+  if v_columns is null or v_select_columns is null then raise exception 'Invalid restore columns'; end if;
   execute format(
-    'insert into public.%1$I select * from jsonb_populate_record(null::public.%1$I,$1) on conflict (id) do nothing',
-    v_item.item_type
+    'insert into public.%1$I (%2$s) select %3$s from jsonb_populate_record(null::public.%1$I,$1) x on conflict (id) do nothing',
+    v_item.item_type,v_columns,v_select_columns
   ) using coalesce(v_item.item_data,v_item.data);
-  if not found then raise exception 'Restore conflict: concurrent record exists; no data overwritten'; end if;
+  get diagnostics v_row_count = row_count;
+  if v_row_count <> 1 then raise exception 'Restore conflict: concurrent record exists; no data overwritten'; end if;
   v_result := jsonb_build_object('table',v_item.item_type,'restored',1,'actor',v_actor);
   update public.trash_items set restore_status='restored',restored_at=now() where id=p_trash_id and restore_status='restorable';
   insert into public.activity_logs(admin_email,actor_user_id,action,entity_type,entity_id,new_data,metadata,source_route,outcome)
