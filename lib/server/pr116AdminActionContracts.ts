@@ -1304,9 +1304,19 @@ export const PR116_ADMIN_ACTION_CONTRACTS = {
     "module": "programs",
     "permission": "can_edit",
     "allowedFields": [
+      "benefits",
+      "description",
+      "faq",
       "is_active",
       "is_visible",
-      "updated_at"
+      "name",
+      "requirements",
+      "short_description",
+      "slug",
+      "sort_order",
+      "status",
+      "updated_at",
+      "updates"
     ],
     "allowedFilters": [
       "id"
