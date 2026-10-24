@@ -232,6 +232,11 @@ Deno.serve(async (request: Request) => {
       if (typeof target.id !== "number" || suppliedId !== target.id) {
         return json(403, { ok: false, code: "target_admin_id_mismatch" });
       }
+      const moduleKey = (values as Record<string, unknown>).module_key;
+      if (typeof moduleKey !== "string" || !moduleKey.trim() ||
+          moduleKey.length > 80 || moduleKey === "permissions") {
+        return json(400, { ok: false, code: "invalid_permission_module" });
+      }
     }
   }
   const required = ACTION_PERMISSIONS[action];
