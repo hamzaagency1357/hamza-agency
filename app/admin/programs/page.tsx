@@ -281,6 +281,7 @@ export default function AdminProgramsPage() {
     if (!supabase) return;
     const confirmed = window.confirm(`سيتم نقل برنامج "${program.name}" إلى سلة المحذوفات، ثم إخفاؤه وتعطيله من الموقع. يمكن استرجاعه لاحقًا من السلة. هل تريد المتابعة؟`);
     if (!confirmed) return;
+    // Archive only an explicitly selected, current program row; never trust a stale list snapshot.
     const { data: currentProgram, error: snapshotError } = await supabase.from("programs").select("*").eq("id", program.id).maybeSingle();
     if (snapshotError || !currentProgram || currentProgram.id !== program.id) {
       setMessage("تعذر التحقق من النسخة الكاملة للبرنامج؛ لم يتم نقله إلى السلة.");
