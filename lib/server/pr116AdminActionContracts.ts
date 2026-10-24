@@ -212,14 +212,14 @@ export const PR116_ADMIN_ACTION_CONTRACTS = {
       "p_trash_id"
     ]
   },
+  // Generic restore is disabled until the database RPC enforces version-aware,
+  // conflict-safe program restoration. UI confirmation is not a security boundary.
   "pr116_admin_trash_restore": {
     "kind": "rpc",
     "rpcName": "pr99_restore_trash",
     "module": "trash",
-    "permission": "can_edit",
-    "allowedFields": [
-      "p_trash_id"
-    ]
+    "permission": "can_manage",
+    "allowedFields": []
   },
   "pr116_ai_support_page_rpc_pr4_support_action_call": {
     "kind": "rpc",
