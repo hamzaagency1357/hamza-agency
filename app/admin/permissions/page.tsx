@@ -313,6 +313,7 @@ export default function AdminPermissionsPage() {
     setMessage("");
     const payload = {
       admin_email: email,
+      admin_user_id: targetAdmin.id,
       module_key: form.module_key,
       can_view: form.can_view,
       can_create: form.can_create,
