@@ -39,6 +39,11 @@ begin
       and c.is_generated='NEVER'
       and (c.is_identity='NO' or c.identity_generation='BY DEFAULT');
   if v_columns is null or v_select_columns is null then raise exception 'Invalid restore columns'; end if;
+  if not exists (
+    select 1 from pg_catalog.pg_attribute a
+    where a.attrelid = format('public.%I', v_item.item_type)::regclass
+      and a.attname = 'id' and a.attnum > 0 and not a.attisdropped
+  ) then raise exception 'Restore target has no id column'; end if;
   execute format(
     'insert into public.%1$I (%2$s) select %3$s from jsonb_populate_record(null::public.%1$I,$1) x on conflict do nothing',
     v_item.item_type,v_columns,v_select_columns
@@ -78,3 +83,9 @@ begin
   values(v_actor,auth.uid(),'trash_permanent_delete',v_item.item_type,v_item.item_id,jsonb_build_object('trash_id',p_trash_id),'/admin/trash','success');
   return jsonb_build_object('deleted',true,'trash_id',p_trash_id);
 end $function$;
+
+-- Restrict execution of SECURITY DEFINER RPCs; authorization is also checked inside each function.
+revoke all on function public.pr99_restore_trash(bigint) from public, anon;
+revoke all on function public.pr99_permanent_delete_trash(bigint,text) from public, anon;
+grant execute on function public.pr99_restore_trash(bigint) to authenticated;
+grant execute on function public.pr99_permanent_delete_trash(bigint,text) to authenticated;
