@@ -176,6 +176,8 @@ export default function AdminProgramsPage() {
 
   useEffect(() => {
     if (isAuthorized) loadPrograms();
+  // loadPrograms is intentionally refreshed when authorization or assignment changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthorized, adminProfile]);
 
   const filteredPrograms = useMemo(() => programs.filter((program) => `${program.name} ${program.slug} ${program.status}`.toLowerCase().includes(search.toLowerCase())), [programs, search]);
