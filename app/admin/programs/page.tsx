@@ -13,6 +13,15 @@ type Program = {
   id: number;
   name: string;
   slug: string;
+  logo_url: string | null;
+  hero_image_url: string | null;
+  mobile_image_url: string | null;
+  og_image_url: string | null;
+  alt_ar: string | null;
+  alt_en: string | null;
+  alt_tr: string | null;
+  media_display_mode: string | null;
+  detail_layout: number | null;
   description: string | null;
   short_description: string | null;
   status: string | null;
@@ -74,6 +83,15 @@ const emptyForm: ProgramForm = {
 function getProgramSnapshot(program: Program) {
   return {
     id: program.id,
+    logo_url: program.logo_url,
+    hero_image_url: program.hero_image_url,
+    mobile_image_url: program.mobile_image_url,
+    og_image_url: program.og_image_url,
+    alt_ar: program.alt_ar,
+    alt_en: program.alt_en,
+    alt_tr: program.alt_tr,
+    media_display_mode: program.media_display_mode,
+    detail_layout: program.detail_layout,
     name: program.name,
     slug: program.slug,
     description: program.description,
@@ -144,7 +162,7 @@ export default function AdminProgramsPage() {
     if (!supabase) return;
     const { data, error } = await supabase
       .from("programs")
-      .select("id, name, slug, description, short_description, status, sort_order, is_visible, is_active, requirements, benefits, faq, updates")
+      .select("id, name, slug, description, short_description, status, sort_order, is_visible, is_active, requirements, benefits, faq, updates, logo_url, hero_image_url, mobile_image_url, og_image_url, alt_ar, alt_en, alt_tr, media_display_mode, detail_layout")
       .order("sort_order", { ascending: true });
     if (error) {
       setMessage("تعذر تحميل البرامج. حاول مرة أخرى.");
