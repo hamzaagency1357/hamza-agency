@@ -241,6 +241,27 @@ export default function AdminPermissionsPage() {
     setError("");
   }
 
+  async function activateTeamMember(id: number) {
+    if (!supabase || !window.confirm("هل تريد تفعيل هذا الحساب الإداري بعد التأكد من هويته؟")) return;
+    setError("");
+    setMessage("");
+    const { data: session } = await supabase.auth.getSession();
+    if (!session.session?.access_token) { setError("انتهت جلسة الدخول."); return; }
+    try {
+      const response = await fetch("/api/admin/team/activate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.session.access_token}` },
+        body: JSON.stringify({ id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.code || "activation_failed");
+      await loadData();
+      setMessage("تم تفعيل الحساب الإداري.");
+    } catch (error) {
+      setError(`تعذّر تفعيل الحساب: ${error instanceof Error ? error.message : "activation_failed"}`);
+    }
+  }
+
   async function inviteTeamMember() {
     if (!supabase || inviting) return;
     setInviting(true);
@@ -444,6 +465,16 @@ export default function AdminPermissionsPage() {
             <button type="button" disabled={inviting || !inviteEmail.trim() || (inviteRole === "program_admin" && !inviteProgram.trim())} onClick={inviteTeamMember} className="rounded-xl bg-purple-600 p-3 font-bold text-white disabled:opacity-40">{inviting ? "جارٍ إرسال الدعوة..." : "إرسال دعوة الحساب"}</button>
           </div>
           <p className="mt-3 text-xs text-white/60">إنشاء الحسابات متاح للمدير الأعلى فقط. لا يتم إرسال كلمات مرور من لوحة التحكم.</p>
+          <div className="mt-4 space-y-2">
+            {adminUsers.filter((user) => user.is_active === false).map((user) => (
+              <div key={String(user.id)} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 p-3 text-sm">
+                <span>{getString(user, ["email"], "")} — {user.user_id ? "بانتظار قبول الدعوة أو الموافقة" : "الدعوة غير مكتملة"}</span>
+                {typeof user.id === "number" && Boolean(user.user_id) && (
+                  <button type="button" onClick={() => activateTeamMember(user.id as number)} className="rounded-lg bg-purple-600 px-4 py-2 font-bold">تفعيل بعد التحقق</button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
 
