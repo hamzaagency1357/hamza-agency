@@ -7,7 +7,16 @@ function respond(status: number, code: string) {
   return NextResponse.json({ ok: false, code }, { status, headers: { "Cache-Control": "no-store" } });
 }
 
+// Require an exact Origin match for cookie-independent bearer requests as an
+// additional browser-side defense; never trust an arbitrary forwarded host.
+function originAllowed(request: NextRequest): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) return true; // Non-browser clients still require a valid user token.
+  try { return new URL(origin).origin === request.nextUrl.origin; } catch { return false; }
+}
+
 export async function POST(request: NextRequest) {
+  if (!originAllowed(request)) return respond(403, "origin_forbidden");
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
