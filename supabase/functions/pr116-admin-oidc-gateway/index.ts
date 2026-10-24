@@ -228,6 +228,10 @@ Deno.serve(async (request: Request) => {
           (target.is_active !== true && target.is_active !== false)) {
         return json(403, { ok: false, code: "target_admin_not_linked" });
       }
+      const suppliedId = (values as Record<string, unknown>).admin_user_id;
+      if (typeof target.id !== "number" || suppliedId !== target.id) {
+        return json(403, { ok: false, code: "target_admin_id_mismatch" });
+      }
     }
   }
   const required = ACTION_PERMISSIONS[action];
