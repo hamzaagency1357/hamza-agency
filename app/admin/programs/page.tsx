@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { requireAdminModuleAccess, type AdminProfile } from "@/lib/adminAccess";
 import { logAdminActivity } from "@/lib/adminActivityLogger";
 import { moveRecordToTrash } from "@/lib/adminTrash";
 
@@ -13,6 +13,15 @@ type Program = {
   id: number;
   name: string;
   slug: string;
+  logo_url: string | null;
+  hero_image_url: string | null;
+  mobile_image_url: string | null;
+  og_image_url: string | null;
+  alt_ar: string | null;
+  alt_en: string | null;
+  alt_tr: string | null;
+  media_display_mode: string | null;
+  detail_layout: number | null;
   description: string | null;
   short_description: string | null;
   status: string | null;
@@ -74,6 +83,15 @@ const emptyForm: ProgramForm = {
 function getProgramSnapshot(program: Program) {
   return {
     id: program.id,
+    logo_url: program.logo_url,
+    hero_image_url: program.hero_image_url,
+    mobile_image_url: program.mobile_image_url,
+    og_image_url: program.og_image_url,
+    alt_ar: program.alt_ar,
+    alt_en: program.alt_en,
+    alt_tr: program.alt_tr,
+    media_display_mode: program.media_display_mode,
+    detail_layout: program.detail_layout,
     name: program.name,
     slug: program.slug,
     description: program.description,
@@ -119,6 +137,7 @@ export default function AdminProgramsPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
+  const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
@@ -134,6 +153,7 @@ export default function AdminProgramsPage() {
         return;
       }
       setAdminEmail(access.profile.email || access.user?.email || "");
+      setAdminProfile(access.profile);
       setIsAuthorized(true);
       setIsCheckingAuth(false);
     }
@@ -142,20 +162,30 @@ export default function AdminProgramsPage() {
 
   async function loadPrograms() {
     if (!supabase) return;
-    const { data, error } = await supabase
+    // Apply the assignment before fetching rows; client filtering is not an access boundary.
+    if (adminProfile?.role === "program_admin" && !adminProfile.assigned_program) {
+      setPrograms([]);
+      setMessage("لا يوجد برنامج مخصص لهذا المسؤول.");
+      return;
+    }
+    let query = supabase
       .from("programs")
-      .select("id, name, slug, description, short_description, status, sort_order, is_visible, is_active, requirements, benefits, faq, updates")
-      .order("sort_order", { ascending: true });
+      .select("id, name, slug, description, short_description, status, sort_order, is_visible, is_active, requirements, benefits, faq, updates, logo_url, hero_image_url, mobile_image_url, og_image_url, alt_ar, alt_en, alt_tr, media_display_mode, detail_layout");
+    if (adminProfile?.role === "program_admin") query = query.eq("slug", adminProfile.assigned_program!);
+    const { data, error } = await query.order("sort_order", { ascending: true });
     if (error) {
       setMessage("تعذر تحميل البرامج. حاول مرة أخرى.");
       return;
     }
-    setPrograms((data || []) as Program[]);
+    const rows = (data || []) as Program[];
+    setPrograms(adminProfile?.role === "program_admin" ? rows.filter((row) => row.slug === adminProfile.assigned_program) : rows);
   }
 
   useEffect(() => {
     if (isAuthorized) loadPrograms();
-  }, [isAuthorized]);
+  // loadPrograms is intentionally refreshed when authorization or assignment changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthorized, adminProfile]);
 
   const filteredPrograms = useMemo(() => programs.filter((program) => `${program.name} ${program.slug} ${program.status}`.toLowerCase().includes(search.toLowerCase())), [programs, search]);
 
@@ -260,7 +290,13 @@ export default function AdminProgramsPage() {
     if (!supabase) return;
     const confirmed = window.confirm(`سيتم نقل برنامج "${program.name}" إلى سلة المحذوفات، ثم إخفاؤه وتعطيله من الموقع. يمكن استرجاعه لاحقًا من السلة. هل تريد المتابعة؟`);
     if (!confirmed) return;
-    const snapshot = getProgramSnapshot(program);
+    // Archive only an explicitly selected, current program row; never trust a stale list snapshot.
+    const { data: currentProgram, error: snapshotError } = await supabase.from("programs").select("*").eq("id", program.id).maybeSingle();
+    if (snapshotError || !currentProgram || currentProgram.id !== program.id) {
+      setMessage("تعذر التحقق من النسخة الكاملة للبرنامج؛ لم يتم نقله إلى السلة.");
+      return;
+    }
+    const snapshot = currentProgram as Record<string, unknown>;
     setMessage("");
     setTrashingProgramId(program.id);
 
@@ -304,6 +340,7 @@ export default function AdminProgramsPage() {
             <p className="mt-2 text-zinc-400">تعديل محتوى البرامج وحالة ظهورها في الموقع.</p>
           </div>
           <div className="flex flex-wrap gap-3">
+            <Link href="/admin/programs/media" className="rounded-xl border border-purple-500/30 px-4 py-2">صور البرامج</Link>
             <Link href="/admin" className="rounded-xl border border-purple-500/30 px-4 py-2">لوحة التحكم</Link>
             <button type="button" onClick={logout} className="rounded-xl border border-red-500/30 px-4 py-2 text-red-200">تسجيل الخروج</button>
           </div>
