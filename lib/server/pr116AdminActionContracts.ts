@@ -1233,6 +1233,7 @@ export const PR116_ADMIN_ACTION_CONTRACTS = {
     "module": "permissions",
     "permission": "can_edit",
     "allowedFields": [
+      "admin_user_id",
       "admin_email",
       "can_create",
       "can_delete",
