@@ -63,8 +63,10 @@ export async function POST(request: NextRequest) {
     return respond(502, "invite_failed_pending_account_inactive");
   }
 
+  // Only attach the Auth identity here. Activation is a separate explicit
+  // super-admin approval step; invitations must not grant privileges by default.
   const { data: linked, error: linkError } = await admin.from("admin_users")
-    .update({ user_id: invited.user.id, is_active: true })
+    .update({ user_id: invited.user.id })
     .eq("id", pending.id).eq("email", email).eq("is_active", false)
     .select("id").single();
   if (linkError || !linked?.id) {
@@ -83,5 +85,5 @@ export async function POST(request: NextRequest) {
     metadata: { invited_email: email, role, assigned_program: role === "program_admin" ? assignedProgram : null },
     source_route: "/api/admin/team/invite", outcome: "success",
   });
-  return NextResponse.json({ ok: true }, { status: 201, headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ ok: true, status: "pending_activation" }, { status: 201, headers: { "Cache-Control": "no-store" } });
 }
