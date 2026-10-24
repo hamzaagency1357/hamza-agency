@@ -40,7 +40,7 @@ begin
       and (c.is_identity='NO' or c.identity_generation='BY DEFAULT');
   if v_columns is null or v_select_columns is null then raise exception 'Invalid restore columns'; end if;
   execute format(
-    'insert into public.%1$I (%2$s) select %3$s from jsonb_populate_record(null::public.%1$I,$1) x on conflict (id) do nothing',
+    'insert into public.%1$I (%2$s) select %3$s from jsonb_populate_record(null::public.%1$I,$1) x on conflict do nothing',
     v_item.item_type,v_columns,v_select_columns
   ) using coalesce(v_item.item_data,v_item.data);
   get diagnostics v_row_count = row_count;
