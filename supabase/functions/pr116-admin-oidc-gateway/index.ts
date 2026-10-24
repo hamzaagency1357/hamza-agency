@@ -95,7 +95,7 @@ async function resolveAdmin(supabaseUrl: string, serviceRole: string, user: { id
   const primary = await serviceFetch(supabaseUrl, serviceRole, `/admin_users?select=${fields}&user_id=eq.${encodeURIComponent(user.id)}&limit=1`);
   const rows = primary.ok ? await primary.json().catch(() => []) as Record<string, unknown>[] : [];
   const row = rows[0] || null;
-  if (!row || row.is_active === false || typeof row.role !== "string") return null;
+  if (!row || row.is_active !== true || typeof row.role !== "string") return null;
   if (!["super_admin", "deputy_super_admin", "program_admin"].includes(row.role)) return null;
   return {
     id: Number(row.id),
