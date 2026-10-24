@@ -205,6 +205,12 @@ Deno.serve(async (request: Request) => {
   if (!user) return json(401, { ok: false, code: "invalid_user_session" });
   const admin = await resolveAdmin(supabaseUrl, serviceRole, user);
   if (!admin) return json(403, { ok: false, code: "forbidden" });
+  // Permission management is an owner-only operation, regardless of
+  // configurable grants in admin_permissions. Never delegate role escalation.
+  if (action.startsWith("pr116_permissions_page_entity_admin_permissions_") &&
+      admin.role !== "super_admin") {
+    return json(403, { ok: false, code: "forbidden" });
+  }
   const required = ACTION_PERMISSIONS[action];
   if (!required || !(await hasPermission(supabaseUrl, serviceRole, admin, required.module, required.permission))) {
     return json(403, { ok: false, code: "forbidden" });
