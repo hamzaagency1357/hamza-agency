@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
   const email = typeof values.email === "string" ? values.email.trim().toLowerCase() : "";
   const role = values.role;
   const assignedProgram = typeof values.assigned_program === "string" ? values.assigned_program.trim() : "";
-  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254 ||
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 ||
       !["deputy_super_admin", "program_admin"].includes(String(role)) ||
       (role === "program_admin" && (!assignedProgram || assignedProgram.length > 100)) ||
       (role !== "program_admin" && assignedProgram)) return respond(400, "invalid_request");
@@ -48,7 +48,14 @@ export async function POST(request: NextRequest) {
     email, user_id: invited.user.id, role, assigned_program: role === "program_admin" ? assignedProgram : null, is_active: true,
   });
   if (insertError) {
-    // Do not delete an Auth identity here: it may predate this request.
+    // An invited Auth user may already exist. Never delete identities as compensation.
+    // Leave a non-active account only if it can be reconciled safely by an operator.
+    await admin.from("activity_logs").insert({
+      admin_email: identity.user.email, actor_user_id: identity.user.id,
+      action: "invite_admin_link_failed", entity_type: "admin_users", entity_id: invited.user.id,
+      metadata: { invited_email: email, role, reason: "database_insert_failed" },
+      source_route: "/api/admin/team/invite", outcome: "failure",
+    });
     return respond(502, "account_link_failed_requires_review");
   }
 
