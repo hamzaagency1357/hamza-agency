@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   if (target.role === "deputy_super_admin") {
     const { data: grants, error: grantsError } = await service.from("admin_permissions")
       .select("module_key,can_view,can_create,can_edit,can_delete,can_export,can_manage")
-      .eq("admin_user_id", id);
+      .eq("admin_email", target.email);
     if (grantsError || !grants?.some((grant) =>
       grant.can_view === true || grant.can_create === true || grant.can_edit === true ||
       grant.can_delete === true || grant.can_export === true || grant.can_manage === true
