@@ -245,6 +245,16 @@ export default function AdminPermissionsPage() {
       return;
     }
 
+    // Permissions must never be provisioned for an unknown or inactive email.
+    // Creating an Auth account is a separate, privileged server-side operation.
+    const targetAdmin = adminUsers.find((user) =>
+      normalizeEmail(getString(user, ["email", "admin_email"], "")) === email
+    );
+    if (!targetAdmin || targetAdmin.is_active !== true || !targetAdmin.user_id) {
+      setError("لا يمكن منح صلاحيات لبريد غير مرتبط بحساب إدارة نشط ومؤكد. يجب إنشاء الحساب وربطه أولاً.");
+      return;
+    }
+
     setIsSaving(true);
     setError("");
     setMessage("");
