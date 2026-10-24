@@ -304,6 +304,7 @@ export default function AdminProgramsPage() {
             <p className="mt-2 text-zinc-400">تعديل محتوى البرامج وحالة ظهورها في الموقع.</p>
           </div>
           <div className="flex flex-wrap gap-3">
+            <Link href="/admin/programs/media" className="rounded-xl border border-purple-500/30 px-4 py-2">صور البرامج</Link>
             <Link href="/admin" className="rounded-xl border border-purple-500/30 px-4 py-2">لوحة التحكم</Link>
             <button type="button" onClick={logout} className="rounded-xl border border-red-500/30 px-4 py-2 text-red-200">تسجيل الخروج</button>
           </div>
