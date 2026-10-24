@@ -302,8 +302,9 @@ export default function AdminPermissionsPage() {
     const targetAdmin = adminUsers.find((user) =>
       normalizeEmail(getString(user, ["email", "admin_email"], "")) === email
     );
-    if (!targetAdmin || targetAdmin.is_active !== true || !targetAdmin.user_id) {
-      setError("لا يمكن منح صلاحيات لبريد غير مرتبط بحساب إدارة نشط ومؤكد. يجب إنشاء الحساب وربطه أولاً.");
+    if (!targetAdmin || !targetAdmin.user_id ||
+        (targetAdmin.is_active !== true && targetAdmin.is_active !== false)) {
+      setError("لا يمكن منح صلاحيات لبريد غير مرتبط بحساب إدارة معروف. يجب إرسال الدعوة وربط الحساب أولاً.");
       return;
     }
 
