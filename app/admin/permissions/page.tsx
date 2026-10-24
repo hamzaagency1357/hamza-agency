@@ -140,6 +140,10 @@ export default function AdminPermissionsPage() {
   const [isForbidden, setIsForbidden] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
   const [adminUsers, setAdminUsers] = useState<AnyRow[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"deputy_super_admin" | "program_admin">("program_admin");
+  const [inviteProgram, setInviteProgram] = useState("");
+  const [inviting, setInviting] = useState(false);
   const [permissions, setPermissions] = useState<AnyRow[]>([]);
   const [form, setForm] = useState<PermissionForm>(emptyForm);
   const [search, setSearch] = useState("");
@@ -235,6 +239,33 @@ export default function AdminPermissionsPage() {
     setForm(toForm(permission));
     setMessage("تم فتح الصلاحية للتعديل.");
     setError("");
+  }
+
+  async function inviteTeamMember() {
+    if (!supabase || inviting) return;
+    setInviting(true);
+    setError("");
+    setMessage("");
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+      if (!token) throw new Error("session_expired");
+      const response = await fetch("/api/admin/team/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole, assigned_program: inviteRole === "program_admin" ? inviteProgram : null }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.code || "invite_failed");
+      setInviteEmail("");
+      setInviteProgram("");
+      await loadData();
+      setMessage("تم إرسال الدعوة وربط الحساب بالإدارة. يمكن تحديد صلاحياته أدناه.");
+    } catch (error) {
+      setError(`تعذّر إرسال الدعوة: ${error instanceof Error ? error.message : "invite_failed"}`);
+    } finally {
+      setInviting(false);
+    }
   }
 
   async function savePermission() {
@@ -401,6 +432,20 @@ export default function AdminPermissionsPage() {
             </Link>
           </div>
         </nav>
+        <div className="my-6 rounded-3xl border border-purple-400/25 bg-white/[0.05] p-5">
+          <h2 className="mb-3 text-xl font-black">دعوة مدير أو عضو فريق</h2>
+          <div className="grid gap-3 md:grid-cols-4">
+            <input aria-label="البريد الإلكتروني للموظف" type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="البريد الإلكتروني" className="rounded-xl border border-white/20 bg-black/30 p-3 text-white" />
+            <select aria-label="الدور الإداري" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as "deputy_super_admin" | "program_admin")} className="rounded-xl border border-white/20 bg-black/30 p-3 text-white">
+              <option value="program_admin">مدير برنامج</option>
+              <option value="deputy_super_admin">نائب المدير الأعلى</option>
+            </select>
+            <input aria-label="البرنامج المخصص" disabled={inviteRole !== "program_admin"} value={inviteProgram} onChange={(e) => setInviteProgram(e.target.value)} placeholder="اسم البرنامج المخصص" className="rounded-xl border border-white/20 bg-black/30 p-3 text-white disabled:opacity-40" />
+            <button type="button" disabled={inviting || !inviteEmail.trim() || (inviteRole === "program_admin" && !inviteProgram.trim())} onClick={inviteTeamMember} className="rounded-xl bg-purple-600 p-3 font-bold text-white disabled:opacity-40">{inviting ? "جارٍ إرسال الدعوة..." : "إرسال دعوة الحساب"}</button>
+          </div>
+          <p className="mt-3 text-xs text-white/60">إنشاء الحسابات متاح للمدير الأعلى فقط. لا يتم إرسال كلمات مرور من لوحة التحكم.</p>
+        </div>
+
 
         <div className="mb-6 rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-4 text-sm leading-7 text-yellow-50">
           <strong>تنبيه:</strong> تغيير الصلاحيات قد يمنح أو يزيل وصولًا إداريًا. راجع اسم الحساب والقسم بعناية قبل الحفظ، وتجنب منح «إدارة كاملة للقسم» إلا عند الحاجة.
