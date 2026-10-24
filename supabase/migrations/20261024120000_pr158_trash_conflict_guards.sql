@@ -10,6 +10,9 @@ declare
   v_exists boolean;
   v_result jsonb;
   v_id_type text;
+  v_columns text;
+  v_select_columns text;
+  v_row_count bigint;
 begin
   select role into v_role from public.admin_users where lower(email)=v_actor and is_active=true;
   if v_role not in ('super_admin','deputy_super_admin') then raise exception 'Not authorized'; end if;
