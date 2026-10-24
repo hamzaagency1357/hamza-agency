@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { requireAdminModuleAccess } from "@/lib/adminAccess";
+import { requireAdminModuleAccess, type AdminProfile } from "@/lib/adminAccess";
 import { logAdminActivity } from "@/lib/adminActivityLogger";
 import { moveRecordToTrash } from "@/lib/adminTrash";
 
@@ -137,6 +137,7 @@ export default function AdminProgramsPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
+  const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
@@ -152,6 +153,7 @@ export default function AdminProgramsPage() {
         return;
       }
       setAdminEmail(access.profile.email || access.user?.email || "");
+      setAdminProfile(access.profile);
       setIsAuthorized(true);
       setIsCheckingAuth(false);
     }
@@ -168,12 +170,13 @@ export default function AdminProgramsPage() {
       setMessage("تعذر تحميل البرامج. حاول مرة أخرى.");
       return;
     }
-    setPrograms((data || []) as Program[]);
+    const rows = (data || []) as Program[];
+    setPrograms(adminProfile?.role === "program_admin" ? rows.filter((row) => row.slug === adminProfile.assigned_program) : rows);
   }
 
   useEffect(() => {
     if (isAuthorized) loadPrograms();
-  }, [isAuthorized]);
+  }, [isAuthorized, adminProfile]);
 
   const filteredPrograms = useMemo(() => programs.filter((program) => `${program.name} ${program.slug} ${program.status}`.toLowerCase().includes(search.toLowerCase())), [programs, search]);
 
