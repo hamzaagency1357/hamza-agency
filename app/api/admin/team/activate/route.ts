@@ -37,6 +37,17 @@ export async function POST(request: NextRequest) {
   const { data: authTarget, error: userError } = await service.auth.admin.getUserById(target.user_id);
   if (userError || !authTarget.user || authTarget.user.email?.toLowerCase() !== target.email?.toLowerCase() ||
       !authTarget.user.email_confirmed_at) return fail(409, "invitation_not_accepted");
+  // The invite alone must not grant broad module privileges. The owner must
+  // explicitly configure scoped permissions before a deputy becomes active.
+  if (target.role === "deputy_super_admin") {
+    const { data: grants, error: grantsError } = await service.from("admin_permissions")
+      .select("module_key,can_view,can_create,can_edit,can_delete,can_export,can_manage")
+      .eq("admin_user_id", id);
+    if (grantsError || !grants?.some((grant) =>
+      grant.can_view === true || grant.can_create === true || grant.can_edit === true ||
+      grant.can_delete === true || grant.can_export === true || grant.can_manage === true
+    )) return fail(409, "permissions_required_before_activation");
+  }
   const { data: activated, error: updateError } = await service.from("admin_users")
     .update({ is_active: true }).eq("id", id).eq("is_active", false).eq("user_id", target.user_id)
     .select("id").single();
