@@ -41,19 +41,33 @@ export async function POST(request: NextRequest) {
   if (existingError) return respond(502, "lookup_failed");
   if (existing?.length) return respond(409, "account_already_exists");
 
-  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email);
-  if (inviteError || !invited.user?.id) return respond(502, "invite_failed");
+  // A pending, inactive record is created first. The invite is sent only after
+  // its role/scope are persisted, and no access is granted until activation.
+  const { data: pending, error: pendingError } = await admin.from("admin_users").insert({
+    email, role, assigned_program: role === "program_admin" ? assignedProgram : null, is_active: false,
+  }).select("id").single();
+  if (pendingError || !pending?.id) return respond(502, "pending_account_failed");
 
-  const { error: insertError } = await admin.from("admin_users").insert({
-    email, user_id: invited.user.id, role, assigned_program: role === "program_admin" ? assignedProgram : null, is_active: true,
-  });
-  if (insertError) {
-    // An invited Auth user may already exist. Never delete identities as compensation.
-    // Leave a non-active account only if it can be reconciled safely by an operator.
+  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email);
+  if (inviteError || !invited.user?.id) {
     await admin.from("activity_logs").insert({
       admin_email: identity.user.email, actor_user_id: identity.user.id,
-      action: "invite_admin_link_failed", entity_type: "admin_users", entity_id: invited.user.id,
-      metadata: { invited_email: email, role, reason: "database_insert_failed" },
+      action: "invite_admin_failed", entity_type: "admin_users", entity_id: String(pending.id),
+      metadata: { invited_email: email, reason: "auth_invite_failed" },
+      source_route: "/api/admin/team/invite", outcome: "failure",
+    });
+    return respond(502, "invite_failed_pending_account_inactive");
+  }
+
+  const { data: linked, error: linkError } = await admin.from("admin_users")
+    .update({ user_id: invited.user.id, is_active: true })
+    .eq("id", pending.id).eq("email", email).eq("is_active", false)
+    .select("id").single();
+  if (linkError || !linked?.id) {
+    await admin.from("activity_logs").insert({
+      admin_email: identity.user.email, actor_user_id: identity.user.id,
+      action: "invite_admin_link_failed", entity_type: "admin_users", entity_id: String(pending.id),
+      metadata: { invited_email: email, reason: "database_link_failed" },
       source_route: "/api/admin/team/invite", outcome: "failure",
     });
     return respond(502, "account_link_failed_requires_review");
