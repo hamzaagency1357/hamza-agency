@@ -61,7 +61,7 @@ jobs:
           if (failures.length) throw new Error(`Full closeout blocked: ${failures.join(',')}`);
           NODE
       - name: Verify required existing workflow conclusions for this Head
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const sha = '${{ inputs.expected_sha }}';
