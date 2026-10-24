@@ -162,10 +162,17 @@ export default function AdminProgramsPage() {
 
   async function loadPrograms() {
     if (!supabase) return;
-    const { data, error } = await supabase
+    // Apply the assignment before fetching rows; client filtering is not an access boundary.
+    if (adminProfile?.role === "program_admin" && !adminProfile.assigned_program) {
+      setPrograms([]);
+      setMessage("لا يوجد برنامج مخصص لهذا المسؤول.");
+      return;
+    }
+    let query = supabase
       .from("programs")
-      .select("id, name, slug, description, short_description, status, sort_order, is_visible, is_active, requirements, benefits, faq, updates, logo_url, hero_image_url, mobile_image_url, og_image_url, alt_ar, alt_en, alt_tr, media_display_mode, detail_layout")
-      .order("sort_order", { ascending: true });
+      .select("id, name, slug, description, short_description, status, sort_order, is_visible, is_active, requirements, benefits, faq, updates, logo_url, hero_image_url, mobile_image_url, og_image_url, alt_ar, alt_en, alt_tr, media_display_mode, detail_layout");
+    if (adminProfile?.role === "program_admin") query = query.eq("slug", adminProfile.assigned_program!);
+    const { data, error } = await query.order("sort_order", { ascending: true });
     if (error) {
       setMessage("تعذر تحميل البرامج. حاول مرة أخرى.");
       return;
