@@ -37,9 +37,13 @@ export async function POST(request: NextRequest) {
       (role !== "program_admin" && assignedProgram)) return respond(400, "invalid_request");
 
   const { data: existing, error: existingError } = await admin.from("admin_users")
-    .select("id").eq("email", email).limit(1);
+    .select("id,user_id,role,assigned_program,is_active").eq("email", email).limit(1);
   if (existingError) return respond(502, "lookup_failed");
-  if (existing?.length) return respond(409, "account_already_exists");
+  if (existing?.length) {
+    // Existing active identities and pending invitations require a separate
+    // verified recovery flow. Never silently upgrade or overwrite either.
+    return respond(409, existing[0].is_active === false ? "pending_invite_requires_review" : "account_already_exists");
+  }
 
   // A pending, inactive record is created first. The invite is sent only after
   // its role/scope are persisted, and no access is granted until activation.
