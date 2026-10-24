@@ -221,7 +221,7 @@ Deno.serve(async (request: Request) => {
       if (admin.role === "program_admin") {
         const assigned = normalizeProgramScope(admin.assignedProgram);
         const target = normalizeProgramScope(typeof current.platform === "string" ? current.platform : "");
-        if (!assigned || !target.includes(assigned)) return json(403, { ok: false, code: "forbidden" });
+        if (!assigned || !target || target !== assigned) return json(403, { ok: false, code: "forbidden" });
       }
       let patch: Record<string, unknown>;
       if (action === "application_status_update") {
