@@ -13,9 +13,11 @@ declare
   v_columns text;
   v_select_columns text;
   v_row_count bigint;
+  v_tenant_id uuid;
 begin
   select role into v_role from public.admin_users where lower(email)=v_actor and is_active=true;
   if v_role not in ('super_admin','deputy_super_admin') then raise exception 'Not authorized'; end if;
+  select id into strict v_tenant_id from public.tenants where is_primary=true and status='active';
   select * into v_item from public.trash_items where id=p_trash_id and restore_status='restorable' for update;
   if not found then raise exception 'Trash item unavailable'; end if;
   if not (v_item.item_type=any(public.pr99_operations_allowlist())) then raise exception 'Unsupported trash entity'; end if;
@@ -58,8 +60,8 @@ begin
   if v_result is null then raise exception 'Restored record not found'; end if;
   v_result := jsonb_build_object('table',v_item.item_type,'restored',1,'actor',v_actor);
   update public.trash_items set restore_status='restored',restored_at=now() where id=p_trash_id and restore_status='restorable';
-  insert into public.activity_logs(admin_email,actor_user_id,action,entity_type,entity_id,new_data,metadata,source_route,outcome)
-  values(v_actor,auth.uid(),'trash_restore',v_item.item_type,v_item.item_id,v_result,jsonb_build_object('trash_id',p_trash_id),'/admin/trash','success');
+  insert into public.activity_logs(admin_email,actor_user_id,action,entity_type,entity_id,new_data,metadata,source_route,outcome,tenant_id)
+  values(v_actor,auth.uid(),'trash_restore',v_item.item_type,v_item.item_id,v_result::text,jsonb_build_object('trash_id',p_trash_id),'/admin/trash','success',v_tenant_id);
   return v_result||jsonb_build_object('trash_id',p_trash_id);
 end $function$;
 
@@ -72,9 +74,11 @@ declare
   v_item public.trash_items%rowtype;
   v_exists boolean;
   v_id_type text;
+  v_tenant_id uuid;
 begin
   select role into v_role from public.admin_users where lower(email)=v_actor and is_active=true;
   if v_role not in ('super_admin','deputy_super_admin') then raise exception 'Not authorized'; end if;
+  select id into strict v_tenant_id from public.tenants where is_primary=true and status='active';
   if p_confirmation <> 'DELETE PERMANENTLY' then raise exception 'Second confirmation is invalid'; end if;
   select * into v_item from public.trash_items where id=p_trash_id and restore_status='restorable' for update;
   if not found then raise exception 'Trash item unavailable'; end if;
@@ -85,8 +89,8 @@ begin
   execute format('select exists(select 1 from public.%I where id::text=$1)',v_item.item_type) into v_exists using v_item.item_id;
   if v_exists then raise exception 'Permanent delete conflict: live record exists; no data deleted'; end if;
   update public.trash_items set restore_status='permanently_deleted',item_data=null,data='{}'::jsonb where id=p_trash_id and restore_status='restorable';
-  insert into public.activity_logs(admin_email,actor_user_id,action,entity_type,entity_id,metadata,source_route,outcome)
-  values(v_actor,auth.uid(),'trash_permanent_delete',v_item.item_type,v_item.item_id,jsonb_build_object('trash_id',p_trash_id),'/admin/trash','success');
+  insert into public.activity_logs(admin_email,actor_user_id,action,entity_type,entity_id,metadata,source_route,outcome,tenant_id)
+  values(v_actor,auth.uid(),'trash_permanent_delete',v_item.item_type,v_item.item_id,jsonb_build_object('trash_id',p_trash_id),'/admin/trash','success',v_tenant_id);
   return jsonb_build_object('deleted',true,'trash_id',p_trash_id);
 end $function$;
 
