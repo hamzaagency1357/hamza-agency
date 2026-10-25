@@ -30,6 +30,10 @@ begin
   if v_id_type not in ('bigint','integer','smallint','uuid','text','character varying') then raise exception 'Unsupported entity identifier type'; end if;
   if coalesce(v_item.item_data,v_item.data)->>'id' is distinct from v_item.item_id then raise exception 'Trash snapshot identifier mismatch'; end if;
   v_snapshot := coalesce(v_item.item_data,v_item.data);
+  -- Normalize PostgreSQL timestamptz JSON rendering and absent/null fixture fields.
+  if v_snapshot ? 'updated_at' and v_snapshot->>'updated_at' is not null then
+    v_snapshot := jsonb_set(v_snapshot,'{updated_at}',to_jsonb((v_snapshot->>'updated_at')::timestamptz));
+  end if;
   execute format('select to_jsonb(t) from public.%I t where id::text=$1 for update',v_item.item_type)
     into v_current using v_item.item_id;
   v_exists := v_current is not null;
@@ -37,11 +41,11 @@ begin
     v_soft_column := case
       when v_snapshot ? 'is_visible' and v_snapshot ? 'is_active'
         and v_current->>'is_visible'='false' and v_current->>'is_active'='false'
-        and (v_current - 'is_visible' - 'is_active' - 'updated_at')=(v_snapshot - 'is_visible' - 'is_active' - 'updated_at') then 'program_archive'
+        and jsonb_strip_nulls(v_current - 'is_visible' - 'is_active' - 'updated_at')=jsonb_strip_nulls(v_snapshot - 'is_visible' - 'is_active' - 'updated_at') then 'program_archive'
       when v_snapshot ? 'is_visible' and v_current->>'is_visible'='false'
-        and (v_current - 'is_visible')=(v_snapshot - 'is_visible') then 'is_visible'
+        and jsonb_strip_nulls(v_current - 'is_visible')=jsonb_strip_nulls(v_snapshot - 'is_visible') then 'is_visible'
       when v_snapshot ? 'status' and v_current->>'status'='archived'
-        and (v_current - 'status')=(v_snapshot - 'status') then 'status'
+        and jsonb_strip_nulls(v_current - 'status')=jsonb_strip_nulls(v_snapshot - 'status') then 'status'
       else null end;
     if v_soft_column is null then raise exception 'Restore conflict: original record changed; no data overwritten'; end if;
     if v_soft_column='program_archive' then
@@ -119,6 +123,10 @@ begin
   select c.data_type into v_id_type from information_schema.columns c where c.table_schema='public' and c.table_name=v_item.item_type and c.column_name='id';
   if v_id_type not in ('bigint','integer','smallint','uuid','text','character varying') then raise exception 'Unsupported entity identifier type'; end if;
   v_snapshot := coalesce(v_item.item_data,v_item.data);
+  -- Normalize PostgreSQL timestamptz JSON rendering and absent/null fixture fields.
+  if v_snapshot ? 'updated_at' and v_snapshot->>'updated_at' is not null then
+    v_snapshot := jsonb_set(v_snapshot,'{updated_at}',to_jsonb((v_snapshot->>'updated_at')::timestamptz));
+  end if;
   execute format('select to_jsonb(t) from public.%I t where id::text=$1 for update',v_item.item_type)
     into v_current using v_item.item_id;
   v_exists := v_current is not null;
@@ -126,13 +134,13 @@ begin
     if not (
       (v_snapshot ? 'is_visible' and v_snapshot ? 'is_active'
        and v_current->>'is_visible'='false' and v_current->>'is_active'='false'
-       and (v_current - 'is_visible' - 'is_active' - 'updated_at')=(v_snapshot - 'is_visible' - 'is_active' - 'updated_at'))
+       and jsonb_strip_nulls(v_current - 'is_visible' - 'is_active' - 'updated_at')=jsonb_strip_nulls(v_snapshot - 'is_visible' - 'is_active' - 'updated_at'))
       or
       (v_snapshot ? 'is_visible' and v_current->>'is_visible'='false'
-       and (v_current - 'is_visible')=(v_snapshot - 'is_visible'))
+       and jsonb_strip_nulls(v_current - 'is_visible')=jsonb_strip_nulls(v_snapshot - 'is_visible'))
       or
       (v_snapshot ? 'status' and v_current->>'status'='archived'
-       and (v_current - 'status')=(v_snapshot - 'status'))
+       and jsonb_strip_nulls(v_current - 'status')=jsonb_strip_nulls(v_snapshot - 'status'))
     ) then raise exception 'Permanent delete conflict: source record changed'; end if;
     execute format('delete from public.%I where id::text=$1',v_item.item_type) using v_item.item_id;
   end if;
