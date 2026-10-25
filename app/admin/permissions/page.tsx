@@ -49,7 +49,7 @@ const moduleOptions = [
   { key: "notifications", label: "الإشعارات" },
   { key: "analytics", label: "التحليلات" },
   { key: "launch_checklist", label: "فحص الإطلاق" },
-  { key: "permissions", label: "الصلاحيات" },
+  // Permission-management access is reserved for super_admin and cannot be delegated.
 ];
 
 const permissionFields: { key: PermissionKey; label: string; description: string }[] = [
