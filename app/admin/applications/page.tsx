@@ -49,10 +49,6 @@ const statusLabels: Record<string, string> = {
   archived: "مؤرشف",
 };
 
-function normalizeText(value: string | null | undefined) {
-  return (value || "").trim().toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-}
-
 function cleanWhatsapp(value: string | null | undefined) {
   return (value || "").replace(/[^0-9]/g, "");
 }
