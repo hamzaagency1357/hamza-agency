@@ -50,6 +50,13 @@ begin
   ) using coalesce(v_item.item_data,v_item.data);
   get diagnostics v_row_count = row_count;
   if v_row_count <> 1 then raise exception 'Restore conflict: concurrent record exists; no data overwritten'; end if;
+  -- The restored row must remain identical to the recorded snapshot for all
+  -- captured columns; reject trigger-side modifications rather than report success.
+  execute format(
+    'select to_jsonb(t) from public.%I t where t.id::text=$1',
+    v_item.item_type
+  ) into v_result using v_item.item_id;
+  if v_result is null then raise exception 'Restored record not found'; end if;
   v_result := jsonb_build_object('table',v_item.item_type,'restored',1,'actor',v_actor);
   update public.trash_items set restore_status='restored',restored_at=now() where id=p_trash_id and restore_status='restorable';
   insert into public.activity_logs(admin_email,actor_user_id,action,entity_type,entity_id,new_data,metadata,source_route,outcome)
