@@ -116,6 +116,10 @@ async function hasPermission(supabaseUrl: string, serviceRole: string, admin: { 
   return row.can_manage === true || row[permission] === true;
 }
 async function audit(supabaseUrl: string, serviceRole: string, actor: { id: string; email: string }, action: string, entityType: string, entityId: string | number | null, metadata: Record<string, unknown>, oldData?: unknown, newData?: unknown) {
+  const tenantResponse = await serviceFetch(supabaseUrl, serviceRole, "/tenants?select=id&is_primary=eq.true&status=eq.active&limit=1").catch(() => null);
+  const tenants = tenantResponse?.ok ? await tenantResponse.json().catch(() => []) as { id?: string }[] : [];
+  const tenantId = tenants[0]?.id;
+  if (!tenantId) return;
   await serviceFetch(supabaseUrl, serviceRole, "/activity_logs", {
     method: "POST",
     body: JSON.stringify({
@@ -127,6 +131,7 @@ async function audit(supabaseUrl: string, serviceRole: string, actor: { id: stri
       old_data: oldData === undefined ? null : JSON.stringify(oldData),
       new_data: newData === undefined ? null : JSON.stringify(newData),
       metadata,
+      tenant_id: tenantId,
       source_route: "/functions/v1/pr116-admin-oidc-gateway",
       outcome: "success",
     }),
