@@ -34,6 +34,25 @@ insert into trash_items(id,item_type,item_id,item_data,restore_status) values
  (21,'programs','21','{"id":21,"title":"Original title","is_visible":true}','restorable'),
  (22,'programs','22','{"id":22,"title":"Dispose archived","is_visible":true}','restorable'),
  (23,'programs','23','{"id":23,"title":"Original title","is_visible":true}','restorable');
+-- Real program flow archives both flags and changes updated_at.
+insert into programs(id,title,is_visible,is_active,updated_at)
+values (40,'Full archive',false,false,'2026-10-25T10:00:00Z'),
+       (41,'Full archive changed',false,false,'2026-10-25T10:00:00Z');
+insert into trash_items(id,item_type,item_id,item_data,restore_status) values
+ (40,'programs','40','{"id":40,"title":"Full archive","is_visible":true,"is_active":true,"updated_at":"2026-10-24T10:00:00Z"}','restorable'),
+ (41,'programs','41','{"id":41,"title":"Original","is_visible":true,"is_active":true,"updated_at":"2026-10-24T10:00:00Z"}','restorable');
+do $full_archive$
+begin
+  perform public.pr99_restore_trash(40);
+  if not (select is_visible and is_active from programs where id=40) then raise exception 'full archive flags not restored'; end if;
+  if (select updated_at from programs where id=40) <> '2026-10-24T10:00:00Z'::timestamptz then raise exception 'archive timestamp not restored'; end if;
+  begin
+    perform public.pr99_restore_trash(41);
+    raise exception 'changed full archive restored';
+  exception when others then
+    if sqlerrm='changed full archive restored' then raise; end if;
+  end;
+end $full_archive$;
 do $archive$
 begin
   if (public.pr99_restore_trash(20)->>'restored')::int <> 1 then raise exception 'soft restore failed'; end if;
