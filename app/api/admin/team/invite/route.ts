@@ -51,11 +51,17 @@ export async function POST(request: NextRequest) {
 
   let canonicalProgram: string | null = null;
   if (role === "program_admin") {
-    const { data: matches, error: programError } = await admin.from("programs")
-      .select("slug,name").or(`slug.eq.${assignedProgram},name.eq.${assignedProgram}`).limit(2);
-    if (programError) return respond(502, "program_lookup_failed");
-    if (!matches || matches.length !== 1 || !matches[0].slug) return respond(400, "invalid_program_assignment");
-    canonicalProgram = matches[0].slug;
+    // Use parameterized PostgREST equality filters, never interpolate user input into .or().
+    const { data: bySlug, error: slugError } = await admin.from("programs")
+      .select("slug,name").eq("slug", assignedProgram).limit(2);
+    if (slugError) return respond(502, "program_lookup_failed");
+    const { data: byName, error: nameError } = await admin.from("programs")
+      .select("slug,name").eq("name", assignedProgram).limit(2);
+    if (nameError) return respond(502, "program_lookup_failed");
+    const matches = [...(bySlug || []), ...(byName || [])];
+    const uniqueSlugs = [...new Set(matches.map((item) => item.slug).filter(Boolean))];
+    if (uniqueSlugs.length !== 1) return respond(400, "invalid_program_assignment");
+    canonicalProgram = uniqueSlugs[0];
   }
 
   const { data: existing, error: existingError } = await admin.from("admin_users")
