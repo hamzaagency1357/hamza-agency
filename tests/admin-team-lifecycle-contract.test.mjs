@@ -55,3 +55,11 @@ test("gateway validates permission target and exact program on application write
   assert.match(gateway, /target_admin_not_linked/);
   assert.match(gateway, /target !== assigned/);
 });
+
+test("pending invitation retry preserves role and scope and rejects linked accounts", () => {
+  assert.match(invite, /prior\.is_active !== false \|\| prior\.user_id/);
+  assert.match(invite, /prior\.role !== role/);
+  assert.match(invite, /prior\.assigned_program \?\? null\) !== canonicalProgram/);
+  assert.match(invite, /if \(prior\) \{\s*pending = \{ id: prior\.id \}/);
+  assert.match(invite, /pending_invite_requires_review/);
+});
