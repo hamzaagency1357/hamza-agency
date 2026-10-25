@@ -1,4 +1,8 @@
 # HAMZA AGENCY — Full Project Closeout
+## 2026-10-25 — PR #158 pre-merge review
+
+PR #158 contains team invitation and activation routes, admin permissions and gateway changes, and isolated database tests. The change is not yet merged or deployed. Previous CI runs passed, but the latest commit requires new verification. The trash lifecycle needs further testing because archived records can remain in their source tables. Functional staging testing of invitations and activation is not yet confirmed. Production migration and release require separate owner approval.
+
 
 ## 2026-10-02 — Search and AI discovery content review
 
