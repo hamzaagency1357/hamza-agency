@@ -308,6 +308,12 @@ export default function AdminPermissionsPage() {
       return;
     }
 
+    if (targetAdmin.role === "program_admin" &&
+        (!["dashboard", "applications", "programs"].includes(form.module_key) ||
+         !getString(targetAdmin, ["assigned_program"], "").trim())) {
+      setError("مدير البرنامج يحتاج برنامجًا مخصصًا ولا يمكن منحه صلاحيات خارج أقسامه.");
+      return;
+    }
     setIsSaving(true);
     setError("");
     setMessage("");
