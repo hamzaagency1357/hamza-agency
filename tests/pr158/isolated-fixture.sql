@@ -5,7 +5,7 @@ create role anon nologin;
 create schema auth;
 create function auth.uid() returns uuid language sql stable as $$select null::uuid$$;
 create table public.admin_users(email text primary key, role text not null, is_active boolean not null);
-create table public.programs(id bigint primary key, title text not null);
+create table public.programs(id bigint primary key, title text not null, is_visible boolean default true);
 create table public.trash_items(
   id bigint primary key, item_type text not null, item_id text not null,
   item_data jsonb, data jsonb, restore_status text not null,
