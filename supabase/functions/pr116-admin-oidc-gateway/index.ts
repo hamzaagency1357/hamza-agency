@@ -233,8 +233,15 @@ Deno.serve(async (request: Request) => {
         return json(403, { ok: false, code: "target_admin_id_mismatch" });
       }
       const moduleKey = (values as Record<string, unknown>).module_key;
-      if (typeof moduleKey !== "string" || !moduleKey.trim() ||
-          moduleKey.length > 80 || moduleKey === "permissions") {
+      const allowedModules = new Set([
+        "dashboard", "applications", "service_requests", "programs", "pages",
+        "media", "announcements", "settings", "jobs", "reviews",
+        "success_stories", "partners", "gallery", "activity_logs", "trash",
+        "backups", "version_history", "export_center", "audit_mode",
+        "knowledge_base", "ai_support", "ai_settings", "notifications",
+        "analytics", "launch_checklist",
+      ]);
+      if (typeof moduleKey !== "string" || !allowedModules.has(moduleKey)) {
         return json(400, { ok: false, code: "invalid_permission_module" });
       }
     }
