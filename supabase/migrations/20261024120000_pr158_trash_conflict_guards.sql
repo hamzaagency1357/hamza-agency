@@ -35,13 +35,19 @@ begin
   v_exists := v_current is not null;
   if v_exists then
     v_soft_column := case
+      when v_snapshot ? 'is_visible' and v_snapshot ? 'is_active'
+        and v_current->>'is_visible'='false' and v_current->>'is_active'='false'
+        and (v_current - 'is_visible' - 'is_active' - 'updated_at')=(v_snapshot - 'is_visible' - 'is_active' - 'updated_at') then 'program_archive'
       when v_snapshot ? 'is_visible' and v_current->>'is_visible'='false'
         and (v_current - 'is_visible')=(v_snapshot - 'is_visible') then 'is_visible'
       when v_snapshot ? 'status' and v_current->>'status'='archived'
         and (v_current - 'status')=(v_snapshot - 'status') then 'status'
       else null end;
     if v_soft_column is null then raise exception 'Restore conflict: original record changed; no data overwritten'; end if;
-    if v_soft_column='is_visible' then
+    if v_soft_column='program_archive' then
+      execute format('update public.%I set is_visible=$1, is_active=$2, updated_at=$3 where id::text=$4',v_item.item_type)
+        using (v_snapshot->>'is_visible')::boolean,(v_snapshot->>'is_active')::boolean,(v_snapshot->>'updated_at')::timestamptz,v_item.item_id;
+    elsif v_soft_column='is_visible' then
       execute format('update public.%I set is_visible=$1 where id::text=$2',v_item.item_type)
         using (v_snapshot->>'is_visible')::boolean,v_item.item_id;
     else
@@ -118,6 +124,10 @@ begin
   v_exists := v_current is not null;
   if v_exists then
     if not (
+      (v_snapshot ? 'is_visible' and v_snapshot ? 'is_active'
+       and v_current->>'is_visible'='false' and v_current->>'is_active'='false'
+       and (v_current - 'is_visible' - 'is_active' - 'updated_at')=(v_snapshot - 'is_visible' - 'is_active' - 'updated_at'))
+      or
       (v_snapshot ? 'is_visible' and v_current->>'is_visible'='false'
        and (v_current - 'is_visible')=(v_snapshot - 'is_visible'))
       or
