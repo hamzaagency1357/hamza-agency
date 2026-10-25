@@ -34,7 +34,7 @@ insert into trash_items(id,item_type,item_id,item_data,restore_status) values
  (21,'programs','21','{"id":21,"title":"Original title","is_visible":true}','restorable'),
  (22,'programs','22','{"id":22,"title":"Dispose archived","is_visible":true}','restorable'),
  (23,'programs','23','{"id":23,"title":"Original title","is_visible":true}','restorable');
-do $
+do $archive$
 begin
   if (public.pr99_restore_trash(20)->>'restored')::int <> 1 then raise exception 'soft restore failed'; end if;
   if (select is_visible from programs where id=20) is distinct from true then raise exception 'soft restore visibility'; end if;
@@ -54,7 +54,7 @@ begin
     if sqlerrm='modified archived row disposed' then raise; end if;
   end;
   if not exists(select 1 from programs where id=23) then raise exception 'modified row deleted'; end if;
-end $;
+end $archive$;
 set test.actor='staff@example.test';
 do $$
 begin
