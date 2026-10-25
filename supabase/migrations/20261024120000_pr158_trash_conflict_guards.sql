@@ -8,6 +8,9 @@ declare
   v_role text;
   v_item public.trash_items%rowtype;
   v_exists boolean;
+  v_current jsonb;
+  v_snapshot jsonb;
+  v_soft_column text;
   v_result jsonb;
   v_id_type text;
   v_columns text;
@@ -26,8 +29,26 @@ begin
   select c.data_type into v_id_type from information_schema.columns c where c.table_schema='public' and c.table_name=v_item.item_type and c.column_name='id';
   if v_id_type not in ('bigint','integer','smallint','uuid','text','character varying') then raise exception 'Unsupported entity identifier type'; end if;
   if coalesce(v_item.item_data,v_item.data)->>'id' is distinct from v_item.item_id then raise exception 'Trash snapshot identifier mismatch'; end if;
-  execute format('select exists(select 1 from public.%I where id::text=$1)',v_item.item_type) into v_exists using v_item.item_id;
-  if v_exists then raise exception 'Restore conflict: original record exists; no data overwritten'; end if;
+  v_snapshot := coalesce(v_item.item_data,v_item.data);
+  execute format('select to_jsonb(t) from public.%I t where id::text=$1 for update',v_item.item_type)
+    into v_current using v_item.item_id;
+  v_exists := v_current is not null;
+  if v_exists then
+    v_soft_column := case
+      when v_snapshot ? 'is_visible' and v_current->>'is_visible'='false'
+        and (v_current - 'is_visible')=(v_snapshot - 'is_visible') then 'is_visible'
+      when v_snapshot ? 'status' and v_current->>'status'='archived'
+        and (v_current - 'status')=(v_snapshot - 'status') then 'status'
+      else null end;
+    if v_soft_column is null then raise exception 'Restore conflict: original record changed; no data overwritten'; end if;
+    if v_soft_column='is_visible' then
+      execute format('update public.%I set is_visible=$1 where id::text=$2',v_item.item_type)
+        using (v_snapshot->>'is_visible')::boolean,v_item.item_id;
+    else
+      execute format('update public.%I set status=$1 where id::text=$2',v_item.item_type)
+        using v_snapshot->>'status',v_item.item_id;
+    end if;
+  end if;
   -- Atomic insert-only restore: concurrent writers may win, but never get overwritten.
   -- Reject malformed/incomplete snapshots instead of silently losing columns.
   if jsonb_typeof(coalesce(v_item.item_data,v_item.data)) <> 'object' then raise exception 'Invalid trash snapshot'; end if;
@@ -46,12 +67,14 @@ begin
     where a.attrelid = format('public.%I', v_item.item_type)::regclass
       and a.attname = 'id' and a.attnum > 0 and not a.attisdropped
   ) then raise exception 'Restore target has no id column'; end if;
+  if not v_exists then
   execute format(
     'insert into public.%1$I (%2$s) select %3$s from jsonb_populate_record(null::public.%1$I,$1) x on conflict do nothing',
     v_item.item_type,v_columns,v_select_columns
   ) using coalesce(v_item.item_data,v_item.data);
   get diagnostics v_row_count = row_count;
   if v_row_count <> 1 then raise exception 'Restore conflict: concurrent record exists; no data overwritten'; end if;
+  end if;
   -- Confirm the restored row is visible before marking its trash item restored.
   execute format(
     'select to_jsonb(t) from public.%I t where t.id::text=$1',
@@ -73,6 +96,9 @@ declare
   v_role text;
   v_item public.trash_items%rowtype;
   v_exists boolean;
+  v_current jsonb;
+  v_snapshot jsonb;
+  v_soft_column text;
   v_id_type text;
   v_tenant_id uuid;
 begin
