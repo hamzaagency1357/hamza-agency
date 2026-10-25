@@ -33,6 +33,9 @@ export async function POST(request: NextRequest) {
   if (actorError || !actor || actor.is_active !== true || actor.role !== "super_admin" ||
       actor.email?.toLowerCase() !== identity.user.email.toLowerCase()) return respond(403, "forbidden");
 
+  const { data: primaryTenant, error: tenantError } = await admin.from("tenants")
+    .select("id").eq("is_primary", true).eq("status", "active").single();
+  if (tenantError || !primaryTenant?.id) return respond(503, "audit_tenant_unavailable");
   let input: unknown;
   try { input = await request.json(); } catch { return respond(400, "invalid_request"); }
   if (!input || typeof input !== "object" || Array.isArray(input)) return respond(400, "invalid_request");
@@ -67,7 +70,7 @@ export async function POST(request: NextRequest) {
       admin_email: identity.user.email, actor_user_id: identity.user.id,
       action: "invite_admin_failed", entity_type: "admin_users", entity_id: String(pending.id),
       metadata: { invited_email: email, reason: "auth_invite_failed" },
-      source_route: "/api/admin/team/invite", outcome: "failure",
+      tenant_id: primaryTenant.id, source_route: "/api/admin/team/invite", outcome: "failure",
     });
     return respond(502, "invite_failed_pending_account_inactive");
   }
@@ -83,7 +86,7 @@ export async function POST(request: NextRequest) {
       admin_email: identity.user.email, actor_user_id: identity.user.id,
       action: "invite_admin_link_failed", entity_type: "admin_users", entity_id: String(pending.id),
       metadata: { invited_email: email, reason: "database_link_failed" },
-      source_route: "/api/admin/team/invite", outcome: "failure",
+      tenant_id: primaryTenant.id, source_route: "/api/admin/team/invite", outcome: "failure",
     });
     return respond(502, "account_link_failed_requires_review");
   }
@@ -92,7 +95,7 @@ export async function POST(request: NextRequest) {
     admin_email: identity.user.email, actor_user_id: identity.user.id,
     action: "invite_admin_user", entity_type: "admin_users", entity_id: invited.user.id,
     metadata: { invited_email: email, role, assigned_program: role === "program_admin" ? assignedProgram : null },
-    source_route: "/api/admin/team/invite", outcome: "success",
+    tenant_id: primaryTenant.id, source_route: "/api/admin/team/invite", outcome: "success",
   });
   return NextResponse.json({ ok: true, status: "pending_activation" }, { status: 201, headers: { "Cache-Control": "no-store" } });
 }
