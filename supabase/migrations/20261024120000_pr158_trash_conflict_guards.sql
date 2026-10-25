@@ -112,8 +112,20 @@ begin
   perform pg_advisory_xact_lock(hashtextextended(v_item.item_type || ':' || v_item.item_id, 0));
   select c.data_type into v_id_type from information_schema.columns c where c.table_schema='public' and c.table_name=v_item.item_type and c.column_name='id';
   if v_id_type not in ('bigint','integer','smallint','uuid','text','character varying') then raise exception 'Unsupported entity identifier type'; end if;
-  execute format('select exists(select 1 from public.%I where id::text=$1)',v_item.item_type) into v_exists using v_item.item_id;
-  if v_exists then raise exception 'Permanent delete conflict: live record exists; no data deleted'; end if;
+  v_snapshot := coalesce(v_item.item_data,v_item.data);
+  execute format('select to_jsonb(t) from public.%I t where id::text=$1 for update',v_item.item_type)
+    into v_current using v_item.item_id;
+  v_exists := v_current is not null;
+  if v_exists then
+    if not (
+      (v_snapshot ? 'is_visible' and v_current->>'is_visible'='false'
+       and (v_current - 'is_visible')=(v_snapshot - 'is_visible'))
+      or
+      (v_snapshot ? 'status' and v_current->>'status'='archived'
+       and (v_current - 'status')=(v_snapshot - 'status'))
+    ) then raise exception 'Permanent delete conflict: source record changed'; end if;
+    execute format('delete from public.%I where id::text=$1',v_item.item_type) using v_item.item_id;
+  end if;
   update public.trash_items set restore_status='permanently_deleted',item_data=null,data='{}'::jsonb where id=p_trash_id and restore_status='restorable';
   insert into public.activity_logs(admin_email,actor_user_id,action,entity_type,entity_id,metadata,source_route,outcome,tenant_id)
   values(v_actor,auth.uid(),'trash_permanent_delete',v_item.item_type,v_item.item_id,jsonb_build_object('trash_id',p_trash_id),'/admin/trash','success',v_tenant_id);
