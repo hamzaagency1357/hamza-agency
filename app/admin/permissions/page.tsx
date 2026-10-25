@@ -358,8 +358,8 @@ export default function AdminPermissionsPage() {
       newData: { ...payload, module_label: getModuleLabel(form.module_key) },
     });
 
-    setMessage("تم حفظ الصلاحية بنجاح.");
     await loadData();
+    setMessage("تم حفظ الصلاحية بنجاح.");
   }
 
   async function deletePermission(permission: AnyRow) {
