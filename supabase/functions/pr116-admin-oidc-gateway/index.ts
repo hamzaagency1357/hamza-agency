@@ -232,6 +232,20 @@ Deno.serve(async (request: Request) => {
       if (typeof target.id !== "number" || suppliedId !== target.id) {
         return json(403, { ok: false, code: "target_admin_id_mismatch" });
       }
+      const roleResponse = await serviceFetch(supabaseUrl, serviceRole,
+        `/admin_users?select=role,assigned_program&id=eq.${target.id}&limit=1`);
+      if (!roleResponse.ok) return json(503, { ok: false, code: "target_role_lookup_failed" });
+      const roleRows = await roleResponse.json().catch(() => []) as Record<string, unknown>[];
+      const role = roleRows[0]?.role;
+      if (role !== "super_admin" && role !== "deputy_super_admin" && role !== "program_admin")
+        return json(403, { ok: false, code: "invalid_target_role" });
+      if (role === "program_admin") {
+        const scope = roleRows[0]?.assigned_program;
+        const module = (values as Record<string, unknown>).module_key;
+        if (!["dashboard", "applications", "programs"].includes(String(module)) ||
+            typeof scope !== "string" || !normalizeProgramScope(scope))
+          return json(403, { ok: false, code: "program_admin_scope_forbidden" });
+      }
       const moduleKey = (values as Record<string, unknown>).module_key;
       const allowedModules = new Set([
         "dashboard", "applications", "service_requests", "programs", "pages",
