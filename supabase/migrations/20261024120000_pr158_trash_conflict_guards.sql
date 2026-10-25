@@ -97,5 +97,7 @@ end $function$;
 -- Restrict execution of SECURITY DEFINER RPCs; authorization is also checked inside each function.
 revoke all on function public.pr99_restore_trash(bigint) from public, anon;
 revoke all on function public.pr99_permanent_delete_trash(bigint,text) from public, anon;
-grant execute on function public.pr99_restore_trash(bigint) to authenticated;
-grant execute on function public.pr99_permanent_delete_trash(bigint,text) to authenticated;
+revoke all on function public.pr99_restore_trash(bigint) from authenticated;
+revoke all on function public.pr99_permanent_delete_trash(bigint,text) from authenticated;
+grant execute on function public.pr99_restore_trash(bigint) to service_role;
+grant execute on function public.pr99_permanent_delete_trash(bigint,text) to service_role;
