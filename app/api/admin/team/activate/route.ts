@@ -24,6 +24,9 @@ export async function POST(request: NextRequest) {
     .select("id,email,role,is_active").eq("user_id", auth.user.id).maybeSingle();
   if (actorError || !actor || actor.is_active !== true || actor.role !== "super_admin" ||
       actor.email?.toLowerCase() !== auth.user.email.toLowerCase()) return fail(403, "forbidden");
+  const { data: primaryTenant, error: tenantError } = await service.from("tenants")
+    .select("id").eq("is_primary", true).eq("status", "active").single();
+  if (tenantError || !primaryTenant?.id) return fail(503, "audit_tenant_unavailable");
   let body: unknown;
   try { body = await request.json(); } catch { return fail(400, "invalid_request"); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return fail(400, "invalid_request");
@@ -57,7 +60,7 @@ export async function POST(request: NextRequest) {
     admin_email: auth.user.email, actor_user_id: auth.user.id,
     action: "activate_admin_user", entity_type: "admin_users", entity_id: String(id),
     metadata: { target_email: target.email, role: target.role },
-    source_route: "/api/admin/team/activate", outcome: "success",
+    tenant_id: primaryTenant.id, source_route: "/api/admin/team/activate", outcome: "success",
   });
   return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
 }
