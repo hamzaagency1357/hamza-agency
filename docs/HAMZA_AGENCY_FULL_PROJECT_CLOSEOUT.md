@@ -4,6 +4,17 @@
 PR #158 contains team invitation and activation routes, admin permissions and gateway changes, and isolated database tests. The change is not yet merged or deployed. Previous CI runs passed, but the latest commit requires new verification. The trash lifecycle needs further testing because archived records can remain in their source tables. Functional staging testing of invitations and activation is not yet confirmed. Production migration and release require separate owner approval.
 
 
+## 2026-10-26 — PR #158 pre-merge security verification
+
+- All work remains in PR #158; no merge, Production deployment, or Production migration was authorized.
+- Isolated PostgreSQL security suite passed on commit `10811eb21efa58c5e18462b4ae056b868957798e`, covering restore, conflict rejection, permissions, permanent deletion, concurrency, and actual program archive transitions (`is_visible`, `is_active`, `updated_at`).
+- Current-State Schema Verify, HAMZA AGENCY Quality Gate, and PR99 Management Quality Gate passed on the same commit.
+- The remaining Full Project Closeout and PR119 Admin Visual Evidence workflows were still in progress at the last verification; their final results must be checked before owner sign-off.
+- Preview team invite/activation writes are explicitly rejected; invited program assignment is resolved to a canonical slug through separate equality queries, not user-composed PostgREST filters.
+- Trash RPC execution remains restricted to the gateway service role, and restore refuses changed source records rather than overwriting them.
+- Live non-Production invitation/activation testing has not been evidenced; do not claim it passed based on static CI.
+- The Owner must separately approve merge and any subsequent Production operations.
+
 ## 2026-10-02 — Search and AI discovery content review
 
 This is a separate, narrowly scoped public-content improvement requested by the Owner. It does not reopen the historical Production/database closeout below.
