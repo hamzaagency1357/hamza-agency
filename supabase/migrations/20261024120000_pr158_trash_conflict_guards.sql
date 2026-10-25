@@ -50,8 +50,7 @@ begin
   ) using coalesce(v_item.item_data,v_item.data);
   get diagnostics v_row_count = row_count;
   if v_row_count <> 1 then raise exception 'Restore conflict: concurrent record exists; no data overwritten'; end if;
-  -- The restored row must remain identical to the recorded snapshot for all
-  -- captured columns; reject trigger-side modifications rather than report success.
+  -- Confirm the restored row is visible before marking its trash item restored.
   execute format(
     'select to_jsonb(t) from public.%I t where t.id::text=$1',
     v_item.item_type
