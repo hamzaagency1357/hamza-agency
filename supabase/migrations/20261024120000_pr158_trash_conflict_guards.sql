@@ -53,7 +53,7 @@ begin
   v_result := jsonb_build_object('table',v_item.item_type,'restored',1,'actor',v_actor);
   update public.trash_items set restore_status='restored',restored_at=now() where id=p_trash_id and restore_status='restorable';
   insert into public.activity_logs(admin_email,actor_user_id,action,entity_type,entity_id,new_data,metadata,source_route,outcome)
-  values(v_actor,auth.uid(),'trash_restore',v_item.item_type,v_item.item_id,'',jsonb_build_object('trash_id',p_trash_id),'/admin/trash','success');
+  values(v_actor,auth.uid(),'trash_restore',v_item.item_type,v_item.item_id,v_result,jsonb_build_object('trash_id',p_trash_id),'/admin/trash','success');
   return v_result||jsonb_build_object('trash_id',p_trash_id);
 end $function$;
 
