@@ -78,3 +78,10 @@ test("deactivation is owner-only, fail-closed and concurrency guarded", () => {
   assert.match(deactivate, /deactivate_admin_user/);
   assert.match(ui, /\/api\/admin\/team\/deactivate/);
 });
+
+test("application listing is scoped before fetch and uses exact program equality", () => {
+  const applications = read("app/admin/applications/page.tsx");
+  assert.match(applications, /query = query\.eq\("platform", assignedProgram!\)/);
+  assert.match(applications, /item\.platform === assignedProgram/);
+  assert.doesNotMatch(applications, /normalizeText\(item\.platform\)\.includes\(assignedProgram\)/);
+});

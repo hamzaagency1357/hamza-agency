@@ -119,20 +119,29 @@ export default function AdminApplicationsPage() {
     if (!supabase) return;
     setIsLoading(true);
     clearMessage();
-    const { data, error } = await supabase
+    // Scope the database query before any sensitive application rows are returned.
+    // Client-side filtering alone must never be treated as an authorization boundary.
+    const assignedProgram = profile?.role === "program_admin" ? getAssignedProgramSlug(profile) : null;
+    if (profile?.role === "program_admin" && !assignedProgram) {
+      setApplications([]);
+      setNotesDrafts({});
+      setIsLoading(false);
+      showMessage("لا يوجد برنامج مخصص لهذا المسؤول.", "error");
+      return;
+    }
+    let query = supabase
       .from("agency_applications")
-      .select("id, full_name, country, whatsapp, platform, previous_experience, notes, internal_notes, status, created_at")
-      .order("created_at", { ascending: false });
+      .select("id, full_name, country, whatsapp, platform, previous_experience, notes, internal_notes, status, created_at");
+    if (profile?.role === "program_admin") query = query.eq("platform", assignedProgram!);
+    const { data, error } = await query.order("created_at", { ascending: false });
     setIsLoading(false);
     if (error) {
       showMessage("تعذر تحميل طلبات الانضمام الآن. حاول تحديث الصفحة.", "error");
       return;
     }
-    let rows = (data || []) as ApplicationRecord[];
-    if (shouldLimitToAssignedProgram(profile)) {
-      const assignedProgram = normalizeText(getAssignedProgramSlug(profile));
-      rows = rows.filter((item) => normalizeText(item.platform).includes(assignedProgram));
-    }
+    const rows = ((data || []) as ApplicationRecord[]).filter((item) =>
+      profile?.role !== "program_admin" || item.platform === assignedProgram
+    );
     setApplications(rows);
     setNotesDrafts(Object.fromEntries(rows.map((item) => [item.id, item.internal_notes || ""])));
   }, [clearMessage, showMessage]);
