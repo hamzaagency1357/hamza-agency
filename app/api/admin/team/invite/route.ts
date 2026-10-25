@@ -49,6 +49,15 @@ export async function POST(request: NextRequest) {
       (role === "program_admin" && (!assignedProgram || assignedProgram.length > 100)) ||
       (role !== "program_admin" && assignedProgram)) return respond(400, "invalid_request");
 
+  let canonicalProgram: string | null = null;
+  if (role === "program_admin") {
+    const { data: matches, error: programError } = await admin.from("programs")
+      .select("slug,name").or(`slug.eq.${assignedProgram},name.eq.${assignedProgram}`).limit(2);
+    if (programError) return respond(502, "program_lookup_failed");
+    if (!matches || matches.length !== 1 || !matches[0].slug) return respond(400, "invalid_program_assignment");
+    canonicalProgram = matches[0].slug;
+  }
+
   const { data: existing, error: existingError } = await admin.from("admin_users")
     .select("id,user_id,role,assigned_program,is_active").eq("email", email).limit(1);
   if (existingError) return respond(502, "lookup_failed");
@@ -61,7 +70,7 @@ export async function POST(request: NextRequest) {
   // A pending, inactive record is created first. The invite is sent only after
   // its role/scope are persisted, and no access is granted until activation.
   const { data: pending, error: pendingError } = await admin.from("admin_users").insert({
-    email, role, assigned_program: role === "program_admin" ? assignedProgram : null, is_active: false,
+    email, role, assigned_program: canonicalProgram, is_active: false,
   }).select("id").single();
   if (pendingError || !pending?.id) return respond(502, "pending_account_failed");
 
@@ -95,7 +104,7 @@ export async function POST(request: NextRequest) {
   await admin.from("activity_logs").insert({
     admin_email: identity.user.email, actor_user_id: identity.user.id,
     action: "invite_admin_user", entity_type: "admin_users", entity_id: invited.user.id,
-    metadata: { invited_email: email, role, assigned_program: role === "program_admin" ? assignedProgram : null },
+    metadata: { invited_email: email, role, assigned_program: canonicalProgram },
     tenant_id: primaryTenant.id, source_route: "/api/admin/team/invite", outcome: "success",
   });
   return NextResponse.json({ ok: true, status: "pending_activation" }, { status: 201, headers: { "Cache-Control": "no-store" } });
