@@ -45,11 +45,12 @@ export async function POST(request: NextRequest) {
     .eq("role", target.role).eq("user_id", target.user_id)
     .select("id").single();
   if (updateError || !updated) return fail(409, "deactivation_conflict");
-  await service.from("activity_logs").insert({
+  const { error: auditError } = await service.from("activity_logs").insert({
     admin_email: identity.user.email, actor_user_id: identity.user.id,
     action: "deactivate_admin_user", entity_type: "admin_users", entity_id: String(id),
     metadata: { target_email: target.email, role: target.role },
     tenant_id: tenant.id, source_route: "/api/admin/team/deactivate", outcome: "success",
   });
+  if (auditError) return fail(503, "state_changed_audit_failed");
   return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
 }

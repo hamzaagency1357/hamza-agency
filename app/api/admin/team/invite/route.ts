@@ -115,11 +115,12 @@ export async function POST(request: NextRequest) {
     return respond(502, "account_link_failed_requires_review");
   }
 
-  await admin.from("activity_logs").insert({
+  const { error: auditError } = await admin.from("activity_logs").insert({
     admin_email: identity.user.email, actor_user_id: identity.user.id,
     action: "invite_admin_user", entity_type: "admin_users", entity_id: invited.user.id,
     metadata: { invited_email: email, role, assigned_program: canonicalProgram },
     tenant_id: primaryTenant.id, source_route: "/api/admin/team/invite", outcome: "success",
   });
+  if (auditError) return respond(503, "state_changed_audit_failed");
   return NextResponse.json({ ok: true, status: "pending_activation" }, { status: 201, headers: { "Cache-Control": "no-store" } });
 }

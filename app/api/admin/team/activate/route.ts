@@ -57,11 +57,12 @@ export async function POST(request: NextRequest) {
     .update({ is_active: true }).eq("id", id).eq("is_active", false).eq("user_id", target.user_id)
     .select("id").single();
   if (updateError || !activated) return fail(409, "activation_conflict");
-  await service.from("activity_logs").insert({
+  const { error: auditError } = await service.from("activity_logs").insert({
     admin_email: auth.user.email, actor_user_id: auth.user.id,
     action: "activate_admin_user", entity_type: "admin_users", entity_id: String(id),
     metadata: { target_email: target.email, role: target.role },
     tenant_id: primaryTenant.id, source_route: "/api/admin/team/activate", outcome: "success",
   });
+  if (auditError) return fail(503, "state_changed_audit_failed");
   return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
 }

@@ -85,3 +85,11 @@ test("application listing is scoped before fetch and uses exact program equality
   assert.match(applications, /item\.platform === assignedProgram/);
   assert.doesNotMatch(applications, /normalizeText\(item\.platform\)\.includes\(assignedProgram\)/);
 });
+
+for (const path of ["invite", "activate", "deactivate"]) {
+  test(`${path}: does not report success when the audit insert fails`, () => {
+    const source = read(`app/api/admin/team/${path}/route.ts`);
+    assert.match(source, /error: auditError/);
+    assert.match(source, /if \(auditError\) return (respond|fail)\(503, "state_changed_audit_failed"\)/);
+  });
+}
