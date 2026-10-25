@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 const fail = (status: number, code: string) => NextResponse.json({ ok: false, code }, { status, headers: { "Cache-Control": "no-store" } });
 
 export async function POST(request: NextRequest) {
+  if (process.env.VERCEL_ENV === "preview") return fail(403, "preview_writes_forbidden");
   const origin = request.headers.get("origin");
   if (origin) {
     try { if (new URL(origin).origin !== request.nextUrl.origin) return fail(403, "origin_forbidden"); }
