@@ -10,10 +10,12 @@ create table public.trash_items(
   item_data jsonb, data jsonb, restore_status text not null,
   restored_at timestamptz
 );
+create table public.tenants(id uuid primary key, is_primary boolean not null, status text not null);
+insert into public.tenants values ('00000000-0000-0000-0000-000000000001',true,'active');
 create table public.activity_logs(
   id bigint generated always as identity primary key,
   admin_email text, actor_user_id uuid, action text, entity_type text,
-  entity_id text, new_data jsonb, metadata jsonb, source_route text, outcome text
+  entity_id text, new_data jsonb, metadata jsonb, source_route text, outcome text, tenant_id uuid not null references public.tenants(id)
 );
 create function public.pr99_require_admin() returns text language sql stable
 as $$select current_setting('test.actor',true)$$;
