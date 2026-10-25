@@ -67,18 +67,26 @@ export async function POST(request: NextRequest) {
   const { data: existing, error: existingError } = await admin.from("admin_users")
     .select("id,user_id,role,assigned_program,is_active").eq("email", email).limit(1);
   if (existingError) return respond(502, "lookup_failed");
-  if (existing?.length) {
-    // Existing active identities and pending invitations require a separate
-    // verified recovery flow. Never silently upgrade or overwrite either.
-    return respond(409, existing[0].is_active === false ? "pending_invite_requires_review" : "account_already_exists");
+  // Recover only an unlinked, inactive invitation with exactly the same
+  // persisted role and program. Never alter an existing account's privileges.
+  const prior = existing?.[0];
+  if (prior && (prior.is_active !== false || prior.user_id ||
+      prior.role !== role || (prior.assigned_program ?? null) !== canonicalProgram)) {
+    return respond(409, prior.is_active === false ? "pending_invite_requires_review" : "account_already_exists");
   }
 
   // A pending, inactive record is created first. The invite is sent only after
   // its role/scope are persisted, and no access is granted until activation.
-  const { data: pending, error: pendingError } = await admin.from("admin_users").insert({
-    email, role, assigned_program: canonicalProgram, is_active: false,
-  }).select("id").single();
-  if (pendingError || !pending?.id) return respond(502, "pending_account_failed");
+  let pending: { id: number } | null = null;
+  if (prior) {
+    pending = { id: prior.id };
+  } else {
+    const { data: created, error: pendingError } = await admin.from("admin_users").insert({
+      email, role, assigned_program: canonicalProgram, is_active: false,
+    }).select("id").single();
+    if (pendingError || !created?.id) return respond(502, "pending_account_failed");
+    pending = created;
+  }
 
   const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email);
   if (inviteError || !invited.user?.id) {
