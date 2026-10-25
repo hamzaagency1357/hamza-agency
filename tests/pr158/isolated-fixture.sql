@@ -1,4 +1,5 @@
 -- Isolated PostgreSQL fixture; never connect to Supabase or Production.
+create role service_role nologin;
 create role authenticated nologin;
 create role anon nologin;
 create schema auth;
