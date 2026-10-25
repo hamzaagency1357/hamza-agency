@@ -262,6 +262,28 @@ export default function AdminPermissionsPage() {
     }
   }
 
+  async function deactivateTeamMember(id: number) {
+    if (!supabase || !window.confirm("تعطيل وصول هذا الحساب الإداري فورًا؟")) return;
+    setError("");
+    setMessage("");
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+      if (!token) throw new Error("session_expired");
+      const response = await fetch("/api/admin/team/deactivate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.code || "deactivation_failed");
+      await loadData();
+      setMessage("تم تعطيل وصول الحساب الإداري.");
+    } catch (error) {
+      setError(`تعذّر تعطيل الحساب: ${error instanceof Error ? error.message : "deactivation_failed"}`);
+    }
+  }
+
   async function inviteTeamMember() {
     if (!supabase || inviting) return;
     setInviting(true);
@@ -471,6 +493,16 @@ export default function AdminPermissionsPage() {
             </select>
             <input aria-label="البرنامج المخصص" disabled={inviteRole !== "program_admin"} value={inviteProgram} onChange={(e) => setInviteProgram(e.target.value)} placeholder="اسم البرنامج المخصص" className="rounded-xl border border-white/20 bg-black/30 p-3 text-white disabled:opacity-40" />
             <button type="button" disabled={inviting || !inviteEmail.trim() || (inviteRole === "program_admin" && !inviteProgram.trim())} onClick={inviteTeamMember} className="rounded-xl bg-purple-600 p-3 font-bold text-white disabled:opacity-40">{inviting ? "جارٍ إرسال الدعوة..." : "إرسال دعوة الحساب"}</button>
+          </div>
+          <div className="mt-4 space-y-2">
+            {adminUsers.filter((user) => user.is_active === true && user.role !== "super_admin").map((user) => (
+              <div key={String(user.id)} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 p-3 text-sm">
+                <span>{getString(user, ["email"], "")} — {getString(user, ["role"], "")} — {getString(user, ["assigned_program"], "جميع الأقسام المصرّح بها")}</span>
+                {typeof user.id === "number" && (
+                  <button type="button" onClick={() => deactivateTeamMember(user.id as number)} className="rounded-lg border border-red-400/50 px-4 py-2 font-bold text-red-200">تعطيل الوصول</button>
+                )}
+              </div>
+            ))}
           </div>
           <p className="mt-3 text-xs text-white/60">إنشاء الحسابات متاح للمدير الأعلى فقط. لا يتم إرسال كلمات مرور من لوحة التحكم.</p>
           <div className="mt-4 space-y-2">

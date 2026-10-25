@@ -63,3 +63,18 @@ test("pending invitation retry preserves role and scope and rejects linked accou
   assert.match(invite, /if \(prior\) \{\s*pending = \{ id: prior\.id \}/);
   assert.match(invite, /pending_invite_requires_review/);
 });
+
+const deactivate = read("app/api/admin/team/deactivate/route.ts");
+test("deactivation is owner-only, fail-closed and concurrency guarded", () => {
+  assert.match(deactivate, /VERCEL_ENV === "preview"/);
+  assert.match(deactivate, /origin_forbidden/);
+  assert.match(deactivate, /auth\.getUser\(/);
+  assert.match(deactivate, /actor\.role !== "super_admin"/);
+  assert.match(deactivate, /target\.id === actor\.id/);
+  assert.match(deactivate, /target\.user_id === identity\.user\.id/);
+  assert.match(deactivate, /\["deputy_super_admin", "program_admin"\]/);
+  assert.match(deactivate, /\.eq\("is_active", true\)/);
+  assert.match(deactivate, /\.eq\("role", target\.role\)/);
+  assert.match(deactivate, /deactivate_admin_user/);
+  assert.match(ui, /\/api\/admin\/team\/deactivate/);
+});
