@@ -41,3 +41,5 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261024120000_pr158_trash_conflict_guards.sql
       - name: Restore conflict authorization and permanent delete smoke
         run: psql -v ON_ERROR_STOP=1 -f tests/pr158/isolated-smoke.sql
+      - name: Concurrent restore serialization
+        run: bash tests/pr158/concurrency.sh
