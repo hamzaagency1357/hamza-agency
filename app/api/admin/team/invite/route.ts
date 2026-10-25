@@ -16,6 +16,7 @@ function originAllowed(request: NextRequest): boolean {
 }
 
 export async function POST(request: NextRequest) {
+  if (process.env.VERCEL_ENV === "preview") return respond(403, "preview_writes_forbidden");
   if (!originAllowed(request)) return respond(403, "origin_forbidden");
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
