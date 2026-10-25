@@ -3,7 +3,7 @@ set -euo pipefail
 psql -v ON_ERROR_STOP=1 <<'SQL'
 SET test.actor='owner@example.test';
 INSERT INTO trash_items(id,item_type,item_id,item_data,restore_status)
-VALUES (30,'programs','30','{"id":20,"title":"Concurrent"}','restorable');
+VALUES (30,'programs','30','{"id":30,"title":"Concurrent"}','restorable');
 SQL
 set +e
 (psql -v ON_ERROR_STOP=1 -c "SET test.actor='owner@example.test'; SELECT public.pr99_restore_trash(30);" > /tmp/pr158-a.log 2>&1) &
