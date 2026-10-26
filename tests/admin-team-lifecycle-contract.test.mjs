@@ -101,3 +101,9 @@ test("invitation resolves canonical program without untrusted PostgREST filter e
   assert.match(invite, /uniqueSlugs\.length !== 1/);
   assert.doesNotMatch(invite, /\.or\(\`slug\.eq\./);
 });
+
+test("invitation refuses ambiguous duplicate admin emails", () => {
+  assert.match(invite, /\.eq\("email", email\)\.limit\(2\)/);
+  assert.match(invite, /existing\?\.length \?\? 0\) > 1/);
+  assert.match(invite, /duplicate_account_requires_review/);
+});
