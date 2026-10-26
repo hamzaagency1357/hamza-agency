@@ -65,8 +65,10 @@ export async function POST(request: NextRequest) {
   }
 
   const { data: existing, error: existingError } = await admin.from("admin_users")
-    .select("id,user_id,role,assigned_program,is_active").eq("email", email).limit(1);
+    .select("id,user_id,role,assigned_program,is_active").eq("email", email).limit(2);
   if (existingError) return respond(502, "lookup_failed");
+  // Fail closed if legacy data contains multiple accounts with the same email.
+  if ((existing?.length ?? 0) > 1) return respond(409, "duplicate_account_requires_review");
   // Recover only an unlinked, inactive invitation with exactly the same
   // persisted role and program. Never alter an existing account's privileges.
   const prior = existing?.[0];
