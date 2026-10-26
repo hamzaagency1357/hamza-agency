@@ -46,7 +46,7 @@ function harness(name, { actorRole = "super_admin", accepted = true, auditFailur
         if (table === "admin_users" && action === "update" && beforeAdminUpdate) beforeAdminUpdate(state.rows);
         const matches = state.rows.filter((row) => this.filters.every(([key, value]) => row[key] === value));
         if (action === "insert") {
-          const row = { id: nextId++, ...value };
+          const row = { id: nextId++, ...(table === "admin_users" ? { user_id: null } : {}), ...value };
           state.rows.push(row); state.writes++;
           return { data: single ? { id: row.id } : [row], error: null };
         }
