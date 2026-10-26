@@ -79,7 +79,7 @@ function harness(name, { actorRole = "super_admin", accepted = true, auditFailur
       VERCEL_ENV: preview ? "preview" : "development",
       NEXT_PUBLIC_SUPABASE_URL: "http://localhost:54321",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "isolated-anon",
-      SUPABASE_SERVICE_ROLE_KEY: "isolated-service",
+      SUPABASE_SERVICE_ROLE_KEY: "TEST_SERVICE_ROLE_KEY",
     } }, URL,
     require: (name) => {
       if (name === "next/server") return { NextResponse: { json: (body, options = {}) => ({ status: options.status ?? 200, body }) } };
