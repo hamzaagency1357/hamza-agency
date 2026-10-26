@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
   const { data: linked, error: linkError } = await admin.from("admin_users")
     .update({ user_id: invited.user.id })
     .eq("id", pending.id).eq("email", email).eq("is_active", false)
+    .is("user_id", null)
     .select("id").single();
   if (linkError || !linked?.id) {
     await admin.from("activity_logs").insert({

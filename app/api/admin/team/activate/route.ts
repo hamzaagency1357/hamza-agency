@@ -53,9 +53,15 @@ export async function POST(request: NextRequest) {
       grant.can_delete === true || grant.can_export === true || grant.can_manage === true
     )) return fail(409, "permissions_required_before_activation");
   }
-  const { data: activated, error: updateError } = await service.from("admin_users")
-    .update({ is_active: true }).eq("id", id).eq("is_active", false).eq("user_id", target.user_id)
-    .select("id").single();
+  // The role, scope and email must still match the identity whose permissions
+  // were checked above. Reject races with concurrent privilege edits.
+  let update = service.from("admin_users")
+    .update({ is_active: true }).eq("id", id).eq("is_active", false)
+    .eq("user_id", target.user_id).eq("email", target.email).eq("role", target.role);
+  update = target.assigned_program == null
+    ? update.is("assigned_program", null)
+    : update.eq("assigned_program", target.assigned_program);
+  const { data: activated, error: updateError } = await update.select("id").single();
   if (updateError || !activated) return fail(409, "activation_conflict");
   const { error: auditError } = await service.from("activity_logs").insert({
     admin_email: auth.user.email, actor_user_id: auth.user.id,

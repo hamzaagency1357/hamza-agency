@@ -13,7 +13,7 @@ const sources = Object.fromEntries(names.map((name) => [
   name, readFileSync(new URL(`../app/api/admin/team/${name}/route.ts`, import.meta.url), "utf8"),
 ]));
 
-function harness(name, { actorRole = "super_admin", accepted = true, auditFailure = false, preview = false } = {}) {
+function harness(name, { actorRole = "super_admin", accepted = true, auditFailure = false, preview = false, beforeAdminUpdate = null } = {}) {
   const state = {
     rows: [
       { id: 1, user_id: "owner-id", email: "owner@example.test", role: actorRole, is_active: true },
@@ -28,6 +28,7 @@ function harness(name, { actorRole = "super_admin", accepted = true, auditFailur
       filters: [], limitCount: null,
       select() { return this; },
       eq(key, value) { this.filters.push([key, value]); return this; },
+      is(key, value) { this.filters.push([key, value]); return this; },
       limit(count) { this.limitCount = count; return this; },
       update(value) { return builder(table, "update", value); },
       insert(value) { return builder(table, "insert", value); },
@@ -42,6 +43,7 @@ function harness(name, { actorRole = "super_admin", accepted = true, auditFailur
         }
         if (table === "tenants") return { data: { id: 8 }, error: null };
         if (table === "programs") return { data: [{ slug: "tiktok", name: "TikTok" }], error: null };
+        if (table === "admin_users" && action === "update" && beforeAdminUpdate) beforeAdminUpdate(state.rows);
         const matches = state.rows.filter((row) => this.filters.every(([key, value]) => row[key] === value));
         if (action === "insert") {
           const row = { id: nextId++, ...value };
@@ -146,5 +148,29 @@ test("deactivation revokes active member", async () => {
 test("audit failure after deactivation is not reported as success", async () => {
   const h = harness("deactivate", { auditFailure: true });
   assert.equal((await h.run({ id: 2 })).status, 503);
+  assert.equal(h.state.rows[1].is_active, false);
+});
+
+test("concurrent invite link cannot overwrite a newer Auth identity", async () => {
+  const h = harness("invite", { beforeAdminUpdate: (rows) => { rows[1].user_id = "newer-user-id"; } });
+  const result = await h.run({ email: "member@example.test", role: "program_admin", assigned_program: "tiktok" });
+  assert.equal(result.status, 502);
+  assert.equal(result.body.code, "account_link_failed_requires_review");
+  assert.equal(h.state.rows[1].user_id, "newer-user-id");
+  assert.equal(h.state.rows[1].is_active, false);
+});
+test("concurrent privilege change blocks activation after authorization checks", async () => {
+  const h = harness("activate", { beforeAdminUpdate: (rows) => { rows[1].role = "deputy_super_admin"; } });
+  const result = await h.run({ id: 2 });
+  assert.equal(result.status, 409);
+  assert.equal(result.body.code, "activation_conflict");
+  assert.equal(h.state.rows[1].is_active, false);
+  assert.equal(h.state.rows[1].role, "deputy_super_admin");
+});
+test("concurrent program reassignment blocks scoped activation", async () => {
+  const h = harness("activate", { beforeAdminUpdate: (rows) => { rows[1].assigned_program = "bigo"; } });
+  const result = await h.run({ id: 2 });
+  assert.equal(result.status, 409);
+  assert.equal(result.body.code, "activation_conflict");
   assert.equal(h.state.rows[1].is_active, false);
 });
