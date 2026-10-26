@@ -93,3 +93,11 @@ for (const path of ["invite", "activate", "deactivate"]) {
     assert.match(source, /if \(auditError\) return (respond|fail)\(503, "state_changed_audit_failed"\)/);
   });
 }
+
+test("invitation resolves canonical program without untrusted PostgREST filter expressions", () => {
+  assert.match(invite, /\.eq\("slug", assignedProgram\)/);
+  assert.match(invite, /\.eq\("name", assignedProgram\)/);
+  assert.match(invite, /new Set\(matches\.map\(\(item\) => item\.slug\)/);
+  assert.match(invite, /uniqueSlugs\.length !== 1/);
+  assert.doesNotMatch(invite, /\.or\(\`slug\.eq\./);
+});
