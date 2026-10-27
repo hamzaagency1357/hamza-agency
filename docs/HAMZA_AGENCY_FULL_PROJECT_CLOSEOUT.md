@@ -1,4 +1,37 @@
 # HAMZA AGENCY — Full Project Closeout
+## 2026-10-26 — PR #158 verified security closeout checkpoint (before documentation update)
+
+- Repository: `hamzaagency1357/hamza-agency`; PR: `#158`; reviewed code Head: `21befbe35b6f302d0e28f69ee152c19dc44c4412`.
+- GitHub reported the reviewed code Head as `mergeable_state=clean`; PR remained open and unmerged.
+- **6/6 required CI workflows succeeded on this exact reviewed code Head:**
+  - HAMZA AGENCY Full Project Closeout: [run 40270274769](https://github.com/hamzaagency1357/hamza-agency/actions/runs/40270274769), all **21/21** jobs successful.
+  - HAMZA AGENCY Quality Gate: [run 40270274815](https://github.com/hamzaagency1357/hamza-agency/actions/runs/40270274815).
+  - PR99 Management Quality Gate: [run 40270274814](https://github.com/hamzaagency1357/hamza-agency/actions/runs/40270274814).
+  - PR119 Admin Visual Evidence: [run 40270274860](https://github.com/hamzaagency1357/hamza-agency/actions/runs/40270274860).
+  - HAMZA Current-State Schema Verify: [run 40270274743](https://github.com/hamzaagency1357/hamza-agency/actions/runs/40270274743).
+  - PR158 Isolated PostgreSQL Security Tests: [run 40270274803](https://github.com/hamzaagency1357/hamza-agency/actions/runs/40270274803).
+- **6/6 review threads resolved**, including the gateway permission contract, service-role-only trash RPC privileges, archived-record restore conflict handling, preview write restrictions, and canonical assigned-program matching.
+- Team invite/activate/deactivate routes now have additional executable in-memory route-handler tests in `tests/admin-team-route-runtime.test.mjs`, exercised by `npm test`. They test successful invitation/activation/deactivation paths, denial and audit-failure paths, and fail-closed concurrent Auth-identity, role and program-scope changes. This is **handler behavior with mocked Supabase services**, not a live Supabase Auth or database integration test.
+- **Not tested end-to-end:** delivery/acceptance of a real invitation and account activation/deactivation against isolated Supabase Auth + PostgreSQL via the dashboard. No real invitation was sent. This remains an explicit non-Production functional acceptance item.
+- The PostgreSQL migration was exercised **only in isolated PostgreSQL CI**; no claim is made that the new migration was applied to the deployed Supabase database.
+- No merge, deployment, Production writes, Production migration or owner release approval were performed. Owner approval and any Production work remain separate gates.
+- This documentation update itself creates a new PR Head; re-run and check exact-Head CI before treating the updated PR as ready for owner review.
+
+## 2026-10-25 — PR #158 pre-merge review
+
+PR #158 contains team invitation and activation routes, admin permissions and gateway changes, and isolated database tests. The change is not yet merged or deployed. Previous CI runs passed, but the latest commit requires new verification. The trash lifecycle needs further testing because archived records can remain in their source tables. Functional staging testing of invitations and activation is not yet confirmed. Production migration and release require separate owner approval.
+
+
+## 2026-10-26 — PR #158 pre-merge security verification
+
+- All work remains in PR #158; no merge, Production deployment, or Production migration was authorized.
+- Isolated PostgreSQL security suite passed on commit `10811eb21efa58c5e18462b4ae056b868957798e`, covering restore, conflict rejection, permissions, permanent deletion, concurrency, and actual program archive transitions (`is_visible`, `is_active`, `updated_at`).
+- Current-State Schema Verify, HAMZA AGENCY Quality Gate, and PR99 Management Quality Gate passed on the same commit.
+- The remaining Full Project Closeout and PR119 Admin Visual Evidence workflows were still in progress at the last verification; their final results must be checked before owner sign-off.
+- Preview team invite/activation writes are explicitly rejected; invited program assignment is resolved to a canonical slug through separate equality queries, not user-composed PostgREST filters.
+- Trash RPC execution remains restricted to the gateway service role, and restore refuses changed source records rather than overwriting them.
+- Live non-Production invitation/activation testing has not been evidenced; do not claim it passed based on static CI.
+- The Owner must separately approve merge and any subsequent Production operations.
 
 ## 2026-10-02 — Search and AI discovery content review
 

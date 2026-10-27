@@ -1226,6 +1226,7 @@ const CONTRACTS = {
     "module": "permissions",
     "permission": "can_edit",
     "allowedFields": [
+      "admin_user_id",
       "admin_email",
       "can_create",
       "can_delete",
@@ -1297,9 +1298,19 @@ const CONTRACTS = {
     "module": "programs",
     "permission": "can_edit",
     "allowedFields": [
+      "benefits",
+      "description",
+      "faq",
       "is_active",
       "is_visible",
-      "updated_at"
+      "name",
+      "requirements",
+      "short_description",
+      "slug",
+      "sort_order",
+      "status",
+      "updated_at",
+      "updates"
     ],
     "allowedFilters": [
       "id"
@@ -2238,11 +2249,25 @@ function filterQuery(filters: unknown[]) { const search = new URLSearchParams();
 async function programAllowed(input: Input, contract: EntityContract, payload: Record<string, unknown>) {
   if (input.admin.role !== "program_admin") return true;
   if (contract.module !== "programs" || contract.kind !== "entity") return false;
-  const assigned = scope(input.admin.assignedProgram); if (!assigned) return false;
-  const matchesId = async (id: unknown) => { if (!(typeof id === "number" || typeof id === "string")) return false; const response = await rest(input.supabaseUrl, input.serviceRole, `/programs?select=id,slug,name&id=eq.${encodeURIComponent(String(id))}&limit=1`); const rows = response.ok ? await response.json().catch(() => []) as Record<string, unknown>[] : []; const row = rows[0]; return !!row && [row.slug,row.name].some((value) => { const normalized = scope(value); return normalized && (normalized === assigned || normalized.includes(assigned) || assigned.includes(normalized)); }); };
-  const values = Array.isArray(payload.values) ? payload.values : [payload.values];
-  if (contract.table === "programs") { for (const row of values) if (record(row) && [row.slug,row.name].some((value) => { const normalized = scope(value); return normalized && (normalized === assigned || normalized.includes(assigned) || assigned.includes(normalized)); })) return true; const filters = Array.isArray(payload.filters) ? payload.filters : []; const id = filters.find((item) => record(item) && item.op === "eq" && item.field === "id"); return id && record(id) ? matchesId(id.value) : false; }
-  for (const row of values) if (record(row) && "program_id" in row && await matchesId(row.program_id)) return true; const filters = Array.isArray(payload.filters) ? payload.filters : []; const program = filters.find((item) => record(item) && item.op === "eq" && item.field === "program_id"); return program && record(program) ? matchesId(program.value) : false;
+  // Assignment is loaded from the authenticated server-side admin profile, not from the request.
+  const assigned = scope(input.admin.assignedProgram);
+  if (!assigned) return false;
+  // Program admins may only edit an existing, exactly assigned program.
+  // No insert, delete, slug reassignment, or mutation of any other entity is permitted.
+  if (contract.table !== "programs" || contract.method !== "update") return false;
+  const filters = Array.isArray(payload.filters) ? payload.filters : [];
+  if (filters.length !== 1) return false;
+  const filter = filters[0];
+  if (!record(filter) || filter.op !== "eq" || filter.field !== "id") return false;
+  const id = filter.value;
+  if (!(typeof id === "number" || (typeof id === "string" && /^\\d+$/.test(id)))) return false;
+  const values = payload.values;
+  if (!record(values) || Array.isArray(values)) return false;
+  if ("slug" in values || "name" in values) return false;
+  const response = await rest(input.supabaseUrl, input.serviceRole, `/programs?select=id,slug&id=eq.${encodeURIComponent(String(id))}&limit=1`);
+  if (!response.ok) return false;
+  const rows = await response.json().catch(() => []) as Record<string, unknown>[];
+  return rows.length === 1 && scope(rows[0].slug) === assigned;
 }
 async function entity(input: Input, contract: EntityContract) { if (!await programAllowed(input, contract, input.payload)) return { status: 403, body: { ok:false, code:"forbidden" }, ok:false }; const filters = Array.isArray(input.payload.filters) ? input.payload.filters : []; const query = filterQuery(filters); if (!query) return { status:400, body:{ok:false,code:"invalid_request"}, ok:false }; if (typeof input.payload.select === "string") query.set("select", input.payload.select); const options = record(input.payload.options) ? input.payload.options : {}; if (contract.method === "upsert" && typeof options.onConflict === "string") query.set("on_conflict", options.onConflict); let method = "POST"; if (contract.method === "update") method = "PATCH"; if (contract.method === "delete") method = "DELETE"; const prefer = contract.method === "upsert" ? `return=representation,resolution=${options.ignoreDuplicates === true ? "ignore-duplicates" : "merge-duplicates"}` : "return=representation"; const response = await rest(input.supabaseUrl,input.serviceRole,`/${contract.table}${query.toString()?`?${query}`:""}`,{method,headers:{Prefer:prefer},body:contract.method==="delete"?undefined:JSON.stringify(input.payload.values)}); const text=await response.text(); let data:unknown=null; try{data=text?JSON.parse(text):null}catch{} if(!response.ok)return{status:502,body:{ok:false,code:"database_contract_rejected"},ok:false}; if (["single","maybeSingle"].includes(String(input.payload.returnMode)) && Array.isArray(data)) data=data[0]??null; return{status:200,body:{ok:true,data},ok:true}; }
 async function rpc(input: Input, contract: RpcContract) { if(input.admin.role==="program_admin")return{status:403,body:{ok:false,code:"forbidden"},ok:false}; const response=await rest(input.supabaseUrl,input.serviceRole,`/rpc/${contract.rpcName}`,{method:"POST",body:JSON.stringify(record(input.payload.args)?input.payload.args:{})}); const text=await response.text(); let data:unknown=null; try{data=text?JSON.parse(text):null}catch{} return response.ok?{status:200,body:{ok:true,data},ok:true}:{status:502,body:{ok:false,code:"database_contract_rejected"},ok:false}; }

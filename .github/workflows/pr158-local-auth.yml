@@ -1,0 +1,76 @@
+name: PR158 Isolated Supabase Auth Lifecycle
+on:
+  pull_request:
+    paths:
+      - 'tests/pr158/local-auth-lifecycle.mjs'
+      - '.github/workflows/pr158-local-auth.yml'
+      - 'tests/pr158/local-team-route-integration.mjs'
+      - 'tests/pr158/local-team-fixture.sql'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  auth-lifecycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SUPABASE_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - name: Start local-only Auth stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -f supabase/.temp/project-ref
+          test -z "${SUPABASE_ACCESS_TOKEN:-}"
+          npm ci --no-audit --no-fund
+          npm install --prefix tools/pr101-local-e2e --no-audit --no-fund
+          cli="$GITHUB_WORKSPACE/tools/pr101-local-e2e/node_modules/.bin/supabase"
+          test "$("$cli" --version)" = '2.109.1'
+          echo "SUPABASE_BIN=$cli" >> "$GITHUB_ENV"
+          mkdir -p /tmp/hamza-pr158-auth/supabase
+          cp supabase/config.toml /tmp/hamza-pr158-auth/supabase/config.toml
+          sed -i -e 's/^project_id = .*/project_id = "hamza-pr158-auth-local"/' -e 's/^port = 54322$/port = 55432/' -e 's/^shadow_port = 54320$/shadow_port = 55430/' /tmp/hamza-pr158-auth/supabase/config.toml
+          printf '%s\n' '-- no customer data' > /tmp/hamza-pr158-auth/supabase/seed.sql
+          cd /tmp/hamza-pr158-auth
+          if ! "$cli" start --exclude studio,imgproxy > /tmp/hamza-pr158-auth-start.log 2>&1; then
+            echo 'Local Supabase startup failed (diagnostics redacted)'
+            sed -E -e 's#(postgres(ql)?://)[^[:space:]]+#\1[REDACTED]#g' -e 's#(eyJ[A-Za-z0-9_-]+\.)[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+#[REDACTED_JWT]#g' /tmp/hamza-pr158-auth-start.log | tail -n 60
+            exit 1
+          fi
+          "$cli" status -o env > /tmp/hamza-pr158-auth.env
+          chmod 600 /tmp/hamza-pr158-auth.env
+      - name: Exercise real local Auth identity lifecycle without sending email
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          . /tmp/hamza-pr158-auth.env
+          set +a
+          test "$API_URL" = 'http://127.0.0.1:54321'
+          node tests/pr158/local-auth-lifecycle.mjs
+      - name: Test actual admin team routes with isolated Auth and database
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          . /tmp/hamza-pr158-auth.env
+          set +a
+          test "$API_URL" = 'http://127.0.0.1:54321'
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f tests/pr158/local-team-fixture.sql
+          node tests/pr158/local-team-route-integration.mjs
+      - name: Remove isolated stack and secrets
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -n "${SUPABASE_BIN:-}" ] && [ -d /tmp/hamza-pr158-auth ]; then
+            (cd /tmp/hamza-pr158-auth && "$SUPABASE_BIN" stop --no-backup)
+          fi
+          rm -rf /tmp/hamza-pr158-auth /tmp/hamza-pr158-auth.env /tmp/hamza-pr158-auth-start.log

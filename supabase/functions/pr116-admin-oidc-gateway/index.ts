@@ -95,7 +95,8 @@ async function resolveAdmin(supabaseUrl: string, serviceRole: string, user: { id
   const primary = await serviceFetch(supabaseUrl, serviceRole, `/admin_users?select=${fields}&user_id=eq.${encodeURIComponent(user.id)}&limit=1`);
   const rows = primary.ok ? await primary.json().catch(() => []) as Record<string, unknown>[] : [];
   const row = rows[0] || null;
-  if (!row || row.is_active === false || typeof row.role !== "string") return null;
+  if (!row || row.is_active !== true || typeof row.role !== "string" ||
+      typeof row.email !== "string" || row.email.toLowerCase() !== user.email.toLowerCase()) return null;
   if (!["super_admin", "deputy_super_admin", "program_admin"].includes(row.role)) return null;
   return {
     id: Number(row.id),
@@ -115,6 +116,10 @@ async function hasPermission(supabaseUrl: string, serviceRole: string, admin: { 
   return row.can_manage === true || row[permission] === true;
 }
 async function audit(supabaseUrl: string, serviceRole: string, actor: { id: string; email: string }, action: string, entityType: string, entityId: string | number | null, metadata: Record<string, unknown>, oldData?: unknown, newData?: unknown) {
+  const tenantResponse = await serviceFetch(supabaseUrl, serviceRole, "/tenants?select=id&is_primary=eq.true&status=eq.active&limit=1").catch(() => null);
+  const tenants = tenantResponse?.ok ? await tenantResponse.json().catch(() => []) as { id?: string }[] : [];
+  const tenantId = tenants[0]?.id;
+  if (!tenantId) return;
   await serviceFetch(supabaseUrl, serviceRole, "/activity_logs", {
     method: "POST",
     body: JSON.stringify({
@@ -126,6 +131,7 @@ async function audit(supabaseUrl: string, serviceRole: string, actor: { id: stri
       old_data: oldData === undefined ? null : JSON.stringify(oldData),
       new_data: newData === undefined ? null : JSON.stringify(newData),
       metadata,
+      tenant_id: tenantId,
       source_route: "/functions/v1/pr116-admin-oidc-gateway",
       outcome: "success",
     }),
@@ -205,6 +211,61 @@ Deno.serve(async (request: Request) => {
   if (!user) return json(401, { ok: false, code: "invalid_user_session" });
   const admin = await resolveAdmin(supabaseUrl, serviceRole, user);
   if (!admin) return json(403, { ok: false, code: "forbidden" });
+  // Permission management is an owner-only operation, regardless of
+  // configurable grants in admin_permissions. Never delegate role escalation.
+  if (action.startsWith("pr116_permissions_page_entity_admin_permissions_")) {
+    if (admin.role !== "super_admin") {
+      return json(403, { ok: false, code: "forbidden" });
+    }
+    // The client may supply a target email; authorization must instead resolve
+    // that target against a linked admin account on the trusted server.
+    if (action.endsWith("_upsert")) {
+      const values = payload.values;
+      const email = values && typeof values === "object" && !Array.isArray(values) &&
+        typeof (values as Record<string, unknown>).admin_email === "string"
+        ? String((values as Record<string, unknown>).admin_email).trim().toLowerCase() : "";
+      if (!email || email.length > 254) return json(400, { ok: false, code: "invalid_target_admin" });
+      const targetRes = await serviceFetch(supabaseUrl, serviceRole,
+        `/admin_users?select=id,user_id,is_active&email=eq.${encodeURIComponent(email)}&limit=1`);
+      if (!targetRes.ok) return json(503, { ok: false, code: "target_lookup_failed" });
+      const targetRows = await targetRes.json().catch(() => []) as Record<string, unknown>[];
+      const target = targetRows[0];
+      if (!target || typeof target.user_id !== "string" || !target.user_id ||
+          (target.is_active !== true && target.is_active !== false)) {
+        return json(403, { ok: false, code: "target_admin_not_linked" });
+      }
+      const suppliedId = (values as Record<string, unknown>).admin_user_id;
+      if (typeof target.id !== "number" || suppliedId !== target.id) {
+        return json(403, { ok: false, code: "target_admin_id_mismatch" });
+      }
+      const roleResponse = await serviceFetch(supabaseUrl, serviceRole,
+        `/admin_users?select=role,assigned_program&id=eq.${target.id}&limit=1`);
+      if (!roleResponse.ok) return json(503, { ok: false, code: "target_role_lookup_failed" });
+      const roleRows = await roleResponse.json().catch(() => []) as Record<string, unknown>[];
+      const role = roleRows[0]?.role;
+      if (role !== "super_admin" && role !== "deputy_super_admin" && role !== "program_admin")
+        return json(403, { ok: false, code: "invalid_target_role" });
+      if (role === "program_admin") {
+        const scope = roleRows[0]?.assigned_program;
+        const module = (values as Record<string, unknown>).module_key;
+        if (!["dashboard", "applications", "programs"].includes(String(module)) ||
+            typeof scope !== "string" || !normalizeProgramScope(scope))
+          return json(403, { ok: false, code: "program_admin_scope_forbidden" });
+      }
+      const moduleKey = (values as Record<string, unknown>).module_key;
+      const allowedModules = new Set([
+        "dashboard", "applications", "service_requests", "programs", "pages",
+        "media", "announcements", "settings", "jobs", "reviews",
+        "success_stories", "partners", "gallery", "activity_logs", "trash",
+        "backups", "version_history", "export_center", "audit_mode",
+        "knowledge_base", "ai_support", "ai_settings", "notifications",
+        "analytics", "launch_checklist",
+      ]);
+      if (typeof moduleKey !== "string" || !allowedModules.has(moduleKey)) {
+        return json(400, { ok: false, code: "invalid_permission_module" });
+      }
+    }
+  }
   const required = ACTION_PERMISSIONS[action];
   if (!required || !(await hasPermission(supabaseUrl, serviceRole, admin, required.module, required.permission))) {
     return json(403, { ok: false, code: "forbidden" });
@@ -221,7 +282,7 @@ Deno.serve(async (request: Request) => {
       if (admin.role === "program_admin") {
         const assigned = normalizeProgramScope(admin.assignedProgram);
         const target = normalizeProgramScope(typeof current.platform === "string" ? current.platform : "");
-        if (!assigned || !target.includes(assigned)) return json(403, { ok: false, code: "forbidden" });
+        if (!assigned || !target || target !== assigned) return json(403, { ok: false, code: "forbidden" });
       }
       let patch: Record<string, unknown>;
       if (action === "application_status_update") {

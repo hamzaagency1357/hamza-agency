@@ -1,0 +1,45 @@
+name: PR158 Isolated PostgreSQL Security Tests
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261024120000_pr158_trash_conflict_guards.sql'
+      - 'tests/pr158/**'
+      - '.github/workflows/pr158-isolated-postgres.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: isolated_test_only
+          POSTGRES_DB: pr158_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pr158_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: isolated_test_only
+      PGDATABASE: pr158_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify isolated database only
+        run: |
+          test "$PGDATABASE" = pr158_test
+          test "$PGHOST" = localhost
+          psql -v ON_ERROR_STOP=1 -f tests/pr158/isolated-fixture.sql
+      - name: Apply PR158 migration to isolated PostgreSQL
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261024120000_pr158_trash_conflict_guards.sql
+      - name: Restore conflict authorization and permanent delete smoke
+        run: psql -v ON_ERROR_STOP=1 -f tests/pr158/isolated-smoke.sql
+      - name: Concurrent restore serialization
+        run: bash tests/pr158/concurrency.sh
