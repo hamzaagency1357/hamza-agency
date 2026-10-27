@@ -4,6 +4,8 @@ on:
     paths:
       - 'tests/pr158/local-auth-lifecycle.mjs'
       - '.github/workflows/pr158-local-auth.yml'
+      - 'tests/pr158/local-team-route-integration.mjs'
+      - 'tests/pr158/local-team-fixture.sql'
   workflow_dispatch:
 permissions:
   contents: read
@@ -51,6 +53,18 @@ jobs:
           set +a
           test "$API_URL" = 'http://127.0.0.1:54321'
           node tests/pr158/local-auth-lifecycle.mjs
+      - name: Test actual admin team routes with isolated Auth and database
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          . /tmp/hamza-pr158-auth.env
+          set +a
+          test "$API_URL" = 'http://127.0.0.1:54321'
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f tests/pr158/local-team-fixture.sql
+          node tests/pr158/local-team-route-integration.mjs
       - name: Remove isolated stack and secrets
         if: always()
         shell: bash
