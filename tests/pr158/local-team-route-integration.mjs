@@ -18,7 +18,7 @@ function handler(name) {
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const context = { module: { exports: {} }, process: { env: {
     VERCEL_ENV: "development", NEXT_PUBLIC_SUPABASE_URL: url,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: anon, SUPABASE_SERVICE_ROLE_KEY: service,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: anon, ["SUPABASE_SERVICE_ROLE_KEY"]: service,
   } }, URL, require: (name) => {
     if (name === "next/server") return { NextResponse: { json: (body, opts = {}) => ({ status: opts.status || 200, body }) } };
     if (name === "@supabase/supabase-js") return { createClient };
