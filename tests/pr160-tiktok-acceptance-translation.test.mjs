@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import test from "node:test";
+import {containsPositiveAcceptanceGuarantee,normalizeAcceptanceGuaranteeClaims} from "../lib/i18n/acceptanceGuaranteeSafety.mjs";
+const read=(path)=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
+test("Turkish TikTok acceptance FAQ is a question followed by an explicit denial, not a guarantee",()=>{
+ const page=read("app/programs/[slug]/page.tsx");
+ const translations=read("lib/i18n/siteRuntimeTranslationsLegacy.ts");
+ assert.ok(page.includes("Kabul garanti mi?\\nHayır. Kabul garantisi yoktur"));
+ assert.ok(page.includes("Is acceptance guaranteed?\\nNo. Acceptance is not guaranteed"));
+ assert.ok(page.includes("هل القبول مضمون؟\\nلا، القبول غير مضمون"));
+ assert.ok(translations.includes("Hayır. Kabul garantisi yoktur. Her başvuru"));
+ assert.ok(translations.includes('["هل القبول مضمون؟", "Is acceptance guaranteed?", "Kabul garanti mi?"]'));
+ const question="Kabul garanti mi?";
+ assert.equal(normalizeAcceptanceGuaranteeClaims(question,"tr"),question);
+ assert.equal(containsPositiveAcceptanceGuarantee("Hayır. Kabul garantisi yoktur; her başvuru program koşullarına göre değerlendirilir.","tr"),false);
+ const repaired=normalizeAcceptanceGuaranteeClaims("Kabul garantili.","tr");
+ assert.equal(containsPositiveAcceptanceGuarantee(repaired,"tr"),false);
+ assert.match(repaired,/kabul garantisi yoktur/);
+});

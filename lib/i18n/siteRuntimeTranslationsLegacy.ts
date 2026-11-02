@@ -232,7 +232,7 @@ const entries: RuntimeTranslationEntry[] = [
   ["برنامج Xena متاح حالياً ضمن برامج وكالة حمزة.", "The Xena program is currently available through HAMZA AGENCY.", "Xena programı şu anda HAMZA AGENCY programları arasında açıktır."],
   ["برنامج Catchii متاح حالياً للتقديم عبر وكالة حمزة.", "The Catchii program is currently open for applications through HAMZA AGENCY.", "Catchii programına şu anda HAMZA AGENCY üzerinden başvuru yapılabilir."],
   ["هل القبول مضمون؟", "Is acceptance guaranteed?", "Kabul garanti mi?"],
-  ["يتم مراجعة كل طلب حسب معلومات الحساب ونشاط المتقدم.", "Each application is reviewed based on account details and applicant activity.", "Her başvuru, hesap bilgileri ve başvuru sahibinin etkinliğine göre incelenir."],
+  ["يتم مراجعة كل طلب حسب معلومات الحساب ونشاط المتقدم.", "No. Acceptance is not guaranteed. Each application is reviewed based on account details and applicant activity.", "Hayır. Kabul garantisi yoktur. Her başvuru, hesap bilgileri ve başvuru sahibinin etkinliğine göre değerlendirilir."],
   ["هل أحتاج عدد متابعين محدد؟", "Do I need a specific follower count?", "Belirli bir takipçi sayısı gerekiyor mu?"],
   ["لا نعتمد على رقم ثابت فقط، بل ننظر إلى الجدية ونوع المحتوى.", "We do not rely on a fixed number alone; commitment and content type are also considered.", "Yalnızca sabit bir sayıya bakmıyoruz; ciddiyet ve içerik türü de değerlendirilir."],
   ["هل أحتاج خبرة بث؟", "Do I need live-streaming experience?", "Canlı yayın deneyimi gerekiyor mu?"],
