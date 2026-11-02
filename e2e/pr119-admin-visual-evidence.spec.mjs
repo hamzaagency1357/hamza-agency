@@ -195,7 +195,7 @@ for(const width of [320,390]){
   await expect(visibleCards.filter({hasText:"معلّقة"}).first()).toBeVisible();
   await expectNoHorizontalOverflow(page);
   await page.screenshot({path:`${evidenceDir}/12-team-${width}-cards.png`,fullPage:true});
-  const resend=page.getByRole("button",{name:"إعادة إرسال"}).last();
+  const resend=visibleCards.filter({hasText:"creator@example.test"}).getByRole("button",{name:"إعادة إرسال"});
   await expect(resend).toBeEnabled();
   await resend.click();
   await expect.poll(()=>actions.filter(action=>action==="resend").length).toBe(1);
