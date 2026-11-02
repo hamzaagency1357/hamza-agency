@@ -191,8 +191,8 @@ for(const width of [320,390]){
   await openIsolatedTeam(page,width,width===320?720:844,actions);
   const visibleCards=page.locator("article:visible");
   await expect(visibleCards).toHaveCount(4);
-  await expect(page.getByText("صانع محتوى",{exact:true}).first()).toBeVisible();
-  await expect(page.getByText("معلّقة",{exact:false}).first()).toBeVisible();
+  await expect(visibleCards.filter({hasText:"صانع محتوى"}).first()).toBeVisible();
+  await expect(visibleCards.filter({hasText:"معلّقة"}).first()).toBeVisible();
   await expectNoHorizontalOverflow(page);
   await page.screenshot({path:`${evidenceDir}/12-team-${width}-cards.png`,fullPage:true});
   const resend=page.getByRole("button",{name:"إعادة إرسال"}).last();
