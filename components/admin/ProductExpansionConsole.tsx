@@ -98,7 +98,7 @@ export default function ProductExpansionConsole() {
             <h2 className="text-xl font-bold">هوية {selected?.name}</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {(["primary_color","secondary_color","accent_color","contact_email","contact_phone"] as const).map((key) => (
-                <label key={key} className="text-sm text-white/70">{key}
+                <label key={key} className="text-sm text-white/70">{{primary_color:"اللون الأساسي",secondary_color:"اللون الثانوي",accent_color:"لون التمييز",contact_email:"بريد التواصل",contact_phone:"هاتف التواصل"}[key]}
                   <input value={branding?.[key] ?? ""} onChange={(event) => setBranding((current) => ({ tenant_id: activeTenant, primary_color: null, secondary_color: null, accent_color: null, contact_email: null, contact_phone: null, ...current, [key]: event.target.value }))} className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-white" />
                 </label>
               ))}

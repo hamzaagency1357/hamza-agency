@@ -74,6 +74,9 @@ const exactReplacements: Record<
     ["+50 Monthly success opportunities", "+50 Monthly success opportunities"],
   ],
   tr: [
+    ["HAMZA AJANSI'nın","HAMZA AGENCY'nin"],
+    ["HAMZA AJANSI","HAMZA AGENCY"],
+    ["Programın kamerayla görünürlük gerektiriyor mu?","Program kamera karşısına geçmeyi gerektiriyor mu?"],
     [
       "İçerik üreticilerinin profesyonel yönetim, günlük destek ve gerçek gelişim fırsatlarıyla canlı yayın ve sosyal platformlarda büyümesine ve gelir elde etmesine yardımcı oluyoruz.",
       "İçerik üreticilerinin profesyonel yönetim, destek, takip ve yenilenen gelişim fırsatlarıyla canlı yayın ve sosyal platformlarda görünürlüğünü güçlendirmesine, başarı ve büyüme olanaklarını geliştirmesine yardımcı oluyoruz.",

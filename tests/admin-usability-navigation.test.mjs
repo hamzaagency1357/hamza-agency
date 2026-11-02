@@ -161,7 +161,7 @@ test("owner dashboard keeps the approved operations-center hierarchy and guidanc
     "أحدث طلبات الانضمام",
     "إجراءات سريعة",
     "مسار العمل اليومي",
-    "ما الذي تريدين إنجازه اليوم؟",
+    "ما الذي تريد إنجازه اليوم؟",
   ]) {
     assert.ok(source.includes(token), token);
   }
