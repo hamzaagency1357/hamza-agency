@@ -56,7 +56,7 @@ const filterOptions: { value: PageFilter; label: string }[] = [
   { value: "published", label: "منشورة" },
   { value: "draft", label: "غير منشورة" },
   { value: "homepage", label: "الرئيسية" },
-  { value: "needs_seo", label: "تحتاج تحسين الظهور في البحث" },
+  { value: "needs_seo", label: "حقول SEO غير مكتملة" },
 ];
 
 const recommendedCorePages = [
