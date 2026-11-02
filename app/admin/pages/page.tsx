@@ -98,14 +98,13 @@ function getSeoScore(page: PageItem) {
   let score = 0;
   if ((page.seo_title || "").trim()) score += 1;
   if ((page.seo_description || "").trim()) score += 1;
-  if ((page.seo_keywords || "").trim()) score += 1;
   if ((page.og_image || "").trim()) score += 1;
   return score;
 }
 
 function getSeoLabel(page: PageItem) {
   const score = getSeoScore(page);
-  if (score >= 4) return "مكتمل";
+  if (score >= 3) return "مكتمل";
   if (score >= 2) return "جزئي";
   return "يحتاج إعداد";
 }
@@ -188,7 +187,7 @@ export default function AdminPagesPage() {
     const published = pages.filter((page) => page.is_published !== false).length;
     const draft = pages.filter((page) => page.is_published === false).length;
     const homepage = pages.filter((page) => page.is_homepage === true).length;
-    const needsSeo = pages.filter((page) => getSeoScore(page) < 4).length;
+    const needsSeo = pages.filter((page) => getSeoScore(page) < 3).length;
     const existingSlugs = new Set(pages.map((page) => page.slug || ""));
     const missingCorePages = recommendedCorePages.filter(
       (slug) => !existingSlugs.has(slug)
@@ -214,7 +213,7 @@ export default function AdminPagesPage() {
         (activeFilter === "published" && page.is_published !== false) ||
         (activeFilter === "draft" && page.is_published === false) ||
         (activeFilter === "homepage" && page.is_homepage === true) ||
-        (activeFilter === "needs_seo" && seoScore < 4);
+        (activeFilter === "needs_seo" && seoScore < 3);
 
       const text = `${page.title || ""} ${page.slug || ""} ${
         page.content || ""
@@ -483,11 +482,12 @@ export default function AdminPagesPage() {
         </section>
 
         <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <StatCard title="كل الصفحات" value={stats.total} tone="purple" />
-          <StatCard title="منشورة" value={stats.published} tone="green" />
-          <StatCard title="غير منشورة" value={stats.draft} tone="yellow" />
-          <StatCard title="تحتاج تحسين الظهور" value={stats.needsSeo} tone="blue" />
-          <StatCard title="صفحات أساسية ناقصة" value={stats.missingCorePages} tone="red" />
+          <StatCard title="سجلات محرّر الصفحات" value={stats.total} tone="purple" />
+          <StatCard title="سجلات منشورة" value={stats.published} tone="green" />
+          <StatCard title="سجلات غير منشورة" value={stats.draft} tone="yellow" />
+          <StatCard title="حقول SEO غير مكتملة بالمحرر" value={stats.needsSeo} tone="blue" />
+          <StatCard title="مسارات أساسية بلا سجل CMS" value={stats.missingCorePages} tone="blue" />
+          <p className="text-xs leading-6 text-white/50 md:col-span-full">هذه الأرقام تخص سجلات محرّر الصفحات فقط؛ ولا تعني غياب المسارات العامة أو عدم فهرستها. اكتمال حقول SEO هنا يعتمد على العنوان والوصف وصورة المشاركة، والكلمات المفتاحية اختيارية.</p>
         </section>
 
         {(message || error) && (
