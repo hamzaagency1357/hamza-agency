@@ -27,7 +27,7 @@ export const PUBLIC_IDENTITY_SETTING_KEYS = {
 } as const;
 
 const lockedAgentName: LocalizedIdentityText = { ar: "عراب سوريا", en: "عراب سوريا", tr: "عراب سوريا" };
-const lockedAgencyName: LocalizedIdentityText = { ar: "وكالة حمزة", en: "Hamza Ajansı", tr: "Hamza Ajansı" };
+const lockedAgencyName: LocalizedIdentityText = { ar: "وكالة حمزة", en: "HAMZA AGENCY", tr: "Hamza Ajansı" };
 const legacyEnglishAgent = ["Agent", "Hamza"].join(" ");
 const legacyTurkishAgent = ["Temsilci", "Hamza"].join(" ");
 const legacyTurkishAgency = ["Hamza", "Ajansı"].join(" ");
@@ -36,7 +36,7 @@ export const DEFAULT_PUBLIC_IDENTITY: PublicIdentity = {
   agencyName: lockedAgencyName,
   agentReadableName: lockedAgentName,
   agentDecoratedAr: "⚔عܓོراب✴سܓོوريا⚔",
-  agentRoleLine: { ar: "الوكيل والمدير في Hamza Ajansı", en: "Agent and Manager at Hamza Ajansı", tr: "Hamza Ajansı temsilcisi ve yöneticisi" },
+  agentRoleLine: { ar: "الوكيل والمدير في وكالة حمزة", en: "Agent and Manager at HAMZA AGENCY", tr: "Hamza Ajansı temsilcisi ve yöneticisi" },
   agentLead: {
     ar: "يتولى عراب سوريا إدارة ومتابعة مسارات صناع المحتوى وبرامج البث المباشر ضمن HAMZA AGENCY، مع التركيز على الخصوصية والمتابعة المهنية.",
     en: "عراب سوريا manages creator and live-streaming program follow-up at HAMZA AGENCY with a focus on privacy and professional support.",
