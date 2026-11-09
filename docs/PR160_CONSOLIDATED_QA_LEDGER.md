@@ -58,3 +58,22 @@ Supabase project `fvaurkfnsvsfohpzguho`: **SELECT only**, no writes.
 ## Release gate
 
 After the final repair commit, the four exact-head workflows (Quality Gate, Management Quality Gate, Admin Visual Evidence, Full Project Closeout) and targeted new tests must PASS. Prior HEAD statuses do not prove a newer commit. Remain DRAFT/UNMERGED. Stored Production content is **not** marked fixed; owner approval needed for later writes.
+
+---
+
+## OWNER OVERRIDE — 2026-11-09: conditional acceptance + locale-specific agency name
+
+**This decision supersedes all earlier proposals in this file and the PR body that treated conditional acceptance as a false promise or required the English name on Turkish pages. DO NOT execute the previously drafted 17-field Production update.**
+
+Accepted business wording (all conditions must be fulfilled and verified):
+- **AR:** القبول مضمون عند استيفاء جميع شروط ومتطلبات البرنامج والتحقق منها.
+- **EN:** Acceptance is guaranteed when all program requirements are met and verified.
+- **TR:** Programın tüm şartları karşılandığında ve doğrulandığında kabul garantilidir.
+
+Approved public-facing localized agency names: **AR وكالة حمزة | EN HAMZA AGENCY | TR Hamza Ajansı**. Preserve the agent name `⚔عܓོراب✴سܓོوريا⚔` and all platform names.
+
+**Code correction:** the prior blanket sanitizer changed legitimate conditional guarantees into unconditional denials. It now preserves conditional statements and qualifies genuinely unconditional promises with explicit conditions; public FAQ fallback/legacy translations, SEO and brand presentations follow the same owner policy. Existing test cases requiring denial have been replaced.
+
+**Published database content is NOT automatically rewritten.** The stored TikTok FAQ already promises acceptance for applications meeting the program conditions. It must not be overwritten with "القبول غير مضمون". The old proposed English/Turkish denials and the proposal to replace "Hamza Ajansı" with "HAMZA AGENCY" are withdrawn. A later separately authorized content change is only justified for **genuine quality mistakes**, especially BIGO LIVE's truncated Turkish summary `BIGO LIVE programına Hamza Ajansı ara` and Yaahlan's malformed Turkish camera question `Programın kamerayla görünürlük gerektiriyor mu?`. Correct via reviewed candidate revisions, keeping earlier published versions and histories intact. Do not UPDATE published revision fields directly.
+
+**Remaining validation:** after this code change, run a single final exact-head CI pass, inspect AR/EN/TR program details and media/SEO sharing previews, then present owner-review evidence. No PR creation, merge, manual deployment, Production writes, migration/Edge Function/secret edits.

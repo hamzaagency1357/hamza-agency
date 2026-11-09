@@ -9,10 +9,17 @@ test("operation dropdowns bind raw statuses and preserve Arabic display",()=>{
  assert.doesNotMatch(s,/value=\{operationalLabel\(row\.status\)\}/);
  assert.match(s,/updateTaskStatus\(text\(row\.id\), event\.target\.value\)/);
 });
-test("published AR EN TR TikTok false promises are neutralized, questions unchanged",()=>{
- const fixtures={ar:"هل القبول مضمون؟\nنعم، القبول مضمون للطلبات التي تستوفي شروط البرنامج وتقدّم معلومات صحيحة قابلة للمراجعة.",en:"Is acceptance guaranteed?\nYes, acceptance is guaranteed for applications that meet the program's conditions.",tr:"Kabul garantili mi?\nEvet, program şartlarını karşılayan ve incelenebilir doğru bilgiler sunan başvurular için kabul garantilidir."};
- for(const lang of ["ar","en","tr"]){const text=normalizeAcceptanceGuaranteeClaims(fixtures[lang],lang);assert.notEqual(text,fixtures[lang]);assert.equal(containsPositiveAcceptanceGuarantee(text,lang),false);}
- assert.match(normalizeAcceptanceGuaranteeClaims(fixtures.tr,"tr"),/kabul garantisi yoktur/i);
+test("verified-condition acceptance promises remain intact in all three languages",()=>{
+ const examples={
+  ar:"نعم، القبول مضمون للطلبات التي تستوفي شروط البرنامج.",
+  en:"Yes, acceptance is guaranteed for applications that meet the program's conditions.",
+  tr:"Evet, program şartlarını karşılayan başvurular için kabul garantilidir."
+ };
+ for(const lang of ["ar","en","tr"]){
+  assert.equal(normalizeAcceptanceGuaranteeClaims(examples[lang],lang),examples[lang]);
+  assert.equal(containsPositiveAcceptanceGuarantee(examples[lang],lang),false);
+ }
+ assert.match(normalizeAcceptanceGuaranteeClaims("Kabul garantilidir.","tr"),/şartları karşılandığında/iu);
 });
 test("program details use language-safe per-field fallback",()=>{
  const s=read("app/programs/[slug]/page.tsx");

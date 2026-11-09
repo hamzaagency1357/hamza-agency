@@ -27,7 +27,7 @@ export const PUBLIC_IDENTITY_SETTING_KEYS = {
 } as const;
 
 const lockedAgentName: LocalizedIdentityText = { ar: "عراب سوريا", en: "عراب سوريا", tr: "عراب سوريا" };
-const lockedAgencyName: LocalizedIdentityText = { ar: "وكالة حمزة", en: "HAMZA AGENCY", tr: "HAMZA AGENCY" };
+const lockedAgencyName: LocalizedIdentityText = { ar: "وكالة حمزة", en: "Hamza Ajansı", tr: "Hamza Ajansı" };
 const legacyEnglishAgent = ["Agent", "Hamza"].join(" ");
 const legacyTurkishAgent = ["Temsilci", "Hamza"].join(" ");
 const legacyTurkishAgency = ["Hamza", "Ajansı"].join(" ");
@@ -36,16 +36,16 @@ export const DEFAULT_PUBLIC_IDENTITY: PublicIdentity = {
   agencyName: lockedAgencyName,
   agentReadableName: lockedAgentName,
   agentDecoratedAr: "⚔عܓོراب✴سܓོوريا⚔",
-  agentRoleLine: { ar: "الوكيل والمدير في HAMZA AGENCY", en: "Agent and Manager at HAMZA AGENCY", tr: "HAMZA AGENCY temsilcisi ve yöneticisi" },
+  agentRoleLine: { ar: "الوكيل والمدير في Hamza Ajansı", en: "Agent and Manager at Hamza Ajansı", tr: "Hamza Ajansı temsilcisi ve yöneticisi" },
   agentLead: {
     ar: "يتولى عراب سوريا إدارة ومتابعة مسارات صناع المحتوى وبرامج البث المباشر ضمن HAMZA AGENCY، مع التركيز على الخصوصية والمتابعة المهنية.",
     en: "عراب سوريا manages creator and live-streaming program follow-up at HAMZA AGENCY with a focus on privacy and professional support.",
-    tr: "عراب سوريا, HAMZA AGENCY bünyesinde içerik üreticileri ve canlı yayın programlarının takibini gizlilik ve profesyonel destek odağıyla yürütür.",
+    tr: "عراب سوريا, Hamza Ajansı bünyesinde içerik üreticileri ve canlı yayın programlarının takibini gizlilik ve profesyonel destek odağıyla yürütür.",
   },
   agentManagementCopy: {
     ar: "HAMZA AGENCY بإدارة الوكيل عراب سوريا، مع متابعة منظمة لمسارات البرامج وصناع المحتوى والخدمات المرتبطة بالوكالة.",
     en: "HAMZA AGENCY is managed by عراب سوريا, with organized follow-up for programs, creators, and agency-related services.",
-    tr: "HAMZA AGENCY, عراب سوريا yönetiminde programlar, içerik üreticileri ve ajansla ilgili hizmetler için düzenli takip sağlar.",
+    tr: "Hamza Ajansı, عراب سوريا yönetiminde programlar, içerik üreticileri ve ajansla ilgili hizmetler için düzenli takip sağlar.",
   },
   agentAboutCopy: {
     ar: "يجمع عراب سوريا بين الخبرة، الخصوصية، المتابعة الدقيقة، وفهم متطلبات برامج البث المباشر وصناع المحتوى.",
@@ -55,12 +55,12 @@ export const DEFAULT_PUBLIC_IDENTITY: PublicIdentity = {
   agentSeoTitle: {
     ar: "عراب سوريا | الوكيل والمدير في HAMZA AGENCY",
     en: "عراب سوريا | Agent and Manager at HAMZA AGENCY",
-    tr: "عراب سوريا | HAMZA AGENCY Temsilcisi ve Yöneticisi",
+    tr: "عراب سوريا | Hamza Ajansı Temsilcisi ve Yöneticisi",
   },
   agentSeoDescription: {
     ar: "HAMZA AGENCY بإدارة الوكيل عراب سوريا، مع دعم وتطوير ومتابعة مهنية لصناع المحتوى وبرامج البث المباشر.",
     en: "HAMZA AGENCY is managed by عراب سوريا, with professional support, development, privacy, and follow-up for content creators and live-streaming programs.",
-    tr: "HAMZA AGENCY, içerik üreticileri ve canlı yayın programları için profesyonel destek, gelişim, gizlilik ve takip sunan عراب سوريا tarafından yönetilmektedir.",
+    tr: "Hamza Ajansı, içerik üreticileri ve canlı yayın programları için profesyonel destek, gelişim, gizlilik ve takip sunan عراب سوريا tarafından yönetilmektedir.",
   },
 };
 
@@ -116,7 +116,12 @@ export async function getPublicIdentity(): Promise<PublicIdentity> {
 
 function replaceApprovedIdentityTokens(value: string, language: SiteLanguage, identity: PublicIdentity, decorated = false) {
   let output = cleanLegacyAgentAliases(value);
-  if (language !== "en") output = output.replaceAll(legacyTurkishAgency, identity.agencyName[language]);
+  if (language === "tr") output = output
+    .replaceAll("HAMZA AGENCY'nin","Hamza Ajansı'nın")
+    .replaceAll("HAMZA AGENCY","Hamza Ajansı")
+    .replaceAll("HAMZA AJANSI","Hamza Ajansı")
+    .replaceAll(legacyTurkishAgency,identity.agencyName.tr);
+  if (language === "ar") output = output.replaceAll(legacyTurkishAgency,identity.agencyName.ar);
   if (decorated && language === "ar") output = output.replaceAll(DEFAULT_PUBLIC_IDENTITY.agentDecoratedAr, identity.agentDecoratedAr);
   return output;
 }
