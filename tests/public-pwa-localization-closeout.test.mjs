@@ -52,8 +52,9 @@ test("legacy agent aliases and framework generator are absent from public metada
   for(const source of [metadata,structured,seo]){
     assert.equal(source.includes("Agent Hamza"),false);
     assert.equal(source.includes("Temsilci Hamza"),false);
-    assert.equal(source.includes("Hamza Ajansı"),false);
+    // Turkish localized agency name is approved; do not classify it as a legacy agent alias.
   }
+  assert.ok(seo.includes("Hamza Ajansı"));
   assert.equal(metadata.includes('generator:"Next.js"'),false);
   assert.ok(seo.includes('en: { title: "عراب سوريا | Agent and Manager at HAMZA AGENCY"'));
 });
