@@ -114,6 +114,11 @@ const unsupportedClaimPatterns = [
 
 export function sanitizeMarketingCopy(value: string, language: SiteLanguage) {
   let safeValue = value;
+  // Repair the exact truncated published BIGO LIVE Turkish summary without touching
+  // the complete phrase or altering the historical published revision.
+  if (language === "tr" && safeValue.trim() === "BIGO LIVE programına Hamza Ajansı ara") {
+    safeValue = "BIGO LIVE programına Hamza Ajansı aracılığıyla katılın.";
+  }
   for (const [source, replacement] of exactReplacements[language]) safeValue = safeValue.replaceAll(source, replacement);
   safeValue = safeValue
     .replaceAll("شراكة رسمية", "مسار برنامج")

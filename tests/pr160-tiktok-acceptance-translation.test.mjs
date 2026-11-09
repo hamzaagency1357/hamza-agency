@@ -33,3 +33,10 @@ test("Turkish agency name is localized but the owner and program names stay unch
  assert.ok(seo.includes('language==="tr"?"Hamza Ajansı"'));
  for(const name of ["TikTok","BIGO LIVE","Yaahlan","Xena","Catchii"])assert.ok(seo.includes(name),name);
 });
+
+test("BIGO LIVE truncated Turkish summary has an exact-only display correction",()=>{
+ const marketing=read("lib/i18n/marketingSafety.ts");
+ assert.ok(marketing.includes('safeValue.trim() === "BIGO LIVE programına Hamza Ajansı ara"'));
+ assert.ok(marketing.includes('safeValue = "BIGO LIVE programına Hamza Ajansı aracılığıyla katılın."'));
+ assert.ok(marketing.includes('Program kamera karşısına geçmeyi gerektiriyor mu?'));
+});
