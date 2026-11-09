@@ -33,18 +33,16 @@ test("offline page is locale-pure and Smart Support uses the locked Arabic label
   assert.ok(support.includes("REQUEST_TIMEOUT_MS=12000"));
 });
 
-test("Turkish install copy preserves HAMZA AGENCY and the translation evidence forbids cross-locale leakage",()=>{
+test("Turkish install copy follows the approved Hamza Ajansı locale identity without leakage",()=>{
   const pwa=read("lib/i18n/privacyAndPwaCopy.ts");
   const translations=read("e2e/closeout/translations.spec.mjs");
-  assert.ok(pwa.includes('pageEyebrow:"HAMZA AGENCY uygulaması"'));
-  assert.ok(pwa.includes("HAMZA AGENCY'yi cihazınıza yükleyin"));
-  assert.ok(pwa.includes("HAMZA AGENCY'yi bağımsız uygulama modunda kullanıyorsunuz"));
-  assert.equal(pwa.includes("Hamza Ajansı"),false);
-  assert.ok(translations.includes('agency: "HAMZA AGENCY"'));
+  assert.ok(pwa.includes('pageEyebrow:"Hamza Ajansı uygulaması"'));
+  assert.ok(pwa.includes("Hamza Ajansı'nı cihazınıza yükleyin"));
+  assert.ok(pwa.includes("Hamza Ajansı'nı bağımsız uygulama modunda kullanıyorsunuz"));
+  assert.ok(translations.includes('agency: "Hamza Ajansı"'));
   assert.ok(translations.includes('crossLocaleInstallLeakage'));
-  assert.equal(translations.includes("Hamza Ajansı"),false);
+  assert.ok(translations.includes('agency: "HAMZA AGENCY"'));
 });
-
 test("legacy agent aliases and framework generator are absent from public metadata sources",()=>{
   const metadata=read("lib/i18n/serverPublicMetadata.ts");
   const structured=read("components/StructuredData.tsx");
