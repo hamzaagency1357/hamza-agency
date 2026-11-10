@@ -7,7 +7,7 @@ const root=new URL("../",import.meta.url);
 const draft=JSON.parse(readFileSync(new URL("lib/blog/pr160TikTokLiveDraft.json",root),"utf8"));
 const admin=readFileSync(new URL("components/AdminBlogManager.tsx",root),"utf8");
 const applyUrl="https://www.tiktok.com/t/ZS2AxwqsK/";
-const contactUrl="https://wa.me/905011730337";
+const contactUrl="https://wa.me/905011730377";
 
 test("TikTok LIVE draft follows existing CMS route and never publishes automatically",()=>{
  assert.equal(draft.slug,"tiktok-live-hamza-agency");
@@ -29,6 +29,7 @@ test("three independently localized, safe and complete article versions contain 
   }
   assert.ok(copy.content.includes(applyUrl),language+" TikTok form");
   assert.ok(copy.content.includes(contactUrl),language+" WhatsApp");
+  assert.ok(!copy.content.includes("905011730337"),language+" outdated contact number");
   const localizedPrefix=language==="ar"?"":`/${language}`;
   const formHref=`${localizedPrefix}/programs/tiktok#apply`;
   assert.ok(copy.content.includes(`href="${formHref}"`),language+" direct program application");
