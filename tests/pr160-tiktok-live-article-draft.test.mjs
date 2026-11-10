@@ -29,7 +29,12 @@ test("three independently localized, safe and complete article versions contain 
   }
   assert.ok(copy.content.includes(applyUrl),language+" TikTok form");
   assert.ok(copy.content.includes(contactUrl),language+" WhatsApp");
-  assert.ok(copy.content.includes('href="/apply"'),language+" website form");
+  const localizedPrefix=language==="ar"?"":`/${language}`;
+  const formHref=`${localizedPrefix}/programs/tiktok#apply`;
+  assert.ok(copy.content.includes(`href="${formHref}"`),language+" direct program application");
+  assert.ok(copy.content.includes(`href="${localizedPrefix}/programs"`),language+" localized programs");
+  assert.ok(copy.content.includes(`href="${localizedPrefix}/contact"`),language+" localized contact");
+  assert.ok(!copy.content.includes('href="/apply"'),language+" no intermediate chooser");
   assert.ok(copy.content.includes("⚔عܓོراب✴سܓོوريا⚔"),language+" agent name");
   assert.ok(copy.content.includes("ⒽⒶ"),language+" logo");
   assert.ok((copy.content.match(/<h2>/g)||[]).length>=6,language+" topic sections");
@@ -37,7 +42,7 @@ test("three independently localized, safe and complete article versions contain 
   const sanitized=sanitizeArticleHtml(copy.content);
   assert.ok(sanitized.includes(applyUrl));
   assert.ok(sanitized.includes(contactUrl));
-  assert.ok(sanitized.includes('href="/apply"'));
+  assert.ok(sanitized.includes(`href="${formHref}"`));
   assert.doesNotMatch(sanitized,/<script\b|javascript:/i);
   assert.ok(copy.allowIndex===true);
   assert.equal(copy.canonical,""); // CMS page derives locale-specific canonical.
