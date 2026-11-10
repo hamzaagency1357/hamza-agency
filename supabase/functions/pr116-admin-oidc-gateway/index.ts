@@ -302,7 +302,7 @@ Deno.serve(async (request: Request) => {
       return json(200, { ok: true, data: updated });
     }
 
-    const generated = await dispatchGeneratedAdminAction({ action, payload, supabaseUrl, serviceRole, admin, user });
+    const generated = await dispatchGeneratedAdminAction({ action, payload, supabaseUrl, serviceRole, admin, user, userToken, anonKey });
     if (generated) {
       if (generated.ok) await audit(supabaseUrl, serviceRole, user, action, action, null, { action });
       return json(generated.status, generated.body);

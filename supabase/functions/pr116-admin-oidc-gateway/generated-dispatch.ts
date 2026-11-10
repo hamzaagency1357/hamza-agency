@@ -18,7 +18,7 @@ export const GENERATED_PERMISSIONS: Record<string, { module: string; permission:
 
 type DispatchInput = Parameters<typeof dispatchBaseGeneratedAdminAction>[0];
 
-export async function dispatchGeneratedAdminAction(input: DispatchInput) {
+export async function dispatchGeneratedAdminAction(input: DispatchInput & { userToken?: string; anonKey?: string }) {
   if (!isGeneratedActionRoleAllowed(input.action, input.admin.role)) {
     return { ok: false, status: 403, body: { ok: false, code: "forbidden" } };
   }
