@@ -54,3 +54,16 @@ test("three independently localized, safe and complete article versions contain 
  assert.ok(draft.translations.en.title.includes("HAMZA AGENCY"));
  assert.ok(draft.translations.ar.title.includes("وكالة حمزة"));
 });
+
+
+test("admin blog cannot save incomplete published content or select published for an unpublished article",()=>{
+ const gateway=readFileSync(new URL("supabase/functions/pr116-admin-oidc-gateway/trusted-rpc-dispatch.ts",root),"utf8");
+ assert.match(gateway,/function hasCompletePublishedBlogTranslations\(value: unknown\)/);
+ assert.match(gateway,/!Array\.isArray\(value\) \|\| value\.length !== 3/);
+ assert.match(gateway,/languages\.has\(String\(entry\.language\)\)/);
+ for(const key of ["title","excerpt","content_html"])assert.ok(gateway.includes(key));
+ assert.match(gateway,/contract\.rpcName === "pr3_save_blog_post" && args\.p_status === "published"/);
+ assert.match(gateway,/incomplete_published_blog_translations/);
+ assert.match(admin,/disabled=\{rows\.find\(\(row\)=>row\.id===activeId\)\?\.status!=="published"\}/);
+ assert.match(admin,/لا يمكن حفظ مقال منشور قبل إكمال العنوان والملخص والمحتوى باللغات الثلاث/);
+});

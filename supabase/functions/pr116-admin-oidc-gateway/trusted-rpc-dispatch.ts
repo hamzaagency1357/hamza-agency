@@ -61,6 +61,23 @@ function text(value: unknown, max: number, nullable = false): string | null | un
   if (typeof value !== "string" || value.length > max) return undefined;
   return value;
 }
+// A blog save may keep an already published entry live. The trusted gateway must
+// never accept a published payload with missing or duplicate languages: the
+// separate publish RPC already requires complete AR/EN/TR content.
+function hasCompletePublishedBlogTranslations(value: unknown): boolean {
+  if (!Array.isArray(value) || value.length !== 3) return false;
+  const languages = new Set<string>();
+  for (const entry of value) {
+    if (!record(entry) || !["ar", "en", "tr"].includes(String(entry.language))) return false;
+    if (languages.has(String(entry.language))) return false;
+    for (const key of ["title", "excerpt", "content_html"]) {
+      if (typeof entry[key] !== "string" || !entry[key].trim()) return false;
+    }
+    languages.add(String(entry.language));
+  }
+  return languages.size === 3;
+}
+
 function legacyArgs(input: Input, contract: Contract): Record<string, unknown> | null {
   if (!contract.legacy) return record(input.payload.args) ? input.payload.args : input.payload.args === undefined ? {} : null;
   if (contract.legacy === "support") {
@@ -86,6 +103,11 @@ export async function dispatchTrustedRpcAction(input: Input): Promise<Result> {
   const args = legacyArgs(input, contract);
   if (!args || !keysAllowed(args, contract.allowedFields) || JSON.stringify(args).length > 12_000_000) {
     return { status: 400, body: { ok: false, code: "invalid_request" }, ok: false };
+  }
+  // Preserve draft editing, but do not allow save-as-published to bypass
+  // the complete-language checks performed by the dedicated publish RPC.
+  if (contract.rpcName === "pr3_save_blog_post" && args.p_status === "published" && !hasCompletePublishedBlogTranslations(args.p_translations)) {
+    return { status: 400, body: { ok: false, code: "incomplete_published_blog_translations" }, ok: false };
   }
   const actorEmail = (input.admin.email || input.user.email || "").trim().toLowerCase();
   // Supabase Auth is the source of truth for the authenticated actor. Accept the full
