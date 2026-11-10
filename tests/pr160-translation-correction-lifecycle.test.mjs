@@ -61,3 +61,26 @@ test("candidate lifecycle preserves published originals and requires explicit re
  assert.ok(ui.includes("createCorrectionDraft"));
  assert.ok(ui.includes("setSelectedId"));
 });
+
+test("only the two exact historically broken Turkish fields receive proposed candidate edits",()=>{
+ const suggestions=read("lib/i18n/translationCorrectionSuggestions.ts");
+ const ui=read("app/admin/translations/revisions/page.tsx");
+ for(const term of [
+  'sourceType: "programs"',
+  'sourceId: "2"',
+  'sourceId: "3"',
+  'language: "tr"',
+  'fieldName: "summary"',
+  'fieldName: "faq"',
+  'BIGO LIVE programına Hamza Ajansı ara',
+  'BIGO LIVE programına Hamza Ajansı aracılığıyla katılın.',
+  'Program kamera karşısına geçmeyi gerektiriyor mu?',
+  'Yaahlan programı yalnızca sesli yayına dayanır.',
+  'if (fields[rule.fieldName] !== rule.previous) continue'
+ ]) assert.ok(suggestions.includes(term),term);
+ assert.ok(ui.includes('getTranslationCorrectionSuggestions(selected.source_type,selected.source_id,selected.language,originalFields)'));
+ assert.ok(ui.includes('p_translated_fields:translatedFields'));
+ assert.ok(ui.includes('correctedFields.length'));
+ assert.ok(ui.includes('إنشاء مسودة تصحيحية من المنشور'));
+ assert.ok(ui.includes('selected.workflow_status !== "reviewed"'));
+});

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requireAdminModuleAccess } from "@/lib/adminAccess";
 import { supabase } from "@/lib/supabase";
+import { getTranslationCorrectionSuggestions } from "@/lib/i18n/translationCorrectionSuggestions";
 
 type Status = "draft" | "needs_review" | "reviewed" | "published" | "superseded" | "archived";
 type LanguageFilter = "all" | "en" | "tr";
@@ -149,7 +150,7 @@ export default function TranslationRevisionsPage() {
       item.id !== selected.id && item.source_revision_id === selected.source_revision_id &&
       item.language === selected.language && !item.is_stale && editableStatuses.includes(item.workflow_status));
     if (competing) { setError("توجد مسودة تصحيحية فعالة لهذه اللغة. افتحها وعدّلها بدل إنشاء نسخة مكررة."); return; }
-    if (!window.confirm("سيتم إنشاء مسودة تصحيحية من النص المنشور مع إبقاء النسخة العامة كما هي. لا يتم نشر أي تغيير تلقائيًا. متابعة؟")) return;
+    if (!window.confirm("سيتم إنشاء مسودة تصحيحية من النص المنشور، مع اقتراح تصحيحات BIGO وYaahlan المحددة إن طابقت النص القديم تمامًا. لا يتم نشر أي تغيير تلقائيًا. متابعة؟")) return;
     setBusy(true); setError(""); setMessage("");
     try {
       // Re-read current IDs and full published fields to reject concurrent changes.
@@ -178,7 +179,8 @@ export default function TranslationRevisionsPage() {
       if (sourceEntries.some(([name])=>typeof currentValues[name]!=="string" || !currentValues[name].trim())) {
         throw new Error("تحتوي النسخة الحالية على حقل فارغ. لا يمكن نسخها تلقائيًا.");
       }
-      const translatedFields=Object.fromEntries(sourceEntries.map(([name])=>[name,currentValues[name]]));
+      const originalFields=Object.fromEntries(sourceEntries.map(([name])=>[name,currentValues[name]]));
+      const { fields:translatedFields, correctedFields } = getTranslationCorrectionSuggestions(selected.source_type,selected.source_id,selected.language,originalFields);
       const result=await adminBoundaryMutation<{ translation_revision_id?: string; created?: boolean }[] | { translation_revision_id?: string; created?: boolean }>(
         "pr116_translations_revisions_page_rpc_create_translation_candidate_draft_call",
         { args:{
@@ -193,7 +195,7 @@ export default function TranslationRevisionsPage() {
       if (result.error) throw new Error(result.error.message);
       const value=Array.isArray(result.data)?result.data[0]:result.data;
       if (!value?.translation_revision_id) throw new Error("لم تُرجع بوابة الإدارة معرّف النسخة التصحيحية.");
-      setMessage(value.created===false ? "المسودة الحالية موجودة مسبقًا؛ لم يُنشأ تكرار." : "تم إنشاء مسودة تصحيحية فقط. عدّل الحقول المطلوبة ثم احفظ وراجع قبل النشر اليدوي.");
+      setMessage(value.created===false ? "المسودة الحالية موجودة مسبقًا؛ لم يُنشأ تكرار." : correctedFields.length ? "تم إعداد مسودة بالتصحيح المقترح. راجع كل الحقول واعتمد المراجعة قبل النشر اليدوي." : "تم إنشاء مسودة تصحيحية فقط. عدّل الحقول المطلوبة ثم احفظ وراجع قبل النشر اليدوي.");
       await load(value.translation_revision_id);
     } catch (failure) {
       setError(failure instanceof Error?failure.message:"تعذّر إنشاء النسخة التصحيحية.");
