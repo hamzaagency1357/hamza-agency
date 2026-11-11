@@ -41,6 +41,10 @@ BEGIN
   FROM public.tenants t WHERE t.is_primary IS TRUE AND t.status='active';
 
   IF EXISTS (SELECT 1 FROM public.activity_logs WHERE action='pr160_once_editorial_release' AND metadata->>'release_key'=v_release_key) THEN
+    IF NOT v_apply THEN
+      RAISE NOTICE 'This owner-authorized one-shot release has already completed. Read-only confirmation; no writes.';
+      RETURN;
+    END IF;
     RAISE EXCEPTION 'One-shot editorial release has already been recorded; refusing to repeat.';
   END IF;
   IF EXISTS (SELECT 1 FROM public.blog_posts WHERE slug='tiktok-live-hamza-agency') THEN
