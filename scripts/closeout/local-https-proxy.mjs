@@ -117,11 +117,10 @@ async function serviceFetch(path, init = {}) {
     signal: AbortSignal.timeout(8_000),
   });
 }
-async function resolveUser(request) {
-  const userAuthorization = request.headers["x-supabase-user-authorization"] || "";
-  if (typeof userAuthorization !== "string" || !userAuthorization.startsWith("Bearer ")) return null;
+async function resolveUser(userToken) {
+  if (!userToken) return null;
   const response = await fetch(new URL("/auth/v1/user", supabaseUpstream), {
-    headers: { apikey: localAnonKey, Authorization: userAuthorization },
+    headers: { apikey: localAnonKey, Authorization: `Bearer ${userToken}` },
     signal: AbortSignal.timeout(5_000),
   });
   if (!response.ok) return null;
@@ -196,14 +195,19 @@ async function handleLocalGateway(request, response) {
   try { payload = JSON.parse(body); } catch { return sendJson(response, 400, { ok: false, code: "invalid_payload" }); }
   if (!record(payload)) return sendJson(response, 400, { ok: false, code: "invalid_payload" });
 
-  const user = await resolveUser(request);
+  const userAuthorization = request.headers["x-supabase-user-authorization"] || "";
+  const userToken = typeof userAuthorization === "string" && userAuthorization.startsWith("Bearer ")
+    ? userAuthorization.slice(7).trim() : "";
+  const user = await resolveUser(userToken);
   if (!user) return sendJson(response, 401, { ok: false, code: "invalid_user_session" });
   const admin = await resolveAdmin(user);
   if (!admin) return sendJson(response, 403, { ok: false, code: "forbidden" });
   const required = GENERATED_PERMISSIONS[action];
   if (!required || !(await hasPermission(admin, required.module, required.permission))) return sendJson(response, 403, { ok: false, code: "forbidden" });
 
-  const result = await dispatchGeneratedAdminAction({ action, payload, supabaseUrl: supabaseUpstream.origin, serviceRole, admin, user });
+  const result = await dispatchGeneratedAdminAction({
+    action, payload, supabaseUrl: supabaseUpstream.origin, serviceRole, admin, user, userToken, anonKey: localAnonKey,
+  });
   if (!result) return sendJson(response, 400, { ok: false, code: "invalid_action" });
   if (result.ok) await audit(user, action);
   return sendJson(response, result.status, result.body);

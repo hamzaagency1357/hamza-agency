@@ -25,8 +25,15 @@ test("allows only a valid same-article same-language override",()=>{
 });
 test("blog metadata uses shared safe resolver for canonical and structured-data URL",()=>{
  const source=readFileSync(new URL("../app/blog/[slug]/page.tsx",import.meta.url),"utf8");
- assert.match(source,/resolveBlogCanonical\(post\.copy\.canonical,fallbackCanonical,SITE_URL\)/);
- assert.ok(source.includes("alternates:{canonical"));
- assert.ok(source.includes("url:canonical"));
+ assert.match(source,/resolveBlogCanonical\(post\.copy\.canonical,\s*fallbackCanonical,\s*SITE_URL\)/);
+ assert.match(source,/alternates:\s*\{\s*canonical/);
+ assert.match(source,/url:\s*canonical/);
  assert.doesNotMatch(source,/function safeCanonical\(/);
+});
+
+test("blog sharing metadata and the agency byline use the approved locale identity",()=>{
+ const source=readFileSync(new URL("../app/blog/[slug]/page.tsx",import.meta.url),"utf8");
+ assert.match(source,/const siteName = DEFAULT_PUBLIC_IDENTITY\.agencyName\[language\]/);
+ assert.match(source,/openGraph:\s*\{[^}]+\bsiteName,/);
+ assert.match(source,/post\.authorName === DEFAULT_PUBLIC_IDENTITY\.agencyName\.en \? DEFAULT_PUBLIC_IDENTITY\.agencyName\[language\] : post\.authorName/);
 });

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import test from "node:test";
+import { getTranslationCorrectionSuggestions } from "../lib/i18n/translationCorrectionSuggestions.ts";
+import { dispatchGeneratedAdminAction } from "../supabase/functions/pr116-admin-oidc-gateway/generated-dispatch.ts";
 const read=(path)=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
 
 test("published revisions offer only an authorized correction draft, never an in-place edit",()=>{
@@ -62,7 +64,7 @@ test("candidate lifecycle preserves published originals and requires explicit re
  assert.ok(ui.includes("setSelectedId"));
 });
 
-test("only the two exact historically broken Turkish fields receive proposed candidate edits",()=>{
+test("only the scoped Turkish fields receive exact-match candidate edits",()=>{
  const suggestions=read("lib/i18n/translationCorrectionSuggestions.ts");
  const ui=read("app/admin/translations/revisions/page.tsx");
  for(const term of [
@@ -83,4 +85,67 @@ test("only the two exact historically broken Turkish fields receive proposed can
  assert.ok(ui.includes('correctedFields.length'));
  assert.ok(ui.includes('إنشاء مسودة تصحيحية من المنشور'));
  assert.ok(ui.includes('selected.workflow_status !== "reviewed"'));
+});
+
+test("Yaahlan's published FAQ stays intact when proposing the summary correction", () => {
+ const summary = "HAMZA AGENCY aracılığıyla YAAHLAN programına katılın";
+ const faq = "Program kamera karşısına geçmeyi gerektiriyor mu?\nHayır, Yaahlan programı yalnızca sesli yayına dayanır.";
+ const original = Object.freeze({ title: "Yaahlan", summary, faq });
+ assert.deepEqual(getTranslationCorrectionSuggestions("programs", "3", "tr", original), {
+  fields: { ...original, summary: "Hamza Ajansı aracılığıyla Yaahlan programına katılın." },
+  correctedFields: ["summary"],
+ });
+ assert.equal(original.summary, summary);
+ for (const [type, id, language] of [["programs", "2", "tr"], ["programs", "3", "en"], ["pages", "3", "tr"]]) {
+  assert.deepEqual(getTranslationCorrectionSuggestions(type, id, language, original), {
+   fields: original, correctedFields: [],
+  });
+ }
+});
+
+test("gateway dispatch uses the verified user's token only for creation and preserves existing service RPCs", async (t) => {
+ const calls = [];
+ t.mock.method(globalThis, "fetch", async (url, init) => {
+  calls.push({ url: new URL(url), headers: new Headers(init.headers), args: JSON.parse(init.body) });
+  return Response.json({ fixture: true });
+ });
+ const admin = { id: 1, email: "owner@example.test", role: "super_admin", assignedProgram: null };
+ const user = { id: "10000000-0000-4000-8000-000000000001", email: admin.email };
+ const input = { supabaseUrl: "https://isolated.example.test", serviceRole: "test-service", anonKey: "test-anon", userToken: "test-user", admin, user };
+ const dispatch = (rpc, args, context = input) => dispatchGeneratedAdminAction({
+  ...context, action: `pr116_translations_revisions_page_rpc_${rpc}_call`, payload: { args },
+ });
+ const draft = "10000000-0000-4000-8000-000000000002";
+ const fields = { title: "Yaahlan", summary: "Hamza Ajansı aracılığıyla Yaahlan programına katılın." };
+ const create = "create_translation_candidate_draft";
+ const createArgs = {
+  p_source_type: "programs", p_source_id: "3", p_language: "tr",
+  p_source_fingerprint: "isolated", p_source_snapshot: { title: "Yaahlan", summary: "ملخص" }, p_translated_fields: fields,
+ };
+ assert.equal((await dispatch(create, createArgs, { ...input, userToken: undefined })).status, 403);
+ assert.equal((await dispatch(create, createArgs, { ...input, admin: { ...admin, role: "program_admin" } })).status, 403);
+ assert.equal((await dispatch(create, { ...createArgs, p_actor: user.id })).status, 400);
+ assert.equal(calls.length, 0);
+
+ assert.equal((await dispatch(create, createArgs)).ok, true);
+ assert.equal(calls[0].url.pathname, `/rest/v1/rpc/${create}`);
+ assert.equal(calls[0].headers.get("authorization"), "Bearer test-user");
+ assert.equal(calls[0].headers.get("apikey"), "test-anon");
+ assert.equal(calls[0].headers.has("x-pr116-admin-user-id"), false);
+ assert.equal(calls[0].headers.has("x-pr116-admin-email"), false);
+ assert.deepEqual(calls[0].args, createArgs);
+
+ for (const [rpc, args] of [
+  ["save_translation_candidate_fields", { p_translation_revision_id: draft, p_translated_fields: fields }],
+  ["review_translation_candidate", { p_translation_revision_id: draft, p_review_notes: "Reviewed" }],
+  ["publish_translation_candidate", { p_translation_revision_id: draft }],
+ ]) {
+  assert.equal((await dispatch(rpc, args)).ok, true);
+  const call = calls.at(-1);
+  assert.equal(call.url.pathname, `/rest/v1/rpc/${rpc}`);
+  assert.equal(call.headers.get("authorization"), "Bearer test-service");
+  assert.equal(call.headers.get("x-pr116-admin-user-id"), user.id);
+  assert.equal(call.headers.get("x-pr116-admin-email"), admin.email);
+  assert.deepEqual(call.args, args);
+ }
 });

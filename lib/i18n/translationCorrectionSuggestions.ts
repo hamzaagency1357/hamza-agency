@@ -1,7 +1,5 @@
 /**
- * Owner-approved, exact-match correction suggestions for two historical Turkish
- * translation typos. Suggestions are written only into newly-created review
- * candidates, never into published revisions or Arabic source records.
+ * Exact-match Turkish corrections proposed in newly created review candidates.
  */
 const targetedCorrections: ReadonlyArray<{
   sourceType: string;
@@ -18,6 +16,14 @@ const targetedCorrections: ReadonlyArray<{
     fieldName: "summary",
     previous: "BIGO LIVE programına Hamza Ajansı ara",
     suggested: "BIGO LIVE programına Hamza Ajansı aracılığıyla katılın.",
+  },
+  {
+    sourceType: "programs",
+    sourceId: "3",
+    language: "tr",
+    fieldName: "summary",
+    previous: "HAMZA AGENCY aracılığıyla YAAHLAN programına katılın",
+    suggested: "Hamza Ajansı aracılığıyla Yaahlan programına katılın.",
   },
   {
     sourceType: "programs",

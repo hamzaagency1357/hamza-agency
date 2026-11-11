@@ -151,6 +151,11 @@ jobs:
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260809095000_pr116_owner_approved_reviews_program_media.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260810001500_pr116_final_security_boundary_closeout.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f tests/pr116-local-migration-contract.sql
+          psql "$DB_URL" --no-psqlrc -X --single-transaction -v ON_ERROR_STOP=1 -f supabase/migrations/20261111234553_pr160_scope_admin_translation_and_legacy_rpcs.sql
+          if [ "${{ inputs.suite }}" = "admin" ]; then
+            psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260827090000_pr99_trusted_admin_actor_db_bridge.sql
+            psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f tests/pr160-admin-release-boundary.sql
+          fi
           node scripts/closeout/macro-auth-fixtures.mjs setup
           node scripts/closeout/macro-runtime-fixtures.mjs setup
           node scripts/closeout/core-runtime-fixtures.mjs setup
