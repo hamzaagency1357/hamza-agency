@@ -1,3 +1,17 @@
+
+## VERIFIED OWNER-AUTHORIZED SINGLE-USE EDITORIAL RELEASE — 2026-11-11
+
+**Execution:** completed once on Supabase project `fvaurkfnsvsfohpzguho` at `2026-11-11T00:24:16Z`. A subsequent invocation correctly failed closed with `One-shot editorial release has already been recorded`; it did **not** repeat writes. The reviewed script is now **disabled by default** (`v_apply=false`) and remains only as a preflight/audit record. **No credentials, Auth users, permission grants, Edge Function deploys, PR merges, or site deployments were created by this operation.**
+
+- Private scoped preflight backup: `operations_preflight_backups.id = 2e00da17-10ab-4393-8985-d859511772b4`. Checksum `c56894e7f27f22072f8a3da138261c5b7e8f4ac8f32c762a8930f220d92a8834` reverified; 2 prior published Turkish revisions and all 14 old field records retained. This is a scoped preflight backup, not a full-system restoration test.
+- TikTok article: `blog_posts.id=1`, slug `tiktok-live-hamza-agency`, `published`, AR/EN/TR translations all present, indexed flag allowed, correct official WhatsApp `+905011730377` and `https://www.tiktok.com/t/ZS2AxwqsK/`.
+- BIGO TR correction: new published revision `7d8886b7-9969-40cf-b93e-e7dec96872e6`; prior published revision `3d963d9e-f68a-4130-af4b-ddf803298b19` preserved as `superseded`, all seven fields complete.
+- Yaahlan TR correction: new published revision `2929ef98-c63d-41be-bdf1-d9efbce8636a`; prior published revision `a193e789-c0ab-44a7-8b60-2b956b0da1db` preserved as `superseded`, all seven fields complete.
+- Audit: `activity_logs.id = 845, 846, 847` (service actor, original and replacement revision IDs and backup ID; no impersonated administrator). Unique release key `pr160-owner-authorized-tiktok-bigo-yaahlan-20261111-v1`.
+- Public HTTP: `/blog/tiktok-live-hamza-agency`, `/en/blog/tiktok-live-hamza-agency`, `/tr/blog/tiktok-live-hamza-agency` returned HTTP 200 with article content, application and contact links, and no `noindex`. `/sitemap.xml` contains the article slug. Program detail routes `/tr/programs/bigo-live` and `/tr/programs/yaahlan` returned HTTP 200; their translation text is loaded client-side, so raw HTML alone does **not** prove the final rendered text. Published database revision values have been verified.
+- New code regression test and exact-HEAD CI are required before marking the PR merge-ready; **do not infer CI success from the previous SHA.** The PR remains OPEN/Draft/unmerged; no site/Edge Function deployment by this operation.
+
+---
 # PR #160 — Consolidated observations and evidence
 
 **Status:** OPEN / Draft, no merge, no manual deploy and no Production writes. Baseline before final repair: `9f920f38c9faec6301c78e59abe5a367f4b08acb`. The correct latest HEAD must always be checked on GitHub.

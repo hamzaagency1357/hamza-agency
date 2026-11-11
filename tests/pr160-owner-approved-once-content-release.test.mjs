@@ -18,8 +18,9 @@ test("owner-approved single-use release uses the exact reviewed article and safe
   "Program kamera karşısına geçmeyi gerektiriyor mu?",
   "905011730377"])assert.ok(sql.includes(value),value);
  assert.match(sql,/pg_advisory_xact_lock/);
- assert.match(sql,/v_apply boolean := true;/);
+ assert.match(sql,/v_apply boolean := false;/);
  assert.match(sql,/IF NOT v_apply THEN/);
+ assert.doesNotMatch(sql,/v_apply boolean := true;/);
  assert.match(sql,/operations_preflight_backups/);
  assert.match(sql,/encode\(extensions\.digest\(v_snapshot::text,'sha256'\),'hex'\)/);
  assert.match(sql,/supersedes_translation_revision_id/);

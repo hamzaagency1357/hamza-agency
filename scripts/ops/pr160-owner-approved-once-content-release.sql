@@ -4,10 +4,11 @@
 -- Fail-closed: expected original IDs, source fingerprints and field SHA-256, exclusive lock,
 -- full private scoped preflight snapshot, no stale candidates, immutable old translation fields.
 -- Audit actor is automation (never a forged super_admin/auth user).
--- To run a harmless validation, replace 'v_apply boolean := true;' with 'v_apply boolean := false;'.
+-- COMPLETED AND DISABLED: v_apply=false runs validation without writes.
+-- Never re-enable this executed release. A future release must have a new reviewed key and scope.
 DO $pr160_once$
 DECLARE
-  v_apply boolean := true;
+  v_apply boolean := false;
   v_release_key constant text := 'pr160-owner-authorized-tiktok-bigo-yaahlan-20261111-v1';
   v_origin_sha constant text := 'f4bb38a2a9b0f14d3d805a30228bff2b2d9ee2cb';
   v_actor constant text := 'pr160_owner_approved_one_shot_service';
