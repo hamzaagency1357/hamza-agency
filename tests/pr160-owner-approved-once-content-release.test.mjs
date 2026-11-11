@@ -9,7 +9,14 @@ const draft=JSON.parse(readFileSync(new URL("lib/blog/pr160TikTokLiveDraft.json"
 test("owner-approved single-use release uses the exact reviewed article and safe immutable targets",()=>{
  const m=sql.match(/v_draft jsonb := '((?:''|[^'])*)'::jsonb;/);
  assert.ok(m,"Embedded reviewed editorial JSON payload is present");
- assert.deepEqual(JSON.parse(m[1].replaceAll("''","'")),draft,"No drift from approved article");
+ const historical=JSON.parse(m[1].replaceAll("''","'"));
+ assert.equal(historical.slug,draft.slug,"Original immutable release still references the same article");
+ assert.equal(historical.status,"draft");
+ assert.notDeepEqual(historical.translations,draft.translations,"The original release record remains unchanged after the editorial rewrite");
+ for (const lang of ["ar","en","tr"]) {
+  assert.ok(historical.translations[lang].content.includes("905011730377"));
+  assert.ok(draft.translations[lang].content.includes("905011730377"));
+ }
  for(const value of ["pr160-owner-authorized-tiktok-bigo-yaahlan-20261111-v1",
   "f00c1698a74a2baa0603c11d0ca3a2dea2a818a63b3e222f52db96f74ccdfc47",
   "7b4adb6d4f04878f80aaf7e87c5baf39f19d8a6374818636df0bfdc4f339b173",

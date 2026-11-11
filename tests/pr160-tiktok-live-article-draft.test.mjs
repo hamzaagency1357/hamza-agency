@@ -38,15 +38,16 @@ test("three independently localized, safe and complete article versions contain 
   assert.ok(!copy.content.includes('href="/apply"'),language+" no intermediate chooser");
   assert.ok(copy.content.includes("⚔عܓོراب✴سܓོوريا⚔"),language+" agent name");
   assert.ok(copy.content.includes("ⒽⒶ"),language+" logo");
-  assert.ok((copy.content.match(/<h2>/g)||[]).length>=6,language+" topic sections");
-  assert.ok((copy.content.match(/<h3>/g)||[]).length>=5,language+" FAQs");
+  assert.ok((copy.content.match(/<h2>/g)||[]).length>=9,language+" topic sections");
+  assert.ok((copy.content.match(/<h3>/g)||[]).length>=6,language+" FAQs");
+  assert.ok(copy.content.length>4500,language+" substantial editorial guide");
   const sanitized=sanitizeArticleHtml(copy.content);
   assert.ok(sanitized.includes(applyUrl));
   assert.ok(sanitized.includes(contactUrl));
   assert.ok(sanitized.includes(`href="${formHref}"`));
   assert.doesNotMatch(sanitized,/<script\b|javascript:/i);
   assert.ok(copy.allowIndex===true);
-  assert.equal(copy.canonical,""); // CMS page derives locale-specific canonical.
+  assert.equal(copy.canonical,`https://hamza-agency.com${localizedPrefix}/blog/${draft.slug}`); // Reviewed per-language self-canonical.
  }
  assert.match(draft.translations.ar.content,/القبول مضمون عند استيفاء جميع شروط ومتطلبات البرنامج والتحقق منها/);
  assert.match(draft.translations.en.content,/Acceptance is guaranteed when all program requirements are met and verified/);
