@@ -124,7 +124,7 @@ export async function dispatchTrustedRpcAction(input: Input): Promise<Result> {
   if (createCandidate && (!input.userToken || !input.anonKey || !["super_admin", "deputy_super_admin"].includes(input.admin.role))) {
     return { status: 403, body: { ok: false, code: "forbidden" }, ok: false };
   }
-  const headers = createCandidate ? {
+  const headers: Record<string, string> = createCandidate ? {
     apikey: input.anonKey!,
     Authorization: `Bearer ${input.userToken!}`,
     "Content-Type": "application/json",

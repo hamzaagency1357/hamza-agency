@@ -89,6 +89,8 @@ jobs:
         run: npm run lint
       - name: Typecheck
         run: npm run typecheck
+      - name: Typecheck trusted Admin RPC dispatch
+        run: npx --no-install tsc --strict --noEmit --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler supabase/functions/pr116-admin-oidc-gateway/trusted-rpc-dispatch.ts
       - name: Unit and integration tests
         run: npm test
       - name: Build

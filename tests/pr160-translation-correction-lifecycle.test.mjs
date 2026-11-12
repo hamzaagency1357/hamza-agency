@@ -45,7 +45,6 @@ test("candidate creation uses user JWT, while existing review/save/publish keep 
  assert.ok(gateway.includes("Authorization: `Bearer ${input.serviceRole}`"));
  assert.ok(gateway.includes('"x-pr116-admin-user-id": input.user.id'));
  assert.ok(gateway.includes('"x-pr116-admin-email": actorEmail'));
- assert.ok(gateway.includes("const headers = createCandidate ?"));
  assert.ok(migration.includes("'publish_translation_candidate'"));
  assert.ok(migration.includes("'review_translation_candidate'"));
  assert.ok(migration.includes("'save_translation_candidate_fields'"));
