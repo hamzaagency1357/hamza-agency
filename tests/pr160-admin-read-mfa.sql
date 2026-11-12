@@ -1,6 +1,25 @@
 -- Apply the read-scope migration first. Test rows are rolled back in this isolated database.
 begin;
 
+do $browser_acl$
+declare
+  table_name text;
+  operation text;
+begin
+  foreach table_name in array array['public.activity_logs','public.backups','public.version_history'] loop
+    foreach operation in array array['INSERT','UPDATE','DELETE'] loop
+      if has_table_privilege('authenticated', table_name, operation)
+         or has_table_privilege('anon', table_name, operation) then
+        raise exception 'Direct browser write still granted on %: %', table_name, operation;
+      end if;
+    end loop;
+  end loop;
+  if not has_table_privilege('service_role', 'public.activity_logs', 'INSERT') then
+    raise exception 'Trusted route lost audit logging';
+  end if;
+end
+$browser_acl$;
+
 insert into auth.users (id, email) values
   ('16010000-0000-4000-8000-000000000001', 'pr160-scope-owner@example.test'),
   ('16010000-0000-4000-8000-000000000002', 'pr160-scope-program@example.test'),

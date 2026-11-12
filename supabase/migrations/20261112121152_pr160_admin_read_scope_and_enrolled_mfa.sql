@@ -73,6 +73,16 @@ drop policy if exists "Admins manage version history" on public.version_history;
 alter policy "Admins can read version history" on public.version_history
   using ((select public.current_admin_has_module_permission('version_history')));
 
+-- Audit, backup and version rows are written by trusted server routes or RPCs.
+-- Remove the legacy policies and browser grants that could bypass those routes.
+drop policy if exists "allow_admins_activity_logs_insert" on public.activity_logs;
+drop policy if exists "Admins can insert backups" on public.backups;
+drop policy if exists "Admins can update backups" on public.backups;
+drop policy if exists "Admins can delete backups" on public.backups;
+drop policy if exists "Admins can insert version history" on public.version_history;
+revoke insert, update, delete on public.activity_logs, public.backups, public.version_history
+  from public, anon, authenticated;
+
 -- Keep the existing operation and schedule behavior behind explicit module access.
 create or replace function public.pr99_log_operation_failure(p_event_type text,p_entity_type text,p_entity_id text,p_safe_message text,p_route text)
 returns void language plpgsql security definer set search_path=pg_catalog,public as $$
