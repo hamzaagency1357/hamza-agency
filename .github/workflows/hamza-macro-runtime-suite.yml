@@ -148,12 +148,24 @@ jobs:
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803006000_pr105_commerce_lifecycle_hardening.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803007000_pr105_operational_depth_completion.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260803008000_pr105_workflow_runtime_evidence_hardening.sql
+          # The frozen snapshot predates the blog RPCs and private read policies.
+          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260806060000_pr3_public_identity_seo_blog.sql
+          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260806061000_pr3_blog_snapshot_admin_hardening.sql
+          psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260808090000_pr3_final_owner_qa_closeout.sql
+          if [ "${{ inputs.suite }}" = "admin" ]; then
+            psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260808210000_pr4_smart_support_notifications.sql
+            psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260808211000_pr4_support_notification_integrations.sql
+          fi
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260809095000_pr116_owner_approved_reviews_program_media.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260810001500_pr116_final_security_boundary_closeout.sql
           psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f tests/pr116-local-migration-contract.sql
+          if [ "${{ inputs.suite }}" = "admin" ]; then
+            psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql
+            psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260826003518_final_security_acl_lockdown.sql
+            psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260827090000_pr99_trusted_admin_actor_db_bridge.sql
+          fi
           psql "$DB_URL" --no-psqlrc -X --single-transaction -v ON_ERROR_STOP=1 -f supabase/migrations/20261111234553_pr160_scope_admin_translation_and_legacy_rpcs.sql
           if [ "${{ inputs.suite }}" = "admin" ]; then
-            psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260827090000_pr99_trusted_admin_actor_db_bridge.sql
             psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f tests/pr160-admin-release-boundary.sql
           fi
           node scripts/closeout/macro-auth-fixtures.mjs setup

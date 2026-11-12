@@ -44,6 +44,10 @@ begin
 end;
 $pr160$;
 
+-- Candidate creation is the one revision write performed with the user's JWT.
+revoke execute on function public.create_translation_candidate_draft(text, text, text, text, jsonb, jsonb)
+from public, anon, service_role;
+
 -- The supported archive paths enforce entity and program scope. The legacy
 -- generic soft-delete RPC and internal version helpers have no app callers.
 revoke execute on function
@@ -52,6 +56,45 @@ revoke execute on function
   public.pr3_create_blog_version(bigint, text),
   public.pr99_create_page_version(bigint, text, text, text)
 from public, anon, authenticated;
+
+-- Apply the Admin Blog Manager's Pages access rule to private Data API reads.
+do $blog_admin_read$
+declare
+  target record;
+begin
+  for target in
+    select * from (values
+      ('blog_posts', 'blog posts admin read'),
+      ('blog_post_translations', 'blog translations admin read'),
+      ('blog_post_versions', 'blog versions admin read')
+    ) as policies(table_name, policy_name)
+  loop
+    execute format($policy$
+      alter policy %I on public.%I using (
+        exists (
+          select 1
+          from public.admin_users as admin
+          where admin.user_id = (select auth.uid())
+            and admin.is_active is true
+            and (
+              admin.role = 'super_admin'
+              or (
+                admin.role = 'deputy_super_admin'
+                and exists (
+                  select 1
+                  from public.admin_permissions as permission
+                  where permission.admin_user_id = admin.id
+                    and permission.module_key = 'pages'
+                    and (permission.can_view or permission.can_manage)
+                )
+              )
+            )
+        )
+      )
+    $policy$, target.policy_name, target.table_name);
+  end loop;
+end
+$blog_admin_read$;
 
 -- Preserve the existing page restore lifecycle for authorized operators.
 create or replace function public.restore_page_version(p_version_id bigint)

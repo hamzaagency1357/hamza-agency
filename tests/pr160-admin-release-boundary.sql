@@ -1,6 +1,10 @@
 -- Run after the exact gateway bridge and PR160 migration on an isolated DB.
 begin;
 
+insert into public.tenants (id, slug, name, status, is_primary)
+select '16000000-0000-4000-8000-000000000020'::uuid, 'pr160-isolated', 'PR160 Isolated', 'active', true
+where not exists (select 1 from public.tenants where is_primary and status = 'active');
+
 insert into auth.users (id, email) values
   ('16000000-0000-4000-8000-000000000001', 'pr160-owner@example.test'),
   ('16000000-0000-4000-8000-000000000002', 'pr160-program@example.test'),
@@ -24,6 +28,14 @@ insert into public.content_translation_revision_fields (
   translation_revision_id, field_name, source_value_snapshot, translated_value
 ) values ('16000000-0000-4000-8000-000000000011', 'title', 'عنوان', 'Eski başlık');
 
+insert into public.blog_posts (id, slug, status, published_at) values
+  (16000001, 'pr160-private-draft', 'draft', null),
+  (16000002, 'pr160-public-article', 'published', now());
+insert into public.blog_post_translations (post_id, language, title) values
+  (16000001, 'ar', 'Private draft'), (16000002, 'ar', 'Published article');
+insert into public.blog_post_versions (post_id, version_number, snapshot)
+values (16000001, 1, '{"test":"private history"}');
+
 do $acl$
 declare signature regprocedure;
 begin
@@ -39,6 +51,7 @@ begin
     end if;
   end loop;
   if has_function_privilege('anon', 'public.create_translation_candidate_draft(text,text,text,text,jsonb,jsonb)', 'EXECUTE')
+     or has_function_privilege('service_role', 'public.create_translation_candidate_draft(text,text,text,text,jsonb,jsonb)', 'EXECUTE')
      or not has_function_privilege('authenticated', 'public.create_translation_candidate_draft(text,text,text,text,jsonb,jsonb)', 'EXECUTE')
      or has_function_privilege('authenticated', 'public.publish_translation_candidate(uuid)', 'EXECUTE') then
     raise exception 'Translation RPC roles changed unexpectedly';
@@ -46,6 +59,19 @@ begin
 end
 $acl$;
 
+set local role anon;
+do $public_blog$
+begin
+  if not exists (select 1 from public.blog_posts where id = 16000002)
+     or not exists (select 1 from public.blog_post_translations where post_id = 16000002)
+     or exists (select 1 from public.blog_posts where id = 16000001)
+     or exists (select 1 from public.blog_post_translations where post_id = 16000001) then
+    raise exception 'Public blog visibility changed';
+  end if;
+end
+$public_blog$;
+
+reset role;
 set local role authenticated;
 do $denied$
 declare
@@ -58,6 +84,11 @@ begin
   ]'::jsonb) loop
     perform set_config('request.jwt.claims', claims::text, true);
     perform set_config('request.jwt.claim.sub', claims ->> 'sub', true);
+    if exists (select 1 from public.blog_posts where id = 16000001)
+       or exists (select 1 from public.blog_post_translations where post_id = 16000001)
+       or exists (select 1 from public.blog_post_versions where post_id = 16000001) then
+      raise exception 'Blog draft or history is visible outside Pages access';
+    end if;
     begin
       perform public.create_translation_candidate_draft('programs', 'pr160-isolated', 'tr', 'pr160-source', '{"title":"عنوان"}', '{"title":"Başlık"}');
       raise exception 'Unauthorized draft creation succeeded';
@@ -78,6 +109,24 @@ begin
   end;
 end
 $denied$;
+
+reset role;
+insert into public.admin_permissions (admin_email, admin_user_id, module_key, can_view)
+select email, id, 'pages', true
+from public.admin_users where user_id = '16000000-0000-4000-8000-000000000003';
+
+set local role authenticated;
+do $authorized_blog$
+begin
+  perform set_config('request.jwt.claims', '{"role":"authenticated","sub":"16000000-0000-4000-8000-000000000003","email":"pr160-deputy@example.test"}', true);
+  perform set_config('request.jwt.claim.sub', '16000000-0000-4000-8000-000000000003', true);
+  if not exists (select 1 from public.blog_posts where id = 16000001)
+     or not exists (select 1 from public.blog_post_translations where post_id = 16000001)
+     or not exists (select 1 from public.blog_post_versions where post_id = 16000001) then
+    raise exception 'Verified deputy with Pages view could not read the blog draft';
+  end if;
+end
+$authorized_blog$;
 
 do $create$
 declare draft uuid;
@@ -116,6 +165,15 @@ begin
       perform public.publish_translation_candidate(draft);
     end if;
   end loop;
+  perform set_config('request.jwt.claims', '{"role":"service_role"}', true);
+  perform set_config('request.jwt.claim.sub', '', true);
+  perform set_config('request.path', '/rest/v1/rpc/pr3_save_blog_post', true);
+  perform public.pr116_apply_trusted_admin_actor_context();
+  perform public.pr3_save_blog_post(16000001, 'pr160-private-draft', 'draft', 'general', '{}', null, null, '[
+    {"language":"ar","title":"عنوان"},
+    {"language":"en","title":"Draft title"},
+    {"language":"tr","title":"Taslak başlık"}
+  ]'::jsonb);
 end
 $workflow$;
 
@@ -141,6 +199,13 @@ begin
     where translation_revision_id = draft and field_name = 'title' and translated_value = 'Yeni başlık'
   ) then
     raise exception 'Translation audit identity, version history, or final value is wrong';
+  end if;
+  if not exists (
+    select 1 from public.blog_post_versions
+    where post_id = 16000001 and version_number = 2 and reason = 'pre_save'
+      and created_by = 'pr160-owner@example.test'
+  ) then
+    raise exception 'Authorized blog save did not retain its version history';
   end if;
 end
 $evidence$;
