@@ -163,6 +163,8 @@ jobs:
             psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260825141930_pr120_support_request_trusted_gateway_preparation.sql
             psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260826003518_final_security_acl_lockdown.sql
             psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260827090000_pr99_trusted_admin_actor_db_bridge.sql
+            psql "$DB_URL" --no-psqlrc -X --single-transaction -v ON_ERROR_STOP=1 -f supabase/migrations/20261112121152_pr160_admin_read_scope_and_enrolled_mfa.sql
+            psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f tests/pr160-admin-read-mfa.sql
             psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 -f tests/pr160-admin-release-boundary.sql
           fi
           node scripts/closeout/core-runtime-fixtures.mjs setup

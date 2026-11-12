@@ -24,6 +24,7 @@ export type CmsPublishedTranslationSource = {
   sourceId: string | number;
   requiredFields: ReadonlyArray<CmsPublishedTranslationField>;
   fallback: Partial<Record<CmsPublishedTranslationField, string>>;
+  localizedFallback?: Partial<Record<"en" | "tr", Partial<Record<CmsPublishedTranslationField, string>>>>;
 };
 
 type CompleteTranslationMap = Record<string, Partial<Record<CmsPublishedTranslationField, string>>>;
@@ -107,7 +108,8 @@ export function CmsPublishedText({ sourceKey, field, fallback, className }: { so
     language,
   }) : "";
   const dictionaryValue = translateSiteRuntimeText(arabicFallback, language);
-  const selected = [approvedDisplayValue, publishedValue, approvedSourceValue, dictionaryValue]
+  const localizedFallback = language === "ar" ? "" : source?.localizedFallback?.[language]?.[field] || "";
+  const selected = [approvedDisplayValue, publishedValue, approvedSourceValue, dictionaryValue, localizedFallback]
     .find((value) => isDisplayableTranslation(value)) || (language === "ar" ? arabicFallback : "");
   const text = sanitizeMarketingCopy(selected, language);
 

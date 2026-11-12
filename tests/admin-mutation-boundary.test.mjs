@@ -13,7 +13,7 @@ const EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx"]);
 // Keep this name-level allowlist narrow; state-changing RPCs must use the server boundary.
 const READONLY_BROWSER_RPCS = new Map([
   ["app/admin/requests/page.tsx", new Set(["pr100_admin_requests_index"])],
-  ["app/admin/system-health/page.tsx", new Set(["pr99_backup_schedule_status"])],
+  ["app/admin/system-health/page.tsx", new Set(["pr99_backup_schedule_status", "pr160_backup_health_status"])],
 ]);
 
 function walk(relative) {

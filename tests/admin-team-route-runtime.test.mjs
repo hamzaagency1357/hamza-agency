@@ -8,12 +8,13 @@ import vm from "node:vm";
 // No network, database or email service is accessed by these tests.
 const require = createRequire(import.meta.url);
 const ts = require("typescript");
+const adminRolePolicy = await import("../supabase/functions/pr116-admin-oidc-gateway/admin-role-policy.ts");
 const names = ["invite", "activate", "deactivate"];
 const sources = Object.fromEntries(names.map((name) => [
   name, readFileSync(new URL(`../app/api/admin/team/${name}/route.ts`, import.meta.url), "utf8"),
 ]));
 
-function harness(name, { actorRole = "super_admin", accepted = true, auditFailure = false, preview = false, beforeAdminUpdate = null } = {}) {
+function harness(name, { actorRole = "super_admin", accepted = true, auditFailure = false, preview = false, beforeAdminUpdate = null, factors = [] } = {}) {
   const state = {
     rows: [
       { id: 1, user_id: "owner-id", email: "owner@example.test", role: actorRole, is_active: true },
@@ -63,7 +64,7 @@ function harness(name, { actorRole = "super_admin", accepted = true, auditFailur
   const client = {
     from: (table) => builder(table),
     auth: {
-      getUser: async () => ({ data: { user: { id: "owner-id", email: "owner@example.test" } }, error: null }),
+      getUser: async () => ({ data: { user: { id: "owner-id", email: "owner@example.test", factors } }, error: null }),
       admin: {
         inviteUserByEmail: async () => {
           state.invites++;
@@ -86,6 +87,7 @@ function harness(name, { actorRole = "super_admin", accepted = true, auditFailur
     require: (name) => {
       if (name === "next/server") return { NextResponse: { json: (body, options = {}) => ({ status: options.status ?? 200, body }) } };
       if (name === "@supabase/supabase-js") return { createClient: () => client };
+      if (name === "@/supabase/functions/pr116-admin-oidc-gateway/admin-role-policy") return adminRolePolicy;
       throw Error("Unexpected dependency in isolated handler: " + name);
     },
   };
@@ -101,6 +103,25 @@ function harness(name, { actorRole = "super_admin", accepted = true, auditFailur
   });
   return { run, state };
 }
+
+test("an enrolled administrator needs AAL2 on all team mutation routes", async () => {
+  const token = (aal) => `Bearer fixture.${Buffer.from(JSON.stringify({ aal })).toString("base64url")}.fixture`;
+  for (const name of names) {
+    const h = harness(name, { factors: [{ status: "verified" }] });
+    const input = name === "invite"
+      ? { email: "member@example.test", role: "program_admin", assigned_program: "tiktok" }
+      : { id: 2 };
+
+    const denied = await h.run(input, { authorization: token("aal1") });
+    assert.equal(denied.status, 403, name);
+    assert.equal(denied.body.code, "admin_mfa_required", name);
+    assert.equal(h.state.writes, 0, name);
+    assert.equal(h.state.invites, 0, name);
+
+    const allowed = await h.run(input, { authorization: token("aal2") });
+    assert.equal(allowed.status, name === "invite" ? 201 : 200, name);
+  }
+});
 test("invite creates inactive account before activation", async () => {
   const h = harness("invite");
   const result = await h.run({ email: "member@example.test", role: "program_admin", assigned_program: "tiktok" });

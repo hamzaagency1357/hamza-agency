@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import type { BlogCategory,BlogLanguage,BlogListResult,BlogPost,BlogPostsOptions,BlogTag } from "@/lib/blog/posts";
 import { getBlogCategories,getBlogFeed,getBlogPostBySlug,getBlogPosts,getBlogTags } from "@/lib/blog/posts.mjs";
 
@@ -9,14 +10,47 @@ function normalizeLanguage(language?:string):BlogLanguage{return language==="en"
 function isPublicNow(post:DatabasePost,now=Date.now()){if(post.status==="published")return!post.published_at||new Date(post.published_at).getTime()<=now;return post.status==="scheduled"&&Boolean(post.scheduled_at)&&new Date(post.scheduled_at as string).getTime()<=now}
 function safeText(value:string|null|undefined){return typeof value==="string"?value:""}
 function mapDatabasePost(row:DatabasePost,language:BlogLanguage):BlogPost|null{const translations=Array.isArray(row.blog_post_translations)?row.blog_post_translations.filter((item)=>validLanguages.includes(item.language)):[];const arabic=translations.find((item)=>item.language==="ar");const selected=translations.find((item)=>item.language===language)||arabic;if(!selected||!safeText(selected.title).trim())return null;const mapCopy=(item:DatabaseTranslation|undefined)=>({title:safeText(item?.title),excerpt:safeText(item?.excerpt),content:safeText(item?.content_html),seoTitle:safeText(item?.seo_title),seoDescription:safeText(item?.seo_description),imageAlt:safeText(item?.image_alt),ogTitle:safeText(item?.og_title),ogDescription:safeText(item?.og_description),ogImage:safeText(item?.og_image_url),canonical:safeText(item?.canonical_url),allowIndex:item?.allow_index!==false});const contentByLanguage=Object.fromEntries(translations.map((item)=>[item.language,mapCopy(item)]));const selectedCopy=mapCopy(selected);const arCopy=mapCopy(arabic);const copy={title:selectedCopy.title||arCopy.title,excerpt:selectedCopy.excerpt||arCopy.excerpt,content:selectedCopy.content||arCopy.content,seoTitle:selectedCopy.seoTitle||arCopy.seoTitle,seoDescription:selectedCopy.seoDescription||arCopy.seoDescription,imageAlt:selectedCopy.imageAlt||arCopy.imageAlt,ogTitle:selectedCopy.ogTitle||selectedCopy.seoTitle||arCopy.ogTitle,ogDescription:selectedCopy.ogDescription||selectedCopy.seoDescription||arCopy.ogDescription,ogImage:selectedCopy.ogImage||arCopy.ogImage,canonical:selectedCopy.canonical||arCopy.canonical,allowIndex:selectedCopy.allowIndex};return{id:row.id,slug:row.slug,status:row.status==="unpublished"?"archived":row.status,publishedAt:row.published_at,scheduledAt:row.scheduled_at,updatedAt:row.updated_at,category:row.category||"general",tags:Array.isArray(row.tags)?row.tags:[],featuredImage:row.featured_image_url,authorName:row.author_name||"HAMZA AGENCY",contentByLanguage,copy}}
-async function fetchJson(url:URL,key:string){const response=await fetch(url,{headers:{apikey:key,Authorization:`Bearer ${key}`},cache:"no-store"});if(!response.ok)return null;return response.json()}
-async function fetchPublicDatabasePosts({slug}:{slug?:string}={}):Promise<DatabasePost[]|null>{const supabaseUrl=process.env.NEXT_PUBLIC_SUPABASE_URL;const supabaseKey=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;if(!supabaseUrl||!supabaseKey)return null;try{const url=new URL("/rest/v1/blog_posts",supabaseUrl);url.searchParams.set("select","id,slug,status,category,tags,featured_image_url,published_at,scheduled_at,updated_at,blog_post_translations(language,title,excerpt,content_html,seo_title,seo_description)");if(slug)url.searchParams.set("slug",`eq.${slug}`);url.searchParams.set("order","published_at.desc.nullslast,updated_at.desc");url.searchParams.set("limit",slug?"1":"250");const rows=await fetchJson(url,supabaseKey) as DatabasePost[]|null;if(!rows)return null;
- const ids=rows.map((row)=>row.id);if(ids.length){const postExtrasUrl=new URL("/rest/v1/blog_posts",supabaseUrl);postExtrasUrl.searchParams.set("select","*");postExtrasUrl.searchParams.set("id",`in.(${ids.join(",")})`);const transExtrasUrl=new URL("/rest/v1/blog_post_translations",supabaseUrl);transExtrasUrl.searchParams.set("select","*");transExtrasUrl.searchParams.set("post_id",`in.(${ids.join(",")})`);const[postExtras,translationExtras]=await Promise.all([fetchJson(postExtrasUrl,supabaseKey),fetchJson(transExtrasUrl,supabaseKey)]);if(Array.isArray(postExtras)){for(const extra of postExtras as Array<{id:number|string;author_name?:string|null}>){const row=rows.find((item)=>String(item.id)===String(extra.id));if(row&&typeof extra.author_name==="string")row.author_name=extra.author_name}}if(Array.isArray(translationExtras)){for(const extra of translationExtras as Array<DatabaseTranslation&{post_id:number|string}>){const row=rows.find((item)=>String(item.id)===String(extra.post_id));const translation=row?.blog_post_translations?.find((item)=>item.language===extra.language);if(translation)Object.assign(translation,{image_alt:extra.image_alt,og_title:extra.og_title,og_description:extra.og_description,og_image_url:extra.og_image_url,canonical_url:extra.canonical_url,allow_index:extra.allow_index})}}}
- return rows.filter((row)=>isPublicNow(row));}catch{return null}}
+const basePostFields = "id,slug,status,category,tags,featured_image_url,published_at,scheduled_at,updated_at";
+const baseTranslationFields = "language,title,excerpt,content_html,seo_title,seo_description";
+const seoTranslationFields = "image_alt,og_title,og_description,og_image_url,canonical_url,allow_index";
+
+const fetchPublicDatabasePosts = cache(async (slug?: string): Promise<DatabasePost[] | null> => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseKey) return null;
+
+  try {
+    const url = new URL("/rest/v1/blog_posts", supabaseUrl);
+    if (slug) url.searchParams.set("slug", `eq.${slug}`);
+    url.searchParams.set("order", "published_at.desc.nullslast,updated_at.desc");
+    url.searchParams.set("limit", slug ? "1" : "250");
+    url.searchParams.set("select", `${basePostFields},author_name,blog_post_translations(${baseTranslationFields},${seoTranslationFields})`);
+    const init = {
+      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+      cache: "no-store" as const,
+    };
+    let response = await fetch(url, init);
+
+    // Older isolated schemas have the content columns before the SEO additions.
+    if (response.status === 400) {
+      const error = await response.clone().json().catch(() => null);
+      if (error?.code === "42703" || error?.code === "PGRST204") {
+        url.searchParams.set("select", `${basePostFields},blog_post_translations(${baseTranslationFields})`);
+        response = await fetch(url, init);
+      }
+    }
+
+    if (!response.ok) return null;
+    const rows = await response.json() as DatabasePost[];
+    return rows.filter((row) => isPublicNow(row));
+  } catch {
+    return null;
+  }
+});
 function applyFilters(posts:BlogPost[],{search="",category="",tag=""}:Pick<BlogPostsOptions,"search"|"category"|"tag">){const q=search.trim().toLowerCase();return posts.filter((post)=>{if(category&&post.category!==category)return false;if(tag&&!post.tags.includes(tag))return false;if(!q)return true;return`${post.copy.title} ${post.copy.excerpt} ${post.copy.content} ${post.category} ${post.tags.join(" ")}`.toLowerCase().includes(q)})}
 function labelsFor(language:BlogLanguage){return getBlogPosts({language,preview:false}).labels}
 export async function getServerBlogPosts(options:BlogPostsOptions={}):Promise<BlogListResult>{const language=normalizeLanguage(options.language);const rows=await fetchPublicDatabasePosts();if(rows===null)return getBlogPosts({...options,language,preview:false});const mapped=rows.map((row)=>mapDatabasePost(row,language)).filter((post):post is BlogPost=>Boolean(post));const filtered=applyFilters(mapped,options);const perPage=Math.min(Math.max(Number(options.perPage)||6,1),24);const total=filtered.length;const totalPages=Math.max(1,Math.ceil(total/perPage));const page=Math.min(Math.max(Number(options.page)||1,1),totalPages);const start=(page-1)*perPage;return{posts:filtered.slice(start,start+perPage),page,perPage,total,totalPages,language,labels:labelsFor(language)}}
-export async function getServerBlogPostBySlug(slug:string,languageInput:BlogLanguage="ar"):Promise<BlogPost|null>{const language=normalizeLanguage(languageInput);const rows=await fetchPublicDatabasePosts({slug});if(rows===null)return getBlogPostBySlug(slug,{language,preview:false});return rows[0]?mapDatabasePost(rows[0],language):null}
+export async function getServerBlogPostBySlug(slug:string,languageInput:BlogLanguage="ar"):Promise<BlogPost|null>{const language=normalizeLanguage(languageInput);const rows=await fetchPublicDatabasePosts(slug);if(rows===null)return getBlogPostBySlug(slug,{language,preview:false});return rows[0]?mapDatabasePost(rows[0],language):null}
 export async function getServerBlogTaxonomy(languageInput:BlogLanguage="ar"):Promise<{categories:Record<string,BlogCategory>;tags:Record<string,BlogTag>}>{const language=normalizeLanguage(languageInput);const rows=await fetchPublicDatabasePosts();if(rows===null)return{categories:getBlogCategories(language),tags:getBlogTags(language)};const posts=rows.map((row)=>mapDatabasePost(row,language)).filter((post):post is BlogPost=>Boolean(post));const labels:Record<string,string>={seo:language==="ar"?"تحسين الظهور":"SEO",operations:language==="ar"?"العمليات":language==="tr"?"Operasyonlar":"Operations",planning:language==="ar"?"التخطيط":language==="tr"?"Planlama":"Planning",news:language==="ar"?"الأخبار":language==="tr"?"Haberler":"News",guides:language==="ar"?"الأدلة":language==="tr"?"Rehberler":"Guides"};const categories=posts.reduce<Record<string,BlogCategory>>((acc,post)=>{if(!acc[post.category])acc[post.category]={slug:post.category,label:labels[post.category]||post.category};return acc},{});const tags=posts.reduce<Record<string,BlogTag>>((acc,post)=>{for(const tag of post.tags)if(!acc[tag])acc[tag]={slug:tag,label:tag};return acc},{});return{categories,tags}}
 export async function getServerRelatedBlogPosts(post:BlogPost,languageInput:BlogLanguage="ar",limit=3){const language=normalizeLanguage(languageInput);const rows=await fetchPublicDatabasePosts();const candidates=rows===null?getBlogFeed(language):rows.map((row)=>mapDatabasePost(row,language)).filter((item):item is BlogPost=>Boolean(item));return candidates.filter((item)=>item.id!==post.id&&(item.category===post.category||item.tags.some((tag)=>post.tags.includes(tag)))).slice(0,limit)}
 export async function getServerBlogFeed(languageInput:BlogLanguage="ar"){const language=normalizeLanguage(languageInput);const rows=await fetchPublicDatabasePosts();if(rows===null)return getBlogFeed(language);return rows.map((row)=>mapDatabasePost(row,language)).filter((post):post is BlogPost=>Boolean(post)).slice(0,50)}

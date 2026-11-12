@@ -103,7 +103,7 @@ begin
   perform set_config('request.path', '/rpc/save_translation_candidate_fields', true);
   perform set_config('request.headers', '{"x-pr116-admin-user-id":"16000000-0000-4000-8000-000000000001"}', true);
   begin
-    perform public.pr116_apply_trusted_admin_actor_context();
+    perform public.pr160_admin_data_api_pre_request();
     raise exception 'Browser-supplied actor identity was accepted';
   exception when insufficient_privilege then null;
   end;
@@ -135,7 +135,7 @@ begin
   perform set_config('request.jwt.claim.sub', '16000000-0000-4000-8000-000000000001', true);
   perform set_config('request.path', '/rpc/create_translation_candidate_draft', true);
   perform set_config('request.headers', '{}', true);
-  perform public.pr116_apply_trusted_admin_actor_context();
+  perform public.pr160_admin_data_api_pre_request();
   select translation_revision_id into draft
   from public.create_translation_candidate_draft('programs', 'pr160-isolated', 'tr', 'pr160-source', '{"title":"عنوان"}', '{"title":"Taslak"}')
   where created and workflow_status = 'needs_review';
@@ -156,7 +156,7 @@ begin
     perform set_config('request.jwt.claim.sub', '', true);
     perform set_config('request.path', '/rest/v1/rpc/' || rpc, true);
     perform set_config('request.headers', '{"x-pr116-admin-user-id":"16000000-0000-4000-8000-000000000001","x-pr116-admin-email":"pr160-owner@example.test"}', true);
-    perform public.pr116_apply_trusted_admin_actor_context();
+    perform public.pr160_admin_data_api_pre_request();
     if rpc = 'save_translation_candidate_fields' then
       perform public.save_translation_candidate_fields(draft, '{"title":"Yeni başlık"}');
     elsif rpc = 'review_translation_candidate' then
@@ -168,7 +168,7 @@ begin
   perform set_config('request.jwt.claims', '{"role":"service_role"}', true);
   perform set_config('request.jwt.claim.sub', '', true);
   perform set_config('request.path', '/rest/v1/rpc/pr3_save_blog_post', true);
-  perform public.pr116_apply_trusted_admin_actor_context();
+  perform public.pr160_admin_data_api_pre_request();
   perform public.pr3_save_blog_post(16000001, 'pr160-private-draft', 'draft', 'general', '{}', null, null, '[
     {"language":"ar","title":"عنوان"},
     {"language":"en","title":"Draft title"},

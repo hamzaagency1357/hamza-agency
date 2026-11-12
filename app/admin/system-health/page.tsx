@@ -22,6 +22,10 @@ type ScheduleStatus = {
   last_status?: string | null;
   last_success?: string | null;
 };
+type BackupHealth = {
+  restore: { mode: string; status: string } | null;
+  snapshot: { migration_key: string; checksum_prefix: string } | null;
+};
 
 const statusLabels: Record<HealthStatus, string> = {
   healthy: "يعمل بشكل طبيعي",
@@ -44,8 +48,8 @@ export default function SystemHealthPage() {
   useEffect(() => {
     void (async () => {
       const access = await requireAdminModuleAccess("launch_checklist");
-      if (!access.isAuthorized) {
-        router.replace(access.reason === "forbidden" ? "/admin" : "/admin/login");
+      if (!access.isAuthorized || access.profile?.role !== "super_admin") {
+        router.replace(access.isAuthorized || access.reason === "forbidden" ? "/admin" : "/admin/login");
         return;
       }
       await run();
@@ -72,14 +76,14 @@ export default function SystemHealthPage() {
     }
 
     const start = performance.now();
-    const [db, backups, restore, errors, pending, versions, migrations, schedule] = await Promise.all([
+    const [db, backups, backupHealth, errors, pending, versions, schedule] = await Promise.all([
       supabase.from("pages").select("id", { count: "exact", head: true }),
       supabase.from("backups").select("status,created_at,completed_at").order("created_at", { ascending: false }).limit(20),
-      supabase.from("restore_operations").select("mode,status,created_at,completed_at").order("created_at", { ascending: false }).limit(10),
+      supabase.rpc("pr160_backup_health_status"),
       supabase
         .from("activity_logs")
         .select("id", { count: "exact", head: true })
-        .eq("outcome", "failure")
+        .in("outcome", ["failed", "failure"])
         .gte("created_at", new Date(Date.now() - 604800000).toISOString()),
       supabase
         .from("service_requests")
@@ -87,7 +91,6 @@ export default function SystemHealthPage() {
         .in("status", ["new", "pending", "under_review"])
         .lt("created_at", new Date(Date.now() - 259200000).toISOString()),
       supabase.from("version_history").select("id", { count: "exact", head: true }),
-      supabase.from("operations_preflight_backups").select("migration_key,created_at,checksum").order("created_at", { ascending: false }).limit(1),
       supabase.rpc("pr99_backup_schedule_status"),
     ]);
 
@@ -123,11 +126,12 @@ export default function SystemHealthPage() {
       details: `Schedule: ${scheduleData.schedule || "—"} · Last run: ${scheduleData.last_run || "—"} · Last success: ${scheduleData.last_success || "—"}`,
     });
 
-    const lastRestore = restore.data?.[0];
+    const backupSummary = backupHealth.data as BackupHealth | null;
+    const lastRestore = backupSummary?.restore;
     next.push({
       label: "آخر تحقق من الاستعادة",
       status: lastRestore?.status === "completed" ? "healthy" : "warning",
-      value: lastRestore
+      value: backupHealth.error ? "تعذر قراءة سجل الاستعادة" : lastRestore
         ? lastRestore.status === "completed"
           ? "اكتمل بنجاح"
           : "يحتاج مراجعة"
@@ -138,13 +142,13 @@ export default function SystemHealthPage() {
     next.push(
       {
         label: "أخطاء التشغيل خلال آخر 7 أيام",
-        status: (errors.count || 0) > 10 ? "error" : (errors.count || 0) > 0 ? "warning" : "healthy",
-        value: (errors.count || 0) === 0 ? "لا توجد أخطاء مسجلة" : `${errors.count || 0} خطأ مسجل`,
+        status: errors.error || (errors.count || 0) > 10 ? "error" : (errors.count || 0) > 0 ? "warning" : "healthy",
+        value: errors.error ? "تعذر قراءة سجل الأخطاء" : errors.count ? `${errors.count} خطأ مسجل` : "لا توجد أخطاء مسجلة",
       },
       {
         label: "طلبات الخدمات المتأخرة",
-        status: (pending.count || 0) > 0 ? "warning" : "healthy",
-        value: (pending.count || 0) > 0 ? `${pending.count || 0} طلب يحتاج متابعة` : "لا توجد طلبات متأخرة",
+        status: pending.error || (pending.count || 0) > 0 ? "warning" : "healthy",
+        value: pending.error ? "تعذر قراءة الطلبات" : pending.count ? `${pending.count} طلب يحتاج متابعة` : "لا توجد طلبات متأخرة",
       },
       {
         label: "سجل إصدارات المحتوى",
@@ -153,15 +157,15 @@ export default function SystemHealthPage() {
       }
     );
 
-    const snapshot = migrations.data?.[0];
+    const snapshot = backupSummary?.snapshot;
     next.push(
       {
         label: "لقطة أمان تغييرات قاعدة البيانات",
         status: snapshot ? "healthy" : "error",
-        value: snapshot ? "متوفرة" : "غير متوفرة",
+        value: backupHealth.error ? "تعذر قراءة حالة اللقطة" : snapshot ? "متوفرة" : "غير متوفرة",
         details: snapshot
-          ? `Migration key: ${snapshot.migration_key || "—"} · SHA-256: ${snapshot.checksum ? String(snapshot.checksum).slice(0, 16) + "…" : "—"}`
-          : "No migration safety snapshot found.",
+          ? `معرّف الترحيل ${snapshot.migration_key || "—"} · SHA-256 ${snapshot.checksum_prefix ? snapshot.checksum_prefix + "…" : "—"}`
+          : undefined,
         technical: true,
       },
       {

@@ -16,7 +16,7 @@ const programPathPattern = /^\/programs\/[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const blogArticlePathPattern = /^\/blog\/[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const dynamicCmsPathPattern = /^\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*$/;
 const reservedCmsSegments = new Set(["admin", "api", "_next", "en", "tr", "login", "portal", "reset-password", "robots.txt", "sitemap.xml", "manifest.webmanifest", "opengraph-image"]);
-const nonIndexablePublicPaths = new Set(["/application-status", "/service-status", "/track", "/blog/rss", "/marketplace", "/offline", "/platform-status"]);
+const nonIndexablePublicPaths = new Set(["/application-status", "/service-status", "/track", "/blog/rss", "/marketplace", "/offline", "/platform-status", "/maintenance"]);
 
 export function normalizePublicPathname(pathname: string) {
   const withoutQuery = pathname.split(/[?#]/, 1)[0] || "/";

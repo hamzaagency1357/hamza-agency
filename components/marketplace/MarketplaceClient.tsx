@@ -22,7 +22,7 @@ type Category = { id: string; slug: string; translations: Record<string, { title
 const copy = {
   ar: { title: "سوق HAMZA AGENCY", subtitle: "منتجات وخدمات منشورة من الوكالة والشركاء المعتمدين.", search: "ابحث في السوق", all: "كل التصنيفات", order: "اطلب الآن", login: "سجّل الدخول لإتمام الطلب", empty: "لا توجد عناصر مطابقة.", success: "تم إنشاء الطلب", unavailable: "تعذر إتمام الطلب حالياً.", product: "منتج", service: "خدمة" },
   en: { title: "HAMZA AGENCY Marketplace", subtitle: "Published products and services from the agency and approved partners.", search: "Search marketplace", all: "All categories", order: "Order now", login: "Sign in to place an order", empty: "No matching listings.", success: "Order created", unavailable: "The order could not be completed.", product: "Product", service: "Service" },
-  tr: { title: "HAMZA AGENCY Pazaryeri", subtitle: "Ajans ve onaylı ortakların yayımlanmış ürün ve hizmetleri.", search: "Pazaryerinde ara", all: "Tüm kategoriler", order: "Şimdi sipariş ver", login: "Sipariş için giriş yapın", empty: "Eşleşen ilan yok.", success: "Sipariş oluşturuldu", unavailable: "Sipariş tamamlanamadı.", product: "Ürün", service: "Hizmet" },
+  tr: { title: "Hamza Ajansı Pazaryeri", subtitle: "Ajans ve onaylı ortakların yayımlanmış ürün ve hizmetleri.", search: "Pazaryerinde ara", all: "Tüm kategoriler", order: "Şimdi sipariş ver", login: "Sipariş için giriş yapın", empty: "Eşleşen ilan yok.", success: "Sipariş oluşturuldu", unavailable: "Sipariş tamamlanamadı.", product: "Ürün", service: "Hizmet" },
 } as const;
 
 function localeFromDocument(): Locale {
@@ -101,7 +101,7 @@ export default function MarketplaceClient({ tenantId }: { tenantId: string | nul
     <main className="min-h-screen bg-[#09050f] px-4 py-28 text-white" dir={locale === "ar" ? "rtl" : "ltr"}>
       <section className="mx-auto max-w-7xl">
         <header className="rounded-3xl border border-violet-300/20 bg-white/5 p-7 shadow-2xl">
-          <p className="text-sm text-violet-200">HAMZA AGENCY</p>
+          <p className="text-sm text-violet-200">{locale === "tr" ? "Hamza Ajansı" : locale === "ar" ? "وكالة حمزة" : "HAMZA AGENCY"}</p>
           <h1 className="mt-2 text-4xl font-black">{strings.title}</h1>
           <p className="mt-3 max-w-3xl text-white/70">{strings.subtitle}</p>
           <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_260px]">

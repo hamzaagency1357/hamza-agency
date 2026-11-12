@@ -55,7 +55,7 @@ const quickNavGroupTitleCopy: Record<SiteLanguage, Record<string, string>> = {
   },
 };
 
-function shouldHidePublicQuickNav(pathname: string) { return pathname.startsWith("/admin") || hiddenPublicQuickNavRoutes.includes(pathname); }
+function shouldHidePublicQuickNav(pathname: string) { return pathname.startsWith("/admin") || hiddenPublicQuickNavRoutes.includes(stripLocalePrefix(pathname)); }
 function isActiveLink(pathname: string, href: string) { return href === "/" ? pathname === "/" : pathname.startsWith(href); }
 function getLinkClassName(active: boolean) { return `${linkBaseClassName} ${active ? activeLinkClassName : inactiveLinkClassName}`; }
 function isSafePublicHref(href: string) { if (!href || href.startsWith("/admin")) return false; return href.startsWith("/") || href.startsWith("#") || href.startsWith("https://") || href.startsWith("http://") || href.startsWith("mailto:") || href.startsWith("tel:"); }

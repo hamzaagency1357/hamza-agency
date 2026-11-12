@@ -33,6 +33,7 @@ const atomicMigrationRunnerFiles = new Set([
 const cliTransactionOwnedMigrations = new Set([
   "20260827090000_pr99_trusted_admin_actor_db_bridge.sql",
   "20261111234553_pr160_scope_admin_translation_and_legacy_rpcs.sql",
+  "20261112121152_pr160_admin_read_scope_and_enrolled_mfa.sql",
 ]);
 
 function dollarTagAt(sql, index) {

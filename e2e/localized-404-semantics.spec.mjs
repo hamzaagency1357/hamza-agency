@@ -19,6 +19,24 @@ const missingCases = [
     direction: "ltr",
     heading: "Sayfa bulunamadı",
   },
+  {
+    path: "/programs/missing-phase-one",
+    language: "ar",
+    direction: "rtl",
+    heading: "الصفحة غير موجودة",
+  },
+  {
+    path: "/en/programs/missing-phase-one",
+    language: "en",
+    direction: "ltr",
+    heading: "Page not found",
+  },
+  {
+    path: "/tr/programs/missing-phase-one",
+    language: "tr",
+    direction: "ltr",
+    heading: "Sayfa bulunamadı",
+  },
 ];
 
 test("AR EN TR unknown routes return real localized 404 responses without redirects", async ({
@@ -53,6 +71,25 @@ test("valid EN and TR routes remain successful", async ({ request }) => {
     expect(response.status(), path).toBe(200);
     expect(response.headers()["location"], path).toBeUndefined();
   }
+});
+
+test("localized contact keeps a visible heading and maintenance keeps its locale", async ({ page }) => {
+  const runtimeErrors = [];
+  page.on("pageerror", (error) => runtimeErrors.push(error.message));
+  for (const [locale, maintenanceHeading] of [
+    ["en", "The website is under maintenance"],
+    ["tr", "Web sitesi geçici olarak bakımda"],
+  ]) {
+    await page.goto(`/${locale}/contact`);
+    await expect(page.locator("main h1")).toBeVisible();
+    await expect(page.locator("main h1")).not.toHaveText(/^\s*$/);
+
+    await page.goto(`/${locale}/maintenance`);
+    await expect(page.getByRole("heading", { name: maintenanceHeading })).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    await expect(page.getByTestId("public-global-header")).toHaveCount(0);
+  }
+  expect(runtimeErrors).toEqual([]);
 });
 
 test("localized unknown routes do not redirect to locale roots or loop", async ({

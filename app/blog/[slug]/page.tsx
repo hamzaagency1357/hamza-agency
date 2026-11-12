@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import PublicLanguageMain from "@/components/PublicLanguageMain";
 import PublicBreadcrumbs from "@/components/PublicBreadcrumbs";
 import { getServerBlogPostBySlug,getServerBlogTaxonomy,getServerRelatedBlogPosts } from "@/lib/blog/serverPosts";
+import { getIndexableBlogAlternates } from "@/lib/blog/indexing";
 import { sanitizeArticleHtml } from "@/lib/blog/sanitizeHtml.mjs";
 import { resolveBlogCanonical } from "@/lib/blog/resolveCanonical.mjs";
 import { buildPublicMetadata,getRequestSiteContext } from "@/lib/i18n/serverPublicMetadata";
@@ -33,12 +34,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const ogTitle = post.copy.ogTitle?.trim() || title;
   const ogDescription = post.copy.ogDescription?.trim() || description;
   const image = safeImage(post.copy.ogImage, post.featuredImage || `${SITE_URL}/opengraph-image`);
-  const index = post.copy.allowIndex !== false;
+  const { availableLanguages, languages } = getIndexableBlogAlternates(post, getLanguageAlternates(publicPath));
+  const index = availableLanguages.includes(language);
   return {
     ...base,
     title,
     description,
-    alternates: { canonical, languages: getLanguageAlternates(publicPath) },
+    alternates: { canonical, languages },
     openGraph: {
       title: ogTitle,
       description: ogDescription,

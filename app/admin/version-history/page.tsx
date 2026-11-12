@@ -132,20 +132,17 @@ export default function AdminVersionHistoryPage() {
 
   useEffect(() => {
     async function checkAccess() {
-      const access = await requireAdminModuleAccess("dashboard");
+      const access = await requireAdminModuleAccess("version_history");
 
       if (!access.isAuthorized || !access.profile) {
         setIsAuthorized(false);
         setIsCheckingAuth(false);
-        router.replace("/admin/login");
-        return;
-      }
-
-      if (access.profile.role === "program_admin") {
-        setAdminEmail(access.profile.email || access.user?.email || "");
-        setIsForbidden(true);
-        setIsAuthorized(false);
-        setIsCheckingAuth(false);
+        if (access.reason === "forbidden") {
+          setAdminEmail(access.profile?.email || access.user?.email || "");
+          setIsForbidden(true);
+        } else {
+          router.replace("/admin/login");
+        }
         return;
       }
 
@@ -233,7 +230,7 @@ export default function AdminVersionHistoryPage() {
         <section className="mx-auto max-w-4xl rounded-[2rem] border border-red-400/25 bg-red-500/10 p-8 text-center">
           <div className="text-sm font-black tracking-[0.25em] text-red-100">صلاحيات محدودة</div>
           <h1 className="mt-3 text-3xl font-black">لا يمكن عرض سجل الإصدارات لهذا الحساب</h1>
-          <p className="mt-4 leading-8 text-white/60">سجل الإصدارات مخصص لحسابات السوبر أدمن ونائب السوبر أدمن فقط.</p>
+          <p className="mt-4 leading-8 text-white/60">يتاح السجل للمدير الأعلى ولنائبه عند منحه صلاحية عرض سجل الإصدارات.</p>
           <p className="mt-3 text-sm text-white/45">الحساب: {adminEmail}</p>
           <Link href="/admin" className="mt-6 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-6 py-3 font-bold text-white/75">
             العودة إلى لوحة التحكم
@@ -253,7 +250,7 @@ export default function AdminVersionHistoryPage() {
             <div className="mb-3 inline-flex rounded-full border border-purple-400/25 bg-purple-500/10 px-5 py-2 text-sm font-bold text-purple-100">
               سجل الإصدارات
             </div>
-            <h1 className="text-4xl font-black md:text-5xl">Version History</h1>
+            <h1 className="text-4xl font-black md:text-5xl">سجل الإصدارات</h1>
             <p className="mt-3 max-w-3xl leading-8 text-white/55">
               متابعة التغييرات الإدارية المهمة ومعرفة نوع التغيير والقسم والحساب المسؤول عنه.
             </p>
