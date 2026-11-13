@@ -6,6 +6,8 @@ on:
       - '.github/workflows/pr158-local-auth.yml'
       - 'tests/pr158/local-team-route-integration.mjs'
       - 'tests/pr158/local-team-fixture.sql'
+      - 'tests/pr158/local-auth-recovery-security.mjs'
+      - 'tests/pr158/local-storage-safety.sql'
   workflow_dispatch:
 permissions:
   contents: read
@@ -35,6 +37,9 @@ jobs:
           mkdir -p /tmp/hamza-pr158-auth/supabase
           cp supabase/config.toml /tmp/hamza-pr158-auth/supabase/config.toml
           sed -i -e 's/^project_id = .*/project_id = "hamza-pr158-auth-local"/' -e 's/^port = 54322$/port = 55432/' -e 's/^shadow_port = 54320$/shadow_port = 55430/' /tmp/hamza-pr158-auth/supabase/config.toml
+          # Enable local-only mail capture and TOTP; never use a production mail service.
+          sed -i '/^\[inbucket\]/{n;s/^enabled = false$/enabled = true/;}' /tmp/hamza-pr158-auth/supabase/config.toml
+          printf '\n[auth.mfa.totp]\nenroll_enabled = true\nverify_enabled = true\n' >> /tmp/hamza-pr158-auth/supabase/config.toml
           printf '%s\n' '-- no customer data' > /tmp/hamza-pr158-auth/supabase/seed.sql
           cd /tmp/hamza-pr158-auth
           if ! "$cli" start --exclude studio,imgproxy > /tmp/hamza-pr158-auth-start.log 2>&1; then
@@ -65,6 +70,24 @@ jobs:
           sudo apt-get install -y --no-install-recommends postgresql-client
           psql "$DB_URL" -v ON_ERROR_STOP=1 -f tests/pr158/local-team-fixture.sql
           node tests/pr158/local-team-route-integration.mjs
+      - name: Verify real isolated GoTrue recovery, token replay, password sessions and MFA
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          . /tmp/hamza-pr158-auth.env
+          set +a
+          test "$API_URL" = 'http://127.0.0.1:54321'
+          node tests/pr158/local-auth-recovery-security.mjs
+      - name: Verify private Storage object RLS with rollback-only fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          . /tmp/hamza-pr158-auth.env
+          set +a
+          test "$API_URL" = 'http://127.0.0.1:54321'
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -q -f tests/pr158/local-storage-safety.sql
       - name: Remove isolated stack and secrets
         if: always()
         shell: bash
