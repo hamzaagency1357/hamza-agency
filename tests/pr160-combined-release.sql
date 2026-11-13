@@ -103,11 +103,7 @@ declare
   nonce text;
   response jsonb;
   tries integer;
-  observed integer;
-  before_suggestions integer;
 begin
-  select count(*) into before_suggestions from public.pr4_knowledge_suggestions
-    where question_redacted like 'PR160 combined isolated %';
 
   -- This simulates the already-verified Edge's signed-claims handoff at the DB boundary.
   -- JWT signature verification itself is covered separately by the JOSE Edge tests.
@@ -133,11 +129,7 @@ begin
        or tries=9 and response->>'code' is distinct from 'rate_limited'
     then raise exception 'pr160_combined_knowledge_budget_failed:%:%',tries,response; end if;
   end loop;
-  select count(*) into observed from public.pr4_knowledge_suggestions
-  where question_redacted like 'PR160 combined isolated %';
-  if observed-before_suggestions<>8 then
-    raise exception 'pr160_combined_knowledge_persistence_failed:%',observed-before_suggestions;
-  end if;
+
 
   -- Preview must be refused despite an otherwise valid OIDC identity.
   request_body := jsonb_build_object(
@@ -191,5 +183,17 @@ end
 $gateway$;
 
 reset role;
+-- Test observer is the local isolated DB owner; service_role is deliberately
+-- unable to SELECT the private suggestions table through the Data API.
+do $proof$
+declare observed integer;
+begin
+  select count(*) into observed from public.pr4_knowledge_suggestions
+  where question_redacted like 'PR160 combined isolated synthetic question %';
+  if observed <> 8 then
+    raise exception 'pr160_combined_knowledge_persistence_failed:%',observed;
+  end if;
+end
+$proof$;
 rollback;
 select 'PASS: all three migrations share one isolated DB; roles, RLS, MFA and trusted RPC/OIDC simulation' as result;
