@@ -155,7 +155,7 @@ WITH payload AS (
         floor(extract(epoch FROM clock_timestamp()))::bigint AS ts
 )
 SELECT (public.pr100_oidc_gateway(
-'knowledge_suggest',ts,encode(gen_random_bytes(18),'hex'),body,
+'knowledge_suggest',ts,encode(extensions.gen_random_bytes(18),'hex'),body,
 encode(extensions.digest(body,'sha256'),'hex'),
 'https://oidc.vercel.com/hamzaagencysy-3009s-projects',
 'owner:hamzaagencysy-3009s-projects:project:hamza-agency:environment:production',
