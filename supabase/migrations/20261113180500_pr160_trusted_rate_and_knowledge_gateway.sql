@@ -36,7 +36,7 @@ begin
   if p_lookup_type not in ('application', 'service_request', 'job_application', 'contact') then
     return jsonb_build_object('allowed', false, 'code', 'invalid_request');
   end if;
-  v_identity := lower(trim(coalesce(p_identity, ''));
+  v_identity := lower(trim(coalesce(p_identity, '')));
   v_fingerprint := lower(trim(coalesce(p_request_fingerprint, ''));
   if length(v_identity) < 8 or length(v_identity) > 160 or v_fingerprint !~ '^[0-9a-f]{64}$' then
     return jsonb_build_object('allowed', false, 'code', 'invalid_request');
