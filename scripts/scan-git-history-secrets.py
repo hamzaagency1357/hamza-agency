@@ -23,6 +23,16 @@ MAX_BLOB = 1_048_576
 def run(command):
  return subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True).stdout
 
+def read_exact(stream, length):
+ chunks=[]
+ remaining=length
+ while remaining:
+  chunk=stream.read(min(65536,remaining))
+  if not chunk: raise EOFError('git cat-file stream incomplete')
+  chunks.append(chunk)
+  remaining-=len(chunk)
+ return b''.join(chunks)
+
 def detect(blob):
  result=set()
  for match in ASSIGN.finditer(blob):
@@ -55,25 +65,22 @@ def scan():
     incomplete.add('git_object_invalid')
     break
    if header[1]!=b'blob':
-    proc.stdout.read(size+1)
+    read_exact(proc.stdout,size+1)
     continue
    counts['blobs']+=1
    if size>MAX_BLOB:
-    prefix=proc.stdout.read(min(size,2048))
+    prefix=read_exact(proc.stdout,min(size,2048))
     remaining=size-len(prefix)
     while remaining:
-     chunk=proc.stdout.read(min(65536,remaining))
-     if not chunk:
-      incomplete.add('git_object_incomplete')
-      break
+     chunk=read_exact(proc.stdout,min(65536,remaining))
      remaining-=len(chunk)
-    proc.stdout.read(1)
+    read_exact(proc.stdout,1)
     ext=path.lower().endswith(('.png','.jpg','.jpeg','.webp','.gif','.ico','.mp4','.mov','.pdf','.woff','.woff2','.ttf','.otf','.zip','.gz','.svgz'))
     if b'\0' in prefix or ext: counts['binary_skipped']+=1
     else: incomplete.add('oversized_text_blob_requires_review')
     continue
-   data=proc.stdout.read(size)
-   proc.stdout.read(1)
+   data=read_exact(proc.stdout,size)
+   read_exact(proc.stdout,1)
    if b'\0' in data[:2048]:
     counts['binary_skipped']+=1
     continue
@@ -104,6 +111,6 @@ if __name__=='__main__':
  try:
   if args.self_test: self_test()
   else: sys.exit(scan())
- except (OSError,subprocess.CalledProcessError,RuntimeError) as exc:
+ except (OSError,EOFError,subprocess.CalledProcessError,RuntimeError) as exc:
   print('HISTORY_SCAN_INCOMPLETE',type(exc).__name__)
   sys.exit(2)
