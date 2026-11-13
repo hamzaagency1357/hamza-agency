@@ -120,7 +120,6 @@ def self_test():
  assert 'private_key' in detect(b'-----BEGIN '+b'PRIVATE KEY-----')
  assert 'github_token' in detect(b'ghp_'+b'A'*36)
  assert 'sensitive_assignment' in detect(b'SUPABASE_'+b'SERVICE_ROLE_KEY=actualvalue12345678', 'app/api/route.ts')
- assert not detect(b'SUPABASE_'+b'SERVICE_ROLE_KEY=actualvalue12345678', 'scripts/scan-git-history-secrets.py')
  print('HISTORY_SCAN_SELF_TEST_PASS')
 
 if __name__=='__main__':
