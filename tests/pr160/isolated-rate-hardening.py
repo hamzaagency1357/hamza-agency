@@ -43,6 +43,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 CREATE ROLE anon;
 CREATE ROLE authenticated;
 CREATE ROLE service_role;
+GRANT USAGE ON SCHEMA extensions TO service_role;
 CREATE TABLE public.pr4_knowledge_suggestions (
  id bigint generated always as identity primary key,
  question_redacted text not null,
