@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
+import { trustedClientFingerprint } from "@/lib/server/pr160TrustedFingerprint";
 import { NextResponse, type NextRequest } from "next/server";
 import { callOidcGateway } from "@/lib/server/pr100SignedGateway";
 
@@ -32,11 +32,6 @@ function normalizeRequestCode(value: unknown) {
   return typeof value === "string" ? value.trim().toUpperCase().replace(/\s+/g, "").slice(0, 32) : "";
 }
 
-function fingerprint(request: NextRequest) {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const userAgent = request.headers.get("user-agent")?.slice(0, 320) || "unknown";
-  return createHash("sha256").update(`${forwarded}|${userAgent}`).digest("hex");
-}
 
 export async function POST(request: NextRequest) {
   const contentLength = Number(request.headers.get("content-length") || "0");
@@ -57,7 +52,7 @@ export async function POST(request: NextRequest) {
   try {
     const result = await callOidcGateway<LookupResult>(request, "service_lookup", {
       requestCode,
-      requestFingerprint: fingerprint(request),
+      requestFingerprint: trustedClientFingerprint(request),
     });
     if (!result?.allowed) return failure(result?.code === "rate_limited" ? 429 : 400);
     return NextResponse.json(

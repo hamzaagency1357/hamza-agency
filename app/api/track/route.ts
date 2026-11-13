@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
+import { trustedClientFingerprint } from "@/lib/server/pr160TrustedFingerprint";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { callOidcGateway } from "@/lib/server/pr100SignedGateway";
@@ -11,7 +11,6 @@ const MAX_BODY_BYTES=1400;
 const actions:Record<string,string>={APP:"application_lookup",SR:"service_lookup",JOB:"job_lookup",CNT:"contact_lookup"};
 const patterns:Record<string,RegExp>={APP:/^APP-[0-9]{4}-[A-F0-9]{10}$/,SR:/^SR-[0-9]{4}-[A-F0-9]{10}$/,JOB:/^JOB-[0-9]{4}-[A-F0-9]{10}$/,CNT:/^CNT-[0-9]{4}-[A-F0-9]{10}$/,SUP:/^SUP-[A-Z0-9]{4}$/};
 function fail(status:number,code="try_again_later"){return NextResponse.json({ok:false,code},{status,headers:{"Cache-Control":"no-store"}})}
-function requestFingerprint(request:NextRequest){return createHash("sha256").update(`${request.headers.get("x-forwarded-for")||"unknown"}|${request.headers.get("user-agent")||"unknown"}`,"utf8").digest("hex")}
 
 export async function POST(request:NextRequest){
  const declared=Number(request.headers.get("content-length")||0);if(declared>MAX_BODY_BYTES)return fail(413);
@@ -20,7 +19,7 @@ export async function POST(request:NextRequest){
  const input=parsed as {code?:unknown;verification?:unknown};
  const code=typeof input.code==="string"?input.code.toUpperCase().replace(/\s+/g,"").slice(0,40):"";
  const prefix=code.split("-",1)[0];if(!patterns[prefix]?.test(code))return fail(400,"invalid_request");
- const fingerprint=requestFingerprint(request);
+ const fingerprint=trustedClientFingerprint(request);
  if(prefix==="SUP"){
    const verification=typeof input.verification==="string"?input.verification.toUpperCase().replace(/\s+/g,"").slice(0,20):"";
    if(!/^[A-F0-9]{10}$/.test(verification))return fail(400,"verification_required");
