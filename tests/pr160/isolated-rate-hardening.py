@@ -38,7 +38,8 @@ assert "revoke all on function public.pr4_suggest_knowledge" in migration.lower(
 stub = r"""
 BEGIN;
 SET check_function_bodies = off;
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE SCHEMA IF NOT EXISTS extensions;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 CREATE ROLE anon;
 CREATE ROLE authenticated;
 CREATE ROLE service_role;
@@ -155,7 +156,7 @@ WITH payload AS (
 )
 SELECT (public.pr100_oidc_gateway(
 'knowledge_suggest',ts,encode(gen_random_bytes(18),'hex'),body,
-encode(digest(body,'sha256'),'hex'),
+encode(extensions.digest(body,'sha256'),'hex'),
 'https://oidc.vercel.com/hamzaagencysy-3009s-projects',
 'owner:hamzaagencysy-3009s-projects:project:hamza-agency:environment:production',
 'https://vercel.com/hamzaagencysy-3009s-projects',
