@@ -58,6 +58,11 @@ def detect(blob, path=''):
     result.add(kind)
  return result
 
+def is_runtime_env_path(name):
+ leaf=name.rsplit('/',1)[-1].lower()
+ if leaf=='.env': return True
+ return leaf.startswith('.env.') and not leaf.endswith(('.example','.sample','.template','.dist','.defaults'))
+
 def scan():
  if run(['git','rev-parse','--is-shallow-repository']).strip()!=b'false':
   raise RuntimeError('Shallow checkout cannot establish complete history')
@@ -69,6 +74,12 @@ def scan():
  counts=collections.Counter()
  findings=collections.Counter()
  incomplete=set()
+ # Review every path ever recorded, even if its blob matches a template.
+ names=run(['git','log','--all','--pretty=format:','--name-only']).decode('utf-8','replace').splitlines()
+ runtime_env_paths={name for name in names if is_runtime_env_path(name)}
+ for name in sorted(runtime_env_paths):
+  findings['historical_runtime_env_file']+=1
+  print('POTENTIAL_SECRET category=historical_runtime_env_file path_hash='+hashlib.sha256(name.encode()).hexdigest()[:10])
  proc=subprocess.Popen(['git','cat-file','--batch'],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,bufsize=0)
  try:
   for sha,path in distinct.items():
@@ -119,6 +130,9 @@ def self_test():
  assert 'sensitive_assignment' in detect(b'SUPABASE_'+b'SERVICE_ROLE_KEY=uniqueactualvalue12345')
  assert 'private_key' in detect(b'-----BEGIN '+b'PRIVATE KEY-----')
  assert 'github_token' in detect(b'ghp_'+b'A'*36)
+ assert is_runtime_env_path('any/.env.production')
+ assert is_runtime_env_path('.env.local')
+ assert not is_runtime_env_path('.env.example')
  assert 'sensitive_assignment' in detect(b'SUPABASE_'+b'SERVICE_ROLE_KEY=actualvalue12345678', 'app/api/route.ts')
  print('HISTORY_SCAN_SELF_TEST_PASS')
 
