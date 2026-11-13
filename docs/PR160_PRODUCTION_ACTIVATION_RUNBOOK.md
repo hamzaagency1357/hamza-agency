@@ -106,3 +106,49 @@ A narrow in-app editorial snapshot or successful synthetic backup/restore test i
 `MFA ACTIVATION READY: BLOCKED` (authorized real recovery and second-factor drill incomplete)  
 `PRODUCTION SECURITY ACTIVATION: BLOCKED` (not executed)  
 `FULL PRODUCTION CLOSEOUT: BLOCKED` (no merge, activation, or live verification).
+
+## J. Consolidated PR160 local isolated test and evidence — added 2026-11-13
+
+**Implementation:** [single-DB combined test](../tests/pr160-combined-release.sql), invoked from the **admin** branch of [HAMZA macro isolated runtime workflow](../.github/workflows/hamza-macro-runtime-suite.yml). Work remains inside existing PR #160; no new branch, new paid service or Production state mutation.
+
+**Synthetic single-database execution:** the local runner builds its pinned disposable baseline, installs supporting PR3/PR4/PR116/PR120 migrations, then applies `20261111234553` ➜ `20261112121152` ➜ `20261113180500` in this same local Supabase/PostgreSQL database. Immediately after #3, it executes `tests/pr160-combined-release.sql` and existing `tests/pr160-admin-read-mfa.sql` and `tests/pr160-admin-release-boundary.sql`, followed by existing isolated Admin Chromium checks. The SQL test uses `BEGIN`/`ROLLBACK` around all synthetic lookups, nonce rows, role claims and knowledge suggestions. Test data never comes from Production.
+
+**Probes implemented:** check that all three functions/relations exist; `pr160_knowledge_rate_windows` is RLS-protected; `anon` and `authenticated` cannot directly call legacy lookup/suggestion RPCs; `service_role` retains only required trusted RPC invocation and cannot directly read private suggestions rows; only authenticated linked admins can create translation drafts; `pgrst.db_pre_request` points to AAL-aware hook; action nonce constraint includes `knowledge_suggest`; simulated verified OIDC claims admit eight distinct knowledge suggestions from one stable source, refuse the ninth, refuse a Preview write and preserve application, service, job and contact lookup dispatch. Existing SQL tests cover `super_admin`, `deputy_super_admin`, `program_admin`, missing permissions, AAL1 rejection after enrollment and AAL2 acceptance.
+
+**Historical isolated test failures corrected without weakening permissions:** `c8bf100f` initially failed because the test tried to SELECT private knowledge rows as `service_role`; `af6ea235` moved one assertion to an authorized isolated DB observer, and `bf08036a` moved the remaining Preview non-persistence observer. No Production security SQL was changed to make the test pass. **The test is only PASS when GitHub Actions admin job and Full Closeout report success on the current head.**
+
+**Release compatibility matrix (observed source boundaries, NOT a live cutover rehearsal):**
+
+| Transition state | Old Web | New Web | Required operator response |
+| --- | --- | --- | --- |
+| Old DB and old pr100/pr116 Edge | Existing client tracking and direct suggestion contract | New `knowledge_suggest` request unsupported | Do not promote new Web |
+| Backward-compatible new pr100/pr116 Edge with old DB | Legacy operations expected to continue | `knowledge_suggest` dispatched to SQL action missing | Check old actions, keep new Web held |
+| SQL #1 then #2, new Edge, old Web | Existing public tracking remains | New administrative draft/MFA pathways can be tested with synthetic admin | Check Data API pre-request, RLS, AAL and actor bridge after #2 |
+| SQL #3, new Edge, old Web | Existing direct `pr4_suggest_knowledge` write is denied; visitor fallback response may still work, suggestions may be omitted | New trusted OIDC suggestion path is ready | **Known non-zero-loss capture gap** until Web switch; keep the window brief, monitor and require owner-approved maintenance if zero-loss is mandatory |
+| New DB + compatible Edge + reviewed Web | Old Web rollback may silently drop suggestions | Target integrated operation | Smoke test identity, tracking, support and audit before domain promotion |
+
+No claim is made of dynamically deploying both versions together. **An uninterrupted, zero-loss transition cannot be proved solely by CI and requires a separately owner-approved maintenance/cutover choice** (or a separately reviewed temporary compatibility layer).
+
+## K. One-off encrypted backup implementation details (preparation only)
+
+- Confirm project plan/limits and official `supabase db dump --help` for the pinned CLI version **at execution time**. Free projects are not assumed to have managed daily backups. Default Supabase CLI database dump omits row data, custom roles and managed Auth/Storage schemas: capture each required scope explicitly and document unsupported scope, rather than calling it a full backup.
+- After owner authorization, use an existing trusted operator machine with sufficient encrypted/private disk (no new infrastructure): securely load the DB connection from a local credential manager, never in command arguments or CI artifacts; enforce `umask 077`. Use the supported schema, roles and row-export options in separate pipes to approved authenticated encryption (`age` recipient or reviewed GPG recipient). Pipe plaintext directly into encryption without generating plaintext files; confirm exit codes for both sides of each pipeline (`set -o pipefail`). Save only ciphertext and manifest/checksums on a pre-existing, private owner-controlled destination.
+- Inventory managed Auth separately (users, sessions/factors and identities where supported, migration-compatible secrets/roles, Auth settings), and Storage separately (bucket policy metadata, object metadata **and blob bytes**). Managed-schema SQL export may require elevated grants and a provider-supported procedure. Avoid copying credential hashes/identity documents into source control. If Auth or Storage binary recovery cannot be demonstrated, `BACKUP READY` remains `BLOCKED`.
+- **Consistency:** database point-in-time export and Storage byte download do not by themselves form an atomic snapshot. Before taking the approved live copy, define an owner-approved brief write pause or a rigorously tested consistent-object-version strategy; otherwise mark risk of mismatched metadata/files. Export all objects within the agreed window, list hashes and count/bytes, and confirm that newly written content since snapshot is tracked in a recovery journal.
+- Restoration verification in the existing approved local isolated Supabase environment must decrypt the archive, run schema/row restore with grants/RLS, verify Auth login and second-factor recovery feasibility, restore Storage blobs and access rules, confirm object SHA-256 and application tracking. Test all of this without exposing Production tokens or customer data in CI/logs. A local synthetic test alone validates mechanics, not real Production restorability.
+- Keep encryption private keys off GitHub, the repository and the report. Document key custody and second authorized recovery operator privately. Abort a release on unreadable archive, checksum mismatch, missing managed Auth state, missing Storage files, incompatible schema or unproven recovery. No Production backup or restore has been executed as part of this release preparation.
+
+**Official guidance:** [Supabase database backups](https://supabase.com/docs/guides/platform/backups); [backup and restore with CLI](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore). Do not execute examples on Production without specific approval.
+
+## L. Post-test review and approval gates
+
+The technical release candidate head is obtained live from [PR #160](https://github.com/hamzaagency1357/hamza-agency/pull/160), **not the earlier inspected `f3e0817a` or documentation baseline `f7663ebc`**. Use [current PR checks](https://github.com/hamzaagency1357/hamza-agency/pull/160/checks) and verify Vercel Preview commit identity after the last update. Production alias remains on the captured `a120fc48` baseline until the owner authorizes a release.
+
+- `PRE-MERGE SECURITY`: retain prior isolated PASS only if every required check remains green on the final head.
+- `RELEASE PREPARATION`: needs combined single-DB test PASS, current SHA CI/Preview PASS, transition matrix and finished runbook; cannot substitute unrelated 21/21 tests for the dedicated combined test.
+- `BACKUP READY`: BLOCKED without an actual complete encrypted recoverable backup and rehearsal.
+- `MFA ACTIVATION READY`: BLOCKED without owner-approved second-factor access and emergency recovery.
+- `PRODUCTION SECURITY ACTIVATION`: BLOCKED until explicitly approved migrations/Edge/Web/MFA are actually live and validated.
+- `FULL PRODUCTION CLOSEOUT`: BLOCKED until Production activation, application/SEO tests and owner sign-off.
+
+Editorial Turkish candidates and Open Graph image are tracked in section H. Neither is a reason to loosen or bypass the independent security gates.
