@@ -39,6 +39,11 @@ def synthetic_fixture(path, kind, match, blob):
  if path=='scripts/scan-git-history-secrets.py':
   marker=blob.find(b'def self_test():')
   return marker>=0 and pos>marker
+ # Historical disposable PR160 CI PostgreSQL fixture; exact path and exact value only.
+ if path=='.github/workflows/pr160-isolated-rate-boundaries.yml' and kind=='sensitive_assignment':
+  return (match.group(0)==b'POSTGRES_PASSWORD: local_only_test'
+          and b'image: postgres:16' in blob
+          and b'PGHOST: 127.0.0.1' in blob)
  if path=='.github/workflows/pr101-checkpoint-1b-local-e2e.yml' and kind=='sensitive_assignment':
   return b'SESSION_HASH_KEY' in match.group(0) and b'PR101_' in blob
  if path in ('tests/vercel-production-attestation.test.mjs','tests/forward-production-contract.test.mjs'):
@@ -134,6 +139,10 @@ def self_test():
  assert is_runtime_env_path('.env.local')
  assert not is_runtime_env_path('.env.example')
  assert 'sensitive_assignment' in detect(b'SUPABASE_'+b'SERVICE_ROLE_KEY=actualvalue12345678', 'app/api/route.ts')
+ fixture=b'image: postgres:16\nPGHOST: 127.0.0.1\nPOSTGRES_PASSWORD: local_only_test'
+ assert not detect(fixture,'.github/workflows/pr160-isolated-rate-boundaries.yml')
+ assert 'sensitive_assignment' in detect(b'image: postgres:16\nPGHOST: 127.0.0.1\nPOSTGRES_PASSWORD: real-live-password-1234','.github/workflows/pr160-isolated-rate-boundaries.yml')
+ assert 'sensitive_assignment' in detect(fixture,'some-other-path.yml')
  print('HISTORY_SCAN_SELF_TEST_PASS')
 
 if __name__=='__main__':
