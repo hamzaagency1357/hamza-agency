@@ -13,6 +13,13 @@ const publicClient = createClient(url, anon, { auth: { persistSession: false, au
 const ownerEmail = "owner-pr158@example.invalid", memberEmail = "member-pr158@example.invalid";
 const ownerPassword = "LocalOnly!Owner158";
 let ownerId, memberId;
+// Load the real MFA assurance policy in the isolated VM rather than
+// bypassing it in the test harness.
+const policySource = readFileSync(new URL("../../supabase/functions/pr116-admin-oidc-gateway/admin-role-policy.ts", import.meta.url), "utf8");
+const policyCompiled = ts.transpileModule(policySource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+const policyModule = { exports: {} };
+vm.runInNewContext(policyCompiled, { module: policyModule, exports: policyModule.exports, atob }, { timeout: 3000 });
+assert.equal(typeof policyModule.exports.hasRequiredAdminAssurance, "function");
 function handler(name) {
   const source = readFileSync(new URL(`../../app/api/admin/team/${name}/route.ts`, import.meta.url), "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
@@ -22,6 +29,7 @@ function handler(name) {
   } }, URL, require: (name) => {
     if (name === "next/server") return { NextResponse: { json: (body, opts = {}) => ({ status: opts.status || 200, body }) } };
     if (name === "@supabase/supabase-js") return { createClient };
+    if (name === "@/supabase/functions/pr116-admin-oidc-gateway/admin-role-policy") return policyModule.exports;
     throw new Error("Unexpected import: " + name);
   } };
   context.exports = context.module.exports;
