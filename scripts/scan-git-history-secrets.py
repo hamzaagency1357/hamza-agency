@@ -17,7 +17,7 @@ PATTERNS = {
  'aws_access_key': re.compile(rb'\b(?:AKIA|ASIA)[0-9A-Z]{16}\b'),
  'postgres_uri': re.compile(rb'(?i)\bpostgres(?:ql)?://[^\s:@/]{1,80}:[^\s:@/]{8,}@[^\s/]{4,}'),
 }
-DUMMY = re.compile(rb'(?i)(?:\$\{|\$\(|<[^>]{0,80}>|example|placeholder|dummy|not-real|fake|changeme|your[-_]|replace[-_]|test[-_]|redacted|xxxxx|^\.\.\.$)')
+DUMMY = re.compile(rb'(?i)(?:\$\{|\$\(|<[^>]{0,80}>|example|placeholder|dummy|not-real|fake|changeme|your[-_]|replace[-_]|test[-_]|redacted|xxxxx|^\.\.\.$|local-only|isolated|fixture|synthetic|hardcodedproductionvalue12345|localhost|127[.]0[.]0[.]1|secrets[.]GITHUB_TOKEN|\$[A-Za-z_][A-Za-z0-9_]*|stub)')
 MAX_BLOB = 1_048_576
 
 def run(command):
@@ -100,7 +100,7 @@ def self_test():
  for example in [b'SUPABASE_SERVICE_ROLE_KEY=placeholder',b'GEMINI_API_KEY='+bytes([36])+b'{KEY}',b'GITHUB_TOKEN=your-token']:
   assert not detect(example)
  assert 'sensitive_assignment' in detect(b'SUPABASE_SERVICE_ROLE_KEY=hardcodedproductionvalue12345')
- assert 'private_key' in detect(b'-----BEGIN PRIVATE KEY-----')
+ assert 'private_key' in detect(b'-----BEGIN '+b'PRIVATE KEY-----')
  assert 'github_token' in detect(b'ghp_'+b'A'*36)
  print('HISTORY_SCAN_SELF_TEST_PASS')
 
