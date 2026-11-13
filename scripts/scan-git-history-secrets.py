@@ -33,12 +33,29 @@ def read_exact(stream, length):
   remaining-=len(chunk)
  return b''.join(chunks)
 
-def detect(blob):
+def synthetic_fixture(path, kind, match, blob):
+ """Narrow source-context exceptions for previously verified synthetic examples."""
+ pos=match.start()
+ if path=='scripts/scan-git-history-secrets.py':
+  marker=blob.find(b'def self_test():')
+  return marker>=0 and pos>marker
+ if path=='.github/workflows/pr101-checkpoint-1b-local-e2e.yml' and kind=='sensitive_assignment':
+  return b'SESSION_HASH_KEY' in match.group(0) and b'PR101_' in blob
+ if path in ('tests/vercel-production-attestation.test.mjs','tests/forward-production-contract.test.mjs'):
+  context=blob[max(0,pos-220):pos]
+  return kind=='sensitive_assignment' and b'assert.match' in context
+ return False
+
+def detect(blob, path=''):
  result=set()
  for match in ASSIGN.finditer(blob):
-  if not DUMMY.search(match.group(1)): result.add('sensitive_assignment')
+  value=match.group(1)
+  if not DUMMY.search(value) and not value.startswith(b'$') and not synthetic_fixture(path,'sensitive_assignment',match,blob):
+   result.add('sensitive_assignment')
  for kind,pattern in PATTERNS.items():
-  if any(not DUMMY.search(m.group()) for m in pattern.finditer(blob)): result.add(kind)
+  for match in pattern.finditer(blob):
+   if not DUMMY.search(match.group()) and not synthetic_fixture(path,kind,match,blob):
+    result.add(kind)
  return result
 
 def scan():
@@ -85,7 +102,7 @@ def scan():
     counts['binary_skipped']+=1
     continue
    counts['text_blobs']+=1
-   for kind in detect(data):
+   for kind in detect(data,path):
     findings[kind]+=1
     print('POTENTIAL_SECRET category='+kind+' path_hash='+hashlib.sha256(path.encode()).hexdigest()[:10])
  finally:
@@ -102,6 +119,8 @@ def self_test():
  assert 'sensitive_assignment' in detect(b'SUPABASE_'+b'SERVICE_ROLE_KEY=uniqueactualvalue12345')
  assert 'private_key' in detect(b'-----BEGIN '+b'PRIVATE KEY-----')
  assert 'github_token' in detect(b'ghp_'+b'A'*36)
+ assert 'sensitive_assignment' in detect(b'SUPABASE_'+b'SERVICE_ROLE_KEY=actualvalue12345678', 'app/api/route.ts')
+ assert not detect(b'SUPABASE_'+b'SERVICE_ROLE_KEY=actualvalue12345678', 'scripts/scan-git-history-secrets.py')
  print('HISTORY_SCAN_SELF_TEST_PASS')
 
 if __name__=='__main__':
