@@ -99,7 +99,7 @@ def scan():
 def self_test():
  for example in [b'SUPABASE_SERVICE_ROLE_KEY=placeholder',b'GEMINI_API_KEY='+bytes([36])+b'{KEY}',b'GITHUB_TOKEN=your-token']:
   assert not detect(example)
- assert 'sensitive_assignment' in detect(b'SUPABASE_SERVICE_ROLE_KEY=hardcodedproductionvalue12345')
+ assert 'sensitive_assignment' in detect(b'SUPABASE_'+b'SERVICE_ROLE_KEY=uniqueactualvalue12345')
  assert 'private_key' in detect(b'-----BEGIN '+b'PRIVATE KEY-----')
  assert 'github_token' in detect(b'ghp_'+b'A'*36)
  print('HISTORY_SCAN_SELF_TEST_PASS')
