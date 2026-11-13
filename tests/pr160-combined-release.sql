@@ -150,9 +150,7 @@ begin
   );
   if response->>'code' is distinct from 'preview_write_denied'
   then raise exception 'pr160_preview_write_guard_failed:%',response; end if;
-  if exists(select 1 from public.pr4_knowledge_suggestions
-    where question_redacted='PR160 combined isolated preview must not persist')
-  then raise exception 'pr160_preview_knowledge_write_occurred'; end if;
+  -- Verify absence of a persisted Preview row under the local DB owner after RESET ROLE.
 
   -- Existing legitimate lookup actions must still travel through signed OIDC dispatcher.
   for tries in 1..4 loop
@@ -193,6 +191,9 @@ begin
   if observed <> 8 then
     raise exception 'pr160_combined_knowledge_persistence_failed:%',observed;
   end if;
+  if exists(select 1 from public.pr4_knowledge_suggestions
+    where question_redacted='PR160 combined isolated preview must not persist')
+  then raise exception 'pr160_preview_knowledge_write_occurred'; end if;
 end
 $proof$;
 rollback;
