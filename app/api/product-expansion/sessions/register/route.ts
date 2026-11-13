@@ -19,6 +19,9 @@ function parseUserAgent(value: string) {
 }
 
 export async function POST(request: NextRequest) {
+  if (process.env.VERCEL_ENV === "preview") {
+    return json(403, { ok: false, code: "preview_writes_forbidden" });
+  }
   const access = await authorizeTenantRequest(request);
   if (!access.ok) return json(access.status, { ok: false, code: access.code });
   if (!access.user.sessionId) return json(403, { ok: false, code: "auth_session_unavailable" });

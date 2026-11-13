@@ -35,6 +35,9 @@ function encrypt(value: string, key: Buffer) {
 }
 
 export async function POST(request: NextRequest) {
+  if (process.env.VERCEL_ENV === "preview") {
+    return json(403, { ok: false, code: "preview_writes_forbidden" });
+  }
   const user = await verifySupabaseBearer(request);
   if (!user) return json(401, { ok: false, code: "authentication_required" });
   const raw = await request.text();
