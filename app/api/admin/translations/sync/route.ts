@@ -225,6 +225,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // The Preview deployment can share backend credentials with Production.
+  // Deny any translation write before reading the session or calling providers.
+  if (process.env.VERCEL_ENV === "preview") {
+    return NextResponse.json(
+      { ok: false, message: "المعاينة مخصصة للقراءة فقط ولا تحفظ مسودات الترجمة." },
+      { status: 403, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   try {
     const client = await getAuthorizedClient(request);
     if (!isTranslationProviderConfigured()) {
