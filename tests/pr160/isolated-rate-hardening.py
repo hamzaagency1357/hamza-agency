@@ -37,6 +37,7 @@ assert "revoke all on function public.pr4_suggest_knowledge" in migration.lower(
 
 stub = r"""
 BEGIN;
+SET check_function_bodies = off;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE ROLE anon;
 CREATE ROLE authenticated;
