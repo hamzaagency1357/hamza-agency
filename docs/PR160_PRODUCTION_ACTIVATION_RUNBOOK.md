@@ -1,0 +1,108 @@
+# PR #160 — Safe Production Release Activation Runbook
+
+**Prepared:** 2026-11-13 (UTC+03:00)  
+**Repository:** `hamzaagency1357/hamza-agency`  
+**Release branch:** `fix/consolidated-admin-qa-20261102` (same PR #160; no new branch/PR)  
+**Inspected candidate SHA:** `f3e0817ac1954f04c46fbede99e37c858db3a1fb`  
+**Baseline Production Web:** `a120fc48c418b4b259916c45f9389df8c3c26b66`; Vercel `dpl_4UsYNwDcWEwDFbG3H5QYk9y5ZQqg`  
+**Supabase Production project:** `fvaurkfnsvsfohpzguho` — PostgreSQL 17, Free plan  
+**Edge baselines:** `pr100-vercel-oidc-gateway` v6, `pr101-vercel-oidc-gateway` v4, `pr116-admin-oidc-gateway` v2.
+
+> **NOT AN EXECUTION AUTHORIZATION.** As of preparation the PR is OPEN / DRAFT / UNMERGED. No Production deployment, schema migration, Edge publication, MFA enrollment, Auth setting change, customer data mutation, backup/restore, domain-switch, or purchasing is authorized. All activation steps below require the relevant specific owner approval.
+
+## A. Evidence and actual release boundaries
+
+- Full Project Closeout: [21/21 successful jobs on the candidate SHA](https://github.com/hamzaagency1357/hamza-agency/actions/runs/43473053372). Hardened RPC concurrency and ACL test: [PASS](https://github.com/hamzaagency1357/hamza-agency/actions/runs/43473053822). Isolated Auth lifecycle test and first-two-migration authorization tests are recorded in the PR checks. These are NOT live production guarantees.
+- Exact-SHA preview: [Vercel READY](https://vercel.com/hamzaagencysy-3009s-projects/hamza-agency/8WCwgfmgtUVQGSnrnc348zre14zX). If this documentation commit changes HEAD, the release candidate must be re-identified, and all required gates/Preview rechecked on the new HEAD.
+- Read-only Production catalog inspection verified expected existing tables, policies, functions, `pgcrypto` under `extensions`, and the old `authenticator` `pgrst.db_pre_request = public.pr116_apply_trusted_admin_actor_context`.
+- **Unapplied migrations:** `20261111234553_pr160_scope_admin_translation_and_legacy_rpcs.sql`, `20261112121152_pr160_admin_read_scope_and_enrolled_mfa.sql`, and `20261113180500_pr160_trusted_rate_and_knowledge_gateway.sql`.
+- The first two migration files have isolated authorization/AAL evidence; the third has an independent isolated PostgreSQL 17 rate/concurrency/OIDC-dispatch test. **A verified all-three, same-database, sequential integration rehearsal has not been established. This remains a mandatory pre-activation test.**
+
+## B. Exact SQL dependency and impact matrix
+
+| Sequence | Migration | Production object impact | Compatibility and failure check |
+| --- | --- | --- | --- |
+| 1 | `20261111234553` | Replace translation authorization and page restore functions; change RLS on `blog_posts`, `blog_post_translations`, `blog_post_versions`; revoke legacy `pr99_soft_delete` and version-helper browser RPC access | `pr116` candidate must support the authorized translation-draft dispatch. Check draft/review/publish and version restore with synthetic users; published contents must not change |
+| 2 | `20261112121152` | Change RLS on `admin_users`, `activity_logs`, `backups`, `job_applications`, `service_requests`, `media`, `pages`, `sections`, `version_history`; revoke browser writes to audit/backup/history; replace admin scope/backup helpers; install `pr160_admin_data_api_pre_request` and configure `authenticator` | Test all role boundaries and verified-factor AAL1 rejection/AAL2 allowance. Observe PostgREST/Auth and read/write endpoints immediately; a failed global pre-request can impair many users |
+| 3 | `20261113180500` | Add RLS-protected `pr160_knowledge_rate_windows`; replace `pr100_guard_public_lookup` with serialized locks; add service-only `pr160_record_knowledge_suggestion`; extend nonce constraint and `pr100_oidc_gateway`; revoke direct browser suggestion/lookup EXECUTE | Ensure candidate `pr100` Edge supports `knowledge_suggest` before this migration. Test track/status and OIDC, per-source and global rate limits, failure codes, and Preview write denial |
+
+Use migration files unchanged where they passed tests. Do not cherry-pick functions or edit the historical migration registry. Reconcile remote migration history/actual catalog and run supported Supabase migration tooling only after approval. Do not rely on a guessed "reverse migration".
+
+## C. Required unperformed isolated rehearsal
+
+On an **existing, cost-approved, disposable environment with synthetic fixtures only**, using the exact reviewed repo tree and installed PostgreSQL/Supabase tool versions:
+
+1. Build a database baseline representing the deployed PR #158 schema. Record SQL role grants, policy names, extensions, PostgREST pre-request, Auth schema prerequisites and Edge OIDC action allowlists. No production customer/Auth/Storage rows in test data.
+2. Apply **all three migration files in timestamp order in the same isolated database** using the same migration runner semantics expected in the release; prove migration history is recorded once.
+3. Run `tests/pr160-admin-release-boundary.sql`, `tests/pr160-admin-read-mfa.sql`, `tests/pr160/isolated-rate-hardening.py` or equivalent probes **against the combined migrated schema**, not only against separate standalone fixtures. Tests must cover `super_admin`, `deputy_super_admin` with/without explicit module permissions, `program_admin` restricted program, unauthenticated users, and AAL1/AAL2.
+4. Verify both **old Web/Edge and new Web/Edge** behaviors at each planned intermediate state (after Edge update, migration 1, migration 2, migration 3, then Web switch). Include AR/EN/TR, application/job/service tracking, `SUP` verification, smart support, `knowledge_suggest`, replay/rate limits, invitations, team status, media access, preview read-only and audit integrity.
+5. Compare non-sensitive row counts/constraints/grants before/after; prove no unexpected published-content changes. Record versions, redacted logs and test assertions as CI artifacts. A failed or unavailable rehearsal means `RELEASE PREPARATION: BLOCKED`.
+
+## D. Backups and recovery — hard gate
+
+**BACKUP READY: BLOCKED** until the following is performed and evidenced with a separate owner authorization. Free-tier Supabase automatic daily backups are NOT assumed. A default `supabase db dump` does NOT include data/roles and excludes managed Auth/Storage schemas; Storage file bytes are separate from database object metadata.
+
+Required encrypted, one-off export to an existing owner-controlled private destination (not GitHub, PR artifacts or ChatGPT), with no new paid account:
+
+- Database roles and grants, schema/DDL, all relevant **application data** (customers, applications, services, broadcasts, staff, translations, blog, audits, backup metadata, rate/replay data as appropriate). Export the managed **Auth** state through a supported, privileged and version-checked approach, or explicitly mark Auth incomplete; do not assume a public-schema dump captures it.
+- Storage: private/public bucket configuration, object **metadata and actual binary contents**, ownership and access policies. Record object count, total bytes, and integrity hash for each item. Consider signed URLs and permission expiration; no public disclosure of identity images.
+- Source/CI release SHA, all Edge Function bundles with verified file hashes and flags, Vercel environment variable **names/presence only** (not secret values), active domain alias/deployment, Auth MFA/session settings and operator recovery procedure.
+- Encrypt at source using approved local tooling (for example `age` or `gpg` with reviewed encryption key handling); verify archive contents, checksums, decryptability, and row/object counts while preserving strict access control. Do not record encryption private keys or database secrets in this runbook.
+- Restore in an approved isolated destination. Confirm schema, grants/RLS, linked Auth, Storage blobs, application tracking, readable content and access denial for non-authorized roles. If restoration of managed Auth/Storage is unsupported, mark the missing coverage and keep the release blocked.
+
+A narrow in-app editorial snapshot or successful synthetic backup/restore test is **not** a comprehensive Production recovery point. Do not apply migrations 1–3 while the backup gate is blocked.
+
+## E. MFA activation and lockout avoidance
+
+- Before any real enrollment, verify the new `app/admin/login/page.tsx` multi-factor chooser is serving on the intended Web release: the previous Production UI selected only the first verified TOTP factor.
+- Use a specifically approved owner-controlled `super_admin` session. Confirm signed Auth user linkage, already enrolled factors, `aal1`/next `aal2` state, and authorized alternative recovery. Enroll one TOTP factor; verify and sign in at `aal2`. Then enroll a second TOTP factor on an **independent device** and prove login works using either.
+- Supabase application TOTP does not supply standard recovery codes in this app flow. Password reset by itself does not bypass an enrolled factor. A documented emergency process must provide authorized dual-control Auth administration, factor revocation and session revocation, emergency audits and owner approval. Do not create a break-glass account or alter Auth/MFA configuration in this preparation task.
+- Exercise local synthetic accounts for registered/unregistered factor and AAL1/AAL2, session signout/revocation and module role gates. Only activate Production after owner personally confirms fallback device accessibility.
+
+**MFA ACTIVATION READY: BLOCKED** until approved live recovery is demonstrated.
+
+## F. Coordinated Production cutover — operator checklist after explicit approvals
+
+1. **Freeze exact targets:** recheck PR/head/base, required CI statuses, exact preview deployment, `main` deployment, production alias, production migrations and database version, Edge v6/v4/v2, candidate file hashes, environment variable keys and OIDC issuer/audience/team/project/environment binding. Approve release time window and named operator. If anyone updated the branch since evidence, stop.
+2. **Satisfy recovery gate:** take approved encrypted one-off backup and complete the isolated restore rehearsal. If any required Auth/Storage component cannot be recovered, stop; negotiate explicitly accepted risk only in a separate decision and do NOT label BACKUP READY PASS without recoverability.
+3. **Complete combined isolated migration + old/new compatibility rehearsal** described in section C. Check preflight locks, grants, expected existing policy names, PostgREST notification behavior and database permissions. Abort if unverified.
+4. **Prevent unapproved automatic Production promotion** before merging. Confirm actual Git integration / Vercel domain-assignment behavior for the project. A merge can auto-deploy; release approvals must cover the resulting production behavior, or stage and hold the exact production build with an approved mechanism. Keep the known old deployment and domain mapping.
+5. **Coordinate backward-compatible Edge first**: deploy inspected candidate `pr116-admin-oidc-gateway` and `pr100-vercel-oidc-gateway` in the approved narrow window, keeping `pr101` v4 unchanged if unchanged by the candidate. Check role auth, existing write actions, lookups, OIDC environment/replay and health with synthetic identities. A new Edge action calling a still-missing SQL branch must fail closed; do not enable it in Web until DB readiness.
+6. **Apply and verify SQL 1, then 2, then 3**, one approved migration step at a time. Check migration registry, grants and RLS, Auth/Data API behavior, errors, monitoring and existing functionality between steps. Stop at first fail, not blindly continue. Migration 2 modifies the globally configured `pgrst.db_pre_request`: verify immediately.
+7. **Switch to reviewed new Web build only when required DB and Edge APIs are live.** Confirm the resulting Vercel Production deployment is built from the reviewed PR merge tree and configured environment; run smoke probes prior to domain promotion when possible, then explicitly authorize alias promotion. Do not assume that promoting a Preview guarantees an identical production build.
+8. **Verify the live service** with synthetic authorized data: signed-in and signed-out paths; every admin role and factor state; applications, jobs, service requests, `APP/SR/JOB/CNT/SUP` tracking; support and suggestions; throttling; team invitations; upload private-storage isolation; audit; mobile/desktop and all three locales; canonical/sitemap/Open Graph; GSC and error/latency dashboards.
+9. **Enable real MFA only as a separate owner-approved step after new login flow and restoration are proven**. Review session revocation and audit trail.
+10. **Owner sign-off:** record time, SHA, Vercel deployment ID/alias, Edge versions, migration versions, backup/restore evidence, tests and remaining risks. Only then mark Full Production Closeout PASS.
+
+**Transition limitation:** The old Web writes unmatched knowledge suggestions directly through `pr4_suggest_knowledge`; new Web uses trusted `knowledge_suggest`. After SQL #3 revokes the direct browser grant but before new Web is live, those old suggestions may be lost. Conversely switching Web too soon will fail to persist suggestions until SQL #3. Visitor responses still use a safe fallback, but **zero-loss suggestion capture is not proven**. Keep the gap as short as possible, observe counters, or request specific temporary maintenance approval if an uninterrupted capture guarantee is required. The rate identity normalization also changes from client-rotatable UA+IP hashing to trusted IP hashing at Web cutover.
+
+## G. Rollback and failure stop rules
+
+- **Web regression only, DB still compatible:** restore captured previous Vercel deployment/alias `dpl_4UsYNwDcWEwDFbG3H5QYk9y5ZQqg` *after checking its compatibility against the migrated DB*. A Vercel rollback does not roll back SQL/Auth/Storage.
+- **Edge regression:** deploy previously archived byte-for-byte Edge bundle versions v6/v4/v2 only if database/RPC contracts still support them. If SQL #3 has revoked their directly needed paths, blindly restoring old Edge/Web is unsafe; choose guarded forward fix or a controlled recovery plan instead.
+- **Migration/data issue:** immediately freeze relevant writes under approved operations, capture logs and current state, evaluate data written since backup, and restore only through an authorized, tested procedure preserving post-backup valid changes when possible. Reversing policy/role grants, replacing `SECURITY DEFINER` bodies or re-enabling public RPCs is not a safe generic rollback.
+- **Failure thresholds:** any unauthorized read/write, broken super-admin access, failed Auth or public tracking, excessive 5xx, missing data/files, unverified migration state, insufficient recovery, or OIDC mismatch => STOP/NO PROMOTE. Record evidence, notify owner, do not retry irreversible steps blindly.
+
+## H. Content / OG / release review
+
+- `app/opengraph-image.tsx` declares PNG 1200×630, uses shared `public/Logo hamza agency.jpg`, and falls back for pages without custom CMS assets. The logo asset exists and has been visually inspected, but a **direct screenshot and HTTP verification of the rendered candidate /opengraph-image** and confirmation that the displayed stylized emblem satisfies the exact `ⒽⒶ` identity requirement are still pending. Do not redesign or publish without owner authorization.
+- Turkish review candidates (not Production writes): Yaahlan summary `Hamza Ajansı aracılığıyla Yaahlan programına katılın.`; Catchii updates `Catchii programına başvurular şu anda Hamza Ajansı aracılığıyla açıktır.`; TikTok updates `TikTok programına başvurular şu anda Hamza Ajansı aracılığıyla açıktır.`. Preserve published revision/history and require editorial approval.
+- Historical QA evidence states TikTok blog article AR/EN/TR published, earlier BIGO Turkish and Yaahlan camera FAQ corrected. Recheck links, registration and contact on the exact released build; no direct Production CMS publication in this task.
+
+## I. Approval register — all individually separate
+
+- Encrypted Production backup location, authorized data-handling operator, coverage, and isolated restore.
+- Production MFA TOTP enrollment, second device and break-glass procedure; any separate Auth/leaked-password protection settings or costs.
+- Supabase migration sequence and execution; temporary maintenance if required.
+- Edge Function publication (pr100 and pr116; pr101 only if verified necessary).
+- Vercel Production build/alias/deployment, and PR Draft->Ready or merge.
+- Content/OG replacements and published Turkish changes.
+- Any charges or new infrastructure: **not implicitly authorized**.
+
+**Gate statuses at this preparation point:**
+`PRE-MERGE SECURITY: PASS` (based on unchanged candidate SHA and recorded isolated gates)  
+`RELEASE PREPARATION: BLOCKED` (combined three-migration and transitional rehearsal still missing)  
+`BACKUP READY: BLOCKED` (no comprehensive encrypted, isolated-restore-proven snapshot)  
+`MFA ACTIVATION READY: BLOCKED` (authorized real recovery and second-factor drill incomplete)  
+`PRODUCTION SECURITY ACTIVATION: BLOCKED` (not executed)  
+`FULL PRODUCTION CLOSEOUT: BLOCKED` (no merge, activation, or live verification).
