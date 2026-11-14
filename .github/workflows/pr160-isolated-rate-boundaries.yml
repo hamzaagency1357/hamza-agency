@@ -1,0 +1,153 @@
+name: PR160 Isolated Rate Limit and Anonymous RPC Abuse Evidence
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/pr160-isolated-rate-boundaries.yml'
+      - 'supabase/migrations/20260729010400_pr100_public_rpc_abuse_hardening.sql'
+      - 'supabase/migrations/20260808210000_pr4_smart_support_notifications.sql'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-rate-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - '5432:5432'
+        options: >-
+          --health-cmd=pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install local PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends postgresql-client
+      - name: Extract actual deployed-function definitions into ephemeral fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = '127.0.0.1'
+          cat > /tmp/pr160-rate-proof.sql <<'SQL'
+          BEGIN;
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          CREATE ROLE anon;
+          CREATE TABLE public.public_submission_guards (
+            id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            form_type text NOT NULL, identity_hash text NOT NULL, payload_hash text NOT NULL,
+            accepted boolean NOT NULL, reason text, created_at timestamptz NOT NULL DEFAULT now()
+          );
+          CREATE TABLE public.public_lookup_guards (
+            id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            lookup_type text NOT NULL, identity_hash text NOT NULL, fingerprint_hash text NOT NULL,
+            accepted boolean NOT NULL, reason text, created_at timestamptz NOT NULL DEFAULT now()
+          );
+          CREATE TABLE public.pr4_knowledge_suggestions (
+            id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            question_redacted text NOT NULL, language text NOT NULL,
+            occurrences integer NOT NULL DEFAULT 1, status text NOT NULL DEFAULT 'new',
+            created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+            UNIQUE(question_redacted,language)
+          );
+          ALTER TABLE public.pr4_knowledge_suggestions ENABLE ROW LEVEL SECURITY;
+          REVOKE ALL ON public.pr4_knowledge_suggestions FROM PUBLIC,anon;
+          SQL
+          python3 - <<'PY'
+          from pathlib import Path
+          sources = [
+            ('supabase/migrations/20260729010400_pr100_public_rpc_abuse_hardening.sql', ['pr99_guard_submission', 'pr100_guard_public_lookup']),
+            ('supabase/migrations/20260808210000_pr4_smart_support_notifications.sql', ['pr4_suggest_knowledge']),
+          ]
+          with open('/tmp/pr160-rate-proof.sql', 'a', encoding='utf-8') as out:
+            for source, names in sources:
+              text = Path(source).read_text(encoding='utf-8')
+              for name in names:
+                marker = 'create or replace function public.' + name + '('
+                start = text.lower().find(marker)
+                assert start >= 0, name + ' missing'
+                end = text.find('$$;', start)
+                assert end > start, name + ' terminator missing'
+                definition = text[start:end+3]
+                assert 'security definer' in definition.lower(), name + ' is no longer definer'
+                out.write(definition + '\n')
+          PY
+          cat >> /tmp/pr160-rate-proof.sql <<'SQL'
+          REVOKE ALL ON FUNCTION public.pr4_suggest_knowledge(text,text) FROM PUBLIC;
+          GRANT EXECUTE ON FUNCTION public.pr4_suggest_knowledge(text,text) TO anon;
+          DO $proof$
+          DECLARE response jsonb; n integer;
+          BEGIN
+            FOR n IN 1..3 LOOP
+              response := public.pr99_guard_submission('contact','stable-identity',jsonb_build_object('nonce',n),now()-interval '5 seconds','');
+              IF (response->>'allowed')::boolean IS DISTINCT FROM true THEN RAISE EXCEPTION 'PR99 identity admission %',n; END IF;
+            END LOOP;
+            response := public.pr99_guard_submission('contact','stable-identity','{"nonce":4}'::jsonb,now()-interval '5 seconds','');
+            IF (response->>'allowed')::boolean IS DISTINCT FROM false THEN RAISE EXCEPTION 'PR99 per-identity limit bypass'; END IF;
+            TRUNCATE public.public_submission_guards;
+            FOR n IN 1..60 LOOP
+              response := public.pr99_guard_submission('contact','rotated-'||n,jsonb_build_object('nonce',n),now()-interval '5 seconds','');
+              IF (response->>'allowed')::boolean IS DISTINCT FROM true THEN RAISE EXCEPTION 'PR99 global admission %',n; END IF;
+            END LOOP;
+            response := public.pr99_guard_submission('contact','rotated-61','{"nonce":61}'::jsonb,now()-interval '5 seconds','');
+            IF (response->>'allowed')::boolean IS DISTINCT FROM false THEN RAISE EXCEPTION 'PR99 global identity rotation bypass'; END IF;
+            RAISE NOTICE 'PASS: submission identity and global cap resist sequential rotation';
+            FOR n IN 1..5 LOOP
+              response := public.pr100_guard_public_lookup('application','lookup-target-1',repeat('a',64));
+              IF (response->>'allowed')::boolean IS DISTINCT FROM true THEN RAISE EXCEPTION 'PR100 identity admission %',n; END IF;
+            END LOOP;
+            response := public.pr100_guard_public_lookup('application','lookup-target-1',repeat('b',64));
+            IF response->>'code'<>'rate_limited' THEN RAISE EXCEPTION 'PR100 identity limit bypass'; END IF;
+            TRUNCATE public.public_lookup_guards;
+            FOR n IN 1..30 LOOP
+              response := public.pr100_guard_public_lookup('application','lookup-target-'||n,repeat('a',64));
+              IF (response->>'allowed')::boolean IS DISTINCT FROM true THEN RAISE EXCEPTION 'PR100 fingerprint admission %',n; END IF;
+            END LOOP;
+            response := public.pr100_guard_public_lookup('application','lookup-target-31',repeat('a',64));
+            IF response->>'code'<>'rate_limited' THEN RAISE EXCEPTION 'PR100 fingerprint limit bypass'; END IF;
+            response := public.pr100_guard_public_lookup('application','lookup-target-31',repeat('b',64));
+            IF (response->>'allowed')::boolean IS DISTINCT FROM true THEN RAISE EXCEPTION 'PR100 expected rotated identity+fingerprint behavior changed'; END IF;
+            RAISE NOTICE 'OBSERVED GAP: lookup accepts rotated identity AND caller-supplied fingerprint; no global cap';
+          END $proof$;
+          SET ROLE anon;
+          DO $abuse$
+          DECLARE n integer;
+          BEGIN
+            FOR n IN 1..80 LOOP
+              PERFORM public.pr4_suggest_knowledge('synthetic unique support question number '||n,'ar');
+            END LOOP;
+            FOR n IN 1..250 LOOP
+              PERFORM public.pr4_suggest_knowledge('synthetic unique support question number 1','ar');
+            END LOOP;
+          END $abuse$;
+          RESET ROLE;
+          DO $verify$
+          DECLARE unique_questions integer; repetitions integer;
+          BEGIN
+            SELECT count(*) INTO unique_questions FROM public.pr4_knowledge_suggestions;
+            SELECT occurrences INTO repetitions FROM public.pr4_knowledge_suggestions
+              WHERE question_redacted='synthetic unique support question number 1' AND language='ar';
+            IF unique_questions<>80 OR repetitions<>251 THEN
+              RAISE EXCEPTION 'PR4 reproduction unexpected: % / %',unique_questions,repetitions;
+            END IF;
+            RAISE NOTICE 'OBSERVED GAP: anon created 80 suggestions + 250 repeated upserts without quota';
+          END $verify$;
+          ROLLBACK;
+          SQL
+      - name: Run PostgreSQL-only evidence and rollback synthetic data
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = '127.0.0.1'
+          psql -X -v ON_ERROR_STOP=1 -f /tmp/pr160-rate-proof.sql
+          rm -f /tmp/pr160-rate-proof.sql
+          echo 'PASS: isolated reproduction complete. OBSERVED GAP is not a mitigation.'

@@ -118,5 +118,5 @@ test("admin navigation and dashboard retain the existing owner-approved structur
   assert.ok(navigationTest.includes('"العمل اليومي": true'));
   assert.ok(navigationTest.includes('aria-expanded={expanded}'));
   assert.ok(dashboard.includes('data-testid="admin-quick-actions"'));
-  assert.ok(dashboard.includes("ما الذي تريدين إنجازه اليوم؟"));
+  assert.ok(dashboard.includes("ما الذي تريد إنجازه اليوم؟"));
 });

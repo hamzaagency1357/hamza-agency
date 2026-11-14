@@ -102,6 +102,9 @@ async function read(path: string, access: AuthorizedTenantRequest, code: string,
 }
 
 export async function PATCH(request: Request) {
+  if (process.env.VERCEL_ENV === "preview") {
+    return json(403, { ok: false, code: "preview_writes_forbidden" });
+  }
   const auth = await authorize(request, true);
   if (isResponse(auth)) return auth;
   const { section, access } = auth;
@@ -142,6 +145,9 @@ export async function PATCH(request: Request) {
 }
 
 export async function POST(request: Request) {
+  if (process.env.VERCEL_ENV === "preview") {
+    return json(403, { ok: false, code: "preview_writes_forbidden" });
+  }
   const auth = await authorize(request, true);
   if (isResponse(auth)) return auth;
   const { section, access } = auth;

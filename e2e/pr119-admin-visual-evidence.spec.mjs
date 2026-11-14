@@ -158,3 +158,51 @@ test("desktop 1366 regression evidence",async({page})=>{
  await expect(page.getByLabel("التنقل الرئيسي للوحة التحكم")).toBeVisible();
  await page.screenshot({path:`${evidenceDir}/11-desktop-1366-regression.png`,fullPage:false});
 });
+
+const isolatedInvitations=[
+ {id:"invite-a",email:"creator@example.test",role:"creator",program_id:7,status:"invited",expires_at:"2026-11-15T10:00:00Z",last_sent_at:"2026-11-02T10:00:00Z",send_count:1,created_at:"2026-11-02T10:00:00Z"},
+ {id:"invite-b",email:"partner@example.test",role:"partner",program_id:null,status:"accepted",expires_at:"2026-11-15T10:00:00Z",last_sent_at:"2026-11-02T10:00:00Z",send_count:1,created_at:"2026-11-02T10:00:00Z"},
+];
+const isolatedMembers=[
+ {id:"member-a",user_id:"creator-fixture",role:"creator",status:"active",program_id:7,permissions:{},mfa_required:false},
+ {id:"member-b",user_id:"employee-fixture",role:"employee",status:"suspended",program_id:null,permissions:{},mfa_required:true},
+];
+async function openIsolatedTeam(page,width,height,actions){
+ await page.setViewportSize({width,height});
+ await installVisualFixture(page);
+ await page.route(`${supabaseHost}/rest/v1/tenant_memberships**`,async route=>{
+  const one=new URL(route.request().url()).searchParams.get("select")==="tenant_id";
+  await route.fulfill({status:200,headers:{...corsHeaders,"content-type":"application/json"},body:JSON.stringify(one?{tenant_id:"visual-tenant"}:isolatedMembers)});
+ });
+ await page.route(`${supabaseHost}/rest/v1/programs**`,async route=>route.fulfill({status:200,headers:{...corsHeaders,"content-type":"application/json"},body:'[{"id":7,"name":"TikTok","slug":"tiktok"}]'}));
+ await page.route("**/api/product-expansion/invitations**",async route=>{
+  if(route.request().method()==="POST"){
+   actions.push(JSON.parse(route.request().postData()||"{}").action);
+   return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({invite_url:"https://example.test/isolated-invitation"})});
+  }
+  return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({invitations:isolatedInvitations})});
+ });
+ await page.goto("/admin/product-expansion/invitations",{waitUntil:"networkidle"});
+ await expect(page.getByRole("heading",{name:"الدعوات والعضويات التشغيلية"})).toBeVisible();
+}
+for(const width of [320,390]){
+ test(`isolated invitations and membership mobile ${width}px cards and actions`,async({page})=>{
+  const actions=[];
+  await openIsolatedTeam(page,width,width===320?720:844,actions);
+  const visibleCards=page.locator("article:visible");
+  await expect(visibleCards).toHaveCount(4);
+  await expect(visibleCards.filter({hasText:"صانع محتوى"}).first()).toBeVisible();
+  await expect(visibleCards.filter({hasText:"معلّقة"}).first()).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  await page.screenshot({path:`${evidenceDir}/12-team-${width}-cards.png`,fullPage:true});
+  const resend=visibleCards.filter({hasText:"creator@example.test"}).getByRole("button",{name:"إعادة إرسال"});
+  await expect(resend).toBeEnabled();
+  await resend.click();
+  await expect.poll(()=>actions.filter(action=>action==="resend").length).toBe(1);
+  const memberRole=page.locator('select[aria-label="دور العضو"]:visible').first();
+  await memberRole.selectOption("partner");
+  await expect.poll(()=>actions.filter(action=>action==="manage_membership").length).toBe(1);
+  await expectNoHorizontalOverflow(page);
+  await page.screenshot({path:`${evidenceDir}/13-team-${width}-actions.png`,fullPage:true});
+ });
+}

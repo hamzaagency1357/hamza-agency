@@ -33,6 +33,9 @@ function internalFailure(correlationId: string, detail: unknown) {
 }
 
 export async function POST(request: Request) {
+  if (process.env.VERCEL_ENV === "preview") {
+    return response(403, { ok: false, code: "preview_writes_forbidden" });
+  }
   const correlationId = randomUUID();
   const identity = await verifyTenantRequestIdentity(request);
   if (!identity.ok) {

@@ -1,11 +1,12 @@
 "use client";
+import { stripLocalePrefix } from "@/lib/i18n/publicLocales";
 
 import { usePathname } from "next/navigation";
 import { getApprovedSupportCopy } from "@/lib/i18n/supportCopy";
 import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
 function shouldHideSupportAvailability(pathname: string) {
-  return pathname.startsWith("/admin") || pathname.startsWith("/portal") || pathname === "/maintenance" || pathname === "/pr99-e2e";
+  return pathname.startsWith("/admin") || pathname.startsWith("/portal") || stripLocalePrefix(pathname) === "/maintenance" || pathname === "/pr99-e2e";
 }
 
 export default function PublicSupportAvailability() {

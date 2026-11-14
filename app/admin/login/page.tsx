@@ -12,6 +12,7 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [mfaCode, setMfaCode] = useState("");
   const [mfaFactorId, setMfaFactorId] = useState("");
+  const [mfaFactors, setMfaFactors] = useState<{ id: string; label: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -35,15 +36,19 @@ export default function AdminLoginPage() {
       return;
     }
 
-    if (aal.currentLevel === "aal1" && aal.nextLevel === "aal2") {
+    if (aal.currentLevel !== "aal2" && aal.nextLevel === "aal2") {
       const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
-      const factor = factors?.totp?.find((item) => item.status === "verified");
-      if (factorsError || !factor) {
+      const verifiedFactors = factors?.totp.filter((factor) => factor.status === "verified") || [];
+      if (factorsError || !verifiedFactors.length) {
         await supabase.auth.signOut();
         setError("تعذر الوصول إلى عامل التحقق الثنائي المسجل لهذا الحساب.");
         return;
       }
-      setMfaFactorId(factor.id);
+      setMfaFactors(verifiedFactors.map((factor, index) => ({
+        id: factor.id,
+        label: factor.friendly_name?.trim() || `تطبيق المصادقة ${index + 1}`,
+      })));
+      setMfaFactorId(verifiedFactors[0].id);
       setNotice("أدخل رمز تطبيق المصادقة لإكمال تسجيل الدخول.");
       return;
     }
@@ -119,6 +124,24 @@ export default function AdminLoginPage() {
 
         {mfaFactorId ? (
           <form onSubmit={handleMfa} className="space-y-4" aria-label="التحقق الثنائي للإدارة">
+            {mfaFactors.length > 1 && (
+              <div>
+                <label htmlFor="admin-mfa-factor" className="mb-2 block text-sm text-zinc-300">جهاز المصادقة</label>
+                <select
+                  id="admin-mfa-factor"
+                  value={mfaFactorId}
+                  disabled={isLoading}
+                  onChange={(event) => {
+                    setMfaFactorId(event.target.value);
+                    setMfaCode("");
+                    setError("");
+                  }}
+                  className="w-full rounded-xl border border-purple-500/20 bg-[#170a21] px-4 py-3"
+                >
+                  {mfaFactors.map((factor) => <option key={factor.id} value={factor.id}>{factor.label}</option>)}
+                </select>
+              </div>
+            )}
             <div>
               <label htmlFor="admin-mfa-code" className="block mb-2 text-sm text-zinc-300">
                 رمز التحقق الثنائي

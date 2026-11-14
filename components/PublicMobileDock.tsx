@@ -1,4 +1,5 @@
 "use client";
+import { stripLocalePrefix } from "@/lib/i18n/publicLocales";
 
 import { useEffect,useMemo,useRef,useState } from "react";
 import { usePathname } from "next/navigation";
@@ -12,7 +13,7 @@ import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 import { isSupabaseConfigured,supabase } from "@/lib/supabase";
 
 type OpenPanel="ai"|"quick-nav"|null;type PublicSettingRow={setting_key:string|null;setting_value:string|null};const whatsappSettingKeys=["primary_whatsapp","support_whatsapp"];
-function shouldHideDock(pathname:string){return pathname.startsWith("/admin")||pathname.startsWith("/portal")||pathname==="/maintenance"}
+function shouldHideDock(pathname:string){return pathname.startsWith("/admin")||pathname.startsWith("/portal")||stripLocalePrefix(pathname)==="/maintenance"}
 function SupportIcon(){return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6.4 15.5a6.4 6.4 0 1 1 11.2 0"/><path d="M5 14.5v3a2 2 0 0 0 2 2h1.5v-6H7a2 2 0 0 0-2 2Zm14 0v3a2 2 0 0 1-2 2h-1.5v-6H17a2 2 0 0 1 2 2Z"/><path d="M15.5 19.5c-.6 1-1.7 1.5-3.5 1.5"/></svg>}
 function MenuIcon(){return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 7h14M5 12h14M5 17h14"/></svg>}
 function WhatsAppIcon(){return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M20 11.5A8 8 0 0 1 8.1 18.5L4 20l1.4-4A8 8 0 1 1 20 11.5Z"/><path d="M9 8.5c.5 2.3 2.2 4 4.5 5l1.2-1.1 2 .8c-.4 1.7-1.7 2.5-3.2 2.2-3.8-.8-6.2-3.4-6.9-6.6-.3-1.3.5-2.4 1.7-2.8L9 8.5Z"/></svg>}

@@ -110,3 +110,63 @@ if (fs.existsSync(fixturePath)) {
     await page.screenshot({ path: screenshotName("revoke-all", testInfo.project.name), fullPage: true, animations: "disabled" });
   });
 }
+
+
+test("untrusted origin cannot get credentialed CORS preflight for sensitive APIs", async ({ request }, testInfo) => {
+  const routes = [
+    "/api/admin/mutations/entities",
+    "/api/admin/team/invite",
+    "/api/admin/translations/sync",
+    "/api/product-expansion/invitations",
+    "/api/product-expansion/invitations/accept",
+    "/api/product-expansion/portal?role=creator&section=profile",
+    "/api/product-expansion/payments/test/webhook",
+    "/api/public-submit",
+    "/api/application-status",
+    "/api/support-request",
+  ];
+  let assertions=0;
+  for (const route of routes) {
+    const response = await request.fetch(route, {
+      method: "OPTIONS",
+      headers: {
+        ...previewBypassHeaders(expectedHost, route.split("?")[0]),
+        Origin: "https://malicious-origin.example.invalid",
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "authorization,content-type",
+      },
+    });
+    const headers=response.headers();
+    const origin=headers["access-control-allow-origin"]||"";
+    expect(origin).not.toBe("*");
+    expect(origin).not.toBe("https://malicious-origin.example.invalid");
+    expect(headers["access-control-allow-credentials"]).not.toBe("true");
+    assertions+=3;
+  }
+  recordAssertions(testInfo,assertions);
+});
+
+test("unsigned cross-origin write requests cannot mutate administrative or tenant data", async ({ request }, testInfo) => {
+  const protectedRoutes = [
+    "/api/admin/mutations/entities",
+    "/api/admin/mutations/workflows",
+    "/api/admin/team/invite",
+    "/api/product-expansion/invitations",
+    "/api/product-expansion/portal?role=creator&section=profile",
+    "/api/product-expansion/sessions/register",
+  ];
+  for (const route of protectedRoutes) {
+    const response=await request.fetch(route,{
+      method:"POST",
+      headers:{
+        ...previewBypassHeaders(expectedHost,route.split("?")[0]),
+        Origin:"https://malicious-origin.example.invalid",
+        "Content-Type":"application/json",
+      },
+      data:JSON.stringify({operation:"no-op",requestId:-1}),
+    });
+    expect(response.status(),route).toBeGreaterThanOrEqual(400);
+    expect(response.status(),route).toBeLessThan(500);
+  }
+  recordAssertions(testInfo,12);
+});

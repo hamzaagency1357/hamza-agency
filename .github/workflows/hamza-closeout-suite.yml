@@ -208,7 +208,7 @@ jobs:
           name: closeout-${{ inputs.execution_mode }}-${{ inputs.suite }}-${{ inputs.expected_sha }}
           path: artifacts/safe
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
       - name: Always remove fixtures and local runtime
         if: always()
         shell: bash

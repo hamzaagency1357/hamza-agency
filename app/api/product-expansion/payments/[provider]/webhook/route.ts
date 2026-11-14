@@ -15,6 +15,9 @@ function json(status: number, body: Record<string, unknown>) {
 }
 
 export async function POST(request: NextRequest, context: { params: Promise<{ provider: string }> }) {
+  if (process.env.VERCEL_ENV === "preview") {
+    return json(403, { ok: false, code: "preview_writes_forbidden" });
+  }
   const { provider } = await context.params;
   const configuredProvider = process.env.PAYMENT_PROVIDER_KEY || "";
   const mode = process.env.PAYMENT_PROVIDER_MODE || "disabled";

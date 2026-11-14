@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { hasRequiredAdminAssurance } from "@/supabase/functions/pr116-admin-oidc-gateway/admin-role-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest) {
   const userClient = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: identity, error: authError } = await userClient.auth.getUser(bearer.slice(7));
   if (authError || !identity.user?.id || !identity.user.email) return respond(401, "unauthenticated");
+  if (!hasRequiredAdminAssurance(bearer.slice(7), identity.user.factors)) return respond(403, "admin_mfa_required");
 
   const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: actor, error: actorError } = await admin.from("admin_users")

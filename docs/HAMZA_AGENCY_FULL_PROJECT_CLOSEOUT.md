@@ -1,4 +1,9 @@
 # HAMZA AGENCY — Full Project Closeout
+
+## 2026-11-12 — PR #160 pre-merge release remediation
+
+The [PR #160 ledger](PR160_CONSOLIDATED_QA_LEDGER.md) records the deployed v2 gateway comparison, isolated translation lifecycle and authorization tests, production read-only content and backup proof, and the ordered release and rollback. This branch stages an authorization migration for the affected Admin RPCs and a scoped Yaahlan summary suggestion. The current exact HEAD and final CI evidence are recorded in [PR #160](https://github.com/hamzaagency1357/hamza-agency/pull/160). The Production steps require the owner's release approval.
+
 ## 2026-10-26 — PR #158 verified security closeout checkpoint (before documentation update)
 
 - Repository: `hamzaagency1357/hamza-agency`; PR: `#158`; reviewed code Head: `21befbe35b6f302d0e28f69ee152c19dc44c4412`.

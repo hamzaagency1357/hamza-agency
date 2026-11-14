@@ -21,6 +21,7 @@ const ALLOWED_ACTIONS = new Set([
   "ai_support_submit",
   "review_submit",
   "support_request_create",
+  "knowledge_suggest",
 ]);
 const PRODUCTION_ONLY_ACTIONS = new Set([
   "application_submit",
@@ -30,6 +31,7 @@ const PRODUCTION_ONLY_ACTIONS = new Set([
   "ai_support_submit",
   "review_submit",
   "support_request_create",
+  "knowledge_suggest",
 ]);
 const JWKS = createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks`));
 const encoder = new TextEncoder();

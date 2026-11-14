@@ -62,10 +62,10 @@ const cases = {
     necessaryOnly: "Yalnızca gerekli",
     manage: "Tercihleri yönet",
     install: {
-      agency: "HAMZA AGENCY",
-      eyebrow: "HAMZA AGENCY uygulaması",
+      agency: "Hamza Ajansı",
+      eyebrow: "Hamza Ajansı uygulaması",
       title: "Web sitesini uygulama olarak yükleyin",
-      description: "Programlara, hizmetlere ve başvuru takibine hızlı erişmek için HAMZA AGENCY'yi cihazınıza yükleyin.",
+      description: "Programlara, hizmetlere ve başvuru takibine hızlı erişmek için Hamza Ajansı'nı cihazınıza yükleyin.",
       statusTitle: "Yükleme hazır",
       statusDescription: "Tarayıcıdaki yükleme seçeneğini açmak için “Uygulamayı yükle” düğmesini kullanın.",
       button: "Uygulamayı yükle",

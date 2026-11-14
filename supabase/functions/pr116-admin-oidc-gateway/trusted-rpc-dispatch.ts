@@ -1,6 +1,6 @@
 type Admin = { id: number; email: string; role: string; assignedProgram: string | null };
 type User = { id: string; email: string };
-type Input = { action: string; payload: Record<string, unknown>; supabaseUrl: string; serviceRole: string; admin: Admin; user: User };
+type Input = { action: string; payload: Record<string, unknown>; supabaseUrl: string; serviceRole: string; admin: Admin; user: User; userToken?: string; anonKey?: string };
 type Result = { status: number; body: Record<string, unknown>; ok: boolean } | null;
 type Contract = { rpcName: string; allowedFields: readonly string[]; legacy?: "support" | "knowledge" | "promote" | "translation" };
 
@@ -23,6 +23,7 @@ const CONTRACTS: Record<string, Contract> = {
   pr116_component_productanalyticsconsole_rpc_refresh_product_kpis_call: { rpcName: "refresh_product_kpis", allowedFields: ["p_metric_date", "p_tenant"] },
   pr116_knowledge_base_page_rpc_pr4_promote_suggestion_call: { rpcName: "pr4_promote_suggestion", allowedFields: ["p_suggestion_id"] },
   pr116_knowledge_base_page_rpc_pr4_save_knowledge_call: { rpcName: "pr4_save_knowledge", allowedFields: ["p_alternatives", "p_answer", "p_category", "p_expires_at", "p_id", "p_keywords", "p_language", "p_page_path", "p_priority", "p_program_slug", "p_question", "p_service_slug", "p_source_label", "p_source_type", "p_source_url", "p_start_at", "p_status"] },
+  pr116_translations_revisions_page_rpc_create_translation_candidate_draft_call: { rpcName: "create_translation_candidate_draft", allowedFields: ["p_source_type", "p_source_id", "p_language", "p_source_fingerprint", "p_source_snapshot", "p_translated_fields"] },
   pr116_translations_revisions_page_rpc_publish_translation_candidate_call: { rpcName: "publish_translation_candidate", allowedFields: ["p_translation_revision_id"] },
   pr116_translations_revisions_page_rpc_review_translation_candidate_call: { rpcName: "review_translation_candidate", allowedFields: ["p_review_notes", "p_translation_revision_id"] },
   pr116_translations_revisions_page_rpc_save_translation_candidate_fields_call: { rpcName: "save_translation_candidate_fields", allowedFields: ["p_translated_fields", "p_translation_revision_id"] },
@@ -37,6 +38,7 @@ const CONTRACTS: Record<string, Contract> = {
 
 export const TRUSTED_RPC_ACTIONS = Object.keys(CONTRACTS);
 export const TRUSTED_RPC_PERMISSIONS: Record<string, { module: string; permission: string }> = {
+  pr116_translations_revisions_page_rpc_create_translation_candidate_draft_call: { module: "settings", permission: "can_edit" },
   support_action: { module: "ai_support", permission: "can_edit" },
   knowledge_save: { module: "knowledge_base", permission: "can_edit" },
   knowledge_promote: { module: "knowledge_base", permission: "can_create" },
@@ -59,6 +61,23 @@ function text(value: unknown, max: number, nullable = false): string | null | un
   if (typeof value !== "string" || value.length > max) return undefined;
   return value;
 }
+// A blog save may keep an already published entry live. The trusted gateway must
+// never accept a published payload with missing or duplicate languages: the
+// separate publish RPC already requires complete AR/EN/TR content.
+function hasCompletePublishedBlogTranslations(value: unknown): boolean {
+  if (!Array.isArray(value) || value.length !== 3) return false;
+  const languages = new Set<string>();
+  for (const entry of value) {
+    if (!record(entry) || !["ar", "en", "tr"].includes(String(entry.language))) return false;
+    if (languages.has(String(entry.language))) return false;
+    for (const key of ["title", "excerpt", "content_html"]) {
+      if (typeof entry[key] !== "string" || !entry[key].trim()) return false;
+    }
+    languages.add(String(entry.language));
+  }
+  return languages.size === 3;
+}
+
 function legacyArgs(input: Input, contract: Contract): Record<string, unknown> | null {
   if (!contract.legacy) return record(input.payload.args) ? input.payload.args : input.payload.args === undefined ? {} : null;
   if (contract.legacy === "support") {
@@ -85,22 +104,42 @@ export async function dispatchTrustedRpcAction(input: Input): Promise<Result> {
   if (!args || !keysAllowed(args, contract.allowedFields) || JSON.stringify(args).length > 12_000_000) {
     return { status: 400, body: { ok: false, code: "invalid_request" }, ok: false };
   }
+  // Preserve draft editing, but do not allow save-as-published to bypass
+  // the complete-language checks performed by the dedicated publish RPC.
+  if (contract.rpcName === "pr3_save_blog_post" && args.p_status === "published" && !hasCompletePublishedBlogTranslations(args.p_translations)) {
+    return { status: 400, body: { ok: false, code: "incomplete_published_blog_translations" }, ok: false };
+  }
   const actorEmail = (input.admin.email || input.user.email || "").trim().toLowerCase();
   // Supabase Auth is the source of truth for the authenticated actor. Accept the full
   // UUID syntax here instead of rejecting otherwise-valid Auth identities by UUID version.
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.user.id) || !actorEmail || actorEmail.length > 320) {
     return { status: 403, body: { ok: false, code: "forbidden" }, ok: false };
   }
+  // The candidate-creation RPC grants EXECUTE to authenticated and validates
+  // auth.jwt() itself. Do not attach privileged actor headers to that request:
+  // PostgREST rejects those headers for a non-service-role request.
+  // Review/save/publish RPCs have been revoked from authenticated and MUST keep
+  // the established service-role + verified actor pre-request bridge.
+  const createCandidate = contract.rpcName === "create_translation_candidate_draft";
+  if (createCandidate && (!input.userToken || !input.anonKey || !["super_admin", "deputy_super_admin"].includes(input.admin.role))) {
+    return { status: 403, body: { ok: false, code: "forbidden" }, ok: false };
+  }
+  const headers: Record<string, string> = createCandidate ? {
+    apikey: input.anonKey!,
+    Authorization: `Bearer ${input.userToken!}`,
+    "Content-Type": "application/json",
+    Prefer: "return=representation",
+  } : {
+    apikey: input.serviceRole,
+    Authorization: `Bearer ${input.serviceRole}`,
+    "Content-Type": "application/json",
+    Prefer: "return=representation",
+    "x-pr116-admin-user-id": input.user.id,
+    "x-pr116-admin-email": actorEmail,
+  };
   const response = await fetch(`${input.supabaseUrl}/rest/v1/rpc/${contract.rpcName}`, {
     method: "POST",
-    headers: {
-      apikey: input.serviceRole,
-      Authorization: `Bearer ${input.serviceRole}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation",
-      "x-pr116-admin-user-id": input.user.id,
-      "x-pr116-admin-email": actorEmail,
-    },
+    headers,
     body: JSON.stringify(args),
     signal: AbortSignal.timeout(8_000),
   });

@@ -65,3 +65,23 @@ jobs:
             cat /tmp/hamza-next.log
             exit 1
           fi
+
+  historical-secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Fetch repository branches and assert unshallow Git history
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse --is-shallow-repository)" = false
+          git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
+      - name: Validate secret scanner on synthetic fixtures
+        run: python3 scripts/scan-git-history-secrets.py --self-test
+      - name: Scan fetched Git history without exposing token values
+        run: python3 scripts/scan-git-history-secrets.py

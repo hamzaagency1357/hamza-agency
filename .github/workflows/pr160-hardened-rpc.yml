@@ -1,0 +1,42 @@
+name: PR160 Hardened RPC Rate Boundaries
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261113180500_pr160_trusted_rate_and_knowledge_gateway.sql'
+      - 'tests/pr160/isolated-rate-hardening.py'
+      - '.github/workflows/pr160-hardened-rpc.yml'
+      - 'app/api/ai-support/route.ts'
+      - 'app/api/track/route.ts'
+      - 'lib/server/pr160TrustedFingerprint.ts'
+      - 'lib/server/pr100SignedGateway.ts'
+      - 'supabase/functions/pr100-vercel-oidc-gateway/index.ts'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-hardened-rpc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd=pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends postgresql-client
+      - name: Verify candidate PR160 migration with role ACL and concurrent attempts
+        run: python3 tests/pr160/isolated-rate-hardening.py

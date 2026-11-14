@@ -369,10 +369,10 @@ export default function AdminProgramsPage() {
 
           <details className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <summary className="cursor-pointer font-bold text-white/70">إعدادات متقدمة</summary>
-            <p className="mt-2 text-sm leading-7 text-white/45">هذه القيم مرتبطة بالمسار الداخلي وحالة السجل. لا تغيّرها إلا عند الحاجة.</p>
+            <p className="mt-2 text-sm leading-7 text-white/45">هذه إعدادات تقنية متقدمة. تغيير الرابط المختصر قد يؤثر على روابط البرنامج، وتعديل الحالة قد يؤثر على ظهوره؛ اترك القيم الحالية دون تغيير ما لم يكن التعديل ضروريًا.</p>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <label className="grid gap-2"><span className="text-sm text-white/60">الرابط المختصر</span><input value={form.slug} onChange={(e) => updateField("slug", e.target.value)} required dir="ltr" className="rounded-xl border border-purple-500/20 bg-black/40 p-4" /></label>
-              <label className="grid gap-2"><span className="text-sm text-white/60">رمز الحالة</span><input value={form.status} onChange={(e) => updateField("status", e.target.value)} dir="ltr" className="rounded-xl border border-purple-500/20 bg-black/40 p-4" /></label>
+              <label className="grid gap-2"><span className="text-sm text-white/60">رمز الحالة (داخلي)</span><input value={form.status} onChange={(e) => updateField("status", e.target.value)} dir="ltr" className="rounded-xl border border-purple-500/20 bg-black/40 p-4" /></label>
             </div>
           </details>
 

@@ -32,6 +32,8 @@ const atomicMigrationRunnerFiles = new Set([
 ]);
 const cliTransactionOwnedMigrations = new Set([
   "20260827090000_pr99_trusted_admin_actor_db_bridge.sql",
+  "20261111234553_pr160_scope_admin_translation_and_legacy_rpcs.sql",
+  "20261112121152_pr160_admin_read_scope_and_enrolled_mfa.sql",
 ]);
 
 function dollarTagAt(sql, index) {
@@ -233,7 +235,7 @@ export function validateMigrationText(file, sql) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const files = (await readdir(root)).filter((name) => /pr(?:99|100|101)/i.test(name) && name.endsWith(".sql"));
+  const files = (await readdir(root)).filter((name) => /pr(?:99|100|101|160)/i.test(name) && name.endsWith(".sql"));
   const errors = [];
   for (const file of files) {
     const sql = await readFile(path.join(root, file), "utf8");
@@ -243,5 +245,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.error(errors.join("\n"));
     process.exit(1);
   }
-  console.log(`Verified ${files.length} PR99/PR100/PR101 migrations: atomic or explicitly transactional, deployment-ordered, protected, additive, non-destructive, and secret-free.`);
+  console.log(`Verified ${files.length} PR99/PR100/PR101/PR160 migrations: atomic or explicitly transactional, deployment-ordered, protected, additive, non-destructive, and secret-free.`);
 }

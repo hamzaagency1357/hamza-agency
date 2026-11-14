@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "npm:jose@6.1.0";
 import { GENERATED_ACTIONS, GENERATED_PERMISSIONS, dispatchGeneratedAdminAction } from "./generated-dispatch.ts";
+import { hasRequiredAdminAssurance } from "./admin-role-policy.ts";
 
 const ISSUER = "https://oidc.vercel.com/hamzaagencysy-3009s-projects";
 const AUDIENCE = "https://vercel.com/hamzaagencysy-3009s-projects";
@@ -88,7 +89,7 @@ async function resolveUser(supabaseUrl: string, anonKey: string, token: string) 
   if (!response.ok) return null;
   const value = await response.json().catch(() => null) as Record<string, unknown> | null;
   if (!value || typeof value.id !== "string") return null;
-  return { id: value.id, email: typeof value.email === "string" ? value.email : "" };
+  return { id: value.id, email: typeof value.email === "string" ? value.email : "", factors: value.factors };
 }
 async function resolveAdmin(supabaseUrl: string, serviceRole: string, user: { id: string; email: string }) {
   const fields = "id,user_id,email,role,assigned_program,is_active";
@@ -209,6 +210,7 @@ Deno.serve(async (request: Request) => {
 
   const user = await resolveUser(supabaseUrl, anonKey, userToken);
   if (!user) return json(401, { ok: false, code: "invalid_user_session" });
+  if (!hasRequiredAdminAssurance(userToken, user.factors)) return json(403, { ok: false, code: "admin_mfa_required" });
   const admin = await resolveAdmin(supabaseUrl, serviceRole, user);
   if (!admin) return json(403, { ok: false, code: "forbidden" });
   // Permission management is an owner-only operation, regardless of
@@ -302,7 +304,7 @@ Deno.serve(async (request: Request) => {
       return json(200, { ok: true, data: updated });
     }
 
-    const generated = await dispatchGeneratedAdminAction({ action, payload, supabaseUrl, serviceRole, admin, user });
+    const generated = await dispatchGeneratedAdminAction({ action, payload, supabaseUrl, serviceRole, admin, user, userToken, anonKey });
     if (generated) {
       if (generated.ok) await audit(supabaseUrl, serviceRole, user, action, action, null, { action });
       return json(generated.status, generated.body);

@@ -115,7 +115,7 @@ export default function AdminSecurityPage() {
       <div>
         <h1 className="text-2xl font-bold">أمان حساب الإدارة</h1>
         <p className="mt-2 text-sm text-zinc-400">
-          إعداد التحقق الثنائي TOTP للحساب الإداري. لا يتم فرض MFA تلقائيًا من هذه الصفحة.
+          التحقق الثنائي اختياري لحساب المدير الأعلى ويمكن تفعيله لاحقًا. بعد تفعيله، يلزم رمز المصادقة لتسجيل الدخول والعمليات الحساسة.
         </p>
       </div>
 

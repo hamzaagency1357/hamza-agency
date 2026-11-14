@@ -45,9 +45,9 @@ const agentSeo: Record<SiteLanguage, PublicSeoCopy> = {
 };
 const programNames: Record<string,string>={tiktok:"TikTok","bigo-live":"BIGO LIVE",yaahlan:"Yaahlan",xena:"Xena",catchii:"Catchii"};
 const programSeoDescription:Record<SiteLanguage,(name:string)=>string>={
- ar:(name)=>`تعرف على برنامج ${name} لصناع المحتوى، متطلبات التقديم وآلية المراجعة والمتابعة المهنية عبر HAMZA AGENCY. استيفاء الشروط يتيح مراجعة الطلب ولا يعني القبول التلقائي أو النهائي.`,
- en:(name)=>`Explore the ${name} creator program, application requirements, review process, and professional follow-up through HAMZA AGENCY. Meeting the requirements allows an application review and does not guarantee automatic or final acceptance.`,
- tr:(name)=>`${name} içerik üreticisi programını, başvuru koşullarını, değerlendirme sürecini ve HAMZA AGENCY takibini inceleyin. Koşulları karşılamak başvurunun değerlendirilmesini sağlar; otomatik veya kesin kabul anlamına gelmez.`,
+ ar:(name)=>`تعرف على برنامج ${name} لصناع المحتوى، متطلبات التقديم وآلية المراجعة والمتابعة المهنية عبر HAMZA AGENCY. القبول مضمون عند استيفاء جميع شروط البرنامج والتحقق منها.`,
+ en:(name)=>`Explore the ${name} creator program, application requirements, review process, and professional follow-up through HAMZA AGENCY. Acceptance is guaranteed when all program requirements are met and verified.`,
+ tr:(name)=>`${name} içerik üreticisi programını, başvuru koşullarını, değerlendirme sürecini ve HAMZA AGENCY takibini inceleyin. Programın tüm şartları karşılandığında ve doğrulandığında kabul garantilidir.`,
 };
 function getProgramSeo(slug:string,language:SiteLanguage):PublicSeoCopy|undefined{const name=programNames[slug];if(!name)return undefined;const title=language==="ar"?`برنامج ${name} لصناع المحتوى | HAMZA AGENCY`:language==="en"?`${name} Creator Program | HAMZA AGENCY`:`${name} İçerik Üreticisi Programı | HAMZA AGENCY`;return{title,description:programSeoDescription[language](name),schemaType:"WebPage"}}
 const genericSeo: Record<SiteLanguage, RuntimeRouteMetadata> = {
@@ -55,7 +55,7 @@ const genericSeo: Record<SiteLanguage, RuntimeRouteMetadata> = {
   en: { title: "HAMZA AGENCY", description: ownerApprovedAgencyPositioning.en },
   tr: { title: "HAMZA AGENCY", description: ownerApprovedAgencyPositioning.tr },
 };
-export function getPublicSeoCopy(pathname: string, language: SiteLanguage): PublicSeoCopy {
+function getPublicSeoCopyRaw(pathname: string, language: SiteLanguage): PublicSeoCopy {
   const publicPath = stripLocalePrefix(pathname);
   if (publicPath === AGENT_PUBLIC_PATH) return agentSeo[language];
   const programSlug = getProgramSlugFromPath(publicPath);
@@ -64,4 +64,15 @@ export function getPublicSeoCopy(pathname: string, language: SiteLanguage): Publ
   if(coreCopy)return coreCopy;
   const copy = language === "ar" ? arabicRouteSeo[publicPath] : getSiteRuntimeMetadata(publicPath, language);
   return { ...(copy || genericSeo[language]), schemaType: arabicRouteSeo[publicPath]?.schemaType || "WebPage" };
+}
+
+/** Human-readable locale copy; structured data publisher remains the official brand. */
+export function getPublicSeoCopy(pathname: string, language: SiteLanguage): PublicSeoCopy {
+  const copy = getPublicSeoCopyRaw(pathname,language);
+  const name=language==="ar"?"وكالة حمزة":language==="tr"?"Hamza Ajansı":"HAMZA AGENCY";
+  const localized=(value:string)=>language==="en"?value:value
+    .replaceAll("HAMZA AGENCY'nin",language==="tr"?"Hamza Ajansı'nın":name)
+    .replaceAll("HAMZA AGENCY'ye",language==="tr"?"Hamza Ajansı'na":name)
+    .replaceAll("HAMZA AGENCY",name);
+  return {...copy,title:localized(copy.title),description:localized(copy.description)};
 }

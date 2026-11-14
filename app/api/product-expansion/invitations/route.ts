@@ -84,6 +84,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  if (process.env.VERCEL_ENV === "preview") {
+    return json(403, { ok: false, code: "preview_writes_forbidden" });
+  }
   const correlationId = randomUUID();
   const access = await authorize(request); if ("error" in access) return access.error;
   const input = await bodyOf(request); if (!input) return json(400, { ok: false, code: "request_rejected", correlation_id: correlationId });

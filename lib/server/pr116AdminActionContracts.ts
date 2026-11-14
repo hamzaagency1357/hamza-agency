@@ -1785,6 +1785,20 @@ export const PR116_ADMIN_ACTION_CONTRACTS = {
     "allowedSelects": [],
     "returnFields": []
   },
+  "pr116_translations_revisions_page_rpc_create_translation_candidate_draft_call": {
+    "kind": "rpc",
+    "rpcName": "create_translation_candidate_draft",
+    "module": "settings",
+    "permission": "can_edit",
+    "allowedFields": [
+      "p_source_type",
+      "p_source_id",
+      "p_language",
+      "p_source_fingerprint",
+      "p_source_snapshot",
+      "p_translated_fields"
+    ]
+  },
   "pr116_translations_revisions_page_rpc_publish_translation_candidate_call": {
     "kind": "rpc",
     "rpcName": "publish_translation_candidate",

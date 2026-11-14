@@ -18,6 +18,7 @@ export type Pr101OidcGatewayFailure =
   | "timeout"
   | "unauthorized"
   | "forbidden"
+  | "preview_forbidden"
   | "database_authentication_failed"
   | "database_function_missing"
   | "database_permission_rejected"
@@ -57,6 +58,11 @@ export async function callPr101OidcGateway<T = JsonObject>(
   body: JsonObject
 ): Promise<T> {
   if (!ALLOWED_ACTIONS.has(action)) throw new Pr101OidcGatewayError("invalid_response");
+  // Only a health probe is read-only. Preview must not enqueue events,
+  // record payments, or mutate consent in any shared backend.
+  if (process.env.VERCEL_ENV === "preview" && action !== "health_probe") {
+    throw new Pr101OidcGatewayError("preview_forbidden");
+  }
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
   const oidcToken = getRuntimeOidcToken(request);
   if (!supabaseUrl || !oidcToken) throw new Pr101OidcGatewayError("unconfigured");

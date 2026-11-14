@@ -3,7 +3,8 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { rememberLanguagePreference, SITE_LANGUAGES, type SiteLanguage } from "@/lib/i18n/locale";
-import { getPathLanguage, localizePublicPath } from "@/lib/i18n/publicLocales";
+import { localizePublicPath } from "@/lib/i18n/publicLocales";
+import { useSiteLanguage } from "@/lib/i18n/useSiteLanguage";
 
 const ariaLabels:Record<SiteLanguage,string>={ar:"اختيار لغة الموقع",en:"Choose site language",tr:"Site dilini seçin"};
 const displayNames:Record<SiteLanguage,string>={ar:"العربية",en:"English",tr:"Türkçe"};
@@ -11,7 +12,7 @@ const short:Record<SiteLanguage,string>={ar:"AR",en:"EN",tr:"TR"};
 function GlobeIcon(){return <span aria-hidden="true" className="inline-flex h-4 w-4 items-center justify-center" style={{color:"var(--tenant-primary)"}}><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span>}
 
 export default function LanguageSwitcher(){
-  const pathname=usePathname();const router=useRouter();const activeLanguage=getPathLanguage(pathname||"/");
+  const pathname=usePathname();const router=useRouter();const activeLanguage=useSiteLanguage();
   const[locationSuffix,setLocationSuffix]=useState("");const[open,setOpen]=useState(false);const[isPending,startTransition]=useTransition();const rootRef=useRef<HTMLDivElement>(null);
   useEffect(()=>setLocationSuffix(`${window.location.search}${window.location.hash}`),[pathname]);
   const localizedTargets=useMemo(()=>Object.fromEntries(SITE_LANGUAGES.map(({code})=>[code,`${localizePublicPath(pathname||"/",code)}${locationSuffix}`])) as Record<SiteLanguage,string>,[locationSuffix,pathname]);

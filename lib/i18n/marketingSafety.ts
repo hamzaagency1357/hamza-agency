@@ -1,8 +1,9 @@
 import type { SiteLanguage } from "@/lib/i18n/locale";
-import { normalizeAcceptanceGuaranteeClaims } from "@/lib/i18n/acceptanceGuaranteeSafety.mjs";
+import { containsPositiveAcceptanceGuarantee, normalizeAcceptanceGuaranteeClaims } from "@/lib/i18n/acceptanceGuaranteeSafety.mjs";
 
 /**
- * Only explicit guarantees or unsupported partnership claims are rewritten.
+ * Unconditional acceptance promises are qualified by verified requirements while
+ * conditional guarantees approved by the owner are preserved.
  * Numeric values are intentionally excluded from sanitization.
  * The homepage statistics 7000+ / 5+ / 24/7 / +50 / 7 are explicit Owner-approved
  * marketing content and must remain unchanged unless the Owner changes them.
@@ -74,6 +75,7 @@ const exactReplacements: Record<
     ["+50 Monthly success opportunities", "+50 Monthly success opportunities"],
   ],
   tr: [
+    ["Programın kamerayla görünürlük gerektiriyor mu?","Program kamera karşısına geçmeyi gerektiriyor mu?"],
     [
       "İçerik üreticilerinin profesyonel yönetim, günlük destek ve gerçek gelişim fırsatlarıyla canlı yayın ve sosyal platformlarda büyümesine ve gelir elde etmesine yardımcı oluyoruz.",
       "İçerik üreticilerinin profesyonel yönetim, destek, takip ve yenilenen gelişim fırsatlarıyla canlı yayın ve sosyal platformlarda görünürlüğünü güçlendirmesine, başarı ve büyüme olanaklarını geliştirmesine yardımcı oluyoruz.",
@@ -95,6 +97,14 @@ const exactReplacements: Record<
     ["7 Yıllık deneyim", "7 Yıllık deneyim"],
     ["7/24 destek ve takip", "7/24 destek ve takip"],
     ["+50 Aylık başarı fırsatı", "+50 Aylık başarı fırsatı"],
+    // Apply short agency aliases last so long-form safety rewrites still match first.
+    ["HAMZA AJANSI\'nın","Hamza Ajansı\'nın"],
+    ["HAMZA AJANSI","Hamza Ajansı"],
+    ["HAMZA AGENCY\'nin","Hamza Ajansı\'nın"],
+    ["HAMZA AGENCY\'ye","Hamza Ajansı\'na"],
+    ["HAMZA AGENCY","Hamza Ajansı"],
+    ["Hamza Agency\'nin","Hamza Ajansı\'nın"],
+    ["Hamza Agency","Hamza Ajansı"],
   ],
 };
 
@@ -104,6 +114,11 @@ const unsupportedClaimPatterns = [
 
 export function sanitizeMarketingCopy(value: string, language: SiteLanguage) {
   let safeValue = value;
+  // Repair the exact truncated published BIGO LIVE Turkish summary without touching
+  // the complete phrase or altering the historical published revision.
+  if (language === "tr" && safeValue.trim() === "BIGO LIVE programına Hamza Ajansı ara") {
+    safeValue = "BIGO LIVE programına Hamza Ajansı aracılığıyla katılın.";
+  }
   for (const [source, replacement] of exactReplacements[language]) safeValue = safeValue.replaceAll(source, replacement);
   safeValue = safeValue
     .replaceAll("شراكة رسمية", "مسار برنامج")
@@ -122,5 +137,5 @@ export function sanitizeMarketingCopy(value: string, language: SiteLanguage) {
 }
 
 export function containsUnsupportedMarketingClaim(value: string) {
-  return /تحقيق الأرباح|ضمان (?:الأرباح|القبول|النجاح)|guaranteed (?:earnings|acceptance|success)|garanti (?:kazanç|kabul|başarı)/iu.test(value) || unsupportedClaimPatterns.some((pattern) => pattern.test(value));
+  return /تحقيق الأرباح|ضمان (?:الأرباح|النجاح)|guaranteed (?:earnings|success)|garanti (?:kazanç|başarı)/iu.test(value) || (["ar","en","tr"] as const).some((language)=>containsPositiveAcceptanceGuarantee(value,language)) || unsupportedClaimPatterns.some((pattern) => pattern.test(value));
 }
