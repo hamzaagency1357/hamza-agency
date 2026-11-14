@@ -52,14 +52,16 @@ Required encrypted, one-off export to an existing owner-controlled private desti
 
 A narrow in-app editorial snapshot or successful synthetic backup/restore test is **not** a comprehensive Production recovery point. Do not apply migrations 1–3 while the backup gate is blocked.
 
-## E. MFA activation and lockout avoidance
+## E. Owner MFA policy — optional, with enrolled-factor enforcement (owner decision 2026-11-14)
 
-- Before any real enrollment, verify the new `app/admin/login/page.tsx` multi-factor chooser is serving on the intended Web release: the previous Production UI selected only the first verified TOTP factor.
-- Use a specifically approved owner-controlled `super_admin` session. Confirm signed Auth user linkage, already enrolled factors, `aal1`/next `aal2` state, and authorized alternative recovery. Enroll one TOTP factor; verify and sign in at `aal2`. Then enroll a second TOTP factor on an **independent device** and prove login works using either.
-- Supabase application TOTP does not supply standard recovery codes in this app flow. Password reset by itself does not bypass an enrolled factor. A documented emergency process must provide authorized dual-control Auth administration, factor revocation and session revocation, emergency audits and owner approval. Do not create a break-glass account or alter Auth/MFA configuration in this preparation task.
-- Exercise local synthetic accounts for registered/unregistered factor and AAL1/AAL2, session signout/revocation and module role gates. Only activate Production after owner personally confirms fallback device accessibility.
+**OWNER MFA: OPTIONAL — NOT ENROLLED** (owner's declared policy; no live factor state was inspected or changed). An owner `super_admin` is **not** required to enroll a TOTP factor or secondary device to log in or to approve a release. No Auth, MFA factor, account, or Production settings changes are authorized by this policy decision.
 
-**MFA ACTIVATION READY: BLOCKED** until approved live recovery is demonstrated.
+- **Before enrollment:** an active, linked `super_admin` with no verified factor may authenticate at `aal1` and exercise the permissions otherwise granted by role, session checks, RLS and OIDC. This is **not** an exemption from any separate operation-specific `aal2` rule; document and block any such operation until its assurance is met.
+- **After voluntary enrollment:** the existing `pr160_admin_data_api_pre_request` requires `aal2` for an admin with a verified factor before proceeding to the trusted actor bridge. `pr116-admin-oidc-gateway/admin-role-policy.ts` similarly denies `aal1` when Supabase Auth returns a verified factor. No owner, deputy or program admin bypass is permitted.
+- **Optional future setup:** the `/admin/security` page retains the TOTP enrollment option; `/admin/login` challenges verified-factor accounts. The owner may opt in later with separate explicit approval, ideally with independent recovery arrangements. Do not create factors or reset Auth state now.
+- **Isolated contract:** `tests/pr160-admin-read-mfa.sql` covers an unenrolled owner's `aal1` authorization, the same owner at `aal1` being denied after verified enrollment, and `aal2` working; existing non-owner and negative authorization tests remain. These tests are not claims of real Production MFA activation.
+
+**MFA policy is not a Production launch blocker solely because the owner remains unenrolled.** The encrypted-backup/recovery gate and any independent security or CI failures remain binding.
 
 ## F. Coordinated Production cutover — operator checklist after explicit approvals
 
@@ -71,7 +73,7 @@ A narrow in-app editorial snapshot or successful synthetic backup/restore test i
 6. **Apply and verify SQL 1, then 2, then 3**, one approved migration step at a time. Check migration registry, grants and RLS, Auth/Data API behavior, errors, monitoring and existing functionality between steps. Stop at first fail, not blindly continue. Migration 2 modifies the globally configured `pgrst.db_pre_request`: verify immediately.
 7. **Switch to reviewed new Web build only when required DB and Edge APIs are live.** Confirm the resulting Vercel Production deployment is built from the reviewed PR merge tree and configured environment; run smoke probes prior to domain promotion when possible, then explicitly authorize alias promotion. Do not assume that promoting a Preview guarantees an identical production build.
 8. **Verify the live service** with synthetic authorized data: signed-in and signed-out paths; every admin role and factor state; applications, jobs, service requests, `APP/SR/JOB/CNT/SUP` tracking; support and suggestions; throttling; team invitations; upload private-storage isolation; audit; mobile/desktop and all three locales; canonical/sitemap/Open Graph; GSC and error/latency dashboards.
-9. **Enable real MFA only as a separate owner-approved step after new login flow and restoration are proven**. Review session revocation and audit trail.
+9. **Honor owner optional MFA policy:** verify that the unenrolled owner can log in and administer authorized operations without an MFA enrollment prompt, while verified-factor accounts still require AAL2. Enrollment and second-factor recovery are an optional separately approved future operation, not part of this cutover.
 10. **Owner sign-off:** record time, SHA, Vercel deployment ID/alias, Edge versions, migration versions, backup/restore evidence, tests and remaining risks. Only then mark Full Production Closeout PASS.
 
 **Transition limitation:** The old Web writes unmatched knowledge suggestions directly through `pr4_suggest_knowledge`; new Web uses trusted `knowledge_suggest`. After SQL #3 revokes the direct browser grant but before new Web is live, those old suggestions may be lost. Conversely switching Web too soon will fail to persist suggestions until SQL #3. Visitor responses still use a safe fallback, but **zero-loss suggestion capture is not proven**. Keep the gap as short as possible, observe counters, or request specific temporary maintenance approval if an uninterrupted capture guarantee is required. The rate identity normalization also changes from client-rotatable UA+IP hashing to trusted IP hashing at Web cutover.
@@ -92,7 +94,7 @@ A narrow in-app editorial snapshot or successful synthetic backup/restore test i
 ## I. Approval register — all individually separate
 
 - Encrypted Production backup location, authorized data-handling operator, coverage, and isolated restore.
-- Production MFA TOTP enrollment, second device and break-glass procedure; any separate Auth/leaked-password protection settings or costs.
+- **No owner TOTP enrollment is required for launch.** Any future voluntary enrollment, second factor, break-glass changes or Auth/leaked-password protection settings are distinct owner-controlled operations requiring explicit approval and cost review.
 - Supabase migration sequence and execution; temporary maintenance if required.
 - Edge Function publication (pr100 and pr116; pr101 only if verified necessary).
 - Vercel Production build/alias/deployment, and PR Draft->Ready or merge.
@@ -103,7 +105,7 @@ A narrow in-app editorial snapshot or successful synthetic backup/restore test i
 `PRE-MERGE SECURITY: PASS` (based on unchanged candidate SHA and recorded isolated gates)  
 `RELEASE PREPARATION: BLOCKED` (combined three-migration and transitional rehearsal still missing)  
 `BACKUP READY: BLOCKED` (no comprehensive encrypted, isolated-restore-proven snapshot)  
-`MFA ACTIVATION READY: BLOCKED` (authorized real recovery and second-factor drill incomplete)  
+`OWNER MFA: OPTIONAL — NOT ENROLLED` (not an assertion that Production MFA has been activated; no enrollment prerequisite)  
 `PRODUCTION SECURITY ACTIVATION: BLOCKED` (not executed)  
 `FULL PRODUCTION CLOSEOUT: BLOCKED` (no merge, activation, or live verification).
 
@@ -147,8 +149,8 @@ The technical release candidate head is obtained live from [PR #160](https://git
 - `PRE-MERGE SECURITY`: retain prior isolated PASS only if every required check remains green on the final head.
 - `RELEASE PREPARATION`: needs combined single-DB test PASS, current SHA CI/Preview PASS, transition matrix and finished runbook; cannot substitute unrelated 21/21 tests for the dedicated combined test.
 - `BACKUP READY`: BLOCKED without an actual complete encrypted recoverable backup and rehearsal.
-- `MFA ACTIVATION READY`: BLOCKED without owner-approved second-factor access and emergency recovery.
-- `PRODUCTION SECURITY ACTIVATION`: BLOCKED until explicitly approved migrations/Edge/Web/MFA are actually live and validated.
+- `OWNER MFA`: OPTIONAL — NOT ENROLLED; owner enrollment is not a prerequisite, but existing verified-factor/AAL2 enforcement, session security and any operation-specific AAL2 rules must pass on the release candidate.
+- `PRODUCTION SECURITY ACTIVATION`: BLOCKED until explicitly approved migrations/Edge/Web are live and validated; owner MFA enrollment remains optional.
 - `FULL PRODUCTION CLOSEOUT`: BLOCKED until Production activation, application/SEO tests and owner sign-off.
 
 Editorial Turkish candidates and Open Graph image are tracked in section H. Neither is a reason to loosen or bypass the independent security gates.

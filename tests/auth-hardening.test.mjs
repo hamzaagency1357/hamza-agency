@@ -73,6 +73,23 @@ test("MFA enrollment is prepared but not globally enforced", () => {
   assert.doesNotMatch(login, /OWNER_MFA_REQUIRED|ENFORCE_MFA|forceMfa/i);
 });
 
+test("owner MFA is optional before enrollment but AAL2 remains mandatory afterward", () => {
+  const dataApi = read("supabase/migrations/20261112121152_pr160_admin_read_scope_and_enrolled_mfa.sql");
+  const gateway = read("supabase/functions/pr116-admin-oidc-gateway/admin-role-policy.ts");
+  const adminLogin = read("app/admin/login/page.tsx");
+  const adminSecurity = read("app/admin/security/page.tsx");
+  const sqlTest = read("tests/pr160-admin-read-mfa.sql");
+
+  assert.match(dataApi, /factor\.status = 'verified'/);
+  assert.match(dataApi, /v_claims ->> 'aal' is distinct from 'aal2'/);
+  assert.match(gateway, /if \(!hasVerifiedFactor\) return true;/);
+  assert.match(gateway, /\.aal === "aal2"/);
+  assert.match(adminLogin, /aal\.nextLevel === "aal2"/);
+  assert.match(adminSecurity, /auth\.mfa\.enroll/);
+  assert.match(sqlTest, /optional_unenrolled_owner/);
+  assert.match(sqlTest, /Enrolled owner passed the Data API hook at AAL1/);
+});
+
 test("runtime dependency contract stays within approved majors", () => {
   const pkg = JSON.parse(read("package.json"));
   const lock = JSON.parse(read("package-lock.json"));

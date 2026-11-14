@@ -46,6 +46,26 @@ insert into public.activity_logs (action, entity_type, entity_id, outcome, tenan
 select 'pr160_scope_fixture', 'page', 'private', 'success', id
 from public.tenants where is_primary and status = 'active';
 
+-- Owner policy: MFA enrollment is optional. A linked, active super_admin with
+-- NO verified factor must retain AAL1 access to authorized owner-only scopes.
+-- Once a factor is verified below, the same AAL1 session MUST be rejected.
+set local role authenticated;
+do $optional_unenrolled_owner$
+begin
+  perform set_config('request.jwt.claims',
+    '{"role":"authenticated","sub":"16010000-0000-4000-8000-000000000001","aal":"aal1"}', true);
+  perform public.pr160_admin_data_api_pre_request();
+  if not exists (select 1 from public.pages where slug = 'pr160-scope-private')
+     or not exists (select 1 from public.activity_logs where action = 'pr160_scope_fixture')
+     or not (public.pr160_backup_health_status() ? 'restore')
+     or public.current_admin_has_module_permission('permissions') is distinct from true
+  then
+    raise exception 'Unenrolled owner lost authorized AAL1 administration';
+  end if;
+end
+$optional_unenrolled_owner$;
+reset role;
+
 insert into auth.mfa_factors (id, user_id, factor_type, status, secret, created_at, updated_at)
 values ('16010000-0000-4000-8000-000000000010', '16010000-0000-4000-8000-000000000001',
   'totp', 'verified', 'ISOLATED_TEST_FACTOR', now(), now());
