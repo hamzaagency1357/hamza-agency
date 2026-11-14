@@ -224,6 +224,21 @@ jobs:
           node scripts/closeout/sanitize-artifacts.mjs artifacts/raw artifacts/safe/reports || status=1
           node scripts/closeout/scan-safe-artifacts.mjs artifacts/safe || status=1
           exit "$status"
+      # Full sanitized diagnostics remain on failures and on Ready/final release.
+      - name: Compact successful draft evidence after verification
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.draft == true &&
+          steps.playwright.outcome == 'success' &&
+          steps.validate.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s artifacts/safe/reports/failure-summary.md
+          cp artifacts/safe/reports/failure-summary.md artifacts/safe/verified-summary.md
+          printf '\n- Evidence mode: compact verified draft success\n' >> artifacts/safe/verified-summary.md
+          find artifacts/safe -type f ! -name 'verified-summary.md' -delete
+          node scripts/closeout/scan-safe-artifacts.mjs artifacts/safe
       - name: Upload sanitized evidence
         id: upload
         if: always()
@@ -233,7 +248,7 @@ jobs:
           name: macro-${{ inputs.suite }}-${{ inputs.expected_sha }}
           path: artifacts/safe
           if-no-files-found: error
-          retention-days: 14
+          retention-days: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true && 7 || 14 }}
       - name: Always cleanup and prove zero fixtures
         id: cleanup
         if: always()
